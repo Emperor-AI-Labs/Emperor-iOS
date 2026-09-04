@@ -292,6 +292,13 @@ final class DraftHistoryViewModelTests: XCTestCase {
 /// because the whole point is what it does with a *successful* response.
 final class DraftHistoryServiceTests: XCTestCase {
 
+    /// Before each test, not only after. `tearDown` alone leaves the **first** test in the class
+    /// reading whatever the previous suite left in `HTTPStub.seen`. See `HTTPStub.reset`.
+    override func setUp() {
+        super.setUp()
+        HTTPStub.reset()
+    }
+
     override func tearDown() {
         HTTPStub.reset()
         super.tearDown()

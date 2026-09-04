@@ -23,8 +23,20 @@ jobs:
       - name: Build
         run: swift build --build-tests
 
+      # Cheap, and it names the class. `--parallel` below cannot see a suite that inherits
+      # another suite's stub state, because it splits classes across processes.
+      - name: Test isolation
+        run: ./scripts/check-test-isolation.sh
+
       - name: Test
         run: swift test --parallel
+
+      # The same suite again, in one process and in a fixed order. This is the run that actually
+      # exercises cross-suite state: `--parallel` shards the classes out, so a suite that depends
+      # on — or is corrupted by — the one alphabetically before it passes there and fails on a
+      # developer's machine. It costs about ten seconds.
+      - name: Test (serial, for cross-suite state)
+        run: swift test
 
   # The gate that would have caught the never-compiled SwiftUI layer.
   #

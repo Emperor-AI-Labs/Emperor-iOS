@@ -63,6 +63,19 @@ final class HTTPStub: URLProtocol {
         box.handler = { _ in throw boxed.value }
     }
 
+    /// Clears the handler and the record of what was sent.
+    ///
+    /// - Important: call this from `setUp`, not only from `tearDown`. The box is one static per
+    ///   process, shared by every suite, so a class that cleans up only afterwards leaves its
+    ///   **first** test reading whatever the previously-run class left behind. That is not a
+    ///   race: XCTest runs classes in a fixed order, so it fails the same way every time — and
+    ///   it is invisible in CI, which runs `swift test --parallel` and splits classes across
+    ///   processes, so the two suites involved need never meet.
+    ///
+    ///   `ProjectServiceWireTests.testABlankIdIsRefusedWithoutASingleRequest` asserted
+    ///   `seen.isEmpty` and inherited a `/preferred-model` request from the suite before it.
+    ///   Seven other suites had the same `tearDown`-only shape and were one alphabetical
+    ///   accident away from the same failure.
     static func reset() { box.reset() }
 
     /// A `URLSession` wired to this stub and nothing else.
