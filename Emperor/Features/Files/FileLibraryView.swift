@@ -20,6 +20,15 @@ struct FileLibraryView: View {
     @State private var renameText = ""
     @State private var isNamingFolder = false
     @State private var newFolderName = ""
+    /// Non-nil while the user is being asked about documents the library already holds.
+    @State private var duplicateReview: DuplicateReview?
+
+    /// The picked files, split into the ones worth asking about and the ones that are not.
+    private struct DuplicateReview: Identifiable {
+        let id = UUID()
+        var items: [DuplicateReviewSheet.Item]
+        var cleared: [(url: URL, fileName: String)]
+    }
 
     var body: some View {
         NavigationStack {
@@ -78,23 +87,13 @@ struct FileLibraryView: View {
                 allowsMultipleSelection: true
             ) { outcome in
                 guard case .success(let urls) = outcome else { return }
-                Task {
-                    for url in urls {
-                        // A picker URL is security-scoped and must be opened before reading.
-                        // The uploader takes its own copy inside this window, because the grant
-                        // is revoked long before a large document finishes sending.
-                        let scoped = url.startAccessingSecurityScopedResource()
-                        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                        do {
-                            try await BackgroundUploader.shared.start(
-                                source: url,
-                                fileName: url.lastPathComponent,
-                                folderName: FileLibraryViewModel.uploadFolder)
-                        } catch {
-                            model?.uploadError = DisplayText.message(for: error)
-                        }
-                    }
-                }
+                Task { await review(urls) }
+            }
+            .sheet(item: $duplicateReview) { review in
+                DuplicateReviewSheet(
+                    items: review.items,
+                    cleared: review.cleared,
+                    onConfirm: { chosen in Task { await upload(chosen) } })
             }
             // Posted once the server reports an upload readable. The document is not in the
             // list until then, and this screen may have been open the whole time.
@@ -110,6 +109,78 @@ struct FileLibraryView: View {
                     manager: session.fileManagement)
                 model = created
                 await created.load()
+            }
+        }
+    }
+
+    // MARK: - Uploading
+
+    /// Asks the server whether any of these are already filed, then either prompts or uploads.
+    ///
+    /// **Every failure path here uploads.** A 401, an offline phone, a file that will not hash,
+    /// a server that answers with something unexpected — none of them are reasons to refuse a
+    /// document the user has explicitly chosen. The check is a courtesy that prevents a
+    /// duplicate; treating its absence as a blocker would turn an expired token into "this app
+    /// will not take my documents any more", which is far worse than the mess it avoids. The
+    /// server also dedupes on arrival regardless, so nothing is lost but the prompt.
+    private func review(_ urls: [URL]) async {
+        var hashes: [(url: URL, fileName: String, hash: String?)] = []
+        for url in urls {
+            // A picker URL is security-scoped and must be opened before reading. Hashing
+            // happens inside this window; the copy the uploader takes does too.
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            hashes.append((url, url.lastPathComponent, FileHash.sha256(of: url)))
+        }
+
+        let checkable = hashes.compactMap { entry in
+            entry.hash.map { (name: entry.fileName, hash: $0) }
+        }
+        let results = (try? await session.duplicates.check(
+            files: checkable, targetFolder: FileLibraryViewModel.uploadFolder)) ?? []
+
+        // Index by hash rather than by position: the server caps the batch, and matching a
+        // short answer up by index would attribute one file's verdict to another.
+        var byHash: [String: DuplicateCheck.Result] = [:]
+        for result in results {
+            if let hash = result.hash, byHash[hash] == nil { byHash[hash] = result }
+        }
+
+        var flagged: [DuplicateReviewSheet.Item] = []
+        var cleared: [(url: URL, fileName: String)] = []
+        for entry in hashes {
+            let decision = entry.hash
+                .flatMap { byHash[$0] }
+                .map(DuplicateCheck.decision(for:)) ?? .upload
+            if case .upload = decision {
+                cleared.append((entry.url, entry.fileName))
+            } else {
+                flagged.append(
+                    DuplicateReviewSheet.Item(
+                        url: entry.url, fileName: entry.fileName, decision: decision,
+                        // Off by default — see `DuplicateReviewSheet`.
+                        upload: false))
+            }
+        }
+
+        if flagged.isEmpty {
+            await upload(cleared)
+        } else {
+            duplicateReview = DuplicateReview(items: flagged, cleared: cleared)
+        }
+    }
+
+    private func upload(_ files: [(url: URL, fileName: String)]) async {
+        for file in files {
+            let scoped = file.url.startAccessingSecurityScopedResource()
+            defer { if scoped { file.url.stopAccessingSecurityScopedResource() } }
+            do {
+                try await BackgroundUploader.shared.start(
+                    source: file.url,
+                    fileName: file.fileName,
+                    folderName: FileLibraryViewModel.uploadFolder)
+            } catch {
+                model?.uploadError = DisplayText.message(for: error)
             }
         }
     }

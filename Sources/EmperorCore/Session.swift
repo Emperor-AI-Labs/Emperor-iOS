@@ -41,6 +41,9 @@ final class Session {
     let fileManagement: FileManagementService
     let drafts: DraftHistoryService
     let auctions: AuctionService
+    let duplicates: DuplicateCheckService
+    let preferredModel: PreferredModelService
+    let officePreview: OfficePreviewService
     /// Hand-made matters. Read-only — see `ProjectService` for why the writes are held back.
     let projects: ProjectService
     /// The in-app report channel for a generated answer. Both stores require one.
@@ -85,6 +88,9 @@ final class Session {
         self.drafts = DraftHistoryService(client: client)
         self.auctions = AuctionService(client: client)
         self.projects = ProjectService(client: client)
+        self.duplicates = DuplicateCheckService(client: client)
+        self.preferredModel = PreferredModelService(client: client)
+        self.officePreview = OfficePreviewService(client: client)
         self.store = store
         self.cache = cache
 
@@ -132,6 +138,40 @@ final class Session {
             return
         }
         await client.setCredentials(Credentials(token: token, userID: user.id))
+        state = .signedIn(user)
+    }
+
+    /// Re-reads the account's starting model and plan.
+    ///
+    /// The model itself already arrives with the login response and is already applied, so this
+    /// is not about making the feature work — it is about the *stored user going stale*.
+    /// `restore()` trusts what is on disk because there is no endpoint that validates a token,
+    /// and a token lasts long enough that someone who signed in weeks ago and never signed out
+    /// is running on whatever their plan was then. Moving an account to a better plan would
+    /// change the web immediately and the phone not at all, which reads as the phone being
+    /// broken.
+    ///
+    /// `/preferred-model` is the closest thing the platform has to a `/me`, so this is the one
+    /// place that refresh can happen.
+    ///
+    /// Deliberately silent on failure. It runs at launch, it is not something the user asked
+    /// for, and the stored values are a perfectly good answer — surfacing an error here would
+    /// put a failure in front of someone who was simply opening the app.
+    func refreshPreferredModel() async {
+        guard case .signedIn(var user) = state else { return }
+        guard let response = try? await preferredModel.preferredModel() else { return }
+        // An unrecognised model means a mode this build does not have. Leaving the stored value
+        // alone keeps the app on something it can actually render.
+        guard let model = response.model else { return }
+
+        user.preferredModel = model.rawValue
+        if let plan = response.plan { user.plan = plan }
+        if let label = response.planLabel { user.planLabel = label }
+
+        if let encoded = try? JSONEncoder().encode(user),
+           let json = String(data: encoded, encoding: .utf8) {
+            store.set(json, for: Self.userKey)
+        }
         state = .signedIn(user)
     }
 

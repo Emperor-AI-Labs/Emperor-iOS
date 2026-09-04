@@ -55,6 +55,8 @@ struct EmperorApp: App {
                 .environment(session)
                 .task {
                     await session.restore()
+                    // The stored user can be weeks old — see `refreshPreferredModel`.
+                    await session.refreshPreferredModel()
                     #if DEBUG
                     // A background `URLSession` does not consult `URLProtocol`, so the UI
                     // tests' stub transport cannot reach it — touching the uploader here would

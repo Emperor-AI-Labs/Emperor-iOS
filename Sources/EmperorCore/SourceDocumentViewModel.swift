@@ -18,15 +18,27 @@ final class SourceDocumentViewModel {
     private(set) var isLoading = true
     var errorMessage: String?
 
+    /// True when `data` holds a server-rendered PDF of a Word document rather than the document
+    /// itself. Worth surfacing: the user should know they are looking at a rendering, because
+    /// the layout is LibreOffice's reading of it and not necessarily what the sender saw.
+    private(set) var isConvertedPreview = false
+
     let attachment: ChatAttachment
     let mention: AnnexureMention
 
     private let service: any FileProviding
+    private let officePreview: (any OfficePreviewProviding)?
 
-    init(attachment: ChatAttachment, mention: AnnexureMention, service: any FileProviding) {
+    init(
+        attachment: ChatAttachment,
+        mention: AnnexureMention,
+        service: any FileProviding,
+        officePreview: (any OfficePreviewProviding)? = nil
+    ) {
         self.attachment = attachment
         self.mention = mention
         self.service = service
+        self.officePreview = officePreview
     }
 
     // MARK: - Titles
@@ -41,7 +53,15 @@ final class SourceDocumentViewModel {
 
     // MARK: - Content
 
-    var isPDF: Bool { attachment.name.lowercased().hasSuffix(".pdf") }
+    /// A converted Word document counts: what `data` holds in that case *is* a PDF, and the
+    /// renderer has to be told so or a successful preview would fall through to the "not a
+    /// format this app can display" branch.
+    var isPDF: Bool {
+        isConvertedPreview || attachment.name.lowercased().hasSuffix(".pdf")
+    }
+
+    /// Whether this is a document the server can render for viewing.
+    var isOfficeDocument: Bool { OfficePreview.canPreview(fileName: attachment.name) }
 
     /// The document as text, when it is text at all.
     ///
@@ -78,9 +98,39 @@ final class SourceDocumentViewModel {
     func load() async {
         isLoading = true
         defer { isLoading = false }
+
+        if isOfficeDocument, let officePreview {
+            await loadOfficePreview(using: officePreview)
+            return
+        }
+
         do {
             data = try await service.fileData(
                 name: attachment.name, folderName: attachment.folderName)
+        } catch {
+            errorMessage = DisplayText.message(for: error)
+        }
+    }
+
+    /// Two requests, in order: the first converts and reports whether it worked, the second
+    /// returns the bytes from the cache the first one warmed.
+    ///
+    /// - Important: the metadata route answers **200 with `success: false`** when conversion
+    ///   fails. Branching on the status code would leave `data` nil with no `errorMessage`, and
+    ///   the screen would show "not a format this app can display" — which is wrong, and hides
+    ///   the reason the server actually gave.
+    private func loadOfficePreview(using service: any OfficePreviewProviding) async {
+        do {
+            let response = try await service.preview(
+                fileName: attachment.name, folderName: attachment.folderName)
+            guard response.success == true else {
+                errorMessage = OfficePreview.message(
+                    forReason: response.reason, fallback: response.error)
+                return
+            }
+            data = try await service.previewPDF(
+                fileName: attachment.name, folderName: attachment.folderName)
+            isConvertedPreview = true
         } catch {
             errorMessage = DisplayText.message(for: error)
         }

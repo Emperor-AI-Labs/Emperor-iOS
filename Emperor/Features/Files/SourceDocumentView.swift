@@ -46,7 +46,8 @@ struct SourceDocumentView: View {
             .task {
                 guard model == nil else { return }
                 let created = SourceDocumentViewModel(
-                    attachment: attachment, mention: mention, service: session.files)
+                    attachment: attachment, mention: mention, service: session.files,
+                    officePreview: session.officePreview)
                 model = created
                 await created.load()
             }
@@ -59,6 +60,20 @@ struct SourceDocumentView: View {
             ProgressView("Opening \(model.displayName)")
         } else if let data = model.data, model.isPDF {
             PDFDataView(data: data, page: mention.startPage)
+                .safeAreaInset(edge: .bottom) {
+                    if model.isConvertedPreview {
+                        // Said out loud because it is not the document. Pagination, fonts and
+                        // line breaks are LibreOffice's reading of the file, so a page number
+                        // taken from here may not match the one the sender sees — which for a
+                        // filing is the difference that matters.
+                        Text("Converted for viewing. Page breaks may differ from the original.")
+                            .font(.brand(.caption2))
+                            .foregroundStyle(theme.textSecondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                            .background(theme.surface)
+                    }
+                }
         } else if let data = model.data, let image = UIImage(data: data) {
             // Scanned exhibits are frequently filed as images rather than PDFs.
             ScrollView([.horizontal, .vertical]) {

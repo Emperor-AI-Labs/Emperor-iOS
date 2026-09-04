@@ -12,6 +12,10 @@ final class FakeFiles: FileProviding, @unchecked Sendable {
     /// How many times the tree was fetched. `tree()` is an expensive server-side walk, so
     /// "was it fetched at all" and "was it fetched twice" are both worth asserting.
     private(set) var treeCallCount = 0
+    /// The last name passed to `fileData`, or `nil` if it was never called. Lets a test assert
+    /// a document was routed *away* from `/view-file`, which is what the office-preview path
+    /// has to do for a `.docx`.
+    private(set) var lastRequestedName: String?
 
     func tree() async throws -> [FileNode] {
         treeCallCount += 1
@@ -20,6 +24,7 @@ final class FakeFiles: FileProviding, @unchecked Sendable {
     }
 
     func fileData(name: String, folderName: String?) async throws -> Data {
+        lastRequestedName = name
         if let dataError { throw dataError }
         return data[name] ?? Data()
     }
