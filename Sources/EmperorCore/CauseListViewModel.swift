@@ -137,22 +137,18 @@ final class CauseListViewModel {
 
     /// The next day that actually has something listed.
     ///
-    /// Jumps to a **listed** day rather than stepping the calendar blindly. An empty day is a
-    /// real answer and the arrows never skip one, but a blank screen should still say where the
-    /// next listing is rather than being a dead end.
+    /// Names a **listed** day rather than stepping the calendar blindly. An empty day is a real
+    /// answer and the arrows never skip one, but a blank screen should still say where the next
+    /// listing is rather than being a dead end.
+    ///
+    /// Exposed as values rather than as `goToNextListedDay()`-style commands: the empty state
+    /// wants to *name* the day in its button before moving to it, which a command cannot do. The
+    /// screen jumps with `select(day:)`.
     var nextListedDay: String? { listedDays.first { $0 > selectedDay } }
     var previousListedDay: String? { listedDays.last { $0 < selectedDay } }
 
     func select(day: String) { selectedDay = day }
     func goToToday() { selectedDay = todayKey }
-
-    func goToNextListedDay() {
-        if let next = nextListedDay { selectedDay = next }
-    }
-
-    func goToPreviousListedDay() {
-        if let previous = previousListedDay { selectedDay = previous }
-    }
 
     /// Steps one calendar day, for the plain next/previous arrows.
     func step(days: Int) {

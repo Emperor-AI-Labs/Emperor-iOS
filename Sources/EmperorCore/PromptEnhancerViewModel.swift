@@ -165,8 +165,6 @@ final class PromptEnhancerViewModel {
         self.template = nil
     }
 
-    func dismissTemplate() { template = nil }
-
     func dismissFailure() { failureNotice = nil }
 
     // MARK: - Reacting to the user's own typing

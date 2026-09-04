@@ -2,7 +2,12 @@ import Foundation
 import PDFKit
 import UIKit
 
-/// Splitting, merging and compressing, entirely on the device.
+/// Splitting and merging, entirely on the device.
+///
+/// Image compression lives here too (`compress(image:targetBytes:)`) and matches the platform's
+/// `/tools/compress-image`, but **no screen reaches it** — `PDFToolsView` offers Split and Merge
+/// only. It is listed in `README.md` under what is built but not yet reachable, so it is findable
+/// rather than a surprise.
 ///
 /// **Nothing here is uploaded.** These are the operations an advocate does to a paperbook before
 /// filing it, and the documents are privileged — sending a client's brief to a server to cut
@@ -172,6 +177,11 @@ enum PDFTools {
     /// Returns the smallest result it achieved even when that is still over target — with the
     /// caller expected to say so, because refusing to produce anything is not more helpful than
     /// producing something honest about its size.
+    ///
+    /// - Note: **no caller.** `PDFToolsView` offers Split and Merge only, so the "caller expected
+    ///   to say so" above is currently nobody. Kept rather than deleted because the platform
+    ///   ships the same tool at `/tools/compress-image` and this is the whole of the work; what
+    ///   is missing is a third `Mode` case and a picker that takes an image instead of a PDF.
     static func compress(image: UIImage, targetBytes: Int) -> Data? {
         for quality in stride(from: 0.9, through: 0.3, by: -0.1) {
             guard let data = image.jpegData(compressionQuality: quality) else { continue }

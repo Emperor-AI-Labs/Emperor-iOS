@@ -208,6 +208,22 @@ up without reading why it is held.**
 - **File and folder deletion** (`FileManagementService`), **auction watchlists**, and
   **server-side OCR history**.
 
+### Built, not yet reachable
+A different thing from the list above, and worth keeping separate: nobody decided to withhold
+these. They are finished, and no screen was ever connected to them. Treat them as work to land
+rather than as decisions to respect.
+- **CIN decoder** (`Sources/EmperorCore/Cin.swift`). An offline Corporate Identity Number parser
+  ported from the platform's `src/lib/cin.js` by way of the Android client's `Cin.kt`, with 515
+  lines of tests. Every field is decoded and each result carries its own verification note — for
+  a caller that does not exist. The platform reaches this at `/mca-registry`; Android ships it as
+  a drawer row. `AuctionDetailView` renders a CIN as a bare string and never decodes it.
+- **Image compression** (`PDFTools.compress(image:targetBytes:)`). Matches the platform's
+  `/tools/compress-image`. What is missing is a third `Mode` case in `PDFToolsView` and a picker
+  that takes an image rather than a PDF.
+- **Move a file** (`FileManagementService.move`). Deliberate in that moving is left to the web,
+  but listed here because it is a live route this client can call; its wire shape is pinned by
+  `ServiceWireTests` since nothing in the app exercises it.
+
 ### Waiting on the server
 - **`POST /delete-account` does not exist.** This blocks App Store listing outright under
   guideline 5.1.1(v) and has no client-side workaround.

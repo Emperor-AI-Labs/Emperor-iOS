@@ -4,7 +4,7 @@ import FoundationNetworking
 #endif
 
 protocol NotificationProviding: Sendable {
-    func notifications(limit: Int, unreadOnly: Bool) async throws -> [AppNotification]
+    func notifications(limit: Int) async throws -> [AppNotification]
     func unreadCount() async throws -> Int
     func markRead(id: String) async throws
     func markAllRead() async throws
@@ -12,7 +12,7 @@ protocol NotificationProviding: Sendable {
 
 extension NotificationProviding {
     func notifications() async throws -> [AppNotification] {
-        try await notifications(limit: NotificationService.maximumLimit, unreadOnly: false)
+        try await notifications(limit: NotificationService.maximumLimit)
     }
 }
 
@@ -25,13 +25,19 @@ struct NotificationService: NotificationProviding {
     /// be older ones we cannot reach", which is the honest reading.
     static let maximumLimit = 200
 
-    func notifications(
-        limit: Int = maximumLimit, unreadOnly: Bool = false
-    ) async throws -> [AppNotification] {
-        var query = ["limit": String(min(max(limit, 1), Self.maximumLimit))]
-        // Compared with strict equality to the string "1" (`sync-server.js:10412`). Sending
-        // `true` silently returns the FULL list, read rows included.
-        if unreadOnly { query["unreadOnly"] = "1" }
+    /// The whole list, every time, and the unread ones are picked out locally.
+    ///
+    /// The route does take an `unreadOnly` filter, and this used to pass it. Nothing ever asked
+    /// for it: the screen shows read and unread together and needs the full list anyway, and the
+    /// badge counts unread rows from what it already holds. An unexercised parameter on a
+    /// protocol is a claim that a mode works, so it is gone rather than sitting untested.
+    ///
+    /// If it is ever wanted back, the one thing worth knowing is that the server compares it
+    /// with strict equality against the **string** `"1"` (`sync-server.js:10412`) — sending a
+    /// JSON `true` silently returns the full list, read rows included, which reads as the filter
+    /// being ignored rather than as a bad request.
+    func notifications(limit: Int = maximumLimit) async throws -> [AppNotification] {
+        let query = ["limit": String(min(max(limit, 1), Self.maximumLimit))]
 
         let response = try await withRetry {
             let request = try await client.makeRequest("GET", "/notifications", query: query)
