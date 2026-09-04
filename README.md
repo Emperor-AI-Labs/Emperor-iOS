@@ -188,16 +188,36 @@ makes a log worth reading.
 so reopening a chat shows the answer without the log of how it was produced.
 
 ## Still to do
-- Markdown artifacts render as monospace text. GFM tables need a real renderer —
-  `AttributedString(markdown:)` does not support tables.
-- File library is a picker with rename, favourite and preview. Move is implemented and unwired;
-  delete is deliberately held back (see `FileManagementService`). Preview is reachable from the
-  context menu rather than by tapping, because a tap selects the file for attaching.
-- `GET /user-files` returns the whole tree with no pagination and runs a consolidation pass
-  plus a `statSync` per entry, so it is refreshed on appear and pull-to-refresh only, never
-  polled. A large library will need a cheaper path.
+
+### Needs a device
 - Background upload is built (`BackgroundUploader`) but **its lifecycle is unverified**. The
   chunk arithmetic, the resumable manifest and the body encoding are covered on Linux; the
   delegate callbacks, and above all the terminate-and-relaunch path, need a physical device. A
   simulator does not evict apps the way a phone under memory pressure does.
-- Chat rename/delete via `POST /sync` (metadata only — never after a turn).
+  `docs/RELEASING.md` lists what to try, in order.
+
+### Built and deliberately held back
+These exist, are tested, and have no caller. Each is marked at its definition. **Do not wire one
+up without reading why it is held.**
+- **Chat rename** (`ChatMetadataService`). `/sync` is the only way to change a title, and it
+  either silently ignores the rename or rewrites every message in the conversation. Renaming an
+  *empty* chat is safe and is what the service does.
+- **Chat delete.** There is no route, and no SQL anywhere deletes a chat. The web client's
+  delete is local-only — the conversation returns on the next load and never left any other
+  device. A delete that does not delete is worse than none.
+- **File and folder deletion** (`FileManagementService`), **auction watchlists**, and
+  **server-side OCR history**.
+
+### Waiting on the server
+- **`POST /delete-account` does not exist.** This blocks App Store listing outright under
+  guideline 5.1.1(v) and has no client-side workaround.
+- `GET /user-files` returns the whole tree with no pagination and runs a consolidation pass plus
+  a `statSync` per entry, so it is refreshed on appear and pull-to-refresh only, never polled. A
+  large library will need a cheaper path.
+- Two small changes would release the held-back chat features: let `/sync` accept a
+  metadata-only update (skip the message rewrite when `messages` is absent, rather than skipping
+  the whole chat when it is short), and add a real chat delete.
+- `save-case` should include `diaryNumber` in `ext_id`; without it, unrelated matters collide on
+  the unique index and the second is refused as "already on the team dashboard"
+  (`CourtSearchViewModel.collisionWarning` warns about this from the client, which is the most
+  it can do).

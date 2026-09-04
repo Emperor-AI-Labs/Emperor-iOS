@@ -41,6 +41,9 @@ final class Session {
     let fileManagement: FileManagementService
     let drafts: DraftHistoryService
     let auctions: AuctionService
+    /// Built and reachable, with **no caller in the app** — see `ChatMetadataService` for why
+    /// renaming a used conversation through `/sync` is not something this client will do.
+    let chatMetadata: ChatMetadataService
     let duplicates: DuplicateCheckService
     let preferredModel: PreferredModelService
     let officePreview: OfficePreviewService
@@ -88,6 +91,7 @@ final class Session {
         self.drafts = DraftHistoryService(client: client)
         self.auctions = AuctionService(client: client)
         self.projects = ProjectService(client: client)
+        self.chatMetadata = ChatMetadataService(client: client)
         self.duplicates = DuplicateCheckService(client: client)
         self.preferredModel = PreferredModelService(client: client)
         self.officePreview = OfficePreviewService(client: client)
