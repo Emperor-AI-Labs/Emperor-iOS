@@ -179,6 +179,17 @@ Full detail in `README.md`. The short list:
 18. **`/documents/content` returns `{"success":true,"content":""}` for an id that does not
     exist**, so "gone" and "empty" are the same response. Treat an empty body as "unknown",
     never as "confirmed empty".
+19. **`POST /sync` answers `200 {"success":true}` for a chat it ignored.** It skips any chat
+    whose incoming `messages` array is shorter than the count it holds, so a metadata-only
+    update — which is what a rename is — does nothing at all to a conversation that has ever
+    been used, and says it worked. Sending the messages instead makes it delete and re-insert
+    every one of them. This is why chat rename has no caller; see `ChatMetadataService`.
+20. **`/check-duplicates` is the one route that refuses a client-supplied `userId`**, because
+    its answer says which folders hold a document. It 401s without a real token, and that
+    **must not block an upload** — the prompt is a courtesy and the server dedupes on arrival
+    regardless. See `DuplicateCheck`.
+21. **`/office-preview` reports failure as `200 {"success":false}`.** The status code is not
+    the answer. Reading it as one leaves the viewer empty with no explanation.
 
 ## Runtime connectivity
 
