@@ -139,6 +139,58 @@ final class EmperorUITests: XCTestCase {
         }
     }
 
+    // MARK: - Court search
+
+    /// Looking a case up by its **case number** — the number printed on every piece of paper
+    /// after registration, and until recently the one way of finding a matter this app could not
+    /// do. It only offered diary-number lookup, which is the number you get when you file and
+    /// rarely the one you have later.
+    ///
+    /// The two modes are separate routes taking different fields, so this checks that switching
+    /// actually reshapes the form rather than just relabelling it.
+    func testACaseCanBeFoundByCaseNumberAndByDiaryNumber() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tabBars.buttons["Cases"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Cases"].tap()
+        // The toolbar "+" carries the sheet's own title as its accessibility label.
+        app.buttons["Find a case"].firstMatch.tap()
+
+        XCTAssertTrue(
+            app.navigationBars["Find a case"].waitForExistence(timeout: 10),
+            "the court search sheet did not open")
+
+        // Case number leads, because it is the number people have.
+        let caseNumberField = app.textFields["Case number"]
+        XCTAssertTrue(
+            caseNumberField.waitForExistence(timeout: 5),
+            "the form opened in diary mode rather than case-number mode")
+        // The Supreme Court needs a case type here and does not for a diary lookup, so its
+        // presence is what proves the form is mode-aware rather than merely relabelled.
+        XCTAssertTrue(app.textFields["Case type"].exists, "case number needs the type to be unique")
+
+        app.textFields["Case type"].tap()
+        app.textFields["Case type"].typeText("SLP(C)")
+        caseNumberField.tap()
+        caseNumberField.typeText("1234")
+        app.textFields["Year"].tap()
+        app.textFields["Year"].typeText("2025")
+
+        app.buttons["Search the court"].tap()
+        XCTAssertTrue(
+            app.staticTexts["Bakshi v. State of Maharashtra"].waitForExistence(timeout: 15),
+            "the case was not listed")
+
+        // Switching mode drops the case type and renames the number, because a diary number is
+        // a different number for the same matter.
+        app.buttons["By diary number"].tap()
+        XCTAssertTrue(
+            app.textFields["Diary number"].waitForExistence(timeout: 5),
+            "the number field did not change with the mode")
+        XCTAssertFalse(
+            app.textFields["Case type"].exists, "a diary lookup does not take a case type")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
     // MARK: - Empty states
 
     /// `ListStateView` routes to `empty()` whenever the *filtered* list is empty, which is a
