@@ -121,6 +121,12 @@ enum UITestSupport {
                 return #"{"success":true,"types":[],"platforms":[]}"#
             case "/documents", "/tables":
                 return #"{"success":true,"documents":[],"tables":[]}"#
+            // Both modes of the court lookup. A CNR is included so the card does not carry the
+            // collision warning, which would otherwise be the thing a test sees first.
+            case "/court/sc/auto", "/court/sc/diary", "/court/hc/search", "/court/hc/diary",
+                 "/court/nclt/search", "/court/nclt/diary",
+                 "/court/nclat/search", "/court/nclat/diary":
+                return #"{"success":true,"results":[{"title":"Bakshi v. State of Maharashtra","caseType":"SLP(C)","caseNumber":"1234","caseYear":"2025","cnr":"SCIN010012342025","courtName":"Supreme Court of India"}]}"#
             default:
                 return #"{"success":true}"#
             }

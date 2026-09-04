@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Looks a case up at the court and pins it to the dashboard.
 ///
@@ -49,6 +50,19 @@ struct CourtSearchView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+
+                // Which number you have, not which route this calls. Most people looking a
+                // matter up have the case number — it is what is printed on everything after
+                // registration — so it leads.
+                Picker("Search by", selection: Binding(
+                    get: { model.query.mode },
+                    set: { model.setMode($0) }
+                )) {
+                    ForEach(CourtSearchMode.allCases) { mode in
+                        Text(mode.label(for: model.query.forum)).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
             }
             .listRowBackground(Color.clear)
 
@@ -75,6 +89,12 @@ struct CourtSearchView: View {
         }
         .scrollContentBackground(.hidden)
         .background(theme.canvas)
+        .sheet(isPresented: Binding(
+            get: { model.isShowingCaptcha },
+            set: { if !$0 { model.dismissCaptcha() } }
+        )) {
+            CaptchaSheet(model: model)
+        }
     }
 
     // MARK: - The form
@@ -86,6 +106,14 @@ struct CourtSearchView: View {
         Section {
             switch model.query.forum {
             case .supremeCourt:
+                // A diary number identifies a matter on its own; a case number is only unique
+                // within its type, so `SLP(C) 1234/2025` and `C.A. 1234/2025` are different
+                // matters and the type is required.
+                if model.query.mode == .caseNumber {
+                    TextField("Case type", text: $model.query.caseType)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                }
                 numberField(model)
                 yearField(model)
             case .highCourt:
@@ -104,7 +132,18 @@ struct CourtSearchView: View {
                 yearField(model)
             case .nclt, .nclat:
                 TextField("Bench", text: $model.query.bench)
+                // `/search` filters the bench's listing on an exact number *and* year, so both
+                // are required here — where a filing-number lookup goes straight to the matter
+                // and needs neither.
+                if model.query.mode == .caseNumber {
+                    TextField("Case type", text: $model.query.caseType)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                }
                 numberField(model)
+                if model.query.mode == .caseNumber {
+                    yearField(model)
+                }
             }
         } header: {
             Text(model.query.forum.name)
@@ -117,7 +156,8 @@ struct CourtSearchView: View {
 
     private func numberField(_ model: CourtSearchViewModel) -> some View {
         @Bindable var model = model
-        return TextField(model.query.forum.numberLabel, text: $model.query.number)
+        return TextField(
+            model.query.forum.numberLabel(for: model.query.mode), text: $model.query.number)
             .textInputAutocapitalization(.characters)
             .autocorrectionDisabled()
     }
@@ -149,6 +189,23 @@ struct CourtSearchView: View {
             .disabled(!model.canSearch)
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
+
+            // Only while it is running. A High Court lookup opens up to eight sessions with the
+            // court and can hold the screen for most of a minute; someone who spots a typo two
+            // seconds in should not have to sit out the other fifty-eight.
+            if model.isSearching {
+                Button(role: .cancel) {
+                    model.cancelSearch()
+                } label: {
+                    HStack {
+                        Spacer()
+                        Text("Stop searching")
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.borderless)
+                .listRowBackground(Color.clear)
+            }
         } footer: {
             // Said out loud, because the server reports an incomplete form as "could not reach
             // the court" — so without this the user blames the court and retries forever.
@@ -238,6 +295,104 @@ struct CourtSearchView: View {
             .buttonStyle(.borderless)
             // Saving re-scrapes the court before it answers, so one at a time.
             .disabled(model.savingID != nil)
+        }
+    }
+}
+
+/// Where a person solves the Supreme Court's CAPTCHA because the server could not.
+///
+/// Reached only when `/court/sc/auto` has already spent six attempts on it, so nobody is being
+/// asked to do this routinely — it is the recovery path for the one forum that has one, and
+/// without it a failed OCR is a dead end.
+///
+/// The image is drawn on white deliberately. The court serves a transparent PNG, which on a dark
+/// background renders as dark strokes on dark and cannot be read at all.
+private struct CaptchaSheet: View {
+    @Environment(\.theme) private var theme
+    let model: CourtSearchViewModel
+
+    var body: some View {
+        @Bindable var model = model
+
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        Spacer()
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8).fill(.white)
+                            if let image = model.captcha?.image,
+                               let rendered = UIImage(data: image) {
+                                Image(uiImage: rendered)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .padding(4)
+                                    .accessibilityLabel("CAPTCHA image")
+                            } else {
+                                ProgressView()
+                            }
+                        }
+                        .frame(width: 180, height: 60)
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+
+                    Button {
+                        Task { await model.loadCaptcha() }
+                    } label: {
+                        Label("Show a different one", systemImage: "arrow.clockwise")
+                            .font(.brand(.footnote))
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(model.isLoadingCaptcha || model.isSubmittingCaptcha)
+                } header: {
+                    Text("Solve the Supreme Court CAPTCHA")
+                } footer: {
+                    Text(
+                        "The court asks for this to prove a person is searching. "
+                        + "Emperor tried and could not read it.")
+                }
+
+                Section {
+                    TextField("Type the answer", text: $model.captchaAnswer)
+                        .keyboardType(.numbersAndPunctuation)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .onSubmit { Task { await model.submitCaptcha() } }
+                } footer: {
+                    if let error = model.captchaError {
+                        Text(error).foregroundStyle(theme.danger)
+                    }
+                }
+
+                Section {
+                    Button {
+                        Task { await model.submitCaptcha() }
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if model.isSubmittingCaptcha {
+                                ProgressView().controlSize(.small)
+                            }
+                            Text("Find the case")
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(!model.canSubmitCaptcha)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(theme.canvas)
+            .navigationTitle("CAPTCHA")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { model.dismissCaptcha() }
+                }
+            }
         }
     }
 }

@@ -70,7 +70,7 @@ final class CourtSearchViewModel {
     }
 
     /// Whether a lookup here is the slow kind, so the wait can be explained rather than endured.
-    var expectsLongWait: Bool { query.forum.solvesCaptcha }
+    var expectsLongWait: Bool { query.forum.solvesCaptcha(in: query.mode) }
 
     // MARK: - Searching
 
@@ -78,6 +78,35 @@ final class CourtSearchViewModel {
         guard canSearch else { return }
         task?.cancel()
         task = Task { await runSearch() }
+    }
+
+    /// Abandons a search in progress.
+    ///
+    /// Worth having rather than making people wait it out. A High Court lookup opens up to eight
+    /// sessions with the court, each with its own captcha attempt, and legitimately runs for
+    /// most of a minute — so someone who spots a typo two seconds in would otherwise sit through
+    /// fifty-eight seconds of a result they already know is wrong. The web offers no way out of
+    /// this at all.
+    ///
+    /// The request itself is dropped rather than followed to completion: the transport is
+    /// cancelled with the task, and nothing has been written at the court's end by a search.
+    func cancelSearch() {
+        task?.cancel()
+        task = nil
+        isSearching = false
+    }
+
+    /// Changes mode, and clears the number with it.
+    ///
+    /// A diary number and a case number are different numbers for the same matter, so carrying
+    /// one across looks like the app filled the field in — and it would then be looked up as
+    /// something it is not. Everything else on the form still applies: the court, the bench and
+    /// the year are the same question in both modes.
+    func setMode(_ mode: CourtSearchMode) {
+        guard query.mode != mode else { return }
+        query.mode = mode
+        query.number = ""
+        dismissCaptcha()
     }
 
     func runSearch() async {
@@ -93,11 +122,94 @@ final class CourtSearchViewModel {
             hasSearched = true
         } catch is CancellationError {
             return
+        } catch is NeedsHumanCaptcha {
+            // Not an error and not an empty result: the search has not happened yet. Leaving
+            // `hasSearched` false keeps the empty state from claiming the court had no such case
+            // when nobody has asked it.
+            await loadCaptcha()
         } catch {
             results = []
             hasSearched = true
             errorMessage = DisplayText.message(for: error)
         }
+    }
+
+    // MARK: - The Supreme Court captcha
+
+    /// The image the user is being asked to read, if any. Non-nil means the sheet is up.
+    private(set) var captcha: SupremeCourtCaptcha?
+    /// Set while a new image is being fetched, so the sheet can show a spinner in the frame
+    /// rather than briefly showing nothing and then an image.
+    private(set) var isLoadingCaptcha = false
+    private(set) var isSubmittingCaptcha = false
+    /// What the user has typed. Cleared whenever a new image arrives — an answer to the previous
+    /// image is worse than an empty box, because it looks like it might still be right.
+    var captchaAnswer = ""
+    /// Why the previous attempt did not go through. Shown inside the sheet.
+    var captchaError: String?
+
+    var isShowingCaptcha: Bool { captcha != nil || isLoadingCaptcha }
+
+    var canSubmitCaptcha: Bool {
+        !isSubmittingCaptcha && captcha != nil
+            && !captchaAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Fetches a fresh captcha.
+    ///
+    /// Always a *new* session. There is no refresh of an existing one: the server holds the
+    /// court's cookies against the session id, so a new image means new state on both sides.
+    func loadCaptcha() async {
+        isLoadingCaptcha = true
+        captchaAnswer = ""
+        defer { isLoadingCaptcha = false }
+        do {
+            captcha = try await service.startCaptchaSession()
+        } catch is CancellationError {
+            return
+        } catch {
+            // Reported on the form rather than inside the sheet, because with no image there is
+            // no sheet worth showing and a message inside one that closes is a message nobody
+            // reads. The web has this bug.
+            captcha = nil
+            errorMessage = DisplayText.message(for: error)
+        }
+    }
+
+    /// Sends the answer, and gets the next image if it was wrong.
+    ///
+    /// The session is spent by this call either way — the server deletes it before checking the
+    /// answer — so the failure path fetches a new one instead of letting the user try again
+    /// against a session that no longer exists.
+    func submitCaptcha() async {
+        guard canSubmitCaptcha, let session = captcha?.sessionID else { return }
+        isSubmittingCaptcha = true
+        captchaError = nil
+        defer { isSubmittingCaptcha = false }
+
+        do {
+            let outcome = try await service.submitCaptcha(
+                captchaAnswer, for: query, session: session)
+            switch outcome {
+            case .results(let found):
+                results = found
+                hasSearched = true
+                dismissCaptcha()
+            case .needsANewCaptcha(let message):
+                captchaError = message
+                await loadCaptcha()
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            captchaError = DisplayText.message(for: error)
+        }
+    }
+
+    func dismissCaptcha() {
+        captcha = nil
+        captchaAnswer = ""
+        captchaError = nil
     }
 
     /// What to say when a search came back with nothing.
@@ -106,7 +218,7 @@ final class CourtSearchViewModel {
     /// returned no rows — indistinguishable from "no such case" — so the wording has to admit
     /// both possibilities rather than assert the case does not exist.
     var emptyMessage: String {
-        query.forum.solvesCaptcha
+        query.forum.solvesCaptcha(in: query.mode)
             ? """
               No case came back for that number. The court's site sometimes returns nothing \
               even when the case exists — it is worth trying again before concluding it is not \
