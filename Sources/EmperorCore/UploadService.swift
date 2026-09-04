@@ -133,41 +133,26 @@ struct UploadService: UploadProviding {
         fileName: String, folderName: String, uploadID: String, credentials: Credentials
     ) async throws {
         var request = try await client.makeRequest("POST", "/upload-chunk", requiresAuth: true)
-        let boundary = "Boundary-\(UUID().uuidString)"
-        request.setValue("multipart/form-data; boundary=\(boundary)",
+        let boundary = MultipartChunk.boundary()
+        request.setValue(MultipartChunk.contentType(boundary: boundary),
                          forHTTPHeaderField: "Content-Type")
         // The server accepts these as headers as well as form fields; the web client sends both.
         request.setValue(uploadID, forHTTPHeaderField: "x-upload-id")
         request.setValue(String(totalBytes), forHTTPHeaderField: "x-total-bytes")
 
-        // Every numeric value is a decimal string: multipart has no typing, and the server
-        // `parseInt`s each one with no NaN guard — a non-numeric value would silently corrupt
-        // the offset arithmetic rather than error.
-        let fields: [(String, String)] = [
-            ("userId", credentials.userIDString),
-            ("folderName", folderName),
-            ("fileName", fileName),
-            ("chunkIndex", String(index)),
-            ("totalChunks", String(chunkCount)),
-            ("chunkSize", String(chunkSize)),
-            ("uploadId", uploadID),
-            ("totalBytes", String(totalBytes)),
-        ]
-
-        var body = Data()
-        func append(_ string: String) { body.append(Data(string.utf8)) }
-        for (name, value) in fields {
-            append("--\(boundary)\r\n")
-            append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n")
-            append("\(value)\r\n")
-        }
-        // The file part is ignored unless it carries a `filename` parameter.
-        append("--\(boundary)\r\n")
-        append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n")
-        append("Content-Type: application/octet-stream\r\n\r\n")
-        body.append(chunk)
-        append("\r\n--\(boundary)--\r\n")
-        request.httpBody = body
+        // The field list and the encoding live in `MultipartChunk`, shared with the background
+        // path. Two hand-written encoders would drift, and the background one is the one no
+        // test can reach.
+        let fields = MultipartChunk.Fields(
+            userID: credentials.userIDString,
+            fileName: fileName,
+            folderName: folderName,
+            uploadID: uploadID,
+            chunkIndex: index,
+            chunkCount: chunkCount,
+            chunkSize: chunkSize,
+            totalBytes: totalBytes)
+        request.httpBody = MultipartChunk.body(chunk: chunk, fields: fields, boundary: boundary)
 
         do {
             _ = try await client.send(request, as: UploadChunkResponse.self)

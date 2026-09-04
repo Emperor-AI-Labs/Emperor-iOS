@@ -2,12 +2,17 @@ import SwiftUI
 
 @main
 struct EmperorApp: App {
+    /// Present only to receive `handleEventsForBackgroundURLSession` — see `AppDelegate`.
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     /// The Keychain and the response cache are supplied here because they are the parts of
     /// `Session` that cannot exist in the tested core — everything else about sign-in and
     /// caching lives there.
     /// The Keychain, and a cache whose teardown also wipes the temporary directory share
     /// sheets write PDFs into — those would otherwise outlive the session that fetched them.
     @State private var session = EmperorApp.makeSession()
+
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         #if DEBUG
@@ -48,7 +53,31 @@ struct EmperorApp: App {
         WindowGroup {
             RootView()
                 .environment(session)
-                .task { await session.restore() }
+                .task {
+                    await session.restore()
+                    #if DEBUG
+                    // A background `URLSession` does not consult `URLProtocol`, so the UI
+                    // tests' stub transport cannot reach it — touching the uploader here would
+                    // put real requests on the wire from a test run. It is left uncreated
+                    // instead, which is also why background upload has no UI test.
+                    if UITestSupport.isActive { return }
+                    #endif
+                    // The uploader outlives every screen, so it is given the client here rather
+                    // than by whichever view happened to start a transfer.
+                    BackgroundUploader.shared.client = session.client
+                    await BackgroundUploader.shared.resume()
+                }
+                // Becoming active is the moment to re-enqueue anything the system dropped and
+                // to poll ingestion for uploads whose bytes all landed while the app was away.
+                // It is also when the user is present and most likely back on a usable
+                // connection, which is the right time to retry.
+                .onChange(of: scenePhase) { _, phase in
+                    guard phase == .active else { return }
+                    #if DEBUG
+                    if UITestSupport.isActive { return }
+                    #endif
+                    Task { await BackgroundUploader.shared.resume() }
+                }
         }
     }
 }

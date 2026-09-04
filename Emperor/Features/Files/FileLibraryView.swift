@@ -77,16 +77,29 @@ struct FileLibraryView: View {
                 allowedContentTypes: [.pdf, .plainText, .rtf, .image],
                 allowsMultipleSelection: true
             ) { outcome in
-                guard case .success(let urls) = outcome, let model else { return }
+                guard case .success(let urls) = outcome else { return }
                 Task {
                     for url in urls {
                         // A picker URL is security-scoped and must be opened before reading.
+                        // The uploader takes its own copy inside this window, because the grant
+                        // is revoked long before a large document finishes sending.
                         let scoped = url.startAccessingSecurityScopedResource()
                         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                        guard let data = try? Data(contentsOf: url) else { continue }
-                        await model.upload(data: data, fileName: url.lastPathComponent)
+                        do {
+                            try await BackgroundUploader.shared.start(
+                                source: url,
+                                fileName: url.lastPathComponent,
+                                folderName: FileLibraryViewModel.uploadFolder)
+                        } catch {
+                            model?.uploadError = DisplayText.message(for: error)
+                        }
                     }
                 }
+            }
+            // Posted once the server reports an upload readable. The document is not in the
+            // list until then, and this screen may have been open the whole time.
+            .onReceive(NotificationCenter.default.publisher(for: .emperorUploadDidFinish)) { _ in
+                Task { await model?.load() }
             }
             .task {
                 guard model == nil else { return }
@@ -125,16 +138,38 @@ struct FileLibraryView: View {
         .searchable(text: $bindable.query, prompt: "Search documents and matters")
         .refreshable { await model.load() }
         .safeAreaInset(edge: .top) {
-            if model.isUploading {
-                // Ingestion runs after the upload's 200, so this stays up until the server
-                // reports the file readable — not until the bytes land.
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(model.uploadProgress < 1
-                         ? "Uploading…"
-                         : "Reading the document…")
-                        .font(.brand(.caption))
-                        .foregroundStyle(theme.textSecondary)
-                    ProgressView(value: model.uploadProgress)
+            // Background transfers first: these survive the app closing, so this list is read
+            // from disk rather than from anything this screen started. Reopening the app
+            // mid-upload shows it still going, which is the point of the whole feature.
+            let background = BackgroundUploader.shared.inFlight
+            if !background.isEmpty || model.isUploading {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(background) { upload in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Uploading \(upload.fileName)")
+                                .font(.brand(.caption))
+                                .foregroundStyle(theme.textSecondary)
+                                .lineLimit(1)
+                            ProgressView(value: upload.progress)
+                        }
+                        // Said plainly, because it is the reassurance that makes someone
+                        // willing to put the phone in a pocket at a registry counter.
+                        .accessibilityLabel(
+                            "Uploading \(upload.fileName), \(Int(upload.progress * 100)) percent. "
+                            + "This continues if you leave the app.")
+                    }
+                    if model.isUploading {
+                        // Ingestion runs after the upload's 200, so this stays up until the
+                        // server reports the file readable — not until the bytes land.
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(model.uploadProgress < 1
+                                 ? "Uploading…"
+                                 : "Reading the document…")
+                                .font(.brand(.caption))
+                                .foregroundStyle(theme.textSecondary)
+                            ProgressView(value: model.uploadProgress)
+                        }
+                    }
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)

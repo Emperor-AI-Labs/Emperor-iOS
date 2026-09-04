@@ -49,7 +49,13 @@ present=$(git ls-files 'ROADMAP.md' 'V1_BUILD_PLAN.md' 'GAPS.md' 'PARITY_PLAN.md
 [ -n "$present" ] && report "internal report committed" \
   "these are kept privately, not here" "$present"
 
-in_history=$(git log --all --diff-filter=A --name-only --pretty=format: 2>/dev/null \
+# `--branches HEAD`, not `--all`. What a clone receives is what is reachable from the refs this
+# repository can push, which is its local branches. `--all` also walks remote-tracking refs —
+# including, on a working copy that still has the old pre-split backup remote configured, the
+# very history this repository was created to leave behind. That is a true fact about the
+# developer's disk and a false one about the published repository, and reporting it here would
+# train someone to ignore this check.
+in_history=$(git log --branches HEAD --diff-filter=A --name-only --pretty=format: 2>/dev/null \
   | grep -xE '(ROADMAP|V1_BUILD_PLAN|GAPS|PARITY_PLAN|REPORT|ANDROID_PROMPT)\.md' | sort -u)
 [ -n "$in_history" ] && report "internal report reachable in history" \
   "a clone hands over every commit, so removing it later does not help" "$in_history"
