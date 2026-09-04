@@ -98,9 +98,12 @@ final class BackgroundUploader {
         // it was dead, and the upload completes on the server while the app still shows it as
         // in progress forever.
         configuration.sessionSendsLaunchEvents = true
-        // A large scan on a poor connection may take many hours. The default seven days is more
-        // than generous, but the per-request default is not, and this session's requests are
-        // the long ones.
+        // **Shorter** than the seven-day default for a background session, not longer. A single
+        // chunk that has not moved in a day is wedged, not slow, and a week of the system
+        // carrying it around achieves nothing. Giving up is safe here because it is not the end
+        // of the upload: `resume()` re-enqueues whatever is still pending the next time the app
+        // is opened, which is also when the user is present and likely back on a real
+        // connection.
         configuration.timeoutIntervalForResource = 24 * 60 * 60
         return configuration
     }
