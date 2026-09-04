@@ -31,7 +31,10 @@ protocol FileManaging: Sendable {
     func rename(
         name: String, in folderName: String?, to newName: String
     ) async throws -> FileOperationResult
-    /// - Note: implemented, tested and never wired to a screen. Moving is left to the web.
+    /// - Note: implemented and never wired to a screen — moving is left to the web. Its wire
+    ///   shape is pinned by `ServiceWireTests.testMovingToTheRootSendsEmptyStringsNotDots`,
+    ///   because this route spells the root differently from `delete` and nothing exercises it
+    ///   in the app.
     func move(name: String, from folderName: String?, to destination: String?) async throws
     func setFavorite(_ favorite: Bool, name: String, folderName: String?) async throws -> Bool
     func createFolder(named path: String) async throws

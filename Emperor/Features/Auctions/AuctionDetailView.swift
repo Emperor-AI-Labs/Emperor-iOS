@@ -2,8 +2,11 @@ import SwiftUI
 
 /// One auction notice.
 ///
-/// Read-only apart from the company watch. Two things dominate the layout, and both are about
-/// not letting a stale figure be read as a current one:
+/// Entirely read-only — the "watch this company" control this screen was built around is held
+/// back, for the reason given at its call site below and in `AuctionListView`.
+///
+/// Two things dominate the layout, and both are about not letting a stale figure be read as a
+/// current one:
 ///
 /// - **An amendment warning above everything else.** A corrigendum exists to change a number,
 ///   usually the reserve price or the auction date. Showing the original's figures without

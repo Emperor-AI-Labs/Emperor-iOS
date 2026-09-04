@@ -62,8 +62,6 @@ final class CalendarViewModel {
             events: events.filter { $0.dayKey == key })
     }
 
-    var selectedDayContents: CalendarDay { day(selectedDay) }
-
     /// Every day that has anything on it, ascending. Drives the dots on a month grid.
     var populatedDays: Set<String> {
         var days = Set(events.compactMap(\.dayKey))

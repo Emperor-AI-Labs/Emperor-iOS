@@ -92,11 +92,14 @@ final class CauseListViewModelTests: XCTestCase {
             ]
             await model.load()
 
+            // Driven the way the screen drives it — read the day, then select it. The empty
+            // state names the date on its button, so it needs the value, not a command.
             XCTAssertEqual(model.nextListedDay, "2026-09-21", "not the 15th")
-            model.goToNextListedDay()
+            model.select(day: model.nextListedDay ?? "")
             XCTAssertEqual(model.selectedDay, "2026-09-21")
 
-            model.goToNextListedDay()
+            XCTAssertEqual(model.nextListedDay, "2026-10-05", "the 5th, not the 22nd")
+            model.select(day: model.nextListedDay ?? "")
             XCTAssertEqual(model.selectedDay, "2026-10-05")
         }
     }
@@ -123,13 +126,14 @@ final class CauseListViewModelTests: XCTestCase {
         }
     }
 
+    /// Nil rather than the last day again, so the empty state can drop the button entirely
+    /// instead of offering one that goes nowhere.
     func testThereIsNoNextDayBeyondTheLastListing() async {
         await withCauseList { service, model in
             service.listings = [Self.listing("2026-09-14")]
             await model.load()
 
             XCTAssertNil(model.nextListedDay)
-            model.goToNextListedDay()
             XCTAssertEqual(model.selectedDay, "2026-09-14", "stays put rather than jumping")
         }
     }

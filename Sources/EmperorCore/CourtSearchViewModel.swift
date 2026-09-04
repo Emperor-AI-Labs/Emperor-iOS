@@ -169,8 +169,6 @@ final class CourtSearchViewModel {
 
     func isSaved(_ result: CourtSearchResult) -> Bool { savedIDs.contains(result.id) }
 
-    func dismissNotice() { notice = nil }
-
     enum Copy {
         static let title = "Find a case"
         static let searchButton = "Search the court"

@@ -151,7 +151,7 @@ final class FakeNotifications: NotificationProviding, @unchecked Sendable {
     private(set) var markedRead: [String] = []
     private(set) var markedAllRead = false
 
-    func notifications(limit: Int, unreadOnly: Bool) async throws -> [AppNotification] {
+    func notifications(limit: Int) async throws -> [AppNotification] {
         if let error { throw error }
         return notifications
     }

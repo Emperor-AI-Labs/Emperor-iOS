@@ -61,6 +61,43 @@ final class ServiceWireTests: XCTestCase {
         XCTAssertEqual(HTTPStub.lastRequest?.queryItems["folderName"], ".")
     }
 
+    // MARK: - /move-file spells the root the other way
+
+    /// **The root is `""` here, not `"."`** — the opposite of `/view-file` above and of
+    /// `delete-file`, which is why `FileManagementService` carries two separate root constants.
+    /// `move-file` checks `fromFolder`/`toFolder` against `null` rather than for truthiness, so
+    /// an empty string is a real folder to it and means the root; a `"."` would be taken as a
+    /// directory literally named `.` and the file would land somewhere nobody can reach.
+    ///
+    /// Pinned because nothing calls `move` from a screen — moving is left to the web — so a
+    /// change to the shared `folder(_:root:)` helper would otherwise break this route silently
+    /// and stay broken until someone wired a control to it.
+    func testMovingToTheRootSendsEmptyStringsNotDots() async throws {
+        let client = await makeClient()
+        HTTPStub.always(.json(#"{"success":true}"#))
+        let files = FileManagementService(client: client)
+
+        try await files.move(name: "Order.pdf", from: "Partition_Suit", to: nil)
+
+        let body = try XCTUnwrap(HTTPStub.lastRequest?.bodyJSON)
+        XCTAssertEqual(HTTPStub.lastRequest?.path, "/api/move-file")
+        XCTAssertEqual(body["fromFolder"] as? String, "Partition_Suit")
+        XCTAssertEqual(body["toFolder"] as? String, "", "the root is the empty string on this route")
+        XCTAssertEqual(body["fileName"] as? String, "Order.pdf")
+    }
+
+    func testMovingOutOfTheRootAlsoSpellsItEmpty() async throws {
+        let client = await makeClient()
+        HTTPStub.always(.json(#"{"success":true}"#))
+        let files = FileManagementService(client: client)
+
+        try await files.move(name: "Order.pdf", from: nil, to: "Partition_Suit")
+
+        let body = try XCTUnwrap(HTTPStub.lastRequest?.bodyJSON)
+        XCTAssertEqual(body["fromFolder"] as? String, "")
+        XCTAssertEqual(body["toFolder"] as? String, "Partition_Suit")
+    }
+
     func testANestedFileSendsItsRealFolder() async throws {
         let client = await makeClient()
         HTTPStub.always(.text("%PDF-1.4"))
