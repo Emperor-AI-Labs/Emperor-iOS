@@ -1,0 +1,126 @@
+# Xcode project definition, consumed by XcodeGen.
+#
+#   brew install xcodegen && xcodegen generate && open Emperor.xcodeproj
+#
+# The project file is generated rather than committed so that adding a source file is an
+# edit to this spec instead of a merge conflict in a 3,000-line pbxproj.
+name: Emperor
+options:
+  bundleIdPrefix: com.emperorailabs
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    # The core library is written for Swift 6 concurrency; the SwiftUI layer is @MainActor
+    # throughout. Keep this strict so data races surface at compile time rather than as
+    # intermittent streaming glitches.
+    SWIFT_STRICT_CONCURRENCY: complete
+    DEVELOPMENT_TEAM: "" # set this to your Apple Developer team id before archiving
+  configs:
+    # Which backend the build talks to. Read via the Info.plist key `EmperorEnvironment` and
+    # resolved by `APIConfig.resolveEnvironment`.
+    #
+    # Setting this to `development` in a Release configuration does NOT take effect — the
+    # resolver forces production. Changing this value cannot cause a distributed build to talk
+    # to a development deployment.
+    Debug:
+      EMPEROR_ENVIRONMENT: development
+    Release:
+      EMPEROR_ENVIRONMENT: production
+
+targets:
+  Emperor:
+    type: application
+    platform: iOS
+    sources:
+      # The pure-logic core, shared verbatim with the SPM package so `swift test` on any
+      # machine exercises exactly the code the app ships.
+      - path: Sources/EmperorCore
+      - path: Emperor
+    info:
+      path: Emperor/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Emperor
+        # Without these two the generated plist keeps Xcode's defaults and ships "1.0 (1)"
+        # regardless of what `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` say below —
+        # which is what the first .ipa did. Settings alone do not reach the plist.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # Consumed by `APIConfig.resolvedEnvironment`; driven by the per-config build setting.
+        EmperorEnvironment: $(EMPEROR_ENVIRONMENT)
+        UILaunchScreen: {}
+        # `--font-brand` in `emperor-ai/src/ui/theme.css`. Bundled rather than fetched: the web
+        # pulls it from Google Fonts by `@import`, which an app cannot do.
+        #
+        # One file, because it is a **variable** font carrying all five weights as named
+        # instances. Its default instance is Light and its family name is "Fredoka Light", so
+        # `UIFont(name: "Fredoka")` gets Light or nothing — always address a named instance
+        # (`Fredoka-Regular`, `-Medium`, `-SemiBold`, `-Bold`). See `BrandFont`.
+        UIAppFonts:
+          - Fredoka.ttf
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # Required: the app opens the camera to scan paperbooks. Without a purpose string
+        # iOS terminates the app the moment the scanner is presented.
+        NSCameraUsageDescription: >
+          Emperor uses the camera to scan paperbooks, orders and pleadings into your
+          document library.
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.emperorailabs.emperor
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1,2" # iPhone and iPad
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  # Runs *inside* the app process, which is the point: it can reach UIKit and the app bundle,
+  # so it can answer questions `swift test` on Linux structurally cannot — whether the bundled
+  # font registered, whether a resource made it into the bundle.
+  EmperorAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: AppTests
+    dependencies:
+      - target: Emperor
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.emperorailabs.emperor.apptests
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Emperor.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Emperor
+        BUNDLE_LOADER: $(TEST_HOST)
+
+  # Drives the app in a simulator. The only thing in this repo that finds a screen which
+  # compiles and then renders blank or crashes on appear.
+  EmperorUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Emperor
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.emperorailabs.emperor.uitests
+        TEST_TARGET_NAME: Emperor
+
+schemes:
+  Emperor:
+    build:
+      targets:
+        Emperor: all
+        EmperorAppTests: [test]
+        EmperorUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - EmperorAppTests
+        - EmperorUITests

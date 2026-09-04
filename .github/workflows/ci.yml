@@ -1,0 +1,398 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  # Lets you produce a build without pushing — Actions tab → CI → Run workflow.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The tested half. `Sources/EmperorCore` is Foundation-only by design, so the whole wire
+  # format, every view model and all error handling is verifiable without a Mac or an iOS SDK.
+  core:
+    name: Core tests (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: swift build --build-tests
+
+      - name: Test
+        run: swift test --parallel
+
+  # The gate that would have caught the never-compiled SwiftUI layer.
+  #
+  # `swiftc -parse` does syntax-only parsing: no type checking, no module resolution, so it runs
+  # without the iOS SDK. It will not catch a wrong API or a bad type, but it does catch every
+  # unbalanced brace, malformed expression and broken result-builder body — which is the class
+  # of error that accumulates in code nothing has ever compiled.
+  syntax:
+    name: SwiftUI syntax (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse the app layer
+        run: |
+          files=$(find Emperor AppTests UITests -name '*.swift')
+          test -n "$files" || { echo "no Swift files found"; exit 1; }
+          echo "$files" | sed 's/^/  /'
+          swiftc -parse $files
+
+  # This repository is public; the platform it talks to is still being hardened. A comment
+  # naming which route is unscoped is a pointer at a live server holding privileged client
+  # material, and once pushed it is public permanently — a later revert does not help.
+  #
+  # So the check runs on every push rather than at release, and it runs first.
+  public-safe:
+    name: No server-side security detail (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/check-public-safe.sh
+
+  # XcodeGen is a SwiftPM package and builds on Linux, so the project spec can be validated
+  # without a Mac — it catches a missing file, a malformed spec and a bad Info.plist key.
+  # It does NOT compile anything.
+  project-spec:
+    name: Validate project.yml (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build XcodeGen
+        run: |
+          git clone --depth 1 https://github.com/yonaskolb/XcodeGen.git /tmp/xcodegen
+          swift build -c release --package-path /tmp/xcodegen
+
+      # `USER` is not a nicety. XcodeGen stamps the generated pbxproj with the current user
+      # and resolves it through the password database, which the `swift:6.1` container has no
+      # entry for — it fails with "Couldn't find current username" and nothing else. The
+      # macOS job runs the same command against the same spec without this, so a failure
+      # here was never the spec being wrong.
+      - name: Generate
+        env:
+          USER: runner
+          LOGNAME: runner
+        run: /tmp/xcodegen/.build/release/xcodegen generate --spec project.yml
+
+      - name: Every Swift file reached the target
+        run: |
+          # Every directory any target compiles. Adding a target without adding it here makes
+          # this pass while the new files silently never reach the project.
+          expected=$(find Sources/EmperorCore Emperor AppTests UITests -name '*.swift' | wc -l)
+          actual=$(grep -c '\.swift .*sourcecode' Emperor.xcodeproj/project.pbxproj)
+          echo "expected $expected, target has $actual"
+          test "$expected" -eq "$actual"
+
+      - name: The privacy manifest ships
+        run: grep -q 'PrivacyInfo.xcprivacy' Emperor.xcodeproj/project.pbxproj
+
+  # Boots a simulator and drives the app.
+  #
+  # Everything above this is static: `swift test` proves the logic, `swiftc -parse` proves it
+  # parses. Neither can see a view whose body throws on layout, a link that navigates nowhere,
+  # or a font that silently fell back to the system face. This is the only job that runs the
+  # thing — and, since `xcodebuild test` builds before it runs, the only one that type-checks.
+  #
+  # There used to be a separate `ios` job doing `xcodebuild build`. It was deleted: it proved
+  # exactly what this job proves on its way to doing more, on a second cold runner, and it cost
+  # **460 billable minutes** — a quarter of a month — for that duplication.
+  simulator-tests:
+    name: Simulator tests
+    runs-on: macos-15
+    # This ran only on demand while the repository was private, because macOS bills at 10x there
+    # and every job rounds up to a whole minute — 460 minutes went to a duplicate build job
+    # before that was noticed. **Public repositories get macOS runners free and unmetered**, so
+    # it is back on every push, which is where it belongs: it is the only job that type-checks.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          latest=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          sudo xcode-select -s "$latest"
+          xcodebuild -version
+
+      - name: Install tools
+        run: brew install xcodegen xcbeautify
+
+      - name: Generate the project
+        run: xcodegen generate
+
+      # **Ask the runner what it has, rather than naming a device.**
+      #
+      # This first said `name=iPhone 16,OS=latest`, which passed for a day and then failed with
+      # "Unable to find a device matching the provided destination specifier" when the image
+      # rolled. `xcodebuild test` will not take a generic destination the way `build` does, so
+      # the only durable answer is to look the device up at run time and pass its UDID.
+      #
+      # The last listed iPhone wins, and the whole list is printed — when this does fail, the
+      # first question is always what the runner actually had.
+      #
+      # Deliberately shell rather than an embedded script: this step's first version inlined
+      # Python, whose unindented lines silently terminated the YAML block scalar and made the
+      # whole workflow unparseable. A one-liner cannot do that.
+      - name: Pick a simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available
+          udid=$(xcrun simctl list devices available | grep -oE 'iPhone[^(]*\(([0-9A-F-]{36})\)' | tail -1 | grep -oE '[0-9A-F-]{36}')
+          test -n "$udid" || { echo "no iPhone simulator on this runner"; exit 1; }
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+          echo "using simulator $udid"
+
+      - name: Run the app and UI tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Emperor.xcodeproj \
+            -scheme Emperor \
+            -configuration Debug \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath build/TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcbeautify --renderer github-actions
+
+      # The screenshots and failure traces XCUITest captures. The first place to look when a
+      # test says a screen was blank.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulator-test-results
+          path: build/TestResults.xcresult
+          retention-days: 14
+
+  # An .ipa you can actually put on a phone, without an Apple Developer Program membership.
+  #
+  # It is **unsigned**. iOS will not install it as-is; you re-sign it on your own machine with
+  # a free Apple ID using AltStore or Sideloadly, which is allowed and needs no payment. The
+  # catch is Apple's, not ours: a free-account signature lasts **7 days**, after which the app
+  # refuses to launch until you re-sign it. For anything beyond trying it out, use TestFlight.
+  #
+  # Archiving with signing disabled is the whole trick: `xcodebuild archive` normally demands a
+  # team, but a device-architecture build with `CODE_SIGNING_ALLOWED=NO` produces a complete,
+  # unsigned `.app`. An `.ipa` is then just that app inside a `Payload/` folder, zipped.
+  unsigned-ipa:
+    name: Unsigned .ipa (sideload)
+    runs-on: macos-15
+    # Only after the compile is known good — an archive of code that does not build is noise.
+    needs: simulator-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          latest=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          echo "using $latest"
+          sudo xcode-select -s "$latest"
+          xcodebuild -version
+
+      - name: Install tools
+        run: brew install xcodegen xcbeautify
+
+      - name: Generate the project
+        run: xcodegen generate
+
+      # **Debug, not Release, and that is load-bearing.**
+      #
+      # `APIConfig.resolveEnvironment` forces any non-debug build to `PRODUCTION`, deliberately,
+      # so the development host cannot be shipped by accident. But the production host is not
+      # yet stood up, so a Release archive would install and then fail every request at DNS,
+      # which looks exactly like a broken app.
+      #
+      # So this build is Debug on purpose, which resolves to `dev.emperorailabs.com` and
+      # actually works. The safety guard is untouched: Debug is *allowed* to reach dev, and a
+      # Release build still cannot. The Android client shipped its internal APK the same way and
+      # for the same reason.
+      #
+      # Two consequences, both real, and both in docs/RELEASING.md: this build talks to the
+      # development deployment, so only send it to someone already entitled to access that
+      # server; and a debug build is debuggable, so it is not one to leave on a device
+      # long-term.
+      #
+      # **Switch this to Release the day production exists.**
+      - name: Archive for a device, unsigned
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project Emperor.xcodeproj \
+            -scheme Emperor \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Emperor.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            | xcbeautify --renderer github-actions
+
+      # `xcodebuild -exportArchive` cannot be used here: export always signs, and there is
+      # nothing to sign with. The Payload/ layout below is exactly what an .ipa is.
+      - name: Wrap the app as an .ipa
+        run: |
+          set -euo pipefail
+          app="build/Emperor.xcarchive/Products/Applications/Emperor.app"
+          test -d "$app" || { echo "no .app in the archive — the build produced nothing"; exit 1; }
+          mkdir -p build/Payload
+          cp -R "$app" build/Payload/
+          (cd build && zip -qry Emperor-unsigned.ipa Payload)
+          ls -lh build/Emperor-unsigned.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Emperor-unsigned-ipa
+          path: build/Emperor-unsigned.ipa
+          # Long enough to still be there next week, short enough not to hoard binaries.
+          retention-days: 30
+
+  # The real distribution path. Signs against your Apple Developer Program membership and
+  # uploads to TestFlight, from where anyone you invite installs it like a normal app.
+  #
+  # Skipped entirely until the secrets exist, so the rest of CI stays green without them —
+  # `secrets` cannot be read in a job-level `if`, hence the check inside the first step.
+  testflight:
+    name: TestFlight
+    runs-on: macos-15
+    needs: simulator-tests
+    # Only from the default branch, and only on a deliberate run or a tag. Every push to a
+    # feature branch becoming a TestFlight build would burn your 90-day build numbers.
+    if: >
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/'))
+    steps:
+      - name: Are the signing secrets configured?
+        id: gate
+        env:
+          CERT: ${{ secrets.APPLE_DIST_CERT_P12 }}
+          KEY: ${{ secrets.APP_STORE_CONNECT_KEY }}
+        run: |
+          if [ -n "$CERT" ] && [ -n "$KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::TestFlight secrets are not set — skipping. See docs/RELEASING.md."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.ready == 'true'
+
+      - name: Select Xcode
+        if: steps.gate.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          latest=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          echo "using $latest"
+          sudo xcode-select -s "$latest"
+          xcodebuild -version
+
+      - name: Install tools
+        if: steps.gate.outputs.ready == 'true'
+        run: brew install xcodegen xcbeautify
+
+      # A throwaway keychain, not the login one: the runner is destroyed afterwards, and this
+      # keeps the private key out of any shared store even so.
+      - name: Import the signing certificate
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          CERT_P12: ${{ secrets.APPLE_DIST_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_DIST_CERT_PASSWORD }}
+          PROFILE: ${{ secrets.APPLE_PROVISIONING_PROFILE }}
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(uuidgen)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+            -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          # Without this, codesign blocks on a GUI prompt that nobody can answer and the job
+          # hangs until it times out.
+          security set-key-partition-list -S apple-tool:,apple: -k "$password" "$keychain"
+          security list-keychain -d user -s "$keychain"
+
+          profiles=~/Library/MobileDevice/Provisioning\ Profiles
+          mkdir -p "$profiles"
+          echo "$PROFILE" | base64 --decode > "$profiles/emperor.mobileprovision"
+
+      - name: Generate the project
+        if: steps.gate.outputs.ready == 'true'
+        run: xcodegen generate
+
+      - name: Archive
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project Emperor.xcodeproj \
+            -scheme Emperor \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Emperor.xcarchive \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            | xcbeautify --renderer github-actions
+
+      - name: Export a signed .ipa
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          cat > build/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath build/Emperor.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist build/ExportOptions.plist
+
+      # An App Store Connect API key, not an Apple ID password: it is revocable, scoped, and
+      # unaffected by two-factor auth — which would otherwise make an unattended upload
+      # impossible.
+      - name: Upload to TestFlight
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          KEY: ${{ secrets.APP_STORE_CONNECT_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/private_keys
+          echo "$KEY" | base64 --decode > ~/private_keys/AuthKey_$KEY_ID.p8
+          xcrun altool --upload-app \
+            --type ios \
+            --file build/export/Emperor.ipa \
+            --apiKey "$KEY_ID" \
+            --apiIssuer "$ISSUER_ID"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          name: Emperor-signed-ipa
+          path: build/export/Emperor.ipa
+          retention-days: 30

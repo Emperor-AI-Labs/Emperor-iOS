@@ -1,0 +1,4 @@
+Analyse the contract below on behalf of our client. For each material clause return: clause name, a risk score from 1 (safe) to 10 (severe), the specific vulnerability, and suggested protective language. End with an overall risk rating and the top 3 priorities. Present the per-clause findings as a Markdown table with columns: Clause | Risk (1-10) | Issue | Suggested fix.
+
+CONTRACT:
+(none)

@@ -1,0 +1,14 @@
+Conduct focused Indian legal research and return a structured answer with citations.
+
+RESEARCH QUESTION:
+test question
+
+Forum context: Supreme Court of India
+Depth: Quick answer
+
+Return:
+1. A concise direct answer (≤200 words).
+2. Governing statutory provisions (with section numbers).
+3. Key precedents — case name, citation, court, year, and the ratio in one line. Mark each as [Settled], [Pending/appealed], or [Overruled].
+4. Any conflicting High Court views or open questions.
+Cite only real, verifiable authorities. Flag anything uncertain.

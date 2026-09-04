@@ -1,0 +1,4 @@
+Draft a Vakalatnama for an Indian court/matter using the details below. Follow standard format and leave [placeholders] for anything not provided.
+
+DETAILS:
+test details

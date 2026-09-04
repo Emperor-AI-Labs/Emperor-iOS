@@ -1,0 +1,4 @@
+Extract and analyse the key clauses in the contract below — indemnity, limitation of liability, termination, force majeure, dispute resolution, confidentiality, non-compete, governing law. For each: quote the clause, explain its effect, and flag any risk or ambiguity.
+
+CONTRACT:
+test contract

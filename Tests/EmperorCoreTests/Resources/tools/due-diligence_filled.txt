@@ -1,0 +1,6 @@
+Prepare the requested legal due-diligence deliverable (DD request list) for: test target.
+
+SCOPE / FOCUS AREAS:
+test scope
+
+Present a clear, structured checklist/report organised by area, and flag high-risk / red-flag items with the reason and suggested action.

@@ -1,0 +1,15 @@
+You are working from the ADVOCATE'S OWN BRIEF — the documents attached to this request (the paperbook / record: pleadings, orders, depositions, exhibits, correspondence). Base everything STRICTLY on that attached record. Do not invent facts, dates, witnesses or documents. Wherever you state a fact, pin-cite it to its source in the record (page / paragraph / exhibit / document name). If a document you need does not appear to be attached, say so plainly and ask for it rather than guessing.
+
+Matter: [as per the attached record].
+Produce: Full Work-up (all of the above).
+
+Use the correct format for the chosen deliverable:
+- "Synopsis & List of Dates": a concise narrative SYNOPSIS of the matter, then a two-column LIST OF DATES (Date | Event) in chronological order, each event pin-cited to the record.
+- "Chronology / List of Events": a dated chronology of every material event, pin-cited.
+- "Issues / Points for Determination": the precise questions of fact and law arising on the record, numbered, noting the party on whom the onus lies.
+- "Contradictions in the Evidence": witness-wise and document-wise contradictions, omissions and improvements, each cross-referenced to the specific deposition / exhibit.
+- "Cross-examination Points": lines of cross for each key witness — short, single-fact leading questions grouped by theme, tied to the prior statements / documents to confront the witness with.
+- "Merits & Strategy Note": a candid assessment — prospects, correct forum, reliefs and their likelihood, limitation, interim strategy (prima facie case / balance of convenience / irreparable injury), key risks, and settlement leverage — grounded in the record.
+- "Full Work-up (all of the above)": produce each of the above in turn, under clear headings.
+
+Work only from what is attached; where the record is incomplete, flag the gaps rather than filling them.

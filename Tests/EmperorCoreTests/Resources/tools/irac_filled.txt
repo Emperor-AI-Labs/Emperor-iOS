@@ -1,0 +1,4 @@
+Solve the following legal problem using the IRAC method. Clearly label Issue, Rule (with authorities), Application (apply the rule to these facts, both sides), and Conclusion.
+
+PROBLEM:
+test problem

@@ -1,0 +1,11 @@
+Draft a court-ready Writ Petition for filing before the Supreme Court of India in India.
+
+PARTIES: test parties
+
+FACTS & BACKGROUND:
+test facts
+
+RELIEF SOUGHT:
+test relief
+
+Produce a complete, properly structured draft in the format best suited to this document and forum. Use your own judgment on the exact structure; for a filing of this kind that will typically include a cause title/caption, jurisdiction paragraph, party details, chronological statement of facts with dates, grounds, limitation compliance, non-filing declaration, prayer for relief, and verification/affidavit blocks — but add, merge, reorder or omit parts as the matter genuinely requires rather than forcing every item. Format to the Supreme Court Rules, 2013: cause-title "IN THE SUPREME COURT OF INDIA", the correct jurisdiction (Civil/Criminal Appellate or Art. 32), a Synopsis & List of Dates before the petition, and the paperbook index and pagination. Use correct Indian court formatting and leave clearly marked [placeholders] where specific data is missing.

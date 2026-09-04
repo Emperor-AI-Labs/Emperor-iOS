@@ -1,0 +1,4 @@
+Review the following legal draft (Full review). Identify errors, missing mandatory components, weak arguments, formatting/compliance issues, and concrete improvements. Organise findings by severity (Critical / Important / Minor) with specific fixes.
+
+DRAFT:
+(none)

@@ -1,0 +1,4 @@
+Check each citation below: verify the case name/year/court/reporter looks correct, flag if the format is wrong (and give the corrected form), and note if a cited case is known to be overruled/doubted. Present as a table: Citation | Status | Corrected form | Notes.
+
+CITATIONS:
+test citations

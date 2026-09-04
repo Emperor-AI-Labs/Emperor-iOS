@@ -1,0 +1,4 @@
+Compare the following judgments side by side on: test question. Return a Markdown table with rows for: Case name, Citation, Court, Year, Key facts, Legal issue, Ratio decidendi, Disposition, Subsequent treatment. Then note the key similarities, divergences, and which is binding.
+
+CASES:
+test cases

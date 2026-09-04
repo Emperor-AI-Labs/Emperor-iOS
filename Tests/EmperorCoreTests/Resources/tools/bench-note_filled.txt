@@ -1,0 +1,4 @@
+Based on the last order and submissions below, draft the next order for the court, with proper cause title, the recording of appearances/submissions, the court's reasoning, and clear directions with timelines.
+
+CONTEXT:
+test context

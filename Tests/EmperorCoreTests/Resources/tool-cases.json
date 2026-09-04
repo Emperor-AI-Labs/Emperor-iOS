@@ -1,0 +1,101 @@
+{
+ "filled": {
+  "research": {
+   "question": "test question",
+   "forum": "Supreme Court of India",
+   "depth": "Quick answer"
+  },
+  "custom-document": {
+   "docType": "test docType",
+   "instructions": "test instructions"
+  },
+  "draft-pleading": {
+   "docType": "Writ Petition",
+   "forum": "Supreme Court of India",
+   "parties": "test parties",
+   "facts": "test facts",
+   "relief": "test relief"
+  },
+  "draft-review": {
+   "draft": "test draft",
+   "focus": "Full review"
+  },
+  "case-gist": {
+   "material": "test material",
+   "title": "test title"
+  },
+  "arguments": {
+   "side": "test side",
+   "issues": "test issues",
+   "facts": "test facts"
+  },
+  "clause-extract": {
+   "contract": "test contract"
+  },
+  "brief-workup": {
+   "deliverable": "Synopsis & List of Dates",
+   "matter": "test matter",
+   "focus": "test focus"
+  },
+  "contract-analysis": {
+   "contract": "test contract",
+   "party": "test party"
+  },
+  "due-diligence": {
+   "target": "test target",
+   "deliverable": "DD request list",
+   "scope": "test scope"
+  },
+  "draft-contract": {
+   "ctype": "NDA",
+   "parties": "test parties",
+   "terms": "test terms"
+  },
+  "board-resolution": {
+   "action": "test action",
+   "company": "test company"
+  },
+  "compliance-calendar": {
+   "entity": "Private Limited",
+   "year": "test year"
+  },
+  "case-comparison": {
+   "cases": "test cases",
+   "question": "test question"
+  },
+  "draft-judgment": {
+   "record": "test record",
+   "kind": "Judgment"
+  },
+  "bench-note": {
+   "context": "test context"
+  },
+  "law-timeline": {
+   "topic": "test topic"
+  },
+  "case-brief": {
+   "case": "test case"
+  },
+  "irac": {
+   "problem": "test problem"
+  },
+  "simplify": {
+   "judgment": "test judgment"
+  },
+  "citation-check": {
+   "citations": "test citations"
+  },
+  "doc-assembly": {
+   "doc": "Vakalatnama",
+   "details": "test details"
+  },
+  "know-your-rights": {
+   "topic": "test topic",
+   "lang": "Hindi"
+  },
+  "pil-template": {
+   "cause": "test cause",
+   "forum": "Supreme Court (Art 32)"
+  }
+ }
+}
