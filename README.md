@@ -195,6 +195,8 @@ so reopening a chat shows the answer without the log of how it was produced.
 - `GET /user-files` returns the whole tree with no pagination and runs a consolidation pass
   plus a `statSync` per entry, so it is refreshed on appear and pull-to-refresh only, never
   polled. A large library will need a cheaper path.
-- Background upload via `URLSessionConfiguration.background` so a large paperbook survives
-  the app being backgrounded.
+- Background upload is built (`BackgroundUploader`) but **its lifecycle is unverified**. The
+  chunk arithmetic, the resumable manifest and the body encoding are covered on Linux; the
+  delegate callbacks, and above all the terminate-and-relaunch path, need a physical device. A
+  simulator does not evict apps the way a phone under memory pressure does.
 - Chat rename/delete via `POST /sync` (metadata only — never after a turn).

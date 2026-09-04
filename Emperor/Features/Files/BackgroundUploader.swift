@@ -63,6 +63,10 @@ final class BackgroundUploader {
     private var session: URLSession!
     private let delegate = Delegate()
 
+    /// Uploads currently being polled for ingestion, so two activations cannot start two
+    /// pollers for the same document.
+    private var finishing: Set<String> = []
+
     /// Set by the app once the user is signed in, because a chunk request needs the token and
     /// the caller id and this object outlives any one screen.
     var client: APIClient?
@@ -72,7 +76,6 @@ final class BackgroundUploader {
 
         self.session = URLSession(
             configuration: Self.makeConfiguration(), delegate: delegate, delegateQueue: nil)
-        delegate.owner = self
 
         self.inFlight = store.all().filter { !$0.isComplete }
     }
@@ -191,7 +194,11 @@ final class BackgroundUploader {
 
         for manifest in manifests {
             if manifest.isComplete {
-                await finish(manifest)
+                // Deliberately not awaited. `finish` polls for ingestion, which is allowed to
+                // take a quarter of an hour — awaiting it here would stall the rest of this
+                // loop, so an upload still needing chunks would not be re-enqueued until an
+                // unrelated one had finished being indexed.
+                Task { await finish(manifest) }
                 continue
             }
             let missing = manifest.pending.filter {
@@ -285,7 +292,16 @@ final class BackgroundUploader {
     /// foreground path does. Doing it here rather than in a view model matters: the screen that
     /// started the upload may never be opened again.
     private func finish(_ manifest: UploadManifest) async {
-        defer { store.discard(id: manifest.id) }
+        // `resume()` runs on every activation, so without this a document that takes a while to
+        // index gets a second poller on each return to the app — and the first one to come back
+        // discards the manifest out from under the others.
+        guard !finishing.contains(manifest.id) else { return }
+        finishing.insert(manifest.id)
+        defer {
+            finishing.remove(manifest.id)
+            store.discard(id: manifest.id)
+        }
+
         guard let client else { return }
         _ = try? await UploadService(client: client).waitForIngestion(
             fileName: manifest.fileName, folderName: manifest.folderName)
@@ -303,22 +319,30 @@ final class BackgroundUploader {
     /// Separate from the observable object because `URLSession` retains its delegate for the
     /// life of the session and calls it on its own queue, neither of which fits a `@MainActor`
     /// type. Everything here does nothing but hop back.
-    private final class Delegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
-        weak var owner: BackgroundUploader?
+    ///
+    /// It reaches `shared` rather than holding a reference to its owner. A stored `weak var`
+    /// would be written on the main actor during `init` and read from the delegate queue, which
+    /// is a data race — benign in practice, because it is assigned before any task can exist,
+    /// but the kind that stops being benign when someone later adds a second assignment. There
+    /// is exactly one uploader per process by construction, so there is nothing to hold.
+    ///
+    /// Touching `shared` here cannot recurse into `init`: a callback requires a task, and a
+    /// task requires the session, which requires `init` to have finished.
+    private final class Delegate: NSObject, URLSessionDataDelegate {
 
         func urlSession(
             _ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?
         ) {
             guard let parsed = UploadManifest.parseTaskDescription(task.taskDescription) else { return }
             let status = (task.response as? HTTPURLResponse)?.statusCode
-            Task { @MainActor [owner] in
-                await owner?.chunkFinished(
+            Task { @MainActor in
+                await BackgroundUploader.shared.chunkFinished(
                     id: parsed.id, index: parsed.index, error: error, statusCode: status)
             }
         }
 
         func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
-            Task { @MainActor [owner] in owner?.finishedDeliveringEvents() }
+            Task { @MainActor in BackgroundUploader.shared.finishedDeliveringEvents() }
         }
     }
 }

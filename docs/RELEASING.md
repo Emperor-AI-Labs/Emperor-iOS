@@ -152,6 +152,25 @@ view layer only.
 `PrivacyInfo.xcprivacy` ships, and `NSCameraUsageDescription` is set — without the latter iOS
 terminates the app the moment the scanner opens.
 
-**Background upload is not built.** It was deliberately left out rather
-than written blind, because it cannot be exercised on Linux and its failure mode is a 200-page
-scan lost silently. Build it once you can run the app.
+**Background upload is built but unverified — test this first on a real device.**
+
+Picking a document from Files now hands it to a background `URLSession`, so it continues with
+the app closed and resumes if the app is killed. The arithmetic underneath is covered by 34
+tests on Linux. The lifecycle is not covered by anything, because a simulator does not evict
+apps the way a phone under memory pressure does.
+
+What to actually try, in order, with a document large enough to take a minute or two:
+
+1. Start an upload, then background the app. It should still complete — the file appears in the
+   library when you come back.
+2. Start an upload, background the app, then **force-quit it from the app switcher**. Reopen
+   after a minute. The upload should have continued while it was dead, or resume on reopening.
+3. Start an upload and turn on Airplane Mode partway. It should recover when the connection
+   returns, rather than failing the whole document.
+4. Check `Application Support/Uploads` is empty afterwards. Each abandoned upload keeps a copy
+   of the document, so a leak there is a privacy problem, not just a disk one.
+
+If (2) fails, the likely cause is the app not being relaunched — check that
+`AppDelegate.application(_:handleEventsForBackgroundURLSession:completionHandler:)` fires and
+that the handler is called, because not calling it makes the system stop relaunching the app for
+later transfers.
