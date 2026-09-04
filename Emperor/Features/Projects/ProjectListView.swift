@@ -20,6 +20,8 @@ struct ProjectListView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
 
+    @Environment(\.dismiss) private var dismiss
+
     @State private var model: ProjectListViewModel?
 
     var body: some View {
@@ -32,6 +34,13 @@ struct ProjectListView: View {
                 }
             }
             .navigationTitle(ProjectListViewModel.Copy.title)
+            // On the root rather than inside `content`, so it is there in every state — including
+            // the spinner before the first load returns, and the failure view if it never does.
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
             .navigationDestination(for: String.self) { projectID in
                 ProjectDetailView(projectID: projectID)
             }

@@ -15,6 +15,7 @@ import SwiftUI
 /// output.
 struct ToolsListView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -44,6 +45,15 @@ struct ToolsListView: View {
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
             .navigationTitle("Tools")
+            // This is the deepest stack in the app — a tool pushes its form, and running it
+            // pushes the conversation. Both of those get a back button for free; the list they
+            // sit on top of is the one place the chain ran out, so someone who ran a tool had to
+            // pop twice and then guess that a swipe closes the rest.
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
             .navigationDestination(for: String.self) { id in
                 if let tool = legalTool(id) {
                     ToolFormView(tool: tool)

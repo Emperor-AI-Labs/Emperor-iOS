@@ -90,9 +90,19 @@ final class EmperorUITests: XCTestCase {
 
     // MARK: - More
 
-    /// Each row in More opens its screen. These are the five that used to be tabs or toolbar
-    /// items and are now one level down, which is the change most likely to have broken one.
-    func testEveryMoreRowOpensItsScreen() {
+    /// Each row in More opens its screen, **and every one of them can be closed by a control on
+    /// screen**.
+    ///
+    /// The second half is the point. Each destination presents rather than pushes, so iOS gives
+    /// it no back button — and five of the eight carried no close button either, because they
+    /// were built as tabs, where leaving is what the tab bar is for. A swipe down does dismiss
+    /// them, which is why this went unnoticed, but a gesture with no visible affordance is not
+    /// navigation: it is a thing you have to already know. It is also unavailable to anyone
+    /// driving the screen with VoiceOver or Switch Control.
+    ///
+    /// So this taps the button rather than swiping. A swipe would pass either way and is exactly
+    /// how the gap survived a green suite the first time.
+    func testEveryMoreRowOpensAndClosesFromAControlOnScreen() {
         let app = signIn(launch())
         XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
         app.tabBars.buttons["More"].tap()
@@ -115,18 +125,17 @@ final class EmperorUITests: XCTestCase {
                 "\(row) did not open a screen titled \(title)")
             XCTAssertEqual(app.state, .runningForeground, "the app died opening \(row)")
 
-            // Each destination presents rather than pushes, so it is dismissed rather than
-            // popped. A coordinate drag from the nav bar to the bottom is the reliable way to
-            // dismiss a sheet: `swipeDown()` on an element often scrolls its content instead.
-            //
-            // Worth noting what this exposes — Calendar, Library and Liquidations carry no
-            // close button of their own, because they were built as tabs. Swiping is the only
-            // way out of them, which is legal on iOS but not obvious.
-            let top = app.navigationBars[title]
-                .coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            let bottom = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1.0))
-            top.press(forDuration: 0.05, thenDragTo: bottom)
-            XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
+            // Scoped to the navigation bar, so this also pins *where* it is. A "Done" somewhere
+            // in the content would satisfy a looser query while still leaving the bar bare.
+            let done = app.navigationBars[title].buttons["Done"]
+            XCTAssertTrue(
+                done.waitForExistence(timeout: 5),
+                "\(row) has no close button in its navigation bar — swiping is not an affordance")
+            done.tap()
+
+            XCTAssertTrue(
+                app.navigationBars["More"].waitForExistence(timeout: 10),
+                "closing \(row) did not return to More")
         }
     }
 
@@ -204,5 +213,28 @@ final class EmperorUITests: XCTestCase {
         // asserted is that the navigation happened and the app survived it.
         XCTAssertTrue(app.navigationBars["Conversation"].waitForExistence(timeout: 15))
         XCTAssertEqual(app.state, .runningForeground)
+
+        // The whole way back out. This is the deepest chain in the app — a sheet containing a
+        // stack two pushes deep — and it is the one that had no exit at the bottom: the two
+        // pushes have back buttons, but before `ToolsListView` grew a "Done" the only way off
+        // the tool list was a swipe.
+        //
+        // The leading nav-bar button is the back button; asserting it by label would be asserting
+        // the *previous screen's title*, which iOS abbreviates when it is long. Scoped to the bar
+        // being left, so this cannot accidentally match a bar further up the hierarchy.
+        for (leaving, arriving) in [
+            ("Conversation", "Devil's Advocate"),
+            ("Devil's Advocate", "Tools"),
+        ] {
+            app.navigationBars[leaving].buttons.element(boundBy: 0).tap()
+            XCTAssertTrue(
+                app.navigationBars[arriving].waitForExistence(timeout: 10),
+                "going back from \(leaving) did not land on \(arriving)")
+        }
+
+        app.navigationBars["Tools"].buttons["Done"].tap()
+        XCTAssertTrue(
+            app.navigationBars["More"].waitForExistence(timeout: 10),
+            "the tool sheet could not be closed after running a tool")
     }
 }
