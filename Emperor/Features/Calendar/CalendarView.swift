@@ -16,6 +16,8 @@ struct CalendarView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
 
+    @Environment(\.dismiss) private var dismiss
+
     @State private var model: CalendarViewModel?
     @State private var isAddingEvent = false
     @State private var path: [String] = []
@@ -30,6 +32,15 @@ struct CalendarView: View {
                 }
             }
             .navigationTitle("Calendar")
+            // On the root rather than inside `content`, so it is there in every state — including
+            // the spinner before the first load returns, and the failure view if it never does.
+            // A screen you cannot leave until it finishes loading is the one case where the way
+            // out matters most.
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
             .navigationDestination(for: String.self) { caseID in
                 CaseDetailView(caseID: caseID)
             }

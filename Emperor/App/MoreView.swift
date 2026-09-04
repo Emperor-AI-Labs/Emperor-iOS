@@ -20,10 +20,19 @@ import SwiftUI
 ///   and its confirmation action is "Attach". Giving it a browse mode is real work, not a row,
 ///   so it stays reachable from the composer until that is done.
 ///
-/// - Important: every destination here **presents rather than pushes**. All five own a
+/// - Important: every destination here **presents rather than pushes**. All eight own a
 ///   `NavigationStack` — they were built as self-contained modals and every other call site
 ///   already presents them that way. Pushing one into this list's stack would nest two stacks
 ///   and give it two navigation bars and a back button that unwinds the wrong one.
+///
+/// - Important: presenting means iOS supplies no back button, so **each destination has to carry
+///   its own "Done"** at `.cancellationAction`. Five of them did not: `CalendarView`,
+///   `LibraryView`, `ProjectListView`, `ToolsListView` and `AuctionListView` were written as tabs,
+///   where the tab bar is how you leave, and kept that shape when they moved in here. A sheet can
+///   always be swiped away, which is why nothing looked broken — but a gesture with no visible
+///   control is not something a first-time user can discover, and VoiceOver and Switch Control
+///   cannot perform it at all. `testEveryMoreRowOpensAndClosesFromAControlOnScreen` taps the
+///   button rather than swiping, so this cannot regress quietly.
 struct MoreView: View {
     @Environment(\.theme) private var theme
     @State private var destination: Destination?

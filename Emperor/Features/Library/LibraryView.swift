@@ -7,6 +7,8 @@ struct LibraryView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
 
+    @Environment(\.dismiss) private var dismiss
+
     @State private var model: LibraryViewModel?
 
     var body: some View {
@@ -19,10 +21,18 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("Library")
-            // Liquidations used to hang off this toolbar, because five tabs was the ceiling and
-            // there was nowhere else for it. There is now: `MoreView` lists it as a peer of the
-            // Library, which is where `src/shell/Sidebar.jsx` has it. Leaving both would also
-            // have meant opening a sheet from inside a sheet.
+            // On the root rather than inside `content`, so it survives the loading, failure and
+            // corpus-unavailable branches. This screen in particular can legitimately render
+            // nothing but an "unavailable" message, and swiping is not an obvious way out of it.
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            // Liquidations used to hang off the Library's toolbar, because five tabs was the
+            // ceiling and there was nowhere else for it. There is now: `MoreView` lists it as a
+            // peer of the Library, which is where `src/shell/Sidebar.jsx` has it. Leaving both
+            // would also have meant opening a sheet from inside a sheet.
             .task {
                 guard model == nil else { return }
                 let created = LibraryViewModel(service: session.library)
