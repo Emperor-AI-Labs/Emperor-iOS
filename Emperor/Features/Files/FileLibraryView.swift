@@ -22,6 +22,15 @@ struct FileLibraryView: View {
     @State private var newFolderName = ""
     /// Non-nil while the user is being asked about documents the library already holds.
     @State private var duplicateReview: DuplicateReview?
+    /// The document being read rather than attached.
+    @State private var previewing: Previewing?
+
+    /// `FileNode.StoredFile` is not `Identifiable`, and giving it an identity here would be
+    /// inventing one for a wire type that has no stable id of its own.
+    private struct Previewing: Identifiable {
+        let id = UUID()
+        let file: FileNode.StoredFile
+    }
 
     /// The picked files, split into the ones worth asking about and the ones that are not.
     private struct DuplicateReview: Identifiable {
@@ -88,6 +97,14 @@ struct FileLibraryView: View {
             ) { outcome in
                 guard case .success(let urls) = outcome else { return }
                 Task { await review(urls) }
+            }
+            .sheet(item: $previewing) { item in
+                // No citation brought us here, so there is no mark and no page to land on —
+                // the viewer opens at the top.
+                SourceDocumentView(
+                    attachment: item.file.attachment,
+                    mention: AnnexureMention(
+                        fileName: item.file.name, mark: "", startPage: nil, endPage: nil))
             }
             .sheet(item: $duplicateReview) { review in
                 DuplicateReviewSheet(
@@ -404,6 +421,15 @@ struct FileLibraryView: View {
             }
         }
         .contextMenu {
+            // Tapping a row selects it for attaching — this screen is a picker first — so
+            // reading a document needs its own way in. Without it a `.docx` is listed,
+            // attachable and unopenable, which is the hole office preview exists to close.
+            Button {
+                previewing = Previewing(file: file)
+            } label: {
+                Label("Preview", systemImage: "doc.text.magnifyingglass")
+            }
+
             if model.canManage {
                 // The same actions again, reachable without knowing swipes exist — and the
                 // only route for anyone using VoiceOver or Switch Control.

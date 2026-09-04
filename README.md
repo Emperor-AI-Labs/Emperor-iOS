@@ -190,8 +190,9 @@ so reopening a chat shows the answer without the log of how it was produced.
 ## Still to do
 - Markdown artifacts render as monospace text. GFM tables need a real renderer —
   `AttributedString(markdown:)` does not support tables.
-- File library is picker-only. No preview, rename, move, delete, or favourite toggling yet
-  (`/view-file`, `/rename-file`, `/move-file`, `/delete-file`, `/favorite-file` all exist).
+- File library is a picker with rename, favourite and preview. Move is implemented and unwired;
+  delete is deliberately held back (see `FileManagementService`). Preview is reachable from the
+  context menu rather than by tapping, because a tap selects the file for attaching.
 - `GET /user-files` returns the whole tree with no pagination and runs a consolidation pass
   plus a `statSync` per entry, so it is refreshed on appear and pull-to-refresh only, never
   polled. A large library will need a cheaper path.
