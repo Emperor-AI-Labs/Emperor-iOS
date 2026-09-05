@@ -42,6 +42,7 @@ final class CourtSearchViewModel {
     private(set) var hasSearched = false
 
     private let service: CourtSearching
+    private let metadata: CourtMetadataProviding
     /// Called after a case is pinned, so the dashboard behind this screen refreshes.
     private let onSaved: (() -> Void)?
 
@@ -51,8 +52,16 @@ final class CourtSearchViewModel {
     private var task: Task<Void, Never>?
     #endif
 
-    init(service: CourtSearching, onSaved: (() -> Void)? = nil) {
+    /// - Parameter metadata: required rather than defaulted. A default would mean a caller who
+    ///   forgot it got a form whose dropdowns are silently empty — which looks like a court with
+    ///   no benches rather than a wiring mistake.
+    init(
+        service: CourtSearching,
+        metadata: CourtMetadataProviding,
+        onSaved: (() -> Void)? = nil
+    ) {
         self.service = service
+        self.metadata = metadata
         self.onSaved = onSaved
     }
 
@@ -132,6 +141,169 @@ final class CourtSearchViewModel {
             hasSearched = true
             errorMessage = DisplayText.message(for: error)
         }
+    }
+
+    // MARK: - Choosing a court, and the lists that follow
+
+    private(set) var court: Court?
+    private(set) var contract = CourtContract()
+    private(set) var benches: [CourtOption] = []
+    private(set) var caseTypes: [CourtOption] = []
+    private(set) var consumerStates: [CourtOption] = []
+    /// Which dependent list is being fetched, so the *control* can show it rather than the whole
+    /// form going blank. The web uses one shared flag and greys everything at once.
+    private(set) var loadingBenches = false
+    private(set) var loadingCaseTypes = false
+
+    /// A generation counter for the cascade.
+    ///
+    /// Every list here is a consequence of a selection above it, and the fetches are slow enough
+    /// to overlap: pick Delhi, then pick Madras before Delhi's benches arrive, and without this
+    /// Delhi's list lands last and sits under a form that says Madras. Each selection takes a
+    /// ticket, and a reply holding a stale one is dropped.
+    #if canImport(Darwin)
+    @ObservationIgnored private var cascade = 0
+    #else
+    private var cascade = 0
+    #endif
+
+    /// Picks a court and asks the server what it needs.
+    func selectCourt(_ court: Court) async {
+        cascade += 1
+        let ticket = cascade
+
+        self.court = court
+        query = CourtSearchQuery(forum: court.family, courtID: court.id)
+        query.courtName = court.name
+        // The High Court routes address a court by its eCourts state code, and that mapping is
+        // already carried for `courtId`. Read backwards here.
+        if court.family == .highCourt,
+           let code = CourtSearchQuery.stateCode(forHighCourtID: court.id) {
+            query.stateCode = code
+        }
+        benches = []
+        caseTypes = []
+        consumerStates = []
+        contract = CourtContract()
+        results = []
+        hasSearched = false
+        errorMessage = nil
+
+        guard court.isSearchable else { return }
+
+        // Four of the seven publish their catalogues, so there is nothing to wait for and no
+        // spinner to show. Consulted here rather than inside the provider so that a screen
+        // driven by a stand-in behaves the same as the real one.
+        if let published = CourtContract.published(for: court.family) {
+            adopt(published)
+            return
+        }
+
+        loadingBenches = true
+        defer { if ticket == cascade { loadingBenches = false } }
+        do {
+            let fetched = try await metadata.contract(for: court)
+            guard ticket == cascade else { return }
+            adopt(fetched)
+
+            // A generic eCourts High Court publishes neither list in its contract; both come
+            // from separate calls, the second of which needs a bench first.
+            if court.family == .highCourt, fetched.benches.isEmpty, !query.stateCode.isEmpty {
+                benches = try await metadata.highCourtBenches(stateCode: query.stateCode)
+                guard ticket == cascade else { return }
+            }
+            if contract.benchCascade {
+                consumerStates = try await metadata.consumerStates()
+                guard ticket == cascade else { return }
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            guard ticket == cascade else { return }
+            errorMessage = DisplayText.message(for: error)
+        }
+    }
+
+    private func adopt(_ fetched: CourtContract) {
+        contract = fetched
+        benches = fetched.benches
+        caseTypes = fetched.caseTypes
+        query.requiresBench = fetched.needsBench
+        query.benchCascade = fetched.benchCascade
+        // Only the first mode this court supports; the others are not offered, so leaving the
+        // query in one of them would make the form unsendable with nothing on screen to change.
+        if query.forum.path(for: query.mode) == nil,
+           let first = query.forum.availableModes.first {
+            query.mode = first
+        }
+    }
+
+    /// Picks a bench, and fetches the case types that depend on it.
+    func selectBench(_ option: CourtOption) async {
+        cascade += 1
+        let ticket = cascade
+
+        query.bench = option.value
+        query.benchName = option.label
+        // The case type belonged to the previous bench. Keeping it would submit a type this
+        // bench may not have, and the server would answer "no such case" rather than saying so.
+        query.caseType = ""
+        query.caseTypeLabel = ""
+
+        guard contract.takesCaseType else { return }
+        // A dedicated portal already gave us every type it has; only the two that serve them
+        // per bench need asking again.
+        let needsFetch = query.forum == .highCourt || query.forum == .tribunal
+        guard needsFetch else { return }
+
+        caseTypes = []
+        loadingCaseTypes = true
+        defer { if ticket == cascade { loadingCaseTypes = false } }
+        do {
+            let fetched: [CourtOption]
+            if query.forum == .highCourt {
+                fetched = try await metadata.highCourtCaseTypes(
+                    stateCode: query.stateCode, courtCode: option.value)
+            } else {
+                fetched = try await metadata.tribunalCaseTypes(
+                    courtID: query.courtID, bench: option.value)
+            }
+            guard ticket == cascade else { return }
+            caseTypes = fetched
+        } catch is CancellationError {
+            return
+        } catch {
+            guard ticket == cascade else { return }
+            errorMessage = DisplayText.message(for: error)
+        }
+    }
+
+    /// DCDRC only: picks a state and fetches its district commissions.
+    func selectConsumerState(_ option: CourtOption) async {
+        cascade += 1
+        let ticket = cascade
+
+        query.consumerStateID = option.value
+        query.bench = ""
+        query.benchName = ""
+        benches = []
+        loadingBenches = true
+        defer { if ticket == cascade { loadingBenches = false } }
+        do {
+            let fetched = try await metadata.consumerDistricts(stateID: option.value)
+            guard ticket == cascade else { return }
+            benches = fetched
+        } catch is CancellationError {
+            return
+        } catch {
+            guard ticket == cascade else { return }
+            errorMessage = DisplayText.message(for: error)
+        }
+    }
+
+    func selectCaseType(_ option: CourtOption) {
+        query.caseType = option.value
+        query.caseTypeLabel = option.label
     }
 
     // MARK: - The Supreme Court captcha
@@ -292,5 +464,15 @@ final class CourtSearchViewModel {
             """
         static let saveButton = "Add to my cases"
         static let savedLabel = "On your dashboard"
+
+        /// Why the district courts are listed but cannot be chosen.
+        ///
+        /// Deliberately about what Emperor can do rather than about what the court's website is
+        /// like — the courts are not at fault, and blaming them would be both unfair and wrong.
+        /// It also stops short of promising a date, because there is not one.
+        static let notSearchable = """
+            Emperor cannot look cases up at the district and subordinate courts yet. You can \
+            still add these matters from the web app and track them here.
+            """
     }
 }

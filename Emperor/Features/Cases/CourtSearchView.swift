@@ -34,7 +34,10 @@ struct CourtSearchView: View {
             }
             .task {
                 guard model == nil else { return }
-                model = CourtSearchViewModel(service: session.courtSearch, onSaved: onSaved)
+                model = CourtSearchViewModel(
+                    service: session.courtSearch,
+                    metadata: session.courtMetadata,
+                    onSaved: onSaved)
             }
         }
     }
@@ -44,27 +47,33 @@ struct CourtSearchView: View {
 
         return Form {
             Section {
-                Picker("Court", selection: $model.query.forum) {
-                    ForEach(CourtForum.allCases) { forum in
-                        Text(forum.name).tag(forum)
+                NavigationLink {
+                    CourtPicker(model: model)
+                } label: {
+                    LabeledContent("Court") {
+                        Text(model.court?.name ?? "Choose")
+                            .foregroundStyle(
+                                model.court == nil ? theme.textTertiary : theme.textPrimary)
+                            .multilineTextAlignment(.trailing)
                     }
                 }
-                .pickerStyle(.segmented)
 
-                // Which number you have, not which route this calls. Most people looking a
-                // matter up have the case number — it is what is printed on everything after
-                // registration — so it leads.
-                Picker("Search by", selection: Binding(
-                    get: { model.query.mode },
-                    set: { model.setMode($0) }
-                )) {
-                    ForEach(CourtSearchMode.allCases) { mode in
-                        Text(mode.label(for: model.query.forum)).tag(mode)
+                // Only where there is a choice. Ten tribunals and three consumer fora publish no
+                // pre-registration lookup, so offering the pill and refusing it would be worse
+                // than never showing it.
+                if model.query.forum.availableModes.count > 1 {
+                    Picker("Search by", selection: Binding(
+                        get: { model.query.mode },
+                        set: { model.setMode($0) }
+                    )) {
+                        ForEach(model.query.forum.availableModes) { mode in
+                            Text(mode.label(for: model.query.forum)).tag(mode)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
                 }
-                .pickerStyle(.segmented)
             }
-            .listRowBackground(Color.clear)
 
             fields(model)
             searchSection(model)
@@ -99,57 +108,113 @@ struct CourtSearchView: View {
 
     // MARK: - The form
 
+    /// The form, built from what the court said it needs rather than from a list of courts.
+    ///
+    /// The web branches per court here; this reads the fetched contract instead. There are 48
+    /// courts and the shape of the form is the server's answer, so a `switch` would be 48 cases
+    /// that drift the moment a tribunal gains a bench.
     @ViewBuilder
     private func fields(_ model: CourtSearchViewModel) -> some View {
         @Bindable var model = model
 
-        Section {
-            switch model.query.forum {
-            case .supremeCourt:
-                // A diary number identifies a matter on its own; a case number is only unique
-                // within its type, so `SLP(C) 1234/2025` and `C.A. 1234/2025` are different
-                // matters and the type is required.
-                if model.query.mode == .caseNumber {
-                    TextField("Case type", text: $model.query.caseType)
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled()
+        if let court = model.court {
+            if !court.isSearchable {
+                Section {
+                    Label(CourtSearchViewModel.Copy.notSearchable, systemImage: "info.circle")
+                        .font(.brand(.footnote))
+                        .foregroundStyle(theme.textSecondary)
                 }
-                numberField(model)
-                yearField(model)
-            case .highCourt:
-                // Codes rather than names because eCourts identifies courts by them and the
-                // server passes them straight through. A name-to-code list would have to be
-                // shipped and would go stale silently.
-                TextField("State code", text: $model.query.stateCode)
-                    .keyboardType(.numbersAndPunctuation)
-                TextField("Court code", text: $model.query.courtCode)
-                    .keyboardType(.numbersAndPunctuation)
-                TextField("Court complex code (optional)", text: $model.query.courtComplexCode)
-                    .keyboardType(.numbersAndPunctuation)
-                TextField("Case type", text: $model.query.caseType)
-                    .textInputAutocapitalization(.characters)
-                numberField(model)
-                yearField(model)
-            case .nclt, .nclat:
-                TextField("Bench", text: $model.query.bench)
-                // `/search` filters the bench's listing on an exact number *and* year, so both
-                // are required here — where a filing-number lookup goes straight to the matter
-                // and needs neither.
-                if model.query.mode == .caseNumber {
-                    TextField("Case type", text: $model.query.caseType)
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled()
-                }
-                numberField(model)
-                if model.query.mode == .caseNumber {
-                    yearField(model)
+            } else {
+                Section {
+                    // DCDRC only. Its commissions are not published flat — they are reached a
+                    // state at a time, which is the one two-hop cascade in this form.
+                    if model.query.benchCascade {
+                        optionPicker(
+                            "State", options: model.consumerStates,
+                            selection: model.query.consumerStateID,
+                            isLoading: model.loadingBenches && model.benches.isEmpty
+                        ) { option in
+                            Task { await model.selectConsumerState(option) }
+                        }
+                    }
+
+                    if model.query.requiresBench {
+                        optionPicker(
+                            model.query.benchLabel, options: model.benches,
+                            selection: model.query.bench,
+                            isLoading: model.loadingBenches
+                        ) { option in
+                            Task { await model.selectBench(option) }
+                        }
+                    }
+
+                    if model.contract.takesCaseType {
+                        optionPicker(
+                            "Case type", options: model.caseTypes,
+                            selection: model.query.caseType,
+                            isLoading: model.loadingCaseTypes
+                        ) { option in
+                            model.selectCaseType(option)
+                        }
+                    }
+
+                    numberField(model)
+
+                    // A consumer-forum case number carries its own year, and a tribunal filing
+                    // number goes straight to the matter. Neither takes one.
+                    if model.query.forum != .consumerForum,
+                       !(model.query.mode == .diaryNumber
+                         && (model.query.forum == .nclt || model.query.forum == .nclat)) {
+                        yearField(model)
+                    }
+                } header: {
+                    Text(court.name)
+                } footer: {
+                    if model.expectsLongWait {
+                        Text(CourtSearchViewModel.Copy.captchaWait)
+                    }
                 }
             }
-        } header: {
-            Text(model.query.forum.name)
-        } footer: {
-            if model.expectsLongWait {
-                Text(CourtSearchViewModel.Copy.captchaWait)
+        }
+    }
+
+    /// A dropdown that shows its own loading state.
+    ///
+    /// Per control rather than one flag over the whole form: the case types arrive after the
+    /// bench, and greying the number field while they load stops someone typing a number they
+    /// already know.
+    @ViewBuilder
+    private func optionPicker(
+        _ label: String,
+        options: [CourtOption],
+        selection: String,
+        isLoading: Bool,
+        onSelect: @escaping (CourtOption) -> Void
+    ) -> some View {
+        if isLoading {
+            HStack {
+                Text(label)
+                Spacer()
+                ProgressView().controlSize(.small)
+            }
+        } else if options.isEmpty {
+            // Distinguished from "still loading": the court answered and had none. Saying so
+            // beats an empty menu that looks broken.
+            LabeledContent(label) {
+                Text("None offered").foregroundStyle(theme.textTertiary)
+            }
+        } else {
+            Picker(label, selection: Binding(
+                get: { selection },
+                set: { value in
+                    guard let option = options.first(where: { $0.value == value }) else { return }
+                    onSelect(option)
+                }
+            )) {
+                Text("Choose").tag("")
+                ForEach(options) { option in
+                    Text(option.label).tag(option.value)
+                }
             }
         }
     }
@@ -296,6 +361,89 @@ struct CourtSearchView: View {
             // Saving re-scrapes the court before it answers, so one at a time.
             .disabled(model.savingID != nil)
         }
+    }
+}
+
+/// Choosing one of forty-eight courts.
+///
+/// A searchable pushed list rather than a wheel or a segmented control. The web uses a single
+/// grouped `<select>`, which is workable with a mouse and unusable on a phone — nobody scrolls
+/// fifty rows to find "Debts Recovery Appellate Tribunal".
+///
+/// The district and subordinate courts are **listed and disabled**. Hiding them would be easier
+/// and worse: a great deal of Indian litigation happens there, and a picker that silently omits
+/// them reads as a product that has not heard of district courts rather than one that knows
+/// exactly what it cannot do yet.
+private struct CourtPicker: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.dismiss) private var dismiss
+    let model: CourtSearchViewModel
+
+    @State private var query = ""
+
+    private var sections: [(title: String, courts: [Court])] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return CourtCatalogue.sections }
+        return CourtCatalogue.sections.compactMap { section in
+            let matching = section.courts.filter {
+                $0.name.localizedCaseInsensitiveContains(trimmed)
+            }
+            return matching.isEmpty ? nil : (section.title, matching)
+        }
+    }
+
+    var body: some View {
+        List {
+            ForEach(sections, id: \.title) { section in
+                Section(section.title) {
+                    ForEach(section.courts) { court in
+                        row(court)
+                    }
+                } footer: {
+                    if section.courts.contains(where: { !$0.isSearchable }) {
+                        Text(CourtSearchViewModel.Copy.notSearchable)
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(theme.canvas)
+        .searchable(text: $query, prompt: "Search courts")
+        .navigationTitle("Court")
+        .navigationBarTitleDisplayMode(.inline)
+        .overlay {
+            if sections.isEmpty {
+                ContentUnavailableView.search(text: query)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func row(_ court: Court) -> some View {
+        Button {
+            Task { await model.selectCourt(court) }
+            dismiss()
+        } label: {
+            HStack {
+                Text(court.name)
+                    .foregroundStyle(court.isSearchable ? theme.textPrimary : theme.textTertiary)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 8)
+                if model.court?.id == court.id {
+                    Image(systemName: "checkmark").foregroundStyle(theme.accent)
+                } else if !court.isSearchable {
+                    // Says which of the two it is: not "coming soon", but "this app cannot look
+                    // this one up". The section footer carries the reason.
+                    Text("Not yet searchable")
+                        .font(.brand(.caption2))
+                        .foregroundStyle(theme.textTertiary)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!court.isSearchable)
     }
 }
 

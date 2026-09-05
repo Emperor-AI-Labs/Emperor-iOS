@@ -55,8 +55,15 @@ struct CourtSearchService: CourtSearching {
     ///   connectivity ones: a missing `year` is caught and reported as "could not reach the
     ///   court". `CourtSearchQuery.isComplete` exists so the app never gets that far.
     func search(_ query: CourtSearchQuery) async throws -> [CourtSearchResult] {
-        var request = try await client.makeRequest(
-            "POST", query.forum.path(for: query.mode), body: query.body)
+        // A court with no route is refused here as well as being unreachable from the screen.
+        // The district courts have exactly one endpoint and it fabricates its answer from the
+        // request, so "no route" is the correct reading rather than a gap to fill.
+        guard let path = query.forum.path(for: query.mode) else {
+            throw APIError.server(
+                status: 400,
+                message: "Emperor cannot look a case up at this court yet.")
+        }
+        var request = try await client.makeRequest("POST", path, body: query.body)
         request.timeoutInterval = Self.timeout
 
         // Never retried. A lookup can take ten seconds of the court's time and a second
