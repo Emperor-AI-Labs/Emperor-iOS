@@ -1,18 +1,45 @@
 import Foundation
 
-/// Which court a lookup goes to.
+/// Which **kind** of court a lookup goes to, and therefore which route serves it.
 ///
-/// The four forums take genuinely different inputs — the Supreme Court by diary number, the
-/// tribunals by bench plus filing number, a High Court by a bench-and-case-type combination —
-/// so this is not a cosmetic label. It decides which fields the form shows and which route the
-/// request takes.
-enum CourtForum: String, CaseIterable, Identifiable, Sendable {
+/// Not the court itself — see `Court` and `CourtCatalogue` for the 48 of those. This is the
+/// handful of shapes those 48 fall into, and it decides both the fields the form shows and the
+/// endpoint the request takes. The distinctions are real: the Supreme Court is searched by diary
+/// number or by a numeric case-type code, a High Court by a state-and-bench pair through eCourts,
+/// a consumer forum by nothing but a case number.
+///
+/// `nclt` and `nclat` are their own families rather than members of `tribunal` because they have
+/// their own routes and their own published bench lists, where the other ten tribunals share one
+/// route and are told apart by a `courtId`.
+enum CourtFamily: String, CaseIterable, Identifiable, Sendable {
     case supremeCourt = "sc"
     case highCourt = "hc"
     case nclt
     case nclat
+    /// The ten tribunals behind `/court/tribunal/*`, distinguished by `courtId`.
+    case tribunal
+    /// NCDRC, SCDRC and DCDRC, all on e-Jagriti.
+    case consumerForum = "forum"
+    /// **Not searchable.** Listed so the picker does not pretend these courts do not exist; see
+    /// `Court.isSearchable` for why they cannot be looked up.
+    case districtCourt = "district"
 
     var id: String { rawValue }
+
+    /// The order the picker shows the sections in — the platform's own.
+    static let pickerOrder: [CourtFamily] = [
+        .supremeCourt, .highCourt, .districtCourt, .nclt, .nclat, .tribunal, .consumerForum,
+    ]
+
+    var sectionTitle: String {
+        switch self {
+        case .supremeCourt: return "Supreme Court"
+        case .highCourt: return "High Courts"
+        case .districtCourt: return "District and subordinate courts"
+        case .nclt, .nclat, .tribunal: return "Tribunals"
+        case .consumerForum: return "Consumer fora"
+        }
+    }
 
     /// The route for a lookup at this forum, in this mode.
     ///
@@ -20,17 +47,35 @@ enum CourtForum: String, CaseIterable, Identifiable, Sendable {
     /// differently: the diary routes go straight to a case's detail page and need no captcha,
     /// while the case-number routes have to search a listing and — at the Supreme Court and the
     /// High Courts — get past one.
-    func path(for mode: CourtSearchMode) -> String {
-        switch mode {
-        case .diaryNumber:
+    /// - Returns: `nil` where this family has no route for that mode — a district court in any
+    ///   mode, and everything but SC/HC/NCLT/NCLAT by diary number. The screen hides the mode
+    ///   rather than offering one that cannot be sent.
+    func path(for mode: CourtSearchMode) -> String? {
+        switch (self, mode) {
+        case (.districtCourt, _):
+            return nil
+
+        case (.supremeCourt, .diaryNumber), (.highCourt, .diaryNumber),
+             (.nclt, .diaryNumber), (.nclat, .diaryNumber):
             return "/court/\(rawValue)/diary"
-        case .caseNumber:
-            // The Supreme Court's is `auto` rather than `search` because the route's whole job
-            // is to try the captcha itself first; it is the only one that can hand the problem
-            // back to the user. See `SupremeCourtCaptcha`.
-            return self == .supremeCourt ? "/court/sc/auto" : "/court/\(rawValue)/search"
+        // Only four forums publish a pre-registration number lookup at all.
+        case (.tribunal, .diaryNumber), (.consumerForum, .diaryNumber):
+            return nil
+
+        // `auto` rather than `search` because that route's whole job is to try the captcha
+        // itself first; it is the only one that can hand the problem back. See
+        // `SupremeCourtCaptcha`.
+        case (.supremeCourt, .caseNumber): return "/court/sc/auto"
+        case (.highCourt, .caseNumber): return "/court/hc/search"
+        case (.nclt, .caseNumber): return "/court/nclt/search"
+        case (.nclat, .caseNumber): return "/court/nclat/search"
+        // One route for all ten, told apart by `courtId` in the body.
+        case (.tribunal, .caseNumber): return "/court/tribunal/live-search"
+        case (.consumerForum, .caseNumber): return "/court/forum/live-search"
         }
     }
+
+    var supportsCaseNumberLookup: Bool { path(for: .caseNumber) != nil }
 
     var name: String {
         switch self {
@@ -38,6 +83,9 @@ enum CourtForum: String, CaseIterable, Identifiable, Sendable {
         case .highCourt: return "High Court"
         case .nclt: return "NCLT"
         case .nclat: return "NCLAT"
+        case .tribunal: return "Tribunal"
+        case .consumerForum: return "Consumer forum"
+        case .districtCourt: return "District court"
         }
     }
 
@@ -66,16 +114,21 @@ enum CourtForum: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .highCourt: return true
         case .supremeCourt: return mode == .caseNumber
-        case .nclt, .nclat: return false
+        case .nclt, .nclat, .tribunal, .consumerForum, .districtCourt: return false
         }
     }
 
-    /// Whether this forum can be looked up by diary number at all.
+    /// Whether this family can be looked up by its pre-registration number at all.
     ///
-    /// All four can today. Kept as a property rather than assumed because the wider court
-    /// catalogue does not — no tribunal or consumer forum has a diary route — and a screen that
-    /// offers the mode and then refuses it is worse than one that hides it.
-    var supportsDiaryLookup: Bool { true }
+    /// Four of the seven can. The ten live tribunals and the three consumer fora have no diary
+    /// route, so the screen hides the mode for them rather than offering one that cannot be
+    /// sent — an option that greys out on selection is worse than one that was never there.
+    var supportsDiaryLookup: Bool { path(for: .diaryNumber) != nil }
+
+    /// The modes worth showing for this family, in order.
+    var availableModes: [CourtSearchMode] {
+        CourtSearchMode.allCases.filter { path(for: $0) != nil }
+    }
 }
 
 /// Which of the two lookups a search is.
@@ -92,7 +145,7 @@ enum CourtSearchMode: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 
     /// The pill label. Phrased as the thing you have, not the thing the route is called.
-    func label(for forum: CourtForum) -> String {
+    func label(for forum: CourtFamily) -> String {
         switch self {
         case .caseNumber: return "By case number"
         case .diaryNumber: return forum == .supremeCourt ? "By diary number" : "By filing number"
@@ -239,10 +292,17 @@ struct CourtSearchResponse: Codable, Sendable {
     var message: String?
 }
 
-/// What a diary lookup needs, per forum.
+/// What a lookup needs, per court and mode.
 struct CourtSearchQuery: Equatable, Sendable {
-    var forum: CourtForum
+    var forum: CourtFamily
     var mode: CourtSearchMode = .caseNumber
+    /// Which court in the family — `"trib-ngt"`, `"forum-dcdrc"`, `"hc-delhi"`.
+    ///
+    /// The ten live tribunals share one route and are told apart by nothing but this, so it is
+    /// required there. The four forums with their own routes ignore it, and it is sent anyway
+    /// where the server accepts it because it is what stamps the saved matter with the court it
+    /// actually belongs to.
+    var courtID: String = ""
     /// **Whichever number the current `mode` asks for**, and only that one.
     ///
     /// One field rather than two because a diary number and a case number are different numbers
@@ -272,7 +332,44 @@ struct CourtSearchQuery: Equatable, Sendable {
     /// one: a missing `year` throws, is caught, and comes back as
     /// "Could not reach the Supreme Court site" — so an incomplete form looks exactly like an
     /// outage, and the user retries something that can never work.
-    var isComplete: Bool { missingFields.isEmpty }
+    /// - Note: a court with no route for the current mode is never complete, however much of the
+    ///   form is filled in. That is the district courts, whose only endpoint echoes the request
+    ///   back as a fabricated card — see `Court.isSearchable`.
+    var isComplete: Bool { forum.path(for: mode) != nil && missingFields.isEmpty }
+
+    /// From the fetched contract: whether this court needs a bench before it can be searched.
+    ///
+    /// Not derivable locally. `/court/tribunal/config` answers it per tribunal — NGT wants a
+    /// zone, SAT has one bench and wants nothing — and `/court/forum/config` the same for the
+    /// consumer commissions. Assuming either way would block a valid search or send an
+    /// incomplete one.
+    var requiresBench = false
+
+    /// DCDRC only: the bench list is not published flat, it is reached state by state.
+    ///
+    /// Also from the contract. When set, `consumerStateID` must be chosen before the district
+    /// commissions can even be fetched, which is the only two-hop cascade in the whole form.
+    var benchCascade = false
+
+    /// The state whose district commissions are being listed. **Not sent** — it exists to fetch
+    /// the list that `bench` is chosen from.
+    var consumerStateID: String = ""
+
+    /// The words for the chosen `bench`, where `bench` itself is a code.
+    ///
+    /// Sent to the consumer-forum route as `benchLabel`, because that route names the result's
+    /// court from it: whatever is sent here is what the saved matter will say it belongs to.
+    var benchName: String = ""
+
+    /// What that second dropdown is called here. Three different words for three different
+    /// things, and calling a commission a bench would send someone hunting for the wrong
+    /// control on their own papers.
+    var benchLabel: String {
+        switch forum {
+        case .consumerForum: return benchCascade ? "District commission" : "Commission"
+        default: return "Bench"
+        }
+    }
 
     /// The fields this forum and mode require, as `(value, label)`.
     ///
@@ -304,6 +401,26 @@ struct CourtSearchQuery: Equatable, Sendable {
                 (bench, "Bench"), (caseType, "Case type"),
                 (number, forum.numberLabel(for: mode)), (year, "Year"),
             ]
+
+        // Whether a bench is needed is the server's answer, not ours: `/court/tribunal/config`
+        // returns a contract per tribunal, and NGT wants a zone where SAT does not.
+        case (.tribunal, _):
+            return (requiresBench ? [(bench, benchLabel)] : [])
+                + [(caseType, "Case type"), (number, "Case number"), (year, "Year")]
+
+        // **No case type and no year.** An e-Jagriti case number carries both inside it —
+        // `DC/77/CC/33/2024` — so asking for them separately would be asking twice.
+        case (.consumerForum, _):
+            // The state comes first and is not sent — it is how the district list is fetched —
+            // but it still has to be chosen, so it belongs in what the form reports as missing.
+            return (benchCascade ? [(consumerStateID, "State")] : [])
+                + (requiresBench ? [(bench, benchLabel)] : [])
+                + [(number, "Case number")]
+
+        // Never sendable. Its only route fabricates a card from these very fields, so there is
+        // nothing to require. `isComplete` refuses on the missing route rather than here.
+        case (.districtCourt, _):
+            return []
         }
     }
 
@@ -396,6 +513,47 @@ struct CourtSearchQuery: Equatable, Sendable {
             ]
             addLabels(to: &body)
             return body
+
+        // One route serves all ten, so `courtId` is not decoration here — it is the only thing
+        // that says which tribunal is being asked.
+        case (.tribunal, _):
+            var body: [String: JSONValue] = [
+                "courtId": .string(trimmed(courtID)),
+                "caseType": .string(trimmed(caseType)),
+                "caseNumber": .string(trimmed(number).filter { !$0.isWhitespace }),
+                "year": .string(trimmed(year)),
+            ]
+            // Sent only where the contract asked for one. A bench on a single-bench tribunal is
+            // a field its adapter does not read.
+            if requiresBench, !trimmed(bench).isEmpty {
+                body["bench"] = .string(trimmed(bench))
+            }
+            addLabels(to: &body)
+            return body
+
+        // **No `caseType` and no `year`.** An e-Jagriti case number contains both, and this is
+        // the one search route whose number is not normalised server-side — it is trimmed and
+        // used as typed, so the punctuation in `DC/77/CC/33/2024` is load-bearing and must not
+        // be stripped here either.
+        case (.consumerForum, _):
+            var body: [String: JSONValue] = [
+                "courtId": .string(trimmed(courtID)),
+                "caseNumber": .string(trimmed(number)),
+            ]
+            if requiresBench, !trimmed(bench).isEmpty {
+                body["bench"] = .string(trimmed(bench))
+                // The card's `courtName` is built from this, so the commission a result names
+                // is whatever label is sent rather than anything the portal returns.
+                if !trimmed(benchName).isEmpty {
+                    body["benchLabel"] = .string(trimmed(benchName))
+                }
+            }
+            return body
+
+        // No route exists. `isComplete` refuses before anything can be sent; an empty body here
+        // is unreachable rather than meaningful.
+        case (.districtCourt, _):
+            return [:]
         }
     }
 }
@@ -422,6 +580,17 @@ extension CourtSearchQuery {
     /// rather than guessed.
     static func highCourtID(forStateCode code: String) -> String? {
         highCourtIDsByStateCode[code].map { "hc-\($0)" }
+    }
+
+    /// The other direction: which eCourts state code addresses this High Court.
+    ///
+    /// Needed because the picker chooses a court by id — `hc-delhi` — while every High Court
+    /// route addresses it by state code. Derived from the same table rather than a second one,
+    /// so the two cannot disagree.
+    static func stateCode(forHighCourtID id: String) -> String? {
+        guard id.hasPrefix("hc-") else { return nil }
+        let suffix = String(id.dropFirst(3))
+        return highCourtIDsByStateCode.first { $0.value == suffix }?.key
     }
 
     static let highCourtIDsByStateCode: [String: String] = [

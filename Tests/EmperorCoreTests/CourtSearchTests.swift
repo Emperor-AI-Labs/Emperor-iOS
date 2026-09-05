@@ -43,12 +43,79 @@ private final class FakeCourtSearch: CourtSearching, @unchecked Sendable {
     }
 }
 
+private final class FakeCourtMetadata: CourtMetadataProviding, @unchecked Sendable {
+    var contracts: [String: CourtContract] = [:]
+    var hcBenches: [CourtOption] = []
+    var hcCaseTypes: [CourtOption] = []
+    var tribunalTypes: [CourtOption] = []
+    var states: [CourtOption] = []
+    var districts: [CourtOption] = []
+    var failure: Error?
+
+    private(set) var contractsAsked: [String] = []
+    private(set) var caseTypesAsked: [(courtID: String, bench: String)] = []
+    private(set) var districtsAsked: [String] = []
+
+    /// Held open until `release()` so a test can start a second selection while the first is
+    /// still in flight — which is the whole point of the cascade's generation counter.
+    var gate: (@Sendable () async -> Void)?
+
+    func contract(for court: Court) async throws -> CourtContract {
+        contractsAsked.append(court.id)
+        await gate?()
+        if let failure { throw failure }
+        return contracts[court.id] ?? CourtContract()
+    }
+
+    func highCourtBenches(stateCode: String) async throws -> [CourtOption] {
+        await gate?()
+        if let failure { throw failure }
+        return hcBenches
+    }
+
+    func highCourtCaseTypes(stateCode: String, courtCode: String) async throws -> [CourtOption] {
+        caseTypesAsked.append((stateCode, courtCode))
+        await gate?()
+        if let failure { throw failure }
+        return hcCaseTypes
+    }
+
+    func tribunalCaseTypes(courtID: String, bench: String) async throws -> [CourtOption] {
+        caseTypesAsked.append((courtID, bench))
+        await gate?()
+        if let failure { throw failure }
+        return tribunalTypes
+    }
+
+    func consumerStates() async throws -> [CourtOption] {
+        await gate?()
+        if let failure { throw failure }
+        return states
+    }
+
+    func consumerDistricts(stateID: String) async throws -> [CourtOption] {
+        districtsAsked.append(stateID)
+        await gate?()
+        if let failure { throw failure }
+        return districts
+    }
+}
+
 @MainActor
 private func withSearch(
     _ body: @MainActor (FakeCourtSearch, CourtSearchViewModel) async -> Void
 ) async {
     let fake = FakeCourtSearch()
-    await body(fake, CourtSearchViewModel(service: fake))
+    await body(fake, CourtSearchViewModel(service: fake, metadata: FakeCourtMetadata()))
+}
+
+/// For the tests that drive the court cascade rather than a search.
+@MainActor
+private func withCascade(
+    _ body: @MainActor (FakeCourtMetadata, CourtSearchViewModel) async -> Void
+) async {
+    let metadata = FakeCourtMetadata()
+    await body(metadata, CourtSearchViewModel(service: FakeCourtSearch(), metadata: metadata))
 }
 
 private func card(
@@ -76,7 +143,7 @@ final class CourtSearchQueryTests: XCTestCase {
     }
 
     func testTribunalsNeedABenchAndFilingNumber() {
-        for forum in [CourtForum.nclt, .nclat] {
+        for forum in [CourtFamily.nclt, .nclat] {
             var query = CourtSearchQuery(forum: forum, mode: .diaryNumber, number: "CP/123/2024")
             XCTAssertFalse(query.isComplete, "\(forum) should need a bench")
             query.bench = "Mumbai"
@@ -167,19 +234,19 @@ final class CourtSearchQueryTests: XCTestCase {
     }
 
     func testEachForumHasItsOwnDiaryRoute() {
-        XCTAssertEqual(CourtForum.supremeCourt.path(for: .diaryNumber), "/court/sc/diary")
-        XCTAssertEqual(CourtForum.highCourt.path(for: .diaryNumber), "/court/hc/diary")
-        XCTAssertEqual(CourtForum.nclt.path(for: .diaryNumber), "/court/nclt/diary")
-        XCTAssertEqual(CourtForum.nclat.path(for: .diaryNumber), "/court/nclat/diary")
+        XCTAssertEqual(CourtFamily.supremeCourt.path(for: .diaryNumber), "/court/sc/diary")
+        XCTAssertEqual(CourtFamily.highCourt.path(for: .diaryNumber), "/court/hc/diary")
+        XCTAssertEqual(CourtFamily.nclt.path(for: .diaryNumber), "/court/nclt/diary")
+        XCTAssertEqual(CourtFamily.nclat.path(for: .diaryNumber), "/court/nclat/diary")
     }
 
     /// The Supreme Court is the odd one out: `auto` rather than `search`, because that route's
     /// job is to attempt the captcha itself and hand it back only if it cannot.
     func testCaseNumberSearchUsesADifferentRoutePerForum() {
-        XCTAssertEqual(CourtForum.supremeCourt.path(for: .caseNumber), "/court/sc/auto")
-        XCTAssertEqual(CourtForum.highCourt.path(for: .caseNumber), "/court/hc/search")
-        XCTAssertEqual(CourtForum.nclt.path(for: .caseNumber), "/court/nclt/search")
-        XCTAssertEqual(CourtForum.nclat.path(for: .caseNumber), "/court/nclat/search")
+        XCTAssertEqual(CourtFamily.supremeCourt.path(for: .caseNumber), "/court/sc/auto")
+        XCTAssertEqual(CourtFamily.highCourt.path(for: .caseNumber), "/court/hc/search")
+        XCTAssertEqual(CourtFamily.nclt.path(for: .caseNumber), "/court/nclt/search")
+        XCTAssertEqual(CourtFamily.nclat.path(for: .caseNumber), "/court/nclat/search")
     }
 
     // MARK: - Case-number mode
@@ -201,7 +268,7 @@ final class CourtSearchQueryTests: XCTestCase {
     /// is not a laxer search — it rejects every row and returns an empty list, which reads to
     /// the user as "no such case".
     func testTribunalsNeedAYearForACaseNumberButNotForAFilingNumber() {
-        for forum in [CourtForum.nclt, .nclat] {
+        for forum in [CourtFamily.nclt, .nclat] {
             var query = CourtSearchQuery(
                 forum: forum, mode: .caseNumber, number: "123", bench: "Mumbai")
             query.caseType = "CP"
@@ -593,7 +660,8 @@ final class CourtSearchViewModelTests: XCTestCase {
         final class Counter: @unchecked Sendable { var value = 0 }
         let counter = Counter()
         let fake = FakeCourtSearch()
-        let model = await CourtSearchViewModel(service: fake, onSaved: { counter.value += 1 })
+        let model = await CourtSearchViewModel(
+            service: fake, metadata: FakeCourtMetadata(), onSaved: { counter.value += 1 })
         await model.runSave(card(cnr: "X1"))
         XCTAssertEqual(counter.value, 1)
     }
@@ -604,7 +672,8 @@ final class CourtSearchViewModelTests: XCTestCase {
         let counter = Counter()
         let fake = FakeCourtSearch()
         fake.saveOutcome = .alreadySaved(message: "already there")
-        let model = await CourtSearchViewModel(service: fake, onSaved: { counter.value += 1 })
+        let model = await CourtSearchViewModel(
+            service: fake, metadata: FakeCourtMetadata(), onSaved: { counter.value += 1 })
         await model.runSave(card(cnr: "X1"))
         XCTAssertEqual(counter.value, 0)
     }
@@ -1074,6 +1143,234 @@ final class SupremeCourtCaptchaTests: XCTestCase {
             await model.submitCaptcha()
             XCTAssertTrue(fake.submitted.isEmpty)
         }
+    }
+}
+
+/// A free function, not a method: `XCTestCase` is not `Sendable`, so `court(...)` inside
+/// the `@MainActor` closures below is rejected under Swift 6.
+private func court(_ id: String) -> Court {
+    guard let found = CourtCatalogue.court(id) else {
+        fatalError("no court \(id) in the catalogue")
+    }
+    return found
+}
+
+/// Choosing a court, and the dropdowns that follow from it.
+final class CourtCascadeTests: XCTestCase {
+
+    // MARK: - The catalogue
+
+    func testEveryCourtThePlatformListsIsHere() {
+        XCTAssertEqual(CourtCatalogue.all.count, 48)
+        XCTAssertEqual(CourtCatalogue.all.filter { $0.family == .highCourt }.count, 25)
+        XCTAssertEqual(CourtCatalogue.all.filter { $0.family == .tribunal }.count, 10)
+        XCTAssertEqual(CourtCatalogue.all.filter { $0.family == .consumerForum }.count, 3)
+        XCTAssertEqual(CourtCatalogue.all.filter { $0.family == .districtCourt }.count, 7)
+    }
+
+    /// A duplicate id would silently shadow a court in the lookup and file matters under the
+    /// wrong one.
+    func testCourtIDsAreUnique() {
+        let ids = CourtCatalogue.all.map(\.id)
+        XCTAssertEqual(Set(ids).count, ids.count)
+    }
+
+    /// Listed, not hidden — a picker that omits the district courts reads as a product that has
+    /// not heard of them. But their only route fabricates its answer, so they cannot be searched.
+    func testDistrictCourtsAreListedButNotSearchable() {
+        let district = CourtCatalogue.all.filter { $0.family == .districtCourt }
+        XCTAssertFalse(district.isEmpty)
+        for court in district {
+            XCTAssertFalse(court.isSearchable, court.name)
+            XCTAssertNil(CourtFamily.districtCourt.path(for: .caseNumber))
+            XCTAssertNil(CourtFamily.districtCourt.path(for: .diaryNumber))
+        }
+        XCTAssertTrue(CourtCatalogue.all.filter { $0.family != .districtCourt }
+            .allSatisfy(\.isSearchable))
+    }
+
+    /// However complete the form, a district court can never be sent.
+    func testADistrictCourtQueryIsNeverComplete() {
+        var query = CourtSearchQuery(forum: .districtCourt, courtID: "dist-sessions")
+        query.number = "123"; query.year = "2025"; query.caseType = "CS"; query.bench = "Delhi"
+        XCTAssertFalse(query.isComplete)
+    }
+
+    func testOnlyFourFamiliesOfferADiaryLookup() {
+        for family in [CourtFamily.supremeCourt, .highCourt, .nclt, .nclat] {
+            XCTAssertTrue(family.supportsDiaryLookup, "\(family)")
+        }
+        for family in [CourtFamily.tribunal, .consumerForum, .districtCourt] {
+            XCTAssertFalse(family.supportsDiaryLookup, "\(family)")
+            XCTAssertEqual(family.availableModes, family == .districtCourt ? [] : [.caseNumber])
+        }
+    }
+
+    // MARK: - Selecting a court
+
+    /// The four with published catalogues answer without a round trip; there is nothing to ask.
+    func testTheStaticForumsNeedNoRequest() async {
+        await withCascade { metadata, model in
+            await model.selectCourt(court("sc"))
+            XCTAssertEqual(model.caseTypes.count, CourtCatalogue.supremeCourtCaseTypes.count)
+
+            await model.selectCourt(court("trib-nclt"))
+            XCTAssertEqual(model.benches.count, 15)
+            XCTAssertEqual(model.caseTypes.count, CourtCatalogue.ncltCaseTypes.count)
+
+            XCTAssertTrue(
+                metadata.contractsAsked.isEmpty,
+                "these publish their catalogues; asking the server is a round trip for nothing")
+        }
+    }
+
+    func testAHighCourtIsAddressedByItsStateCode() async {
+        await withCascade { _, model in
+            await model.selectCourt(court("hc-delhi"))
+            XCTAssertEqual(model.query.stateCode, "26")
+            XCTAssertEqual(model.query.courtID, "hc-delhi")
+        }
+    }
+
+    func testAGenericHighCourtFetchesItsBenchesSeparately() async {
+        await withCascade { metadata, model in
+            metadata.contracts["hc-delhi"] = CourtContract(needsBench: true)
+            metadata.hcBenches = [CourtOption(value: "1", label: "Principal Bench")]
+
+            await model.selectCourt(court("hc-delhi"))
+
+            XCTAssertEqual(model.benches.map(\.label), ["Principal Bench"])
+            XCTAssertTrue(model.query.requiresBench)
+        }
+    }
+
+    /// A dedicated portal hands back both lists in the contract, so no second call is made.
+    func testADedicatedHighCourtNeedsNoSecondCall() async {
+        await withCascade { metadata, model in
+            metadata.contracts["hc-bombay"] = CourtContract(
+                benches: [CourtOption(value: "OS", label: "Original Side")],
+                caseTypes: [CourtOption(value: "WP", label: "Writ Petition")])
+            metadata.hcBenches = [CourtOption(value: "wrong", label: "Should not be used")]
+
+            await model.selectCourt(court("hc-bombay"))
+
+            XCTAssertEqual(model.benches.map(\.label), ["Original Side"])
+            XCTAssertEqual(model.caseTypes.map(\.value), ["WP"])
+        }
+    }
+
+    func testTheConsumerCascadeLoadsStatesFirst() async {
+        await withCascade { metadata, model in
+            metadata.contracts["forum-dcdrc"] = CourtContract(
+                needsBench: true, benchCascade: true, takesCaseType: false)
+            metadata.states = [CourtOption(value: "KL", label: "Kerala")]
+            metadata.districts = [CourtOption(value: "KL-EKM", label: "Ernakulam")]
+
+            await model.selectCourt(court("forum-dcdrc"))
+            XCTAssertEqual(model.consumerStates.map(\.label), ["Kerala"])
+            XCTAssertTrue(model.benches.isEmpty, "no state chosen yet")
+
+            await model.selectConsumerState(CourtOption(value: "KL", label: "Kerala"))
+            XCTAssertEqual(metadata.districtsAsked, ["KL"])
+            XCTAssertEqual(model.benches.map(\.label), ["Ernakulam"])
+            XCTAssertEqual(model.query.consumerStateID, "KL")
+        }
+    }
+
+    /// A consumer forum identifies a matter by its case number alone — the type and year live
+    /// inside `DC/77/CC/33/2024`, so asking for them would be asking twice.
+    func testAConsumerForumAsksForNothingButACaseNumber() async {
+        await withCascade { metadata, model in
+            metadata.contracts["forum-ncdrc"] = CourtContract(takesCaseType: false)
+
+            await model.selectCourt(court("forum-ncdrc"))
+            model.query.number = "RP/123/2024"
+
+            XCTAssertTrue(model.query.isComplete)
+            XCTAssertEqual(
+                Set(model.query.body.keys), ["courtId", "caseNumber"],
+                "no caseType, no year")
+        }
+    }
+
+    // MARK: - Picking a bench
+
+    func testChoosingABenchFetchesItsCaseTypes() async {
+        await withCascade { metadata, model in
+            metadata.contracts["trib-ngt"] = CourtContract(needsBench: true)
+            metadata.tribunalTypes = [CourtOption(value: "OA", label: "Original Application")]
+
+            await model.selectCourt(court("trib-ngt"))
+            await model.selectBench(CourtOption(value: "south", label: "Southern Zone"))
+
+            XCTAssertEqual(model.caseTypes.map(\.value), ["OA"])
+            XCTAssertEqual(model.query.bench, "south")
+            XCTAssertEqual(model.query.benchName, "Southern Zone")
+        }
+    }
+
+    /// The type belonged to the previous bench. Carrying it over submits a type this bench may
+    /// not have, and the court answers "no such case" rather than saying the type is wrong.
+    func testChangingBenchClearsTheCaseType() async {
+        await withCascade { metadata, model in
+            metadata.contracts["trib-ngt"] = CourtContract(needsBench: true)
+            await model.selectCourt(court("trib-ngt"))
+            model.selectCaseType(CourtOption(value: "OA", label: "Original Application"))
+            XCTAssertEqual(model.query.caseType, "OA")
+
+            await model.selectBench(CourtOption(value: "west", label: "Western Zone"))
+
+            XCTAssertTrue(model.query.caseType.isEmpty)
+            XCTAssertTrue(model.query.caseTypeLabel.isEmpty)
+        }
+    }
+
+    // MARK: - The race
+
+    /// **The reason the cascade carries a generation counter.** Pick one court, then another
+    /// before the first replies, and the slow first reply must not land under the second court's
+    /// name. Without the guard the form shows one court and offers another's benches.
+    func testASupersededSelectionDoesNotOverwriteTheCurrentOne() async {
+        await withCascade { metadata, model in
+            metadata.contracts["hc-delhi"] = CourtContract(
+                needsBench: true, benches: [CourtOption(value: "1", label: "Delhi bench")])
+            metadata.contracts["hc-madras"] = CourtContract(
+                needsBench: true, benches: [CourtOption(value: "2", label: "Madras bench")])
+
+            // The first selection is parked mid-flight; the second runs to completion; only
+            // then is the first allowed to finish.
+            let opened = AsyncGate()
+            metadata.gate = { await opened.wait() }
+            let first = Task { await model.selectCourt(court("hc-delhi")) }
+            await Task.yield()
+
+            metadata.gate = nil
+            await model.selectCourt(court("hc-madras"))
+            await opened.open()
+            _ = await first.value
+
+            XCTAssertEqual(model.court?.id, "hc-madras")
+            XCTAssertEqual(
+                model.benches.map(\.label), ["Madras bench"],
+                "the superseded reply landed on top of the current court")
+        }
+    }
+}
+
+/// A latch a test can hold a fake open on.
+private actor AsyncGate {
+    private var isOpen = false
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        if isOpen { return }
+        await withCheckedContinuation { waiting.append($0) }
+    }
+
+    func open() {
+        isOpen = true
+        waiting.forEach { $0.resume() }
+        waiting = []
     }
 }
 

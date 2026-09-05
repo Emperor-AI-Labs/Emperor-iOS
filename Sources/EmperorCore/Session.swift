@@ -38,6 +38,8 @@ final class Session {
     let library: LibraryService
     let enhancer: EnhancerService
     let courtSearch: CourtSearchService
+    /// The dropdown catalogues behind the court search form — which bench, which case type.
+    let courtMetadata: CourtMetadataService
     let fileManagement: FileManagementService
     let drafts: DraftHistoryService
     let auctions: AuctionService
@@ -87,6 +89,7 @@ final class Session {
         self.enhancer = EnhancerService(client: client)
         self.feedback = FeedbackService(client: client)
         self.courtSearch = CourtSearchService(client: client)
+        self.courtMetadata = CourtMetadataService(client: client)
         self.fileManagement = FileManagementService(client: client)
         self.drafts = DraftHistoryService(client: client)
         self.auctions = AuctionService(client: client)

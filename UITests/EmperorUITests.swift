@@ -159,35 +159,67 @@ final class EmperorUITests: XCTestCase {
             app.navigationBars["Find a case"].waitForExistence(timeout: 10),
             "the court search sheet did not open")
 
+        // Forty-eight courts, so a pushed searchable list rather than a control on the form.
+        app.buttons["Court"].tap()
+        XCTAssertTrue(
+            app.navigationBars["Court"].waitForExistence(timeout: 5),
+            "the court picker did not open")
+        app.buttons["Supreme Court of India"].tap()
+
         // Case number leads, because it is the number people have.
         let caseNumberField = app.textFields["Case number"]
         XCTAssertTrue(
             caseNumberField.waitForExistence(timeout: 5),
             "the form opened in diary mode rather than case-number mode")
-        // The Supreme Court needs a case type here and does not for a diary lookup, so its
-        // presence is what proves the form is mode-aware rather than merely relabelled.
-        XCTAssertTrue(app.textFields["Case type"].exists, "case number needs the type to be unique")
 
-        app.textFields["Case type"].tap()
-        app.textFields["Case type"].typeText("SLP(C)")
         caseNumberField.tap()
         caseNumberField.typeText("1234")
         app.textFields["Year"].tap()
         app.textFields["Year"].typeText("2025")
+        // The Supreme Court publishes its case types, so this is a menu rather than a text field
+        // — and picking from it is what proves the catalogue reached the screen.
+        app.buttons["Case type"].tap()
+        app.buttons["Civil Appeal"].tap()
 
         app.buttons["Search the court"].tap()
         XCTAssertTrue(
             app.staticTexts["Bakshi v. State of Maharashtra"].waitForExistence(timeout: 15),
             "the case was not listed")
 
-        // Switching mode drops the case type and renames the number, because a diary number is
-        // a different number for the same matter.
+        // Switching mode renames the number, because a diary number is a different number for
+        // the same matter.
         app.buttons["By diary number"].tap()
         XCTAssertTrue(
             app.textFields["Diary number"].waitForExistence(timeout: 5),
             "the number field did not change with the mode")
-        XCTAssertFalse(
-            app.textFields["Case type"].exists, "a diary lookup does not take a case type")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    /// The district and subordinate courts are listed and disabled rather than hidden. A great
+    /// deal of Indian litigation happens there, and a picker that silently omits them reads as a
+    /// product that has not heard of them rather than one that knows what it cannot do.
+    func testDistrictCourtsAreListedButCannotBeChosen() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tabBars.buttons["Cases"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Cases"].tap()
+        app.buttons["Find a case"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Find a case"].waitForExistence(timeout: 10))
+
+        app.buttons["Court"].tap()
+        XCTAssertTrue(app.navigationBars["Court"].waitForExistence(timeout: 5))
+
+        let district = app.buttons["District & Sessions Court"]
+        XCTAssertTrue(
+            district.waitForExistence(timeout: 5),
+            "district courts must be listed, not hidden")
+        XCTAssertFalse(district.isEnabled, "and must not be selectable")
+
+        // The reason travels with them rather than being left to be inferred.
+        XCTAssertTrue(
+            app.staticTexts.containing(
+                NSPredicate(format: "label CONTAINS[c] %@", "cannot look cases up")
+            ).firstMatch.exists,
+            "the picker does not say why they are disabled")
         XCTAssertEqual(app.state, .runningForeground)
     }
 
