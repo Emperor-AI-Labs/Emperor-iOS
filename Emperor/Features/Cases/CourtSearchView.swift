@@ -57,6 +57,10 @@ struct CourtSearchView: View {
                             .multilineTextAlignment(.trailing)
                     }
                 }
+                // A composed label — "Court" and the chosen court's name are one element, read
+                // out together — so there is no stable text to query. Identifiers are for
+                // exactly this: the thing a test names should not change when the copy does.
+                .accessibilityIdentifier("court-picker")
 
                 // Only where there is a choice. Ten tribunals and three consumer fora publish no
                 // pre-registration lookup, so offering the pill and refusing it would be worse
@@ -449,6 +453,9 @@ private struct CourtPicker: View {
         }
         .buttonStyle(.plain)
         .disabled(!court.isSearchable)
+        // The row's label is composed too — a disabled one reads "…, Not yet searchable" — so
+        // the court's own id is what a test should name.
+        .accessibilityIdentifier("court-\(court.id)")
     }
 }
 
