@@ -395,10 +395,15 @@ private struct CourtPicker: View {
     var body: some View {
         List {
             ForEach(sections, id: \.title) { section in
-                Section(section.title) {
+                // `header:` rather than `Section(section.title)`: SwiftUI offers no
+                // `Section(_:content:footer:)`, so a title-plus-footer section has to spell
+                // both closures out.
+                Section {
                     ForEach(section.courts) { court in
                         row(court)
                     }
+                } header: {
+                    Text(section.title)
                 } footer: {
                     if section.courts.contains(where: { !$0.isSearchable }) {
                         Text(CourtSearchViewModel.Copy.notSearchable)

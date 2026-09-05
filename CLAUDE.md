@@ -126,10 +126,15 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   there is what genuinely needs UIKit, SwiftUI or the Security framework.
 - **`swiftc -parse $(find Emperor -name '*.swift')` is the standing gate for that layer.** It
   runs without the iOS SDK and catches every syntax error, and it is in CI. It does **not**
-  type-check — two real compile errors (a `@Sendable` closure capturing a `@Bindable` local, a
-  non-`Sendable` `UserDefaults` in a `Sendable` struct) parsed cleanly and were caught only by
-  reproducing them against `swiftc -swift-version 6 -typecheck`. When you suspect something,
-  build a minimal repro with mock types and compile it; do not reason about it by eye.
+  type-check — three real compile errors (a `@Sendable` closure capturing a `@Bindable` local, a
+  non-`Sendable` `UserDefaults` in a `Sendable` struct, and `Section("Title") { … } footer: { … }`
+  for which SwiftUI has no initialiser) parsed cleanly. When you suspect something, build a
+  minimal repro with mock types and compile it; do not reason about it by eye.
+- **A wrong SwiftUI API shape only fails on the Mac.** Parsing proves the braces balance, not
+  that the overload exists — `Section` has `(content:header:footer:)` but no
+  `(_:content:footer:)`, so a title-plus-footer section must spell both closures out. The
+  simulator job is the type-checker; expect to spend a CI round-trip on this class of mistake
+  rather than trying to catch it locally.
 - **The Xcode project is generated**, not committed: `xcodegen generate`. Add files by editing
   `project.yml`.
 - The app target compiles `Sources/EmperorCore` directly, so the tested code and the shipped
