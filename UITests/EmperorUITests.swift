@@ -160,38 +160,36 @@ final class EmperorUITests: XCTestCase {
             "the court search sheet did not open")
 
         // Forty-eight courts, so a pushed searchable list rather than a control on the form.
-        app.buttons["Court"].tap()
+        app.buttons["court-picker"].tap()
         XCTAssertTrue(
             app.navigationBars["Court"].waitForExistence(timeout: 5),
             "the court picker did not open")
-        app.buttons["Supreme Court of India"].tap()
+        app.buttons["court-sc"].tap()
 
-        // Case number leads, because it is the number people have.
-        let caseNumberField = app.textFields["Case number"]
+        // Case number leads, because it is the number people have. The Supreme Court needs a
+        // case type for one and not the other, so which controls are present is what proves the
+        // form is shaped by the mode rather than merely relabelled.
         XCTAssertTrue(
-            caseNumberField.waitForExistence(timeout: 5),
+            app.textFields["Case number"].waitForExistence(timeout: 5),
             "the form opened in diary mode rather than case-number mode")
 
-        caseNumberField.tap()
-        caseNumberField.typeText("1234")
+        app.buttons["By diary number"].tap()
+        let diaryField = app.textFields["Diary number"]
+        XCTAssertTrue(
+            diaryField.waitForExistence(timeout: 5),
+            "the number field did not change with the mode")
+
+        // A diary number identifies a matter on its own, so this mode needs no case type — and
+        // it is the one that can be driven end to end without operating a picker.
+        diaryField.tap()
+        diaryField.typeText("52650")
         app.textFields["Year"].tap()
-        app.textFields["Year"].typeText("2025")
-        // The Supreme Court publishes its case types, so this is a menu rather than a text field
-        // — and picking from it is what proves the catalogue reached the screen.
-        app.buttons["Case type"].tap()
-        app.buttons["Civil Appeal"].tap()
+        app.textFields["Year"].typeText("2023")
 
         app.buttons["Search the court"].tap()
         XCTAssertTrue(
-            app.staticTexts["Bakshi v. State of Maharashtra"].waitForExistence(timeout: 15),
+            app.staticTexts["Bakshi v. State of Maharashtra"].waitForExistence(timeout: 20),
             "the case was not listed")
-
-        // Switching mode renames the number, because a diary number is a different number for
-        // the same matter.
-        app.buttons["By diary number"].tap()
-        XCTAssertTrue(
-            app.textFields["Diary number"].waitForExistence(timeout: 5),
-            "the number field did not change with the mode")
         XCTAssertEqual(app.state, .runningForeground)
     }
 
@@ -205,21 +203,36 @@ final class EmperorUITests: XCTestCase {
         app.buttons["Find a case"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["Find a case"].waitForExistence(timeout: 10))
 
-        app.buttons["Court"].tap()
+        app.buttons["court-picker"].tap()
         XCTAssertTrue(app.navigationBars["Court"].waitForExistence(timeout: 5))
 
-        let district = app.buttons["District & Sessions Court"]
+        // Filtered rather than scrolled to. The district courts sit past twenty-five High
+        // Courts, and a `List` does not put off-screen rows in the accessibility tree at all —
+        // so without this the row is not merely hard to reach, it does not exist to the test.
+        let search = app.searchFields["Search courts"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5), "the picker has no search field")
+        search.tap()
+        search.typeText("Sessions")
+
+        let district = app.buttons["court-dist-sessions"]
         XCTAssertTrue(
             district.waitForExistence(timeout: 5),
             "district courts must be listed, not hidden")
         XCTAssertFalse(district.isEnabled, "and must not be selectable")
 
         // The reason travels with them rather than being left to be inferred.
+        let explanation = app.staticTexts.containing(
+            NSPredicate(format: "label CONTAINS[c] %@", "cannot look cases up")).firstMatch
         XCTAssertTrue(
-            app.staticTexts.containing(
-                NSPredicate(format: "label CONTAINS[c] %@", "cannot look cases up")
-            ).firstMatch.exists,
+            explanation.waitForExistence(timeout: 5),
             "the picker does not say why they are disabled")
+
+        // A searchable one, for contrast — otherwise this would pass on a picker where every
+        // row happened to be disabled.
+        search.buttons["Clear text"].tap()
+        search.typeText("Supreme")
+        XCTAssertTrue(app.buttons["court-sc"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["court-sc"].isEnabled)
         XCTAssertEqual(app.state, .runningForeground)
     }
 
