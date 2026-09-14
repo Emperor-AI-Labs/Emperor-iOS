@@ -10,7 +10,10 @@ import FoundationNetworking
 /// The server accepts either a bare filename string or an object with a folder, and defaults
 /// the folder to the storage root. We always send the object form so files in sub-folders
 /// resolve correctly.
-struct ChatAttachment: Codable, Equatable {
+/// `Hashable` so a list can key on the whole value rather than on `name`. The platform's identity
+/// for a document is `{name, folderName}`: two matters may each hold an `Order.pdf`, and a view
+/// keyed on the name alone would treat them as one row and remove the wrong one.
+struct ChatAttachment: Codable, Equatable, Hashable {
     var name: String
     var folderName: String?
 

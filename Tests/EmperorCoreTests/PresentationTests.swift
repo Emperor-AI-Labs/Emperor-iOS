@@ -14,6 +14,28 @@ final class PresentationTests: XCTestCase {
         XCTAssertEqual(DisplayText.fileName(""), "")
     }
 
+    /// A row in the document list has to say which matter it belongs to. `{name, folderName}` is
+    /// the platform's identity for a document, so two matters may each hold an `Order.pdf` and the
+    /// name alone cannot tell a reader which one a Remove would take.
+    func testAnAttachedDocumentIsNamedWithItsMatter() {
+        XCTAssertEqual(
+            DisplayText.attachmentTitle(
+                ChatAttachment(name: "Order.pdf", folderName: "Kartar_v_Sundaram")),
+            "Order.pdf — Kartar v Sundaram",
+            "the folder is un-sanitised for display too, not left carrying its underscores")
+    }
+
+    /// A document at the storage root has no matter to name, and must not get a dangling dash.
+    func testARootDocumentIsNamedOnItsOwn() {
+        XCTAssertEqual(
+            DisplayText.attachmentTitle(ChatAttachment(name: "Order.pdf", folderName: nil)),
+            "Order.pdf")
+        XCTAssertEqual(
+            DisplayText.attachmentTitle(ChatAttachment(name: "Order.pdf", folderName: "")),
+            "Order.pdf",
+            "an empty folder reads the same as a missing one")
+    }
+
     // MARK: - Error wording
 
     /// `APIError` carries wording written for this product; `localizedDescription` on the same

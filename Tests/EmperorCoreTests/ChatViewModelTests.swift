@@ -355,3 +355,84 @@ final class ChatViewModelTests: XCTestCase {
         }
     }
 }
+
+/// The two documents a matter is typically opened with.
+///
+/// A free function rather than a stored property: an `XCTestCase` is not `Sendable`, and these are
+/// read inside `@MainActor` closures — the same reason `withModel` is a free function.
+private func pickedDocuments() -> [ChatAttachment] {
+    [
+        ChatAttachment(name: "Charter_Party_2021.pdf", folderName: "Suvarnapatnam_Port_Terminals"),
+        ChatAttachment(name: "Evidence_Vol_2.pdf", folderName: "Suvarnapatnam_Port_Terminals"),
+    ]
+}
+
+/// The strip of documents above the composer, which is shown only before the first question.
+///
+/// The rule is one line — `messages.isEmpty` — and both halves of it carry weight, so both are
+/// pinned here. Wrong in one direction it costs a line of every screen for the rest of the
+/// conversation; wrong in the other the user cannot see the documents they just chose on a
+/// different screen, and has only a number in the toolbar to go on.
+final class ChatOpeningAttachmentsTests: XCTestCase {
+
+    /// The library picker's Done button opens a new conversation already carrying documents. This
+    /// is the only surface that names them before the question is asked.
+    func testANewChatNamesWhatItIsAboutToAsk() async {
+        await withModel { _, model in
+            model.attachments = pickedDocuments()
+
+            XCTAssertEqual(model.openingAttachments, pickedDocuments())
+        }
+    }
+
+    func testAChatWithNothingAttachedHasNoStrip() async {
+        await withModel { _, model in
+            XCTAssertTrue(model.openingAttachments.isEmpty)
+        }
+    }
+
+    /// The boundary is the send, not the answer: `send` appends the user's turn before the
+    /// request leaves, so the strip goes on the tap.
+    func testTheStripGoesOnceTheQuestionIsAsked() async {
+        await withModel { fake, model in
+            fake.events = [.content(StreamContent.parse("It runs from receipt."))]
+            model.attachments = pickedDocuments()
+            model.send("Does the cure period run from breach or from receipt?")
+            await settle(model)
+
+            XCTAssertTrue(model.openingAttachments.isEmpty)
+            XCTAssertEqual(
+                model.attachments, pickedDocuments(),
+                "the documents are still attached — only the strip that named them has gone")
+        }
+    }
+
+    /// "After the first question, no strip in that conversation" — including for a document
+    /// attached to a conversation already under way.
+    func testAttachingLaterDoesNotBringTheStripBack() async {
+        await withModel { fake, model in
+            fake.events = [.content(StreamContent.parse("Noted."))]
+            model.send("A question with nothing attached")
+            await settle(model)
+
+            model.attachments = pickedDocuments()
+
+            XCTAssertTrue(model.openingAttachments.isEmpty)
+        }
+    }
+
+    /// Opening a conversation from History loads turns into `messages`, so the strip must not
+    /// appear on turn nine. This is the case a flag remembered by the view would get wrong.
+    func testAConversationOpenedFromHistoryHasNoStrip() async {
+        await withModel { fake, model in
+            fake.history = [
+                ChatMessage(role: .user, content: "Is the suit barred?"),
+                ChatMessage(role: .assistant, content: "Yes, under Article 58."),
+            ]
+            await model.load()
+            model.attachments = pickedDocuments()
+
+            XCTAssertTrue(model.openingAttachments.isEmpty)
+        }
+    }
+}

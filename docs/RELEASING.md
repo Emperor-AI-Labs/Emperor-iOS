@@ -62,15 +62,98 @@ The `unsigned-ipa` job runs on every push and attaches `Emperor-unsigned.ipa` to
 refuses to launch until re-signed. AltStore automates the refresh; Sideloadly does not. Three
 apps at a time is also the free-account ceiling.
 
+## Route A′ — sign and install from Linux, no Mac and no VM
+
+Route A says Windows or macOS because that is what Sideloadly and AltStore require. **Those tools
+are not the only way to sign an `.ipa`.** Signing is a file operation, and the tools that do it
+run natively on Linux — which matters here, because this project is developed on Linux and the
+Mac in Route A exists only to run someone else's GUI.
+
+Nothing in this route needs a Mac, a macOS VM, or Xcode.
+
+### What has to be installed
+
+`usbmuxd` and `libimobiledevice` are in the official Arch/Manjaro repositories. `ideviceinstaller`
+and `zsign` are in the AUR:
+
+```bash
+sudo pacman -S --needed usbmuxd libimobiledevice
+pamac build ideviceinstaller zsign
+```
+
+### The signing material, entirely on Linux
+
+Apple accepts a plain CSR, so Keychain Access is not in the path. With a **paid** account the
+certificate lasts a year, which is the real argument for this route over Route A's seven days.
+
+```bash
+openssl genrsa -out emperor-signing.key 2048
+openssl req -new -key emperor-signing.key -out emperor.csr \
+  -subj "/emailAddress=you@example.com/CN=Emperor Signing/C=IN"
+```
+
+Upload `emperor.csr` at Certificates, Identifiers & Profiles → Certificates → **+**, take an
+**Apple Development** certificate for device installs, and download `ios_development.cer`. Then:
+
+```bash
+openssl x509 -in ios_development.cer -inform DER -out cert.pem -outform PEM
+# OpenSSL 3 writes a format Apple's tooling will not read without -legacy.
+openssl pkcs12 -export -legacy -out emperor.p12 \
+  -inkey emperor-signing.key -in cert.pem
+```
+
+The device has to be registered on the profile, and its UDID comes off the phone itself — no
+Apple software involved:
+
+```bash
+idevice_id -l                            # the phone must be plugged in and trusted
+ideviceinfo -k UniqueDeviceID
+```
+
+Register that UDID under Devices, then create an **iOS App Development** provisioning profile for
+`com.emperorailabs.emperor` tied to this certificate *and* this device, and download the
+`.mobileprovision`.
+
+### Sign and install
+
+```bash
+zsign -k emperor.p12 -p '<p12 password>' -m Emperor.mobileprovision \
+      -o Emperor-signed.ipa Emperor-unsigned.ipa
+ideviceinstaller -i Emperor-signed.ipa
+```
+
+Then on the phone: Settings → General → VPN & Device Management → trust the profile.
+
+> The `unsigned-ipa` artifact carries no `_CodeSignature` and no `embedded.mobileprovision`, and
+> the app bundle has no nested frameworks or dylibs. That is the simplest case there is for
+> `zsign` — it writes both, and has no inner code to sign first.
+
+### The free-Apple-ID variant
+
+A free Apple ID can sign too, and then everything above still applies except that the certificate
+is issued through Apple's own client flow rather than the web portal. On Linux that is
+[AltServer-Linux](https://github.com/NyaMisty/AltServer-Linux) (AUR: `altserver-linux`), or
+[Althea](https://github.com/vyvir/althea), a GUI over it that packages for Arch.
+
+It costs nothing and it is a treadmill: **seven days**, three apps at a time, and a re-sign every
+week. The paid route above is a year per signature. For a phone that is being used to test this
+app continuously, the arithmetic favours paying.
+
 ## Route B — TestFlight, $99/yr, the real thing
 
 You need the [Apple Developer Program](https://developer.apple.com/programs/). Then:
 
 ### 1. Register the app
 
-App Store Connect → Apps → **+** → New App. Bundle ID must be **`com.emperorailabs.Emperor`**
-(from `bundleIdPrefix` in `project.yml`). Register that identifier first under Certificates,
-Identifiers & Profiles → Identifiers.
+App Store Connect → Apps → **+** → New App. Bundle ID must be **`com.emperorailabs.emperor`** —
+**lower-case**, as set by `PRODUCT_BUNDLE_IDENTIFIER` in `project.yml` and as recorded in the
+shipped `.ipa`'s `Info.plist`. Not `bundleIdPrefix` plus the target name: the prefix is only
+`com.emperorailabs`, and the target is called `Emperor`, so guessing from those two yields
+`com.emperorailabs.Emperor`, which is a **different identifier**. Bundle IDs are case-sensitive,
+and a profile issued for the capitalised one fails to match at install with an error that names
+neither the cause nor the difference.
+
+Register that identifier first under Certificates, Identifiers & Profiles → Identifiers.
 
 ### 2. Create the signing material
 
@@ -79,7 +162,7 @@ Under Certificates, Identifiers & Profiles:
 - an **Apple Distribution** certificate — download the `.cer`, add it to Keychain Access on a
   Mac, then export it as a **`.p12`** with a password. The `.p12` is the certificate *and* its
   private key; the `.cer` alone cannot sign.
-- an **App Store** provisioning profile for `com.emperorailabs.Emperor`, tied to that
+- an **App Store** provisioning profile for `com.emperorailabs.emperor`, tied to that
   certificate. Download the `.mobileprovision`.
 
 > Creating a distribution certificate needs a Mac once, for the Keychain export. If you have no

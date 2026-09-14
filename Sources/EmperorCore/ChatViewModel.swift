@@ -68,6 +68,33 @@ final class ChatViewModel {
 
     let chatID: String
     var attachments: [ChatAttachment] = []
+
+    /// The documents to name above the composer, which is none once the conversation has started.
+    ///
+    /// Attaching happens on a *different* screen — the library picker, whose Done button opens a
+    /// new conversation carrying the selection — so the user arrives at the composer holding
+    /// documents they have not yet seen listed anywhere. Naming them here is the confirmation for
+    /// that moment, and it is the moment a mis-picked file is most likely to be spotted.
+    ///
+    /// Once a question has been asked they belong to the conversation's record and the toolbar's
+    /// document button owns them. A strip above the composer would by then cost a line of the
+    /// transcript on every screen for the rest of the conversation, and still truncate to whatever
+    /// fitted the width — while saying less than the button's list, which has room for the folder
+    /// name. `{name, folderName}` is the platform's identity for a document, and the name alone
+    /// collides across matters.
+    ///
+    /// The boundary is the **send**, not a finished answer: `send(_:)` appends the user's turn
+    /// before the request leaves, so this empties on the tap rather than when the answer lands. A
+    /// send that then fails leaves that turn in place, which is the intended reading — the user
+    /// has committed this selection to a question, whatever happened to it afterwards.
+    ///
+    /// Derived from the transcript rather than remembered by the view, so reopening a conversation
+    /// from History cannot bring the strip back on turn nine, and there is one source of truth
+    /// rather than two that can disagree.
+    var openingAttachments: [ChatAttachment] {
+        messages.isEmpty ? attachments : []
+    }
+
     var model: ChatModel = .default
     var role: ChatRole = .default
 

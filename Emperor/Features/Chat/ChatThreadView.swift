@@ -169,6 +169,11 @@ struct ChatThreadView: View {
             ToolbarItem(placement: .primaryAction) {
                 settingsMenu(model)
             }
+            // Trailing-most, matching the Android client: mode is read while composing, the
+            // document list only when checking what a question is resting on.
+            ToolbarItem(placement: .primaryAction) {
+                documentsMenu(model)
+            }
         }
         .sheet(isPresented: $isScanning) {
             DocumentScannerView { result in
@@ -228,6 +233,60 @@ struct ChatThreadView: View {
         Binding(
             get: { message.wrappedValue != nil },
             set: { if !$0 { message.wrappedValue = nil } })
+    }
+
+    /// The documents this conversation is reading, behind the toolbar's document button.
+    ///
+    /// The full list, each row naming the matter as well as the file — which is what actually
+    /// tells two documents apart. The strip above the composer shows names only, and only until
+    /// the first question; this is the account that stays for the rest of the conversation.
+    ///
+    /// Removing lives here as well as on the chips, and here is the part that is not optional: the
+    /// chips are gone once a question has been asked, so without this a conversation could gain
+    /// documents and never lose one.
+    private func documentsMenu(_ model: ChatViewModel) -> some View {
+        Menu {
+            if model.attachments.isEmpty {
+                Text("No documents attached")
+            } else {
+                Section("In this conversation") {
+                    ForEach(model.attachments, id: \.self) { attachment in
+                        Button(role: .destructive) {
+                            model.attachments.removeAll { $0 == attachment }
+                        } label: {
+                            Label(
+                                DisplayText.attachmentTitle(attachment),
+                                systemImage: "doc")
+                        }
+                    }
+                }
+            }
+
+            Divider()
+
+            Button {
+                isBrowsingFiles = true
+            } label: {
+                Label("Attach from documents", systemImage: "folder")
+            }
+        } label: {
+            // The count, not a bare icon. Before the first question the strip below carries it;
+            // afterwards the strip is gone, and without a number here a question can be sent
+            // against documents the user has forgotten are attached.
+            //
+            // An HStack rather than a `Label`, deliberately: a toolbar is free to render a Label
+            // icon-only, and this number is the whole reason the control is here.
+            HStack(spacing: 3) {
+                Image(systemName: "doc")
+                if !model.attachments.isEmpty {
+                    Text("\(model.attachments.count)")
+                }
+            }
+        }
+        .accessibilityLabel(
+            model.attachments.isEmpty
+                ? "Documents in this conversation"
+                : "Documents in this conversation, \(model.attachments.count) attached")
     }
 
     /// Mode and persona.
@@ -332,10 +391,15 @@ struct ChatThreadView: View {
                 .padding(.horizontal)
             }
 
-            if !model.attachments.isEmpty {
+            // The documents this question is about to carry, named until it has been asked.
+            //
+            // Gated on `openingAttachments`, which empties on the first send — see its note for
+            // why the strip earns its line here and stops earning it immediately afterwards.
+            // From then on the toolbar's document button is where they live.
+            if !model.openingAttachments.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(model.attachments, id: \.name) { attachment in
+                        ForEach(model.openingAttachments, id: \.self) { attachment in
                             Button {
                                 model.attachments.removeAll { $0 == attachment }
                             } label: {

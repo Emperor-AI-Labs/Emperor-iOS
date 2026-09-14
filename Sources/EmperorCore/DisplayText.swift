@@ -17,6 +17,20 @@ enum DisplayText {
         raw.replacingOccurrences(of: "_", with: " ")
     }
 
+    /// An attached document named for a list row: the file, then the matter holding it.
+    ///
+    /// `{name, folderName}` is the platform's identity for a document. Two matters may each hold
+    /// an `Order.pdf`, so a row showing only the name cannot tell a reader which one it means —
+    /// which matters most where the row's purpose is deciding whether to remove it.
+    ///
+    /// A document at the storage root has no folder to name, and gets the bare filename rather
+    /// than a dangling separator.
+    static func attachmentTitle(_ attachment: ChatAttachment) -> String {
+        let file = fileName(attachment.name)
+        guard let folder = attachment.folderName, !folder.isEmpty else { return file }
+        return "\(file) — \(fileName(folder))"
+    }
+
     /// The message to show for a failed operation.
     ///
     /// `APIError` carries wording written for this product — "That email and password did not
