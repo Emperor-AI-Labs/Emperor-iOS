@@ -23,7 +23,13 @@ struct ChatListView: View {
             }
             .navigationTitle("Emperor")
             .navigationDestination(for: String.self) { chatID in
-                ChatThreadView(chatID: chatID)
+                ChatThreadView(chatID: chatID, onStartNewChat: {
+                    // Replaces the stack rather than pushing onto it. A new conversation is a
+                    // move sideways, not a step deeper: pushed, Back would walk the user out
+                    // through every chat they had opened this session instead of returning
+                    // them to the list they came from.
+                    path = [ChatListViewModel.newChatID()]
+                })
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {

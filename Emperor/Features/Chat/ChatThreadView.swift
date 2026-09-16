@@ -31,6 +31,15 @@ struct ChatThreadView: View {
     /// `TransactionTooLargeException`; a Swift `String` held in a view is just memory.
     var seed: String?
 
+    /// Leaves this conversation and opens a fresh one.
+    ///
+    /// The caller does it rather than this view, because only the caller knows what the new
+    /// conversation should replace — this screen has no idea what it was pushed onto.
+    ///
+    /// Absent where there is nothing sensible to replace: a tool form pushes a thread of its
+    /// own with no conversation list behind it, and the button is simply not offered there.
+    var onStartNewChat: (() -> Void)?
+
     var body: some View {
         Group {
             if let model {
@@ -169,6 +178,23 @@ struct ChatThreadView: View {
             composerBar(model)
         }
         .toolbar {
+            // Leading of the three, so the two that describe *this* conversation keep the
+            // positions and the reasoning they already had.
+            //
+            // Conditional on a parameter rather than on state: it is fixed for the life of the
+            // view, so this is not the toolbar item that appears and disappears — that is the
+            // pattern SwiftUI handles badly, and this never toggles.
+            if let onStartNewChat {
+                ToolbarItem(placement: .primaryAction) {
+                    // Not disabled while streaming, and it does not stop the answer. This is a
+                    // shortcut for Back-then-New, so it must do neither more nor less than
+                    // leaving the screen already does — an answer still arriving is stored by
+                    // the server either way, and is there when the conversation is reopened.
+                    Button(action: onStartNewChat) {
+                        Label("New chat", systemImage: "square.and.pencil")
+                    }
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 settingsMenu(model)
             }
