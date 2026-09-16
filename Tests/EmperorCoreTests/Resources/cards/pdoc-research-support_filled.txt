@@ -1,0 +1,8 @@
+Prepare, as a paralegal supporting an advocate, the following: "Case-law lookup" (Legal Research Support — test title).
+
+Begin the output with the label line "**Draft for advocate review**". Basic research for the lawyer to verify. Give real, verifiable citations and flag good-law status "[for supervising advocate to confirm]". Do not draw legal conclusions. Do NOT give independent legal advice or conclusions — where legal judgement is required, insert "[for supervising advocate to confirm]".
+
+DETAILS / MATERIAL:
+test details
+
+Produce a clear, well-structured, professionally formatted research note with real, verifiable citations and good-law flags. Use [bracketed placeholders] for anything not supplied.

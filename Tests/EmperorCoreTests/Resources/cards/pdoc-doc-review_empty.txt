@@ -1,0 +1,8 @@
+Prepare, as a paralegal supporting an advocate, the following: "Document Review & Summarising" (Document Review & Summarising).
+
+Begin the output with the label line "**Draft for advocate review**". Neutral summary / extraction to support the lawyer's review. Do not opine on merits or give advice; flag anything needing the advocate's judgement. Do NOT give independent legal advice or conclusions — where legal judgement is required, insert "[for supervising advocate to confirm]".
+
+DETAILS / MATERIAL:
+(none provided)
+
+Produce a clear, well-structured, professionally formatted research note with real, verifiable citations and good-law flags. Use [bracketed placeholders] for anything not supplied.

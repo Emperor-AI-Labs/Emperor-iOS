@@ -27,6 +27,7 @@ let package = Package(
             dependencies: ["EmperorCore"],
             resources: [
                 .copy("Resources/tools"),
+                .copy("Resources/cards"),
                 .copy("Resources/tool-cases.json"),
             ]),
     ]

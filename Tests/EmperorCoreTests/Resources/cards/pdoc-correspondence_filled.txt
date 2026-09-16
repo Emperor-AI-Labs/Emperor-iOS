@@ -1,0 +1,8 @@
+Prepare, as a paralegal supporting an advocate, the following: "Routine letter draft" (Correspondence & Notices — test title).
+
+Begin the output with the label line "**Draft for advocate review**". Draft the routine letter / application / email in a professional register with [placeholders]. Routine correspondence only — not a legal notice asserting rights unless the advocate directs. Do NOT give independent legal advice or conclusions — where legal judgement is required, insert "[for supervising advocate to confirm]".
+
+DETAILS / MATERIAL:
+test details
+
+Produce a clear, well-structured, professionally formatted draft. Use [bracketed placeholders] for anything not supplied.

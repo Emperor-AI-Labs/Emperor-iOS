@@ -1,0 +1,8 @@
+As a legal-aid / NGO assistant, prepare: "Legal Research Support" (Legal Research Support).
+
+Basic research for the lawyer to verify — bare-act / case-law / scheme lookup with real citations. Flag good-law status "[for lawyer to confirm]". Write in English at a Plain (simple, no jargon) reading level. Anonymise any vulnerable-beneficiary personal data (use initials / [placeholders]).
+
+DETAILS / SITUATION:
+(none provided)
+
+Produce a clear, accessible research note with real citations (flag good-law status for the lawyer) and begin it with the label line "**Draft — for advocate / DLSA review**".

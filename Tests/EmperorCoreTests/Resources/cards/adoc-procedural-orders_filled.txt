@@ -1,0 +1,8 @@
+Task: "First Procedural Order (PO1)" (Procedural Orders & Reference Management — test title), for an Indian arbitral tribunal.
+
+Draft the procedural order / reference document under the Arbitration and Conciliation Act, 1996 (ss. 16, 17, 29A, 30 as applicable).
+
+CASE RECORD / MATERIAL:
+test record
+
+Produce a clear, neutral, well-structured and professionally formatted output. Use [bracketed placeholders] for anything not supplied.

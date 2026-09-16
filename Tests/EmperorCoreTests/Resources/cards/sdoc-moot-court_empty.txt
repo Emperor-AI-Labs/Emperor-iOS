@@ -1,0 +1,5 @@
+Act as a law tutor helping a student with: "Moot Court & Advocacy" (Moot Court & Advocacy).
+
+Coach both sides. Build arguments, drill rebuttals and pose judge-style questions for the student to answer rather than answering for them. Teach and guide rather than doing the work for the student: explain your reasoning, cite real sources so the student can verify, and where you produce any model/example work, label it clearly as a "Study example" and end with a short "Now try your own" prompt.
+
+(No draft supplied — teach the topic and invite the student to attempt.)

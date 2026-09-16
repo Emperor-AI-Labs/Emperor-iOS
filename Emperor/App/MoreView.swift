@@ -39,12 +39,14 @@ struct MoreView: View {
 
     /// The rows, in the platform's own order.
     private enum Destination: String, Identifiable {
-        case calendar, library, projects, tools, fileTools, translate, liquidations, settings
+        case deck, calendar, library, projects, tools, fileTools, translate, liquidations, settings
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
+            // Named for the role rather than fixed, because that is what it is.
+            case .deck: return "Your workspace"
             case .calendar: return "Calendar"
             case .library: return "Library"
             case .projects: return "Projects"
@@ -59,6 +61,7 @@ struct MoreView: View {
         /// Chosen to read as the web's `lucide` icon for the same row.
         var symbol: String {
             switch self {
+            case .deck: return "square.grid.2x2"
             case .calendar: return "calendar"
             case .library: return "books.vertical"
             // The web's row is `folder-kanban`. A person, because that is the distinction that
@@ -88,6 +91,7 @@ struct MoreView: View {
                 }
 
                 Section {
+                    row(.deck)
                     row(.tools)
                     row(.fileTools)
                     row(.translate)
@@ -110,6 +114,7 @@ struct MoreView: View {
             .navigationTitle("More")
             .sheet(item: $destination) { chosen in
                 switch chosen {
+                case .deck: RoleHomeView()
                 case .calendar: CalendarView()
                 case .library: LibraryView()
                 case .projects: ProjectListView()

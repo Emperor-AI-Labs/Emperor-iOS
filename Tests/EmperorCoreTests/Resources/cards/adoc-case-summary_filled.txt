@@ -1,0 +1,8 @@
+Task: "Pleadings summary" (Case File & Record Summary — test title), for an Indian court / tribunal.
+
+Extract and organise only — do NOT decide, weigh, or opine on any issue. Points for determination are to be EXTRACTED as framed, not resolved.
+
+CASE RECORD / MATERIAL:
+test record
+
+Produce a clear, neutral, well-structured and professionally formatted output. Use [bracketed placeholders] for anything not supplied.

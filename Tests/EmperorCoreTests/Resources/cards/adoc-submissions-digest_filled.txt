@@ -1,0 +1,8 @@
+Task: "Party-wise contentions (side-by-side)" (Neutral Submissions Digest — test title), for an Indian court / tribunal.
+
+Organise and present each side's submissions neutrally, side by side. Do NOT weigh them, prefer one, or recommend a finding.
+
+CASE RECORD / MATERIAL:
+test record
+
+Produce a clear, neutral, well-structured and professionally formatted output. Use [bracketed placeholders] for anything not supplied.

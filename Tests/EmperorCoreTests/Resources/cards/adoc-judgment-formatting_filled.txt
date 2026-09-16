@@ -1,0 +1,8 @@
+Task: "Cause-title / preamble formatting" (Judgment Formatting Aid — test title), for an Indian court / tribunal.
+
+Work ONLY on the text the judge has already authored (pasted below). Format, structure and check consistency / citations. Do NOT generate reasoning, findings, sentencing, or any operative part, and do NOT add new legal content.
+
+CASE RECORD / MATERIAL:
+test record
+
+Produce a clear, neutral, well-structured and professionally formatted output. Use [bracketed placeholders] for anything not supplied.

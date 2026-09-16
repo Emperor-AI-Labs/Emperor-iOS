@@ -1,0 +1,8 @@
+Task: "Judgment / order translation (EN ↔ regional)" (Language & Translation — test title), for an Indian court / tribunal.
+
+Translate faithfully and preserve legal meaning, party names, dates and citations. Do not summarise away substance unless a summary is expressly requested.
+
+CASE RECORD / MATERIAL:
+test record
+
+Produce a clear, neutral, well-structured and professionally formatted output. Use [bracketed placeholders] for anything not supplied.

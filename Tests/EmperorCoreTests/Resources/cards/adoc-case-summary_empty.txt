@@ -1,0 +1,8 @@
+Task: "Case File & Record Summary" (Case File & Record Summary), for an Indian court / tribunal.
+
+Extract and organise only — do NOT decide, weigh, or opine on any issue. Points for determination are to be EXTRACTED as framed, not resolved.
+
+CASE RECORD / MATERIAL:
+(none provided)
+
+Produce a clear, neutral, well-structured and professionally formatted output. Use [bracketed placeholders] for anything not supplied.

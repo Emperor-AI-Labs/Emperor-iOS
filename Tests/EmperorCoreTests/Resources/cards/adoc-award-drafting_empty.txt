@@ -1,0 +1,8 @@
+Task: "Award Drafting" (Award Drafting), for an Indian arbitral tribunal.
+
+Assemble an ARBITRAL AWARD SCAFFOLD under the Arbitration and Conciliation Act, 1996. The arbitrator supplies the findings and reasoning: in the reasoning section insert clear "[Arbitrator to record findings and reasons]" placeholders rather than deciding anything yourself. The arbitrator applies their own mind; the tool only assembles and formats.
+
+CASE RECORD / MATERIAL:
+(none provided)
+
+Produce a clear, neutral, well-structured and professionally formatted output. Use [bracketed placeholders] for anything not supplied.
