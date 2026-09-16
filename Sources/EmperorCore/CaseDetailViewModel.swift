@@ -64,18 +64,110 @@ final class CaseDetailViewModel {
             ?? []
     }
 
-    /// Sections beyond the four the app surfaces directly, so nothing the server returned is
-    /// silently dropped — `section` is an open string and a new one can appear at any time.
-    var otherSections: [(section: String, items: [CaseItem])] {
-        guard let detail else { return [] }
-        let surfaced: Set<String> = CaseSection.causeListSections
-            .union([CaseSection.orders.rawValue, CaseSection.tasks.rawValue])
-        let remaining = Dictionary(grouping: detail.items.filter { !surfaced.contains($0.section) }) {
-            $0.section
+    // MARK: - Tabs
+
+    /// One tab below the overview.
+    ///
+    /// Everything but the overview is a tab because a matter is read one section at a time: you
+    /// open a case to check the next date, or to find an order — not to scroll past four
+    /// sections to reach the fifth.
+    struct CaseTab: Identifiable, Equatable, Sendable {
+        enum Content: Equatable, Sendable {
+            case items([CaseItem])
+            case notes([CaseEvent])
         }
-        return remaining
-            .map { (section: $0.key, items: $0.value) }
-            .sorted { $0.section < $1.section }
+
+        /// The section's wire value, so a tab keeps its identity across a reload while its
+        /// contents change underneath it.
+        let id: String
+        let label: String
+        let content: Content
+
+        var count: Int {
+            switch content {
+            case .items(let items): return items.count
+            case .notes(let events): return events.count
+            }
+        }
+    }
+
+    /// The timeline's tab id. Deliberately not `notes`: `section` is an open string, so a row
+    /// filed under `notes` could arrive, and two tabs must never share an id.
+    static let timelineTabID = "timeline"
+
+    /// The tabs below the overview — only the ones with something in them.
+    ///
+    /// An empty tab is worse than an absent one: it costs a tap to discover there was nothing
+    /// there, and on a matter just pulled from a court portal most of these are empty.
+    ///
+    /// The order is `CaseDetail.populatedSections`, which is `CaseSection.allCases` filtered, so
+    /// reading order is declared once in the taxonomy rather than a second time here.
+    var tabs: [CaseTab] {
+        guard let detail else { return [] }
+        var built: [CaseTab] = []
+        var hasHearings = false
+
+        for section in detail.populatedSections {
+            // `hearings` and `causelist` are one tab. A row can be filed under either, and which
+            // one is the court's bookkeeping rather than anything the reader came here for.
+            if CaseSection.causeListSections.contains(section.rawValue) {
+                guard !hasHearings else { continue }
+                hasHearings = true
+                built.append(CaseTab(
+                    id: CaseSection.hearings.rawValue,
+                    label: CaseSection.hearings.label,
+                    content: .items(hearings)))
+                continue
+            }
+
+            let rows: [CaseItem]
+            switch section {
+            case .orders: rows = orders
+            case .tasks: rows = tasks
+            default: rows = Self.newestFirst(detail.items(in: section))
+            }
+            built.append(CaseTab(id: section.rawValue, label: section.label, content: .items(rows)))
+        }
+
+        // Sections this build has no name for. Surfaced rather than dropped, for the same reason
+        // the server's own list cannot be trusted to be closed.
+        for section in detail.unknownSections {
+            built.append(CaseTab(
+                id: section,
+                label: DisplayText.fileName(section).capitalized,
+                content: .items(
+                    Self.newestFirst(detail.items.filter { $0.section == section }))))
+        }
+
+        if !timeline.isEmpty {
+            built.append(CaseTab(
+                id: Self.timelineTabID,
+                label: CaseSection.notes.label,
+                content: .notes(timeline)))
+        }
+        return built
+    }
+
+    /// Which tab the user chose. Stored because it is a choice, but never trusted alone — read
+    /// it through `selectedTab`.
+    var selectedTabID: String?
+
+    /// The tab to show: the chosen one while it exists, otherwise the first.
+    ///
+    /// A reload can empty the section being read — a task ticked off on the web, the only note
+    /// deleted — and `tabs` then no longer holds it. Falling back on the way out, rather than
+    /// correcting `selectedTabID`, means the choice survives the gap: if the section comes back
+    /// so does the selection, and nothing mutates while the screen is drawing.
+    var selectedTab: CaseTab? {
+        let available = tabs
+        guard let selectedTabID,
+              let chosen = available.first(where: { $0.id == selectedTabID })
+        else { return available.first }
+        return chosen
+    }
+
+    private static func newestFirst(_ items: [CaseItem]) -> [CaseItem] {
+        items.sorted { ($0.itemDateRaw ?? "") > ($1.itemDateRaw ?? "") }
     }
 
     /// How to describe the sync state honestly.

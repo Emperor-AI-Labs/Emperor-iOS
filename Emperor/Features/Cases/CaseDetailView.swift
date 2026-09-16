@@ -1,6 +1,10 @@
 import SwiftUI
 
-/// One matter. Overview, hearings and orders first; everything else as reference.
+/// One matter: the overview, then every section behind a tab.
+///
+/// The overview is what identifies the matter, so it stays put. Everything below it is read one
+/// section at a time — you open a case to check the next date or to find an order, not to scroll
+/// past four sections to reach the fifth — so the rest is a strip of tabs and one list.
 ///
 /// Read-mostly by design. The only two writes offered are a note and a task — the two things
 /// that make sense standing up outside a courtroom. Everything else the web workspace can do
@@ -42,11 +46,14 @@ struct CaseDetailView: View {
                 if let legalCase = model.legalCase {
                     overview(legalCase, model)
                 }
-                hearings(model)
-                orders(model)
-                tasks(model)
-                timeline(model)
-                other(model)
+                if !model.tabs.isEmpty {
+                    Section {
+                        tabStrip(model)
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                    }
+                    selectedTabContent(model)
+                }
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
@@ -133,89 +140,104 @@ struct CaseDetailView: View {
         }
     }
 
-    @ViewBuilder
-    private func hearings(_ model: CaseDetailViewModel) -> some View {
-        if !model.hearings.isEmpty {
-            Section("Hearings") {
-                ForEach(model.hearings) { item in
-                    itemRow(item, model)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func orders(_ model: CaseDetailViewModel) -> some View {
-        if !model.orders.isEmpty {
-            Section("Orders") {
-                ForEach(model.orders) { item in
+    /// The tab strip: one row, scrolling horizontally, as the library's category bar does.
+    ///
+    /// Not a segmented control. A matter can carry ten sections — and `section` is open
+    /// server-side, so it can carry ones this build has no name for — and segments would be
+    /// illegible well before that. The count rides in the chip because the reason to open
+    /// Applications rather than Orders is usually that one of them has something in it.
+    private func tabStrip(_ model: CaseDetailViewModel) -> some View {
+        // Resolved once. `selectedTab` rebuilds `tabs` to answer, so asking inside the loop
+        // would rebuild it per chip.
+        let selectedID = model.selectedTab?.id
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(model.tabs) { tab in
+                    let isSelected = selectedID == tab.id
+                    // Spelled out rather than an implicit member on each side of the ternary:
+                    // `brand(_:weight:)` takes an `Optional`, and that is the shape `-parse`
+                    // accepts and the type checker then argues with. See `ProjectDetailView`.
+                    let weight: Font.Weight? = isSelected ? Font.Weight.semibold : Font.Weight.regular
                     Button {
-                        Task { await model.openOrder(item) }
+                        model.selectedTabID = tab.id
                     } label: {
-                        HStack {
-                            itemRow(item, model)
-                            Spacer(minLength: 0)
-                            if model.isWriting {
-                                ProgressView()
-                            }
+                        HStack(spacing: 5) {
+                            Text(tab.label)
+                            Text(tab.count.formatted())
+                                .foregroundStyle(isSelected ? theme.onAccent : theme.textTertiary)
                         }
+                        .font(.brand(.subheadline, weight: weight))
+                        .foregroundStyle(isSelected ? theme.onAccent : theme.textSecondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(isSelected ? theme.accent : theme.surfaceElevated, in: Capsule())
                     }
                     .buttonStyle(.plain)
-                    // Fetching an order is a live call to a court portal and can take seconds.
-                    .disabled(model.isWriting)
+                    .accessibilityLabel("\(tab.label), \(tab.count)")
                 }
             }
+            .padding(.horizontal)
+            .padding(.vertical, 10)
         }
     }
 
+    /// The chosen tab's rows. No header: the highlighted chip directly above is the heading, and
+    /// repeating it would cost a line on a screen whose whole point is getting to the rows.
     @ViewBuilder
-    private func tasks(_ model: CaseDetailViewModel) -> some View {
-        if !model.tasks.isEmpty {
-            Section("Tasks") {
-                ForEach(model.tasks) { item in
-                    itemRow(item, model)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func timeline(_ model: CaseDetailViewModel) -> some View {
-        if !model.timeline.isEmpty {
-            Section("Notes") {
-                ForEach(model.timeline) { event in
-                    VStack(alignment: .leading, spacing: 3) {
-                        if let title = event.title, !title.isEmpty {
-                            Text(title).font(.brand(.subheadline, weight: .semibold))
-                        }
-                        if let body = event.body, !body.isEmpty {
-                            Text(body).font(.brand(.subheadline))
-                        }
-                        if let date = event.eventDate {
-                            Text(DisplayText.relative(date))
-                                .font(.brand(.caption2))
-                                .foregroundStyle(theme.textTertiary)
+    private func selectedTabContent(_ model: CaseDetailViewModel) -> some View {
+        if let tab = model.selectedTab {
+            Section {
+                switch tab.content {
+                case .items(let items):
+                    ForEach(items) { item in
+                        if tab.id == CaseSection.orders.rawValue {
+                            orderRow(item, model)
+                        } else {
+                            itemRow(item, model)
                         }
                     }
-                    .padding(.vertical, 2)
-                    .accessibilityElement(children: .combine)
+                case .notes(let events):
+                    ForEach(events) { event in
+                        noteRow(event)
+                    }
                 }
             }
         }
     }
 
-    /// Sections this build does not know about. Shown rather than dropped: `section` is an open
-    /// string server-side, so a new one can appear at any time and swallowing it would hide
-    /// real case data.
-    @ViewBuilder
-    private func other(_ model: CaseDetailViewModel) -> some View {
-        ForEach(model.otherSections, id: \.section) { group in
-            Section(DisplayText.fileName(group.section).capitalized) {
-                ForEach(group.items) { item in
-                    itemRow(item, model)
+    private func orderRow(_ item: CaseItem, _ model: CaseDetailViewModel) -> some View {
+        Button {
+            Task { await model.openOrder(item) }
+        } label: {
+            HStack {
+                itemRow(item, model)
+                Spacer(minLength: 0)
+                if model.isWriting {
+                    ProgressView()
                 }
             }
         }
+        .buttonStyle(.plain)
+        // Fetching an order is a live call to a court portal and can take seconds.
+        .disabled(model.isWriting)
+    }
+
+    private func noteRow(_ event: CaseEvent) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            if let title = event.title, !title.isEmpty {
+                Text(title).font(.brand(.subheadline, weight: .semibold))
+            }
+            if let body = event.body, !body.isEmpty {
+                Text(body).font(.brand(.subheadline))
+            }
+            if let date = event.eventDate {
+                Text(DisplayText.relative(date))
+                    .font(.brand(.caption2))
+                    .foregroundStyle(theme.textTertiary)
+            }
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
     }
 
     private func itemRow(_ item: CaseItem, _ model: CaseDetailViewModel) -> some View {
