@@ -57,6 +57,7 @@ struct ChatThreadView: View {
                 service: session.chats,
                 files: session.files,
                 uploads: session.uploads,
+                detached: StoredDetachedDocuments(store: Preferences.detachedDocuments),
                 preferredModel: session.currentUser?.preferredModel)
             composer = PromptEnhancerViewModel(service: session.enhancer)
             model = created
@@ -226,7 +227,7 @@ struct ChatThreadView: View {
         }
         .sheet(isPresented: $isBrowsingFiles) {
             FileLibraryView(alreadyAttached: model.attachments) { chosen in
-                model.attachments = chosen
+                model.setAttachments(chosen)
             }
         }
         .sheet(item: $model.openSource) { source in
@@ -269,7 +270,7 @@ struct ChatThreadView: View {
                 Section("In this conversation") {
                     ForEach(model.attachments, id: \.self) { attachment in
                         Button(role: .destructive) {
-                            model.attachments.removeAll { $0 == attachment }
+                            model.detach(attachment)
                         } label: {
                             Label(
                                 DisplayText.attachmentTitle(attachment),
@@ -418,7 +419,7 @@ struct ChatThreadView: View {
                     HStack(spacing: 8) {
                         ForEach(model.openingAttachments, id: \.self) { attachment in
                             Button {
-                                model.attachments.removeAll { $0 == attachment }
+                                model.detach(attachment)
                             } label: {
                                 HStack(spacing: 5) {
                                     Image(systemName: "doc")

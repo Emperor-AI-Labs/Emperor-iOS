@@ -109,6 +109,9 @@ final class ChatViewModel {
     private let service: any ChatProviding
     private let files: (any FileProviding)?
     private let uploads: (any UploadProviding)?
+    /// Where removals are remembered. Absent means they are not — the documents come back on the
+    /// next load, which is what this screen did before there was anywhere to write them.
+    private let detached: (any DetachedDocuments)?
     private var streamTask: Task<Void, Never>?
 
     /// The document tree, fetched on the first citation tap that needs it.
@@ -123,18 +126,51 @@ final class ChatViewModel {
     ///     turn regardless of this.
     ///   - files: needed only to resolve a citation against the wider library.
     ///   - uploads: needed only to attach a scan.
+    ///   - detached: where removals are remembered. Without it a removal lasts the session only.
     init(
         chatID: String,
         service: any ChatProviding,
         files: (any FileProviding)? = nil,
         uploads: (any UploadProviding)? = nil,
+        detached: (any DetachedDocuments)? = nil,
         preferredModel: String? = nil
     ) {
         self.chatID = chatID
         self.service = service
         self.files = files
         self.uploads = uploads
+        self.detached = detached
         self.model = ChatModel.fromPreference(preferredModel)
+    }
+
+    // MARK: - Documents on this conversation
+
+    /// Takes a document off this conversation and remembers that it was taken off.
+    ///
+    /// The remembering is the whole point: `load()` rebuilds the list from the turns, and a
+    /// removal it knows nothing about is undone the next time the conversation is opened.
+    func detach(_ attachment: ChatAttachment) {
+        attachments.removeAll { $0 == attachment }
+        guard let detached else { return }
+        var removed = detached.detached(inChat: chatID)
+        removed.insert(attachment)
+        detached.setDetached(removed, inChat: chatID)
+    }
+
+    /// Replaces the whole selection, as the library picker's Done does.
+    ///
+    /// Both directions at once, which is why it cannot be a plain assignment: what the picker
+    /// dropped is a removal to be remembered, and what it added is a document that must be struck
+    /// off the removed list. Leave that second half out and a document put back is dropped again
+    /// on the next load — the invariant is that nothing is ever both attached and detached.
+    func setAttachments(_ chosen: [ChatAttachment]) {
+        let dropped = Set(attachments).subtracting(chosen)
+        attachments = chosen
+        guard let detached else { return }
+        var removed = detached.detached(inChat: chatID)
+        removed.formUnion(dropped)
+        removed.subtract(chosen)
+        detached.setDetached(removed, inChat: chatID)
     }
 
     nonisolated static func newChatID() -> String { UUID().uuidString }
@@ -146,6 +182,25 @@ final class ChatViewModel {
         defer { isLoading = false }
         do {
             messages = try await service.messages(chatID: chatID)
+            // Reopening a matter has to reopen its documents. They are not a field on the chat —
+            // they live on the turns that carried them — so they are reconstructed here; see
+            // `attachedDocuments`. Without this, a conversation opened from History listed no
+            // documents while its own answers cited them by page, and the next question went to
+            // the model with nothing attached at all.
+            //
+            // Merged rather than assigned. A conversation can be opened with documents already
+            // chosen, and that choice races this load; assigning would let whichever finished
+            // last erase the other, with nothing on screen to say so. The standing choice leads
+            // and the restored ones follow it, so an overlap costs nothing either way.
+            //
+            // Filtered through what the user has taken off this conversation. The transcript
+            // cannot record a removal — see `DetachedDocuments` — so without this the restore
+            // would undo every removal the moment the conversation was reopened.
+            let removed = detached?.detached(inChat: chatID) ?? []
+            for restored in messages.attachedDocuments
+            where !removed.contains(restored) && !attachments.contains(restored) {
+                attachments.append(restored)
+            }
             historyIsIntact = true
             // A run may have continued server-side while the app was closed — generation is
             // not tied to the socket.
@@ -255,7 +310,11 @@ final class ChatViewModel {
 
         // Attachments travel on the message, so an edited turn keeps the documents its original
         // asked about. Dropping them would silently change the question by more than its words.
-        attachments = ChatAttachment.list(from: messages[index].attachments)
+        //
+        // Through `setAttachments` rather than assigned, so re-asking a turn also un-removes the
+        // documents it carried: they are attached again by definition, and leaving them on the
+        // removed list would drop them from the very question being re-asked on the next load.
+        setAttachments(ChatAttachment.list(from: messages[index].attachments))
 
         messages.removeSubrange(index...)
         live = nil

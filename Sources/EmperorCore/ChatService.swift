@@ -61,6 +61,41 @@ struct ChatAttachment: Codable, Equatable, Hashable {
     }
 }
 
+extension Collection where Element == ChatMessage {
+    /// Every document this conversation is reading, in the order it first appeared.
+    ///
+    /// ## Why it has to be reconstructed at all
+    ///
+    /// There is no attachments field on a chat. The server stores each message's JSON verbatim
+    /// and hands it back untouched, so the documents a conversation is about exist only as a
+    /// property of the turns that carried them. A client that reads only `content` therefore
+    /// reopens a matter with its documents silently detached — the answers still cite them by
+    /// page, the document button says none are attached, and the next question is asked against
+    /// nothing.
+    ///
+    /// ## The union, not the last turn
+    ///
+    /// A document attached on turn one is still what turn seven is about — the toolbar calls
+    /// this list "In this conversation", and that is the honest reading. Taking only the most
+    /// recent turn would drop the pleading the whole matter rests on the moment a follow-up is
+    /// asked without re-attaching it.
+    ///
+    /// Deduplicated on `{name, folderName}`, the platform's identity for a document, so a file
+    /// carried on five consecutive turns appears once. First-seen order is kept: it is the order
+    /// the user chose them in, and the order the earlier answers cite them in.
+    var attachedDocuments: [ChatAttachment] {
+        var seen = Set<ChatAttachment>()
+        var ordered: [ChatAttachment] = []
+        for message in self {
+            for attachment in ChatAttachment.list(from: message.attachments) {
+                guard seen.insert(attachment).inserted else { continue }
+                ordered.append(attachment)
+            }
+        }
+        return ordered
+    }
+}
+
 struct ChatRequest: Encodable {
     var messages: [ChatMessage]
     var userId: String
