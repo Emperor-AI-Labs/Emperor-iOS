@@ -8,7 +8,6 @@ struct ChatThreadView: View {
     /// Owns the composer's text as well as the rewrite over it — see the type's own note on
     /// why that cannot live in a `@State` binding.
     @State private var composer: PromptEnhancerViewModel?
-    @State private var isScanning = false
     @State private var isBrowsingFiles = false
     @State private var isFillingBlanks = false
     @State private var isReporting = false
@@ -178,18 +177,6 @@ struct ChatThreadView: View {
             ToolbarItem(placement: .primaryAction) {
                 documentsMenu(model)
             }
-        }
-        .sheet(isPresented: $isScanning) {
-            DocumentScannerView { result in
-                isScanning = false
-                switch result {
-                case .success(let document):
-                    Task { await model.attach(document) }
-                case .failure(let error):
-                    model.reportScanFailure(error)
-                }
-            }
-            .ignoresSafeArea()
         }
         .alert("Ask this again?", isPresented: Binding(
             get: { editing != nil },
@@ -429,17 +416,16 @@ struct ChatThreadView: View {
             }
 
             HStack(spacing: 10) {
-                Menu {
-                    Button {
-                        isBrowsingFiles = true
-                    } label: {
-                        Label("Attach from documents", systemImage: "folder")
-                    }
-                    Button {
-                        isScanning = true
-                    } label: {
-                        Label("Scan a paperbook", systemImage: "doc.viewfinder")
-                    }
+                // Straight to the picker rather than a menu. Attaching from the library is what
+                // the button is for in nearly every case, and the menu charged a tap for that to
+                // offer scanning beside it — which the library already offers, under "Digitise
+                // or translate".
+                //
+                // The one thing that changes: a scan used to land on the turn directly, and now
+                // lands in the library to be picked from. A round trip, but through the screen
+                // that was going to be opened anyway.
+                Button {
+                    isBrowsingFiles = true
                 } label: {
                     Image(systemName: "plus.circle")
                         .font(.brand(.title3))
