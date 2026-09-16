@@ -8,6 +8,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(Session.self) private var session
     @Environment(\.theme) private var theme
+    @Environment(\.practice) private var practice
     @Environment(\.dismiss) private var dismiss
 
     @State private var isConfirmingSignOut = false
@@ -29,6 +30,21 @@ struct SettingsView: View {
                     SectionHeader(title: "Appearance")
                 } footer: {
                     footnote("Emperor opens dark by default, matching the web dashboard.")
+                }
+                .listRowBackground(theme.surface)
+
+                Section {
+                    NavigationLink {
+                        RolePickerView()
+                    } label: {
+                        LabeledContent("Practising as") {
+                            Text(practice.role.label).foregroundStyle(theme.textPrimary)
+                        }
+                    }
+                } header: {
+                    SectionHeader(title: "Your work")
+                } footer: {
+                    footnote(practice.role.detail)
                 }
                 .listRowBackground(theme.surface)
 

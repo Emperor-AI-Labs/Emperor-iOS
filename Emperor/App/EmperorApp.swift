@@ -91,6 +91,9 @@ struct RootView: View {
 
     private let preferences = Preferences()
     @State private var theme = Theme(store: Preferences())
+    /// The role the toolkit is scoped to. Beside the theme because it is the same kind of
+    /// thing: one app-wide choice, read by screens that must not disagree about it.
+    @State private var practice = Practice(store: Preferences())
     /// `nil` until read. Read before anything else is shown, so the gate cannot flash past.
     @State private var hasAcknowledgedDisclaimer: Bool?
 
@@ -110,6 +113,7 @@ struct RootView: View {
             }
         }
         .environment(\.theme, theme)
+        .environment(\.practice, practice)
         // Dark unless the user has said otherwise — `ThemePreference.default` is `.dark`.
         .preferredColorScheme(theme.colorScheme)
         .tint(theme.accent)

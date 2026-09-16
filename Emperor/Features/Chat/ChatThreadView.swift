@@ -3,6 +3,7 @@ import SwiftUI
 struct ChatThreadView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
+    @Environment(\.practice) private var practice
 
     @State private var model: ChatViewModel?
     /// Owns the composer's text as well as the rewrite over it — see the type's own note on
@@ -59,6 +60,10 @@ struct ChatThreadView: View {
                 uploads: session.uploads,
                 detached: StoredDetachedDocuments(store: Preferences.detachedDocuments),
                 preferredModel: session.currentUser?.preferredModel)
+            // Asked for in the role the user practises in. The chat's own "Acting as" picker
+            // still overrides a single answer; this is only where it starts, and without it
+            // every conversation would open as a litigator regardless of who is asking.
+            created.role = practice.role.wireRole
             composer = PromptEnhancerViewModel(service: session.enhancer)
             model = created
             await created.load()

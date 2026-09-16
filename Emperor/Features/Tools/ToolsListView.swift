@@ -15,11 +15,26 @@ import SwiftUI
 /// output.
 struct ToolsListView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.practice) private var practice
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             List {
+                // The role's own toolkit, first and in the platform's order. Twenty-nine tools
+                // is a wall on a phone; six is a screen. This is what a role is *for* — see
+                // `PractitionerRole`.
+                Section {
+                    ForEach(practice.role.tools) { row($0) }
+                } header: {
+                    SectionHeader(
+                        title: "Your toolkit", detail: practice.role.label)
+                } footer: {
+                    Text("Chosen for \(practice.role.label). Change it in Settings — everything else is still below.")
+                        .font(.brand(.caption2))
+                        .foregroundStyle(theme.textTertiary)
+                }
+
                 Section {
                     ForEach(ANALYSIS_TOOLS) { row($0) }
                 } header: {
@@ -35,7 +50,9 @@ struct ToolsListView: View {
                 } footer: {
                     // The web reaches most of these only by typing `/w/<id>` — its own sidebar
                     // links five. A phone has no address bar, so without this list twenty-four
-                    // of them would be unreachable rather than merely unadvertised.
+                    // of them would be unreachable rather than merely unadvertised. A role
+                    // narrows what is offered first; it must never be what puts a tool out of
+                    // reach, which is why the full registry stays here underneath it.
                     Text("Every tool the platform ships. Each one starts a conversation you can carry on afterwards.")
                         .font(.brand(.caption2))
                         .foregroundStyle(theme.textTertiary)
