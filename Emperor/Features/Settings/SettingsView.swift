@@ -28,14 +28,22 @@ struct SettingsView: View {
                 } header: {
                     SectionHeader(title: "Appearance")
                 } footer: {
-                    Text("Emperor opens dark by default, matching the web dashboard.")
+                    footnote("Emperor opens dark by default, matching the web dashboard.")
                 }
+                .listRowBackground(theme.surface)
 
                 if let user = session.currentUser {
-                    Section("Account") {
-                        LabeledContent("Name", value: user.name ?? "—")
-                        LabeledContent("Email", value: user.email ?? "—")
+                    Section {
+                        LabeledContent("Name") {
+                            Text(user.name ?? "—").foregroundStyle(theme.textPrimary)
+                        }
+                        LabeledContent("Email") {
+                            Text(user.email ?? "—").foregroundStyle(theme.textPrimary)
+                        }
+                    } header: {
+                        SectionHeader(title: "Account")
                     }
+                    .listRowBackground(theme.surface)
                 }
 
                 Section {
@@ -43,12 +51,14 @@ struct SettingsView: View {
                         DisclaimerReferenceView()
                     } label: {
                         Label(Disclaimer.title, systemImage: "exclamationmark.shield")
+                            .foregroundStyle(theme.textPrimary)
                     }
                 } header: {
-                    Text("Important")
+                    SectionHeader(title: "Important")
                 } footer: {
-                    Text("Emperor is not a lawyer, and what it produces is not legal advice.")
+                    footnote("Emperor is not a lawyer, and what it produces is not legal advice.")
                 }
+                .listRowBackground(theme.surface)
 
                 Section {
                     Button(role: .destructive) {
@@ -60,9 +70,12 @@ struct SettingsView: View {
                     // Honest about what signing out does and does not do. The token cannot be
                     // revoked server-side — there is no logout route — so the only protection
                     // is that the device forgets it, along with everything cached.
-                    Text("Signing out removes your credentials and every matter cached on this device.")
+                    footnote(
+                        "Signing out removes your credentials and every matter cached on this device.")
                 }
+                .listRowBackground(theme.surface)
             }
+            .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
             .navigationTitle("Settings")
@@ -88,5 +101,22 @@ struct SettingsView: View {
                 Text("Cached matters on this device will be removed.")
             }
         }
+    }
+
+    /// A section footer in the theme's own colours.
+    ///
+    /// This screen used to leave its footers, headers and row backgrounds to the system, which
+    /// draws them from `preferredColorScheme` — while the `theme.canvas` behind them comes from
+    /// `Theme.palette`. Those two agree only by coincidence. They diverge on "Match device",
+    /// which resolves the palette through `Theme.systemIsDark` but hands `preferredColorScheme`
+    /// a `nil` that releases the override; for a pass the page is painted half from each.
+    ///
+    /// Nowhere else does that show, because nowhere else can the appearance change under the
+    /// screen you are looking at. Settings is the one page that repaints itself, so it is the
+    /// one page that has to name every colour it uses.
+    private func footnote(_ text: String) -> some View {
+        Text(text)
+            .font(.brand(.caption))
+            .foregroundStyle(theme.textSecondary)
     }
 }

@@ -114,13 +114,35 @@ struct RootView: View {
         .preferredColorScheme(theme.colorScheme)
         .tint(theme.accent)
         .background(theme.canvas.ignoresSafeArea())
-        .onAppear { theme.systemIsDark = systemColorScheme == .dark }
-        .onChange(of: systemColorScheme) { _, new in theme.systemIsDark = new == .dark }
+        .onAppear { recordDeviceAppearance(systemColorScheme) }
+        .onChange(of: systemColorScheme) { _, new in recordDeviceAppearance(new) }
+        // Also on the way *into* "Match device", not only when the scheme moves. Releasing the
+        // override need not change `systemColorScheme` at all — a dark phone held on an explicit
+        // dark leaves it exactly where it was — and then no change fires and the recorded value
+        // is whatever it last was. This asks the question again at the one moment the answer
+        // starts to matter.
+        .onChange(of: theme.preference) { _, _ in recordDeviceAppearance(systemColorScheme) }
         .task {
             if hasAcknowledgedDisclaimer == nil {
                 hasAcknowledgedDisclaimer = Disclaimer.hasAcknowledged(preferences)
             }
         }
+    }
+
+    /// Record what the *device* asks for, which is not always what this environment reports.
+    ///
+    /// `preferredColorScheme` above propagates to the window, and the window's override comes
+    /// straight back down as `\.colorScheme` — including to this view, which is the one setting
+    /// it. So under a `.dark` or `.light` preference `systemColorScheme` echoes our own choice,
+    /// and writing it through would file that echo as the device's setting. Pick dark on a light
+    /// phone, then switch to "Match device", and the app stays dark until something else moves.
+    ///
+    /// `Theme.colorScheme` is `nil` exactly when no override is in force, so it doubles as the
+    /// test for whether the reading means anything — and that is also the only state in which
+    /// `systemIsDark` is ever consulted.
+    private func recordDeviceAppearance(_ scheme: ColorScheme) {
+        guard theme.colorScheme == nil else { return }
+        theme.systemIsDark = scheme == .dark
     }
 
     @ViewBuilder
