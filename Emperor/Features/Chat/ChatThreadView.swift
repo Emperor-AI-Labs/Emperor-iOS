@@ -14,6 +14,10 @@ struct ChatThreadView: View {
     @State private var isReporting = false
     @State private var editing: ChatMessage?
     @State private var editText = ""
+    /// The composer's keyboard. Lowered when a question is sent, so the answer has the screen.
+    /// Nothing raises it again: tapping the field does that on its own, which is the behaviour
+    /// the platform already gives a focusable field and the one a reader expects.
+    @FocusState private var isComposerFocused: Bool
 
     let chatID: String
     /// An opening message to send as soon as the thread is ready.
@@ -446,6 +450,7 @@ struct ChatThreadView: View {
                 TextField("Ask about this matter…", text: $composer.text, axis: .vertical)
                     .lineLimit(1...5)
                     .textFieldStyle(.roundedBorder)
+                    .focused($isComposerFocused)
                     .disabled(composer.isEnhancing)
 
                 // Dictation and a thumb keyboard both produce exactly the rough prompts this
@@ -475,6 +480,11 @@ struct ChatThreadView: View {
                     .accessibilityLabel("Stop this answer")
                 } else {
                     Button {
+                        // Lowered as the question goes, not when the answer finishes. The answer
+                        // starts arriving at once and streams for seconds; on a phone the
+                        // keyboard covers about half of where it lands, so waiting for the end
+                        // would hide exactly the part the reader is waiting to read.
+                        isComposerFocused = false
                         model.send(composer.text)
                         composer.clear()
                     } label: {
