@@ -60,6 +60,9 @@ struct CalendarView: View {
     private func content(_ model: CalendarViewModel) -> some View {
         ListStateView(presentation: model.presentation, retry: { await model.load() }) {
             List {
+                monthSection(model)
+                selectedDaySection(model)
+
                 if !model.overdue.isEmpty {
                     Section {
                         ForEach(model.overdue) { event in
@@ -71,7 +74,9 @@ struct CalendarView: View {
                     }
                 }
 
-                ForEach(model.upcoming()) { day in
+                // The selected day is listed in full directly above, so the agenda leaves it
+                // out rather than printing the same day twice on one screen.
+                ForEach(model.upcoming(excluding: model.selectedDay)) { day in
                     Section(DisplayText.longDay(day.key)) {
                         ForEach(day.hearings) { legalCase in
                             NavigationLink(value: legalCase.id) {
@@ -89,6 +94,10 @@ struct CalendarView: View {
             .background(theme.canvas)
             .refreshable { await model.load() }
         } empty: {
+            // Should be unreachable: `presentation` reports empty only before the first load
+            // returns, and that shows a spinner or a failure instead. Left as something legible
+            // rather than an `EmptyView`, so that if the reasoning is ever wrong the screen says
+            // what it means — going blank is the bug this grid was built to end.
             ContentUnavailableView(
                 "Nothing scheduled",
                 systemImage: "calendar",
@@ -115,6 +124,138 @@ struct CalendarView: View {
             Button("OK") { model.writeError = nil }
         } message: {
             Text(model.writeError ?? "")
+        }
+    }
+
+    // MARK: - The month
+
+    /// The month as a grid of whole weeks, with a dot on every day that has something on it.
+    ///
+    /// The dot rather than a count: the grid answers "which days", and the day's own section
+    /// below answers "what". A number in a cell this size is unreadable and, at a glance, is
+    /// easily taken for the date.
+    private func monthSection(_ model: CalendarViewModel) -> some View {
+        // Read once. `populatedDays` walks both arrays to build a set, and the grid is about to
+        // ask it forty-odd times.
+        let populated = model.populatedDays
+        return Section {
+            VStack(spacing: 5) {
+                HStack(spacing: 4) {
+                    ForEach(Array(CalendarMonth.weekdayInitials.enumerated()), id: \.offset) {
+                        _, initial in
+                        Text(initial)
+                            .font(.brand(.caption2, weight: .semibold))
+                            .foregroundStyle(theme.textTertiary)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                if let month = model.month {
+                    // Keyed by position: a week has no identity of its own, and the days inside
+                    // it carry real dates that do.
+                    ForEach(Array(month.weeks.enumerated()), id: \.offset) { _, week in
+                        HStack(spacing: 4) {
+                            ForEach(week) { day in
+                                dayCell(day, model, hasItems: populated.contains(day.key))
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+            .listRowInsets(EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
+        } header: {
+            monthHeader(model)
+        }
+    }
+
+    private func monthHeader(_ model: CalendarViewModel) -> some View {
+        HStack(spacing: 10) {
+            Text(model.month?.title ?? "")
+                .font(.brand(.subheadline, weight: .bold))
+                .foregroundStyle(theme.textPrimary)
+            Spacer(minLength: 8)
+            // Only once there is somewhere to come back from.
+            if !model.isShowingToday {
+                Button("Today") { model.goToToday() }
+                    .font(.brand(.caption, weight: .semibold))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(theme.accentText)
+            }
+            Button { model.step(months: -1) } label: {
+                Image(systemName: "chevron.left")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Previous month")
+            Button { model.step(months: 1) } label: {
+                Image(systemName: "chevron.right")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Next month")
+        }
+        .font(.brand(.footnote, weight: .semibold))
+        .foregroundStyle(theme.accentText)
+        .textCase(nil)
+    }
+
+    private func dayCell(
+        _ day: CalendarMonth.Day, _ model: CalendarViewModel, hasItems: Bool
+    ) -> some View {
+        let isSelected = day.key == model.selectedDay
+        let isToday = day.key == model.todayKey
+        // Spelled out rather than implicit members either side of the ternary: `brand(_:weight:)`
+        // takes an `Optional`, which is the shape `-parse` accepts and the type checker rejects.
+        let weight: Font.Weight? = isToday ? Font.Weight.bold : Font.Weight.regular
+        let foreground: Color =
+            isSelected ? theme.onAccent : (day.isInMonth ? theme.textPrimary : theme.textTertiary)
+
+        return Button {
+            model.select(day: day.key)
+        } label: {
+            VStack(spacing: 2) {
+                Text("\(day.number)").font(.brand(.footnote, weight: weight))
+                Circle()
+                    .fill(hasItems ? (isSelected ? theme.onAccent : theme.accent) : Color.clear)
+                    .frame(width: 5, height: 5)
+            }
+            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 5)
+            .background(
+                isSelected ? theme.accent : Color.clear,
+                in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(
+                        isToday && !isSelected ? theme.accent : Color.clear, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(DisplayText.longDay(day.key))
+        .accessibilityValue(hasItems ? "Has entries" : "Nothing scheduled")
+    }
+
+    /// What is on the selected day — and when there is nothing, which kind of nothing it is.
+    /// An empty day in a full diary and an empty diary are different things to be told.
+    private func selectedDaySection(_ model: CalendarViewModel) -> some View {
+        let day = model.selectedCalendarDay
+        return Section {
+            if day.isEmpty {
+                Text(model.hasNothingToShow
+                     ? "Nothing scheduled yet. Add a diary entry with the + above."
+                     : "Nothing on this day.")
+                    .font(.brand(.subheadline))
+                    .foregroundStyle(theme.textSecondary)
+            } else {
+                ForEach(day.hearings) { legalCase in
+                    NavigationLink(value: legalCase.id) {
+                        hearingRow(legalCase)
+                    }
+                }
+                ForEach(day.events) { event in
+                    eventRow(event, model)
+                }
+            }
+        } header: {
+            SectionHeader(title: DisplayText.longDay(day.key))
         }
     }
 

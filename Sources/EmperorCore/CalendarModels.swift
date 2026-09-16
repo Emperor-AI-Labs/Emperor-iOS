@@ -133,3 +133,95 @@ struct ComplianceListResponse: Codable, Sendable {
     var events: [ComplianceEvent]?
     var error: String?
 }
+
+/// One month, laid out as a grid of whole weeks.
+///
+/// The layout lives here rather than in the view because it is the part with edge cases:
+/// February in a leap year, a 31-day month starting on Saturday that needs six rows, and above
+/// all the timezone. Laid out against `Calendar.current` the grid would put a hearing under the
+/// wrong date for anyone reading it outside India — silently, which is the worst way for a
+/// court date to be wrong. Everything here is pinned to `WireDate.india`.
+struct CalendarMonth: Equatable, Sendable {
+    /// One cell.
+    ///
+    /// Padding carries the neighbouring month's real date rather than a blank, so every cell
+    /// has a stable identity for `ForEach` and the grid can grey those days instead of leaving
+    /// holes where the eye expects dates.
+    struct Day: Identifiable, Equatable, Sendable {
+        let key: String
+        let isInMonth: Bool
+        /// The number to print, 1...31.
+        let number: Int
+
+        var id: String { key }
+    }
+
+    /// "September 2026".
+    let title: String
+    /// `YYYY-MM-DD` of the first of the month.
+    let firstKey: String
+    /// Whole weeks, Sunday first.
+    let weeks: [[Day]]
+}
+
+extension CalendarMonth {
+    /// Sunday first, which is what the dashboard and an Indian court diary both use.
+    ///
+    /// Pinned rather than read from `Calendar.current`: these headings are fixed, so a locale
+    /// that begins its week on Monday would slide every date one column out from under the
+    /// heading naming it.
+    static let weekdayInitials = ["S", "M", "T", "W", "T", "F", "S"]
+
+    nonisolated(unsafe) private static let titleFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "LLLL yyyy"
+        formatter.timeZone = WireDate.india
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+
+    private static var gridCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = WireDate.india
+        calendar.firstWeekday = 1
+        return calendar
+    }
+
+    /// The month holding `dayKey`, or nil if that is not a date.
+    static func containing(_ dayKey: String) -> CalendarMonth? {
+        guard let anchor = WireDate.parseDay(dayKey) else { return nil }
+        let calendar = gridCalendar
+        guard let first = calendar.date(from: calendar.dateComponents([.year, .month], from: anchor)),
+              let daysInMonth = calendar.range(of: .day, in: .month, for: first)?.count
+        else { return nil }
+
+        // Back up to the Sunday on or before the first, then run whole weeks until the month is
+        // covered. How many rows that takes is not fixed: a 31-day month beginning on Saturday
+        // needs six, a 28-day February beginning on Sunday needs four.
+        let leading = calendar.component(.weekday, from: first) - calendar.firstWeekday
+        guard let gridStart = calendar.date(byAdding: .day, value: -leading, to: first) else {
+            return nil
+        }
+        let rows = Int((Double(leading + daysInMonth) / 7).rounded(.up))
+
+        var weeks: [[Day]] = []
+        for row in 0..<rows {
+            var week: [Day] = []
+            for column in 0..<7 {
+                guard let date = calendar.date(
+                    byAdding: .day, value: row * 7 + column, to: gridStart)
+                else { continue }
+                week.append(Day(
+                    key: WireDate.dayKey(date),
+                    isInMonth: calendar.isDate(date, equalTo: first, toGranularity: .month),
+                    number: calendar.component(.day, from: date)))
+            }
+            weeks.append(week)
+        }
+
+        return CalendarMonth(
+            title: titleFormatter.string(from: first),
+            firstKey: WireDate.dayKey(first),
+            weeks: weeks)
+    }
+}

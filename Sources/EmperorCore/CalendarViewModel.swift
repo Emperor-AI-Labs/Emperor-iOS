@@ -45,9 +45,47 @@ final class CalendarViewModel {
     }
 
     var presentation: ListPresentation {
-        ListPresentation(
-            state: state, isEmpty: events.isEmpty && cases.isEmpty, cachedAt: cachedAt)
+        ListPresentation(state: state, isEmpty: hasNothingOnScreen, cachedAt: cachedAt)
     }
+
+    /// Whether there is nothing on screen *yet* — the question `ListPresentation` asks to choose
+    /// between a spinner, a failure and content.
+    ///
+    /// Not "the calendar has no rows". Once a load has returned, the grid is itself content and
+    /// must not be replaced: `ListStateView`'s empty branch takes the whole screen, and the grid
+    /// is exactly what a reader with nothing scheduled still needs — to step to another month,
+    /// or to pick a day to add one to. Which kind of nothing it is gets said inside the day's
+    /// own section, where an empty day can be told from an empty calendar.
+    ///
+    /// Before that first load returns, holding nothing *does* mean a spinner or an error, so
+    /// this stays true until then. `isEmpty` decides four things here, not one — flatten it to
+    /// `false` and a failed first load draws an empty grid under a stale banner instead of the
+    /// failure and its retry, and the initial spinner never appears at all.
+    private var hasNothingOnScreen: Bool {
+        events.isEmpty && cases.isEmpty && !state.hasLoaded
+    }
+
+    /// Whether the calendar holds a single row anywhere — not merely on the day being shown.
+    ///
+    /// It separates "nothing on this day" from "nothing at all", which are different things to
+    /// tell someone looking at an empty grid. Deliberately not `events.isEmpty && cases.isEmpty`:
+    /// both buckets the screen draws from are filtered — `upcoming()` keeps today onward, and a
+    /// past hearing is not overdue, see `overdue` — so a user whose matters have all been heard
+    /// has data and no rows. Asking the raw arrays answers "not empty", and for a while that
+    /// rendered a list of zero sections, which is a blank screen.
+    ///
+    /// Asked without building `upcoming()`: whether any populated day falls on or after today is
+    /// the same question for one pass, where assembling the days re-filters both arrays per day.
+    var hasNothingToShow: Bool {
+        let today = todayKey
+        return overdue.isEmpty && !populatedDays.contains { $0 >= today }
+    }
+
+    /// The month the grid is showing — whichever one holds `selectedDay`.
+    var month: CalendarMonth? { CalendarMonth.containing(selectedDay) }
+
+    /// Everything on the day the grid has selected.
+    var selectedCalendarDay: CalendarDay { day(selectedDay) }
 
     var todayKey: String { WireDate.dayKey(now()) }
     var isShowingToday: Bool { selectedDay == todayKey }
@@ -73,11 +111,14 @@ final class CalendarViewModel {
         return days
     }
 
-    /// What is coming, soonest first — the agenda view.
-    func upcoming(limit: Int = 50) -> [CalendarDay] {
+    /// What is coming, soonest first — the agenda beneath the grid.
+    ///
+    /// `excluding` drops the day the grid has selected. That day is listed in full immediately
+    /// above the agenda, and would otherwise be read twice on the same screen.
+    func upcoming(limit: Int = 50, excluding excluded: String? = nil) -> [CalendarDay] {
         let today = todayKey
         return populatedDays
-            .filter { $0 >= today }
+            .filter { $0 >= today && $0 != excluded }
             .sorted()
             .prefix(limit)
             .map { day($0) }
