@@ -54,37 +54,23 @@ struct FileLibraryView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
-                ToolbarItem(placement: .topBarLeading) {
-                    Menu {
-                        Button {
-                            isImporting = true
-                        } label: {
-                            Label("Add from Files", systemImage: "folder.badge.plus")
-                        }
-                        Button {
-                            isDigitising = true
-                        } label: {
-                            Label("Digitise or translate", systemImage: "doc.viewfinder")
-                        }
-                        if model?.canManage == true {
-                            Divider()
-                            Button {
-                                isNamingFolder = true
-                            } label: {
-                                Label("New folder", systemImage: "folder.badge.plus")
-                            }
-                        }
-                    } label: {
-                        Label("Add", systemImage: "plus")
-                    }
-                    .disabled(model?.isUploading == true)
-                }
+                // One slot on the right, holding whichever action the selection has made
+                // current. Cancel keeps the left to itself: it used to share it with the add
+                // menu, which sat a few points from the button that throws the picking away.
+                //
+                // Add and Attach are never both the thing to do. This screen is a picker first,
+                // so a selection means the picking is finished and adding is the previous
+                // question; with nothing selected there is nothing to attach and a disabled
+                // Attach only says so after it has taken the space.
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Attach") {
-                        onAttach(model?.chosenAttachments ?? [])
-                        dismiss()
+                    if model?.canAttach == true {
+                        Button("Attach") {
+                            onAttach(model?.chosenAttachments ?? [])
+                            dismiss()
+                        }
+                    } else {
+                        addMenu
                     }
-                    .disabled(!(model?.canAttach ?? false))
                 }
             }
             .sheet(isPresented: $isDigitising) {
@@ -128,6 +114,34 @@ struct FileLibraryView: View {
                 await created.load()
             }
         }
+    }
+
+    /// Putting documents *into* the library, as against picking from it: an import, a scan, and
+    /// a folder for anyone who can manage the library.
+    private var addMenu: some View {
+        Menu {
+            Button {
+                isImporting = true
+            } label: {
+                Label("Add from Files", systemImage: "folder.badge.plus")
+            }
+            Button {
+                isDigitising = true
+            } label: {
+                Label("Digitise or translate", systemImage: "doc.viewfinder")
+            }
+            if model?.canManage == true {
+                Divider()
+                Button {
+                    isNamingFolder = true
+                } label: {
+                    Label("New folder", systemImage: "folder.badge.plus")
+                }
+            }
+        } label: {
+            Label("Add", systemImage: "plus")
+        }
+        .disabled(model?.isUploading == true)
     }
 
     // MARK: - Uploading
