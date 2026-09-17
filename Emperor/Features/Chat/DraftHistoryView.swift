@@ -149,7 +149,17 @@ struct DraftReaderView: View {
 
     var body: some View {
         NavigationStack {
-            MarkdownArtifactView(markdown: draft.content)
+            Group {
+                // Routed on what the body *is*, as the chat's own artifact viewer does. A draft
+                // is usually an inline-styled HTML fragment, and this screen used to hand every
+                // one of them to the Markdown renderer.
+                switch draft.format {
+                case .html:
+                    DocumentWebView(html: draft.content)
+                case .markdown:
+                    MarkdownArtifactView(markdown: draft.content)
+                }
+            }
                 .background(theme.canvas)
                 .navigationTitle(draft.item.displayTitle)
                 .navigationBarTitleDisplayMode(.inline)

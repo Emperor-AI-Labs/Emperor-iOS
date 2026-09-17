@@ -342,3 +342,52 @@ final class DraftHistoryServiceTests: XCTestCase {
         XCTAssertEqual(items.map(\.id), ["t1"])
     }
 }
+
+/// What a draft *is*, as against what its row says it is.
+final class DraftRenderingTests: XCTestCase {
+
+    private func opened(_ content: String, type: String = "doc") -> DraftHistoryViewModel.OpenedDraft {
+        DraftHistoryViewModel.OpenedDraft(
+            item: DraftedItem(
+                id: "d1", chatID: "ch12", title: "Writ Petition Draft", type: type,
+                createdAtRaw: nil, chatTitle: nil),
+            content: content)
+    }
+
+    /// The bug this exists for. A draft is normally an inline-styled HTML fragment, and the
+    /// reader handed every one of them to the Markdown renderer — which draws the tags.
+    func testAnHTMLDraftIsRenderedAsHTML() {
+        let draft = opened("""
+            <p style="text-align:center"><b>IN THE HIGH COURT OF DELHI</b></p>
+            <p>The Petitioner submits as follows.</p>
+            """)
+
+        XCTAssertEqual(draft.format, .html)
+    }
+
+    /// A table drafted as Markdown must not be mistaken for HTML and shoved through a web view,
+    /// where the pipes would render as literal text.
+    func testAMarkdownTableStaysMarkdown() {
+        let draft = opened("""
+            | Date | Event |
+            | --- | --- |
+            | 14.07.2026 | Notice issued |
+            """, type: "table")
+
+        XCTAssertEqual(draft.format, .markdown)
+    }
+
+    /// Prose with no markup at all falls to the declared kind, which is the only thing left to
+    /// go on — and a document is HTML by default on this platform.
+    func testPlainProseFallsBackToTheDeclaredKind() {
+        XCTAssertEqual(opened("Just a sentence.", type: "doc").format, .html)
+        XCTAssertEqual(opened("Just a sentence.", type: "table").format, .markdown)
+    }
+
+    /// The row's type is a claim, not a fact — `canvasShape.js` exists because of a live
+    /// incident where a pleading was stored under the wrong one. The content decides first.
+    func testTheContentBeatsAWrongDeclaredType() {
+        let misfiled = opened("<p>81 paragraphs of written submissions.</p>", type: "table")
+        XCTAssertEqual(misfiled.format, .html, "filed as a table, but it is a document")
+    }
+}

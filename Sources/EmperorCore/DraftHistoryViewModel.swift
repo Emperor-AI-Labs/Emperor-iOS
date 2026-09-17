@@ -38,6 +38,22 @@ final class DraftHistoryViewModel {
         let item: DraftedItem
         let content: String
         var id: String { item.id }
+
+        /// How to draw it — read from the content, never taken from the row's `type`.
+        ///
+        /// Drafts arrive as inline-styled HTML fragments: centred headings, underlined court
+        /// names, bordered tables of contents. Rendering one as Markdown gives a wall of raw
+        /// tags, which is exactly what this screen did — every draft went to the Markdown
+        /// renderer whatever was in it.
+        ///
+        /// `detectFormat` is the sniff the streaming path already uses, and the platform's own
+        /// `canvasShape.js` exists because a declared type is a claim rather than a fact. The
+        /// declared kind is passed through as its tiebreak, but it settles only the case where
+        /// the body holds neither block HTML nor a Markdown table: the content decides first.
+        var format: StreamArtifact.Format {
+            StreamArtifact.detectFormat(
+                of: content, declared: item.type == DraftKind.table.rawValue ? .table : .canvas)
+        }
     }
 
     init(service: any DraftHistoryProviding) {
