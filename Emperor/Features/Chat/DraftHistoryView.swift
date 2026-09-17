@@ -170,9 +170,10 @@ struct DraftReaderView: View {
                         Button("Done") { dismiss() }
                     }
                     ToolbarItem(placement: .primaryAction) {
-                        ShareLink(item: draft.content) {
-                            Image(systemName: "square.and.arrow.up")
-                        }
+                        DocumentExportMenu(
+                            content: draft.content,
+                            isHTML: draft.format == .html,
+                            title: draft.item.displayTitle)
                     }
                 }
         }

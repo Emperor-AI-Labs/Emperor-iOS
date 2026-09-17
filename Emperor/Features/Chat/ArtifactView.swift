@@ -30,9 +30,12 @@ struct ArtifactDetailView: View {
                     Button("Done") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarLeading) {
-                    ShareLink(item: artifact.body) {
-                        Image(systemName: "square.and.arrow.up")
-                    }
+                    // Was a share of the raw body, which handed over markup rather than a
+                    // document. A drafted pleading is something an advocate files.
+                    DocumentExportMenu(
+                        content: artifact.body,
+                        isHTML: artifact.format == .html,
+                        title: artifact.title)
                 }
             }
         }
