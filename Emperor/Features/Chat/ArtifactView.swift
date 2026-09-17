@@ -45,8 +45,18 @@ struct ArtifactDetailView: View {
 ///   web renderer uses `rehype-raw` with no `rehype-sanitize`. So JavaScript is disabled, and
 ///   the base URL is nil, meaning no network loads and no local file access. Navigation to
 ///   anything other than the initial load is refused.
-private struct DocumentWebView: UIViewRepresentable {
+/// Shared with `DraftReaderView`, which reads the same documents — so **not** file-private,
+/// however much it looks like a detail of this file.
+struct DocumentWebView: UIViewRepresentable {
+    /// A web view does not honour Dynamic Type on its own: 17px is 17px however large the
+    /// reader has set their text. Held here rather than passed in so both callers get it, and
+    /// so SwiftUI re-runs `updateUIView` when the setting changes.
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let html: String
+
+    private var pointSize: Double {
+        Double(UIFontMetrics.default.scaledValue(for: CGFloat(ArtifactDocument.basePointSize)))
+    }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -66,9 +76,12 @@ private struct DocumentWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ view: WKWebView, context: Context) {
-        guard context.coordinator.lastRendered != html else { return }
-        context.coordinator.lastRendered = html
-        view.loadHTMLString(ArtifactDocument.html(wrapping: html), baseURL: nil)
+        // Compared on the rendered page rather than the fragment: the fragment is unchanged when
+        // only the text size moves, and keying on it would leave the document at its old size.
+        let page = ArtifactDocument.html(wrapping: html, pointSize: pointSize)
+        guard context.coordinator.lastRendered != page else { return }
+        context.coordinator.lastRendered = page
+        view.loadHTMLString(page, baseURL: nil)
     }
 
     /// - Important: `@MainActor` is load-bearing, not decoration. `WKNavigationDelegate` is

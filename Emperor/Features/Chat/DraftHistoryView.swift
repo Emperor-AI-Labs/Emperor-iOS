@@ -84,7 +84,9 @@ struct DraftHistoryView: View {
         } message: {
             Text(model.errorMessage ?? "")
         }
-        .sheet(item: Binding(
+        // Full screen for the same reason the chat's artifact viewer is: a draft is a document
+        // to be read, and a form sheet on an iPad is a fraction of the screen.
+        .fullScreenCover(item: Binding(
             get: { model.opened },
             set: { if $0 == nil { model.close() } }
         )) { opened in

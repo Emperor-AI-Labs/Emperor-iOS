@@ -8,7 +8,15 @@ import SwiftUI
 /// is rendered by something that can actually handle it.
 struct MarkdownArtifactView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let markdown: String
+
+    /// The widest the text column is allowed to get.
+    ///
+    /// The same reasoning as the HTML wrapper's `ch` cap: run edge to edge on a 13-inch iPad and
+    /// the line is long enough that the eye loses its place coming back to the left margin. A
+    /// cap centred in the window reads as a page.
+    private static let measure: CGFloat = 760
 
     var body: some View {
         ScrollView {
@@ -23,8 +31,11 @@ struct MarkdownArtifactView: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
+            .frame(maxWidth: Self.measure, alignment: .leading)
+            .padding(.horizontal, sizeClass == .regular ? 40 : 16)
+            .padding(.vertical, 16)
+            // Centres the capped column rather than pinning it to the leading edge.
+            .frame(maxWidth: .infinity)
         }
     }
 }

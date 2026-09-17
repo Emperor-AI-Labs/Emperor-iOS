@@ -665,7 +665,10 @@ private struct AnswerView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .sheet(item: $openArtifact) { artifact in
+        // Full screen, not a sheet. On an iPad a sheet is a centred form sheet a
+        // fraction of the display, which is the wrong shape for reading a pleading —
+        // and the one device where there is most room to give it.
+        .fullScreenCover(item: $openArtifact) { artifact in
             ArtifactDetailView(artifact: artifact)
         }
     }
