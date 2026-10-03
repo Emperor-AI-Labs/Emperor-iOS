@@ -185,6 +185,27 @@ jobs:
           path: build/TestResults.xcresult
           retention-days: 14
 
+      # The screenshot tour's pictures as plain PNGs, so the UI can be looked at from a machine
+      # with no Xcode — which is where this app is developed. A result bundle needs
+      # `xcresulttool` to open; a folder of images does not. Never fails the run: a tour that
+      # could not export is not a broken app.
+      - name: Export the screenshot tour
+        if: always()
+        run: |
+          mkdir -p build/screenshots
+          xcrun xcresulttool export attachments \
+            --path build/TestResults.xcresult \
+            --output-path build/screenshots || echo "attachment export unavailable"
+          ls build/screenshots | head -100 || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshot-tour
+          path: build/screenshots
+          retention-days: 14
+          if-no-files-found: ignore
+
   # An .ipa you can actually put on a phone, without an Apple Developer Program membership.
   #
   # It is **unsigned**. iOS will not install it as-is; you re-sign it on your own machine with
