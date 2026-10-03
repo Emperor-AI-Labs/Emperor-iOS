@@ -32,8 +32,8 @@ struct AppNotification: Codable, Equatable, Identifiable, Sendable {
     /// The `link` field cannot be routed verbatim. The auction producer emits
     /// `/auction-notices/<id>` (`court-scraper/ibbi-auctions-ingest.js:97`), which is an **API**
     /// path — the web router has no such route and falls through to NotFound
-    /// (`src/App.jsx:186`); the real auction UI is at `/liquidations`. So the link is parsed
-    /// into an intent rather than followed.
+    /// (`src/App.jsx:186`); the real auction UI is at `/eauctions`, formerly `/liquidations`
+    /// (`src/App.jsx:265-269`). So the link is parsed into an intent rather than followed.
     var destination: NotificationDestination {
         guard let link, !link.isEmpty else { return .none }
         if link.hasPrefix("/auction-notices/") {

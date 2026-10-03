@@ -29,10 +29,10 @@ struct LibraryView: View {
                     Button("Done") { dismiss() }
                 }
             }
-            // Liquidations used to hang off the Library's toolbar, because five tabs was the
-            // ceiling and there was nowhere else for it. There is now: `MoreView` lists it as a
-            // peer of the Library, which is where `src/shell/Sidebar.jsx` has it. Leaving both
-            // would also have meant opening a sheet from inside a sheet.
+            // eAuctions (then called Liquidations) used to hang off the Library's toolbar, because
+            // five tabs was the ceiling and there was nowhere else for it. There is now:
+            // `MoreView` lists it as a peer of the Library. Leaving both would also have meant
+            // opening a sheet from inside a sheet.
             .task {
                 guard model == nil else { return }
                 let created = LibraryViewModel(service: session.library)

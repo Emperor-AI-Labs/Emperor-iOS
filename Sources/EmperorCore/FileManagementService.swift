@@ -19,27 +19,70 @@ struct FileOperationResult: Equatable, Sendable {
     var searchIndexStale: Bool = false
 }
 
+/// What to say after an edit, shared by the attach picker and My Files so the two cannot
+/// describe the same server answer in two different ways.
+enum FileEditWording {
+    /// - Important: built from the name the server **echoed**, never the one typed. The server
+    ///   force-preserves the extension and sanitises the rest, and annexure citations match the
+    ///   exact on-disk name, so showing the requested name would describe a file that does not
+    ///   exist under it.
+    static func renamed(_ result: FileOperationResult, requested: String) -> String {
+        var notice = "Renamed to \(DisplayText.fileName(result.fileName))."
+        if result.fileName != requested {
+            // Said out loud: silently filing it under a different name is how someone later
+            // cannot find their own document.
+            notice = "Saved as \(result.fileName) — the original file type is kept."
+        }
+        if result.searchIndexStale {
+            // Disk and database moved; the search index did not. The symptom is the assistant
+            // no longer finding a document that is plainly in the list.
+            notice += " Search may not find it under the new name yet."
+        }
+        return notice
+    }
+
+    /// Spaces and punctuation become underscores on disk. Showing the real name stops the folder
+    /// appearing to be missing.
+    static func folderCreated(typed name: String) -> String {
+        let actual = FolderName.preview(name)
+        return actual == name.trimmingCharacters(in: .whitespacesAndNewlines)
+            ? "\(actual) was created."
+            : "Created as \(actual)."
+    }
+
+    /// As `renamed`: the leaf of the path the server answered with, not what was typed.
+    static func folderRenamed(to newPath: String, requested: String) -> String {
+        let leaf = String(newPath.split(separator: "/").last ?? Substring(newPath))
+        return leaf == requested.trimmingCharacters(in: .whitespacesAndNewlines)
+            ? "Renamed to \(DisplayText.fileName(leaf))."
+            : "Saved as \(leaf)."
+    }
+}
+
 /// Editing the document library, as opposed to reading it.
 ///
 /// Kept apart from `FileProviding` because the read side is what most screens need and these
 /// are all destructive — a screen that only lists files should not be handed a `delete`.
 protocol FileManaging: Sendable {
-    /// - Warning: **held back — no caller in the app.** Destructive and not reversible, and
-    ///   withheld until the contract of the endpoint is confirmed. Do not put a control in front
-    ///   of this without doing that first.
+    /// - Important: **released.** Destructive and not reversible. Reached only from My Files,
+    ///   behind a confirmation that names the document (`FileDeletion`), and always followed by a
+    ///   refetch rather than a local patch. The endpoint contract was confirmed before this was
+    ///   given a control; keep that order for anything else destructive.
     func delete(name: String, folderName: String?) async throws
     func rename(
         name: String, in folderName: String?, to newName: String
     ) async throws -> FileOperationResult
-    /// - Note: implemented and never wired to a screen — moving is left to the web. Its wire
-    ///   shape is pinned by `ServiceWireTests.testMovingToTheRootSendsEmptyStringsNotDots`,
-    ///   because this route spells the root differently from `delete` and nothing exercises it
-    ///   in the app.
+    /// Moves a document between folders. Reached from My Files' "Move to…". Its wire shape is
+    /// pinned by `ServiceWireTests.testMovingToTheRootSendsEmptyStringsNotDots`, because this
+    /// route spells the root differently from `delete`.
     func move(name: String, from folderName: String?, to destination: String?) async throws
     func setFavorite(_ favorite: Bool, name: String, folderName: String?) async throws -> Bool
     func createFolder(named path: String) async throws
-    /// - Warning: **held back — no caller in the app.** As `delete`, and wider: this takes a
-    ///   whole matter and everything indexed from it, with no undo.
+    /// - Returns: the folder's new path, as the server reports it.
+    func renameFolder(at path: String, to newName: String) async throws -> String
+    /// - Important: **released**, as `delete`, and wider: this takes a whole matter and
+    ///   everything indexed from it, with no undo. The confirmation states how many documents go
+    ///   with it, and the storage root is refused before the round trip (`FileDeletion`).
     func deleteFolder(named path: String) async throws
 }
 
@@ -166,8 +209,34 @@ struct FileManagementService: FileManaging {
         _ = try await sendExpectingSuccess(request)
     }
 
+    private struct RenameFolderPayload: Encodable {
+        let userId: String
+        let folderPath: String
+        let newName: String
+    }
+
+    /// Renames a folder where it stands, carrying every document inside and its index with it.
+    ///
+    /// - Important: like `rename`, the name sent is a request. The server sanitises it to the
+    ///   same character set and answers with the folder's new path, which is what is returned
+    ///   and what a screen should show. It refuses to overwrite an existing folder (409) and says
+    ///   so in words worth passing on.
+    func renameFolder(at path: String, to newName: String) async throws -> String {
+        let userID = try await requireUserID()
+        let request = try await client.makeRequest(
+            "POST", "/rename-folder",
+            body: RenameFolderPayload(userId: userID, folderPath: path, newName: newName))
+        let body = try await sendExpectingSuccess(request)
+        if let echoed = body.folderName, !echoed.isEmpty { return echoed }
+        // No echo: say what the sanitiser will have made of it, under the same parent.
+        let parent = path.split(separator: "/").dropLast().joined(separator: "/")
+        let leaf = FolderName.preview(newName)
+        return parent.isEmpty ? leaf : "\(parent)/\(leaf)"
+    }
+
     /// - Important: recursive, and there is no confirmation step server-side. Every document
     ///   inside is deleted along with its extracted text, page index and search vectors.
+    ///   `FileDeletion` refuses the storage root before this is ever called.
     func deleteFolder(named path: String) async throws {
         let userID = try await requireUserID()
         let request = try await client.makeRequest(
@@ -257,6 +326,17 @@ enum FolderName {
         return trimmed.split(separator: "/").contains { segment in
             sanitized(String(segment)).contains { $0 != "." && $0 != "_" }
         }
+    }
+
+    /// Whether a folder can be renamed to this, in place.
+    ///
+    /// A rename names one folder, so a slash — which `rename-folder` refuses as a path
+    /// separator — is caught here with a sentence the user can act on, along with everything
+    /// `isCreatable` refuses.
+    static func isUsableLeaf(_ name: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.contains("/"), !trimmed.contains("\\") else { return false }
+        return isCreatable(trimmed)
     }
 
     /// What the folder will actually be called, so the screen can warn when that differs from

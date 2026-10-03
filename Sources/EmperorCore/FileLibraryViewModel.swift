@@ -39,9 +39,12 @@ final class FileLibraryViewModel {
     private let manager: (any FileManaging)?
 
     /// Where a document chosen from Files is filed. A fixed folder rather than a prompt: the
-    /// document can be moved on the web, and one more decision at the point of upload is one
-    /// more reason not to bother.
-    static let uploadFolder = "Uploads"
+    /// document can be moved afterwards, from My Files or the web, and one more decision at the
+    /// point of upload is one more reason not to bother.
+    ///
+    /// `nonisolated` because it is a constant that My Files also files into, from code that has no
+    /// reason to hop to the main actor to read it.
+    nonisolated static let uploadFolder = "Uploads"
 
     private(set) var isUploading = false
     private(set) var uploadProgress: Double = 0
@@ -170,6 +173,10 @@ final class FileLibraryViewModel {
 
     /// Removes a document and everything derived from it.
     ///
+    /// - Note: the picker offers no delete; documents are deleted from My Files
+    ///   (`MyFilesViewModel`), behind a confirmation that names them. This stays for the editing
+    ///   paths the picker's tests drive.
+    ///
     /// - Important: the tree is refetched rather than patched. `delete-file` guards on
     ///   existence and answers 200 either way, so "it worked" is not evidence the file was
     ///   there — the only way to know what the library now holds is to ask.
@@ -192,18 +199,7 @@ final class FileLibraryViewModel {
         await perform(on: file.path) { manager in
             let result = try await manager.rename(
                 name: file.name, in: file.folderPath, to: requested)
-            var notice = "Renamed to \(DisplayText.fileName(result.fileName))."
-            if result.fileName != requested {
-                // Said out loud: silently filing it under a different name is how someone
-                // later cannot find their own document.
-                notice = "Saved as \(result.fileName) — the original file type is kept."
-            }
-            if result.searchIndexStale {
-                // Disk and database moved; the search index did not. The symptom is the
-                // assistant no longer finding a document that is plainly in the list.
-                notice += " Search may not find it under the new name yet."
-            }
-            return notice
+            return FileEditWording.renamed(result, requested: requested)
         }
         await reload()
     }
@@ -236,12 +232,7 @@ final class FileLibraryViewModel {
         }
         await perform(on: nil) { manager in
             try await manager.createFolder(named: name)
-            let actual = FolderName.preview(name)
-            return actual == name.trimmingCharacters(in: .whitespacesAndNewlines)
-                ? "\(actual) was created."
-                // Spaces and punctuation become underscores on disk. Showing the real name
-                // stops the folder appearing to be missing.
-                : "Created as \(actual)."
+            return FileEditWording.folderCreated(typed: name)
         }
         await reload()
     }

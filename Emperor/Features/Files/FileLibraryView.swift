@@ -32,13 +32,6 @@ struct FileLibraryView: View {
         let file: FileNode.StoredFile
     }
 
-    /// The picked files, split into the ones worth asking about and the ones that are not.
-    private struct DuplicateReview: Identifiable {
-        let id = UUID()
-        var items: [DuplicateReviewSheet.Item]
-        var cleared: [(url: URL, fileName: String)]
-    }
-
     var body: some View {
         NavigationStack {
             Group {
@@ -78,11 +71,14 @@ struct FileLibraryView: View {
             }
             .fileImporter(
                 isPresented: $isImporting,
-                allowedContentTypes: [.pdf, .plainText, .rtf, .image],
+                // The library's own types, shared with My Files. This used to accept any
+                // image, and a HEIC photo uploaded, was stored, and never appeared in any list.
+                allowedContentTypes: LibraryUploadFlow.importableTypes,
                 allowsMultipleSelection: true
             ) { outcome in
                 guard case .success(let urls) = outcome else { return }
-                Task { await review(urls) }
+                let picked = urls.map { PickedDocument(url: $0, fileName: $0.lastPathComponent) }
+                Task { await add(picked) }
             }
             .sheet(item: $previewing) { item in
                 // No citation brought us here, so there is no mark and no page to land on —
@@ -96,7 +92,12 @@ struct FileLibraryView: View {
                 DuplicateReviewSheet(
                     items: review.items,
                     cleared: review.cleared,
-                    onConfirm: { chosen in Task { await upload(chosen) } })
+                    onConfirm: { chosen in
+                        Task {
+                            model?.uploadError = await LibraryUploadFlow.upload(
+                                chosen, into: review.folder)
+                        }
+                    })
             }
             // Posted once the server reports an upload readable. The document is not in the
             // list until then, and this screen may have been open the whole time.
@@ -146,73 +147,22 @@ struct FileLibraryView: View {
 
     // MARK: - Uploading
 
-    /// Asks the server whether any of these are already filed, then either prompts or uploads.
-    ///
-    /// **Every failure path here uploads.** A 401, an offline phone, a file that will not hash,
-    /// a server that answers with something unexpected — none of them are reasons to refuse a
-    /// document the user has explicitly chosen. The check is a courtesy that prevents a
-    /// duplicate; treating its absence as a blocker would turn an expired token into "this app
-    /// will not take my documents any more", which is far worse than the mess it avoids. The
-    /// server also dedupes on arrival regardless, so nothing is lost but the prompt.
-    private func review(_ urls: [URL]) async {
-        var hashes: [(url: URL, fileName: String, hash: String?)] = []
-        for url in urls {
-            // A picker URL is security-scoped and must be opened before reading. Hashing
-            // happens inside this window; the copy the uploader takes does too.
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-            hashes.append((url, url.lastPathComponent, FileHash.sha256(of: url)))
+    /// Asks before uploading anything the library already holds, then uploads. The rules —
+    /// including that every failure of the check still uploads — are `LibraryUploadFlow`'s,
+    /// shared with My Files.
+    private func add(_ picked: [PickedDocument]) async {
+        if let refusal = LibraryUpload.refusal(for: picked.map(\.fileName)) {
+            model?.uploadError = refusal
         }
-
-        let checkable = hashes.compactMap { entry in
-            entry.hash.map { (name: entry.fileName, hash: $0) }
-        }
-        let results = (try? await session.duplicates.check(
-            files: checkable, targetFolder: FileLibraryViewModel.uploadFolder)) ?? []
-
-        // Index by hash rather than by position: the server caps the batch, and matching a
-        // short answer up by index would attribute one file's verdict to another.
-        var byHash: [String: DuplicateCheck.Result] = [:]
-        for result in results {
-            if let hash = result.hash, byHash[hash] == nil { byHash[hash] = result }
-        }
-
-        var flagged: [DuplicateReviewSheet.Item] = []
-        var cleared: [(url: URL, fileName: String)] = []
-        for entry in hashes {
-            let decision = entry.hash
-                .flatMap { byHash[$0] }
-                .map(DuplicateCheck.decision(for:)) ?? .upload
-            if case .upload = decision {
-                cleared.append((entry.url, entry.fileName))
-            } else {
-                flagged.append(
-                    DuplicateReviewSheet.Item(
-                        url: entry.url, fileName: entry.fileName, decision: decision,
-                        // Off by default — see `DuplicateReviewSheet`.
-                        upload: false))
-            }
-        }
-
-        if flagged.isEmpty {
-            await upload(cleared)
-        } else {
-            duplicateReview = DuplicateReview(items: flagged, cleared: cleared)
-        }
-    }
-
-    private func upload(_ files: [(url: URL, fileName: String)]) async {
-        for file in files {
-            let scoped = file.url.startAccessingSecurityScopedResource()
-            defer { if scoped { file.url.stopAccessingSecurityScopedResource() } }
-            do {
-                try await BackgroundUploader.shared.start(
-                    source: file.url,
-                    fileName: file.fileName,
-                    folderName: FileLibraryViewModel.uploadFolder)
-            } catch {
-                model?.uploadError = DisplayText.message(for: error)
-            }
+        let accepted = picked.filter { LibraryUpload.isAccepted(fileName: $0.fileName) }
+        guard !accepted.isEmpty else { return }
+        let folder = FileLibraryViewModel.uploadFolder
+        if let review = await LibraryUploadFlow.review(
+            accepted, into: folder, duplicates: session.duplicates) {
+            duplicateReview = review
+        } else if let failure = await LibraryUploadFlow.upload(
+            accepted.map { ($0.url, $0.fileName) }, into: folder) {
+            model?.uploadError = failure
         }
     }
 
@@ -241,42 +191,8 @@ struct FileLibraryView: View {
         .refreshable { await model.load() }
         .safeAreaInset(edge: .top) {
             // Background transfers first: these survive the app closing, so this list is read
-            // from disk rather than from anything this screen started. Reopening the app
-            // mid-upload shows it still going, which is the point of the whole feature.
-            let background = BackgroundUploader.shared.inFlight
-            if !background.isEmpty || model.isUploading {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(background) { upload in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Uploading \(upload.fileName)")
-                                .font(.brand(.caption))
-                                .foregroundStyle(theme.textSecondary)
-                                .lineLimit(1)
-                            ProgressView(value: upload.progress)
-                        }
-                        // Said plainly, because it is the reassurance that makes someone
-                        // willing to put the phone in a pocket at a registry counter.
-                        .accessibilityLabel(
-                            "Uploading \(upload.fileName), \(Int(upload.progress * 100)) percent. "
-                            + "This continues if you leave the app.")
-                    }
-                    if model.isUploading {
-                        // Ingestion runs after the upload's 200, so this stays up until the
-                        // server reports the file readable — not until the bytes land.
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(model.uploadProgress < 1
-                                 ? "Uploading…"
-                                 : "Reading the document…")
-                                .font(.brand(.caption))
-                                .foregroundStyle(theme.textSecondary)
-                            ProgressView(value: model.uploadProgress)
-                        }
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(theme.surface)
-            }
+            // from disk rather than from anything this screen started.
+            UploadsInFlightBanner(foregroundProgress: model.isUploading ? model.uploadProgress : nil)
         }
         .alert("Could not add that document", isPresented: Binding(
             get: { model.uploadError != nil },
@@ -356,29 +272,16 @@ struct FileLibraryView: View {
         .background(theme.canvas)
         .overlay(alignment: .bottom) {
             if let notice = model.actionNotice {
-                Text(notice)
-                    .font(.brand(.footnote))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9)
-                    .background(theme.surfaceElevated, in: Capsule())
-                    .foregroundStyle(theme.textPrimary)
-                    .shadow(radius: 6, y: 2)
-                    .padding(.bottom, 12)
-                    .transition(.opacity)
-                    .onTapGesture { model.dismissActionNotice() }
-                    .task(id: notice) {
-                        // Long enough to read a sentence about a filename, then out of the way.
-                        try? await Task.sleep(for: .seconds(4))
-                        model.dismissActionNotice()
-                    }
+                ActionNoticeToast(notice: notice) { model.dismissActionNotice() }
             }
         }
         .animation(.easeOut(duration: 0.15), value: model.actionNotice)
     }
 
-    /// - Note: this header carried an overflow menu whose only item was "Delete folder".
-    ///   With deletion held back it has nothing to offer, so it is a plain label again —
-    ///   `rename-folder` is not a route this client calls.
+    /// - Note: this header once carried an overflow menu whose only item was "Delete folder".
+    ///   Deleting, and renaming folders, now live in My Files, where the confirmation can say
+    ///   what goes with a folder and the screen is about managing documents rather than picking
+    ///   one. The picker stays a picker.
     private func sectionHeader(_ group: FileLibraryViewModel.FolderGroup) -> some View {
         Text(group.title)
     }
@@ -387,26 +290,7 @@ struct FileLibraryView: View {
         Button {
             model.toggle(file)
         } label: {
-            HStack(spacing: 12) {
-                Image(systemName: model.isSelected(file) ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(model.isSelected(file) ? theme.accent : theme.textSecondary)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(DisplayText.fileName(file.name))
-                        .lineLimit(2)
-                        .foregroundStyle(file.isReadable ? theme.textPrimary : theme.textSecondary)
-                    statusLine(for: file)
-                }
-
-                Spacer(minLength: 0)
-
-                if file.favorite == true {
-                    Image(systemName: "star.fill")
-                        .font(.brand(.caption))
-                        .foregroundStyle(theme.warning)
-                }
-            }
-            .contentShape(Rectangle())
+            DocumentRowLabel(file: file, leading: .selection(model.isSelected(file)))
         }
         .buttonStyle(.plain)
         // A file still being read cannot answer questions yet, so it cannot be attached.
@@ -461,35 +345,6 @@ struct FileLibraryView: View {
                         systemImage: file.favorite == true ? "star.slash" : "star")
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private func statusLine(for file: FileNode.StoredFile) -> some View {
-        switch file.state {
-        case .ready:
-            if let size = file.size {
-                Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
-                    .font(.brand(.caption2))
-                    .foregroundStyle(theme.textTertiary)
-            }
-        case .scanned:
-            // Worth saying plainly: this is usable, just by a different route.
-            Label("Scanned — read as images", systemImage: "eye")
-                .font(.brand(.caption2))
-                .foregroundStyle(theme.textSecondary)
-        case .inProgress(let message):
-            Label(message, systemImage: "clock")
-                .font(.brand(.caption2))
-                .foregroundStyle(theme.textSecondary)
-                .lineLimit(1)
-        case .failed(let reason):
-            Label(
-                reason.replacingOccurrences(of: "ERROR: ", with: ""),
-                systemImage: "exclamationmark.triangle")
-                .font(.brand(.caption2))
-                .foregroundStyle(theme.danger)
-                .lineLimit(2)
         }
     }
 }

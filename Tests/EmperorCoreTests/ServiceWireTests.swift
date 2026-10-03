@@ -69,9 +69,9 @@ final class ServiceWireTests: XCTestCase {
     /// an empty string is a real folder to it and means the root; a `"."` would be taken as a
     /// directory literally named `.` and the file would land somewhere nobody can reach.
     ///
-    /// Pinned because nothing calls `move` from a screen — moving is left to the web — so a
-    /// change to the shared `folder(_:root:)` helper would otherwise break this route silently
-    /// and stay broken until someone wired a control to it.
+    /// Pinned because a change to the shared `folder(_:root:)` helper would otherwise break this
+    /// route silently. My Files never moves a document *to* the root, but a loose document can
+    /// be moved out of it.
     func testMovingToTheRootSendsEmptyStringsNotDots() async throws {
         let client = await makeClient()
         HTTPStub.always(.json(#"{"success":true}"#))

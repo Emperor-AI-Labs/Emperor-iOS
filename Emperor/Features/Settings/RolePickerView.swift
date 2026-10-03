@@ -39,35 +39,52 @@ struct RolePickerView: View {
             practice.select(role)
             dismiss()
         } label: {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: role.systemImage)
-                    .font(.brand(.title3))
-                    .foregroundStyle(isSelected ? theme.accentText : theme.textSecondary)
-                    .frame(width: 28)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(role.label)
-                        .font(.brand(.subheadline, weight: .semibold))
-                        .foregroundStyle(theme.textPrimary)
-                    Text(role.tagline)
-                        .font(.brand(.caption))
-                        .foregroundStyle(theme.textSecondary)
-                    Text(role.detail)
-                        .font(.brand(.caption2))
-                        .foregroundStyle(theme.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 8)
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(.brand(.footnote, weight: .semibold))
-                        .foregroundStyle(theme.accentText)
-                }
-            }
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
+            RoleOptionLabel(role: role, isSelected: isSelected)
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityHint(isSelected ? "Selected" : "Choose this role")
+    }
+}
+
+/// One role, as both places that offer the choice draw it: its symbol, its name, a line saying
+/// who it is for, and a sentence on what it does — Senior Counsel and Litigator are not
+/// distinguishable from two words.
+///
+/// Shared by Settings and the first-sign-in welcome (`RoleWelcomeView`) so the same role reads
+/// the same way in both.
+struct RoleOptionLabel: View {
+    @Environment(\.theme) private var theme
+
+    let role: PractitionerRole
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: role.systemImage)
+                .font(.brand(.title3))
+                .foregroundStyle(isSelected ? theme.accentText : theme.textSecondary)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(role.label)
+                    .font(.brand(.subheadline, weight: .semibold))
+                    .foregroundStyle(theme.textPrimary)
+                Text(role.tagline)
+                    .font(.brand(.caption))
+                    .foregroundStyle(theme.textSecondary)
+                Text(role.detail)
+                    .font(.brand(.caption2))
+                    .foregroundStyle(theme.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .font(.brand(.footnote, weight: .semibold))
+                    .foregroundStyle(theme.accentText)
+            }
+        }
     }
 }

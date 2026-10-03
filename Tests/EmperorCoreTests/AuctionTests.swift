@@ -554,6 +554,14 @@ final class AuctionServiceWireTests: XCTestCase {
 
 final class AuctionListViewModelTests: XCTestCase {
 
+    /// The web renamed the page to eAuctions (`src/pages/Liquidations.jsx:126`). Someone who uses
+    /// both should find it under one name, and the More row and the screen title both read this.
+    /// `Copy` is a nested type, so reading it does not need the main actor.
+    func testTheScreenCarriesTheWebsName() {
+        XCTAssertEqual(AuctionListViewModel.Copy.title, "eAuctions")
+        XCTAssertFalse(AuctionListViewModel.Copy.title.localizedCaseInsensitiveContains("liquidation"))
+    }
+
     func testTheFirstPageLoads() async {
         await withAuctions { fake, model in
             fake.pages = [AuctionPage(notices: [notice("an_1"), notice("an_2")], total: 2)]

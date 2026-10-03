@@ -46,6 +46,11 @@ private final class FakeFileManager: FileManaging, @unchecked Sendable {
         if let failure { throw failure }
         deletedFolders.append(path)
     }
+
+    func renameFolder(at path: String, to newName: String) async throws -> String {
+        if let failure { throw failure }
+        return newName
+    }
 }
 
 private final class FakeTree: FileProviding, @unchecked Sendable {

@@ -26,6 +26,16 @@ struct EmperorApp: App {
             // and `-UITestDisclaimer` actively clears it to test the gate itself.
             let wantsGate = ProcessInfo.processInfo.arguments.contains("-UITestDisclaimer")
             Preferences().setBool(!wantsGate, for: Disclaimer.key)
+
+            // The first-sign-in role choice, on the same terms: every test signs in through the
+            // real login screen, so it would appear in front of all of them. Answered by
+            // default; `-UITestRoleWelcome` clears it, and the role with it, to test it.
+            let wantsRoleWelcome = ProcessInfo.processInfo.arguments.contains("-UITestRoleWelcome")
+            Preferences().setBool(!wantsRoleWelcome, for: RoleWelcome.completedKey)
+            Preferences().setBool(false, for: RoleWelcome.pendingKey)
+            if wantsRoleWelcome {
+                UserDefaults.standard.removeObject(forKey: PractitionerRole.storageKey)
+            }
         }
         #endif
     }
@@ -96,6 +106,9 @@ struct RootView: View {
     @State private var practice = Practice(store: Preferences())
     /// `nil` until read. Read before anything else is shown, so the gate cannot flash past.
     @State private var hasAcknowledgedDisclaimer: Bool?
+    /// Set once the first-sign-in role choice is answered, so the screen gives way at once. The
+    /// stored flags are the record; this only redraws.
+    @State private var hasAnsweredRoleWelcome = false
 
     var body: some View {
         Group {
@@ -156,8 +169,22 @@ struct RootView: View {
             ProgressView().controlSize(.large)
         case .signedOut:
             LoginView()
-        case .signedIn:
-            MainTabView()
+                // Whoever signs in from here signs in on this device, which is what makes them
+                // owed the role choice — a session restored from the Keychain never passes
+                // through this screen. See `RoleWelcome`.
+                .onAppear { RoleWelcome.noteSignInShown(preferences) }
+        case .signedIn(let user):
+            // Read from the store as the state changes rather than in an `onChange`, so the tab
+            // bar never draws for a frame in front of the question.
+            if !hasAnsweredRoleWelcome && RoleWelcome.shouldShow(preferences, isSignedIn: true) {
+                RoleWelcomeView(name: user.name) { chosen in
+                    if let chosen { practice.select(chosen) }
+                    RoleWelcome.finish(choosing: chosen, in: preferences)
+                    withAnimation { hasAnsweredRoleWelcome = true }
+                }
+            } else {
+                MainTabView()
+            }
         }
     }
 }

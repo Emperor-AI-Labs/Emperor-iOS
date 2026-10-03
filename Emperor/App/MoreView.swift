@@ -6,7 +6,8 @@ import SwiftUI
 /// "More" opens the full sidebar (`src/shell/MobileNav.jsx`). This is that sidebar.
 ///
 /// Labels are the web's, not the ones this app used to use. It said "Diary", "Digitise" and
-/// "Auctions" where the platform says **Calendar**, **Translate** and **Liquidations**; someone
+/// "Auctions" where the platform says **Calendar**, **Translate** and **eAuctions** (which the
+/// web called Liquidations until it renamed the page, `src/pages/Liquidations.jsx:126`); someone
 /// who uses both should not have to learn two vocabularies for one product.
 ///
 /// Order follows `src/shell/Sidebar.jsx`, minus what is already a tab and minus what this client
@@ -16,11 +17,12 @@ import SwiftUI
 ///   takes no money. It must stay absent.
 /// - **Filing Assembly** — a 293-page bundle where a wrong folio gets the matter rejected at the
 ///   registry should not be assembled on a phone.
-/// - **My Files** — `FileLibraryView` is a picker: it requires `alreadyAttached` and `onAttach`
-///   and its confirmation action is "Attach". Giving it a browse mode is real work, not a row,
-///   so it stays reachable from the composer until that is done.
 ///
-/// - Important: every destination here **presents rather than pushes**. All eight own a
+/// **My Files** leads "Your practice" because it sits above Library in the web's rail
+/// (`src/shell/Sidebar.jsx:259`). It is its own screen, `MyFilesView`, not the composer's
+/// picker: the web split the two the same way, so the drawer could stay a picker.
+///
+/// - Important: every destination here **presents rather than pushes**. Every one owns a
 ///   `NavigationStack` — they were built as self-contained modals and every other call site
 ///   already presents them that way. Pushing one into this list's stack would nest two stacks
 ///   and give it two navigation bars and a back button that unwinds the wrong one.
@@ -39,12 +41,13 @@ struct MoreView: View {
 
     /// The rows, in the platform's own order.
     private enum Destination: String, Identifiable {
-        case deck, calendar, library, projects, tools, fileTools, translate, liquidations, settings
+        case myFiles, deck, calendar, library, projects, tools, fileTools, translate, eAuctions, settings
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
+            case .myFiles: return "My Files"
             // Named for the role rather than fixed, because that is what it is.
             case .deck: return "Your workspace"
             case .calendar: return "Calendar"
@@ -53,7 +56,7 @@ struct MoreView: View {
             case .tools: return "All tools"
             case .fileTools: return "File tools"
             case .translate: return "Translate"
-            case .liquidations: return "Liquidations"
+            case .eAuctions: return "eAuctions"
             case .settings: return "Settings"
             }
         }
@@ -61,6 +64,8 @@ struct MoreView: View {
         /// Chosen to read as the web's `lucide` icon for the same row.
         var symbol: String {
             switch self {
+            // The web's row is `folder-open`.
+            case .myFiles: return "folder"
             case .deck: return "square.grid.2x2"
             case .calendar: return "calendar"
             case .library: return "books.vertical"
@@ -71,7 +76,7 @@ struct MoreView: View {
             case .tools: return "wrench.and.screwdriver"
             case .fileTools: return "scissors"
             case .translate: return "character.bubble"
-            case .liquidations: return "hammer"
+            case .eAuctions: return "hammer"
             case .settings: return "gearshape"
             }
         }
@@ -81,6 +86,7 @@ struct MoreView: View {
         NavigationStack {
             List {
                 Section {
+                    row(.myFiles)
                     row(.calendar)
                     row(.library)
                     // Read-only while the feature is trialled on the web — no matter can be
@@ -95,7 +101,7 @@ struct MoreView: View {
                     row(.tools)
                     row(.fileTools)
                     row(.translate)
-                    row(.liquidations)
+                    row(.eAuctions)
                 } header: {
                     // The platform groups these under "Tools" in its rail. "All tools" is not a
                     // row the web has — there, most of the registry is reachable only by typing
@@ -114,6 +120,7 @@ struct MoreView: View {
             .navigationTitle("More")
             .sheet(item: $destination) { chosen in
                 switch chosen {
+                case .myFiles: MyFilesView()
                 case .deck: RoleHomeView()
                 case .calendar: CalendarView()
                 case .library: LibraryView()
@@ -121,7 +128,7 @@ struct MoreView: View {
                 case .tools: ToolsListView()
                 case .fileTools: PDFToolsView()
                 case .translate: OCRView()
-                case .liquidations: AuctionListView()
+                case .eAuctions: AuctionListView()
                 case .settings: SettingsView()
                 }
             }

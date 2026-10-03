@@ -18,7 +18,11 @@ final class AuctionListViewModel {
     /// Framing copy. Kept in one place so the list, the detail screen and the empty state cannot
     /// drift apart about what this feed is and is not.
     enum Copy {
-        static let title = "Liquidations"
+        /// The web renamed this page from Liquidations to **eAuctions** (`src/pages/Liquidations.jsx:126`,
+        /// routed at `/eauctions` with `/liquidations` redirecting, `src/App.jsx:265-269`). The
+        /// notices are still IBBI liquidation sales — that is what the subtitle and the detail
+        /// screen say — but the product's name for the place is the web's.
+        static let title = "eAuctions"
         static let subtitle = "IBBI e-auction notices"
         /// The safety sentence, in the register of `CauseListViewModel.Copy.confirmWithCourt`.
         ///

@@ -108,13 +108,14 @@ final class EmperorUITests: XCTestCase {
         app.tabBars.buttons["More"].tap()
 
         for (row, title) in [
+            ("My Files", "My Files"),
             ("Calendar", "Calendar"),
             ("Library", "Library"),
             ("Projects", "Projects"),
             ("All tools", "Tools"),
             ("File tools", "File tools"),
             ("Translate", "Translate"),
-            ("Liquidations", "Liquidations"),
+            ("eAuctions", "eAuctions"),
             ("Settings", "Settings"),
         ] {
             let cell = app.buttons[row]
@@ -137,6 +138,68 @@ final class EmperorUITests: XCTestCase {
                 app.navigationBars["More"].waitForExistence(timeout: 10),
                 "closing \(row) did not return to More")
         }
+    }
+
+    // MARK: - My Files
+
+    /// A folder opens, its document is listed, and deleting it asks first — naming the document
+    /// in the question. Cancelled, so nothing is sent; what is pinned is that the destructive
+    /// path cannot be reached without a confirmation that says what it will destroy.
+    func testDeletingADocumentAsksFirstAndNamesIt() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["More"].tap()
+        app.buttons["My Files"].tap()
+        XCTAssertTrue(app.navigationBars["My Files"].waitForExistence(timeout: 10))
+
+        app.buttons["Folders"].tap()
+        let folder = app.staticTexts["Bakshi"]
+        XCTAssertTrue(folder.waitForExistence(timeout: 10), "the folder from /user-files is not listed")
+        folder.tap()
+        XCTAssertTrue(app.navigationBars["Bakshi"].waitForExistence(timeout: 10), "the folder did not open")
+
+        let document = app.staticTexts["Plaint.pdf"]
+        XCTAssertTrue(document.waitForExistence(timeout: 10), "the folder's document is not listed")
+        document.swipeLeft()
+        app.buttons["Delete"].firstMatch.tap()
+
+        let confirmation = app.alerts["Delete “Plaint.pdf”?"]
+        XCTAssertTrue(
+            confirmation.waitForExistence(timeout: 5),
+            "deleting did not ask first, or the question does not name the document")
+        XCTAssertTrue(confirmation.buttons["Delete document"].exists)
+        confirmation.buttons["Cancel"].tap()
+
+        XCTAssertTrue(document.waitForExistence(timeout: 5), "cancelling must leave the document")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    // MARK: - First sign-in
+
+    /// The role choice appears after a first sign-in on this device, offers a way past without
+    /// choosing, and gives way to the app once answered.
+    func testAFirstSignInIsAskedForARoleAndCanChooseOne() {
+        let app = signIn(launch("-UITestRoleWelcome"))
+
+        let choice = app.buttons["role-corporateCounsel"]
+        XCTAssertTrue(choice.waitForExistence(timeout: 10), "the role choice did not appear")
+        XCTAssertFalse(app.tabBars.buttons["Home"].exists, "the app was reachable behind it")
+        XCTAssertTrue(app.buttons["Skip for now"].exists, "there must be a way past without choosing")
+
+        choice.tap()
+        app.buttons["Continue"].tap()
+
+        XCTAssertTrue(
+            app.tabBars.buttons["Home"].waitForExistence(timeout: 10),
+            "choosing a role did not lead into the app")
+    }
+
+    func testTheRoleChoiceCanBeSkipped() {
+        let app = signIn(launch("-UITestRoleWelcome"))
+        let skip = app.buttons["Skip for now"]
+        XCTAssertTrue(skip.waitForExistence(timeout: 10), "the role choice did not appear")
+        skip.tap()
+        XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
     }
 
     // MARK: - Court search

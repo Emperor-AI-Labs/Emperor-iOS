@@ -5,8 +5,9 @@ import SwiftUI
 /// The default on every row is **skip**, which is the unusual choice and the deliberate one.
 /// Everywhere else in this app the safe default is to keep going; here the user has already
 /// said "upload these", so the question is not whether to act but whether to act *again*. A
-/// second copy of an order filed under a second matter is the mess this exists to prevent, and
-/// it is the outcome that cannot be undone from inside the app — there is no delete.
+/// second copy of an order filed under a second matter is the mess this exists to prevent. My
+/// Files can delete the extra copy afterwards, but by then the assistant may already have cited
+/// it, and a replaced document is not coming back at all.
 ///
 /// Skipping loses nothing: the document is already there.
 struct DuplicateReviewSheet: View {

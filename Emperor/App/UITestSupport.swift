@@ -106,9 +106,11 @@ enum UITestSupport {
                 return #"{"success":true,"notifications":[{"id":"n1","title":"Hearing listed"}]}"#
             case "/notifications/unread-count":
                 return #"{"success":true,"count":1}"#
-            // `folders`, not `files`.
+            // `folders`, not `files`. One matter holding one document, so My Files has a folder
+            // to open and a row to swipe. Every node carries `type`, which `FileNode` switches on,
+            // and a file needs `status: "ready"` or it reads as still being processed.
             case "/user-files":
-                return #"{"success":true,"folders":[]}"#
+                return #"{"success":true,"folders":[{"type":"folder","name":"Bakshi","path":"Bakshi","created":"2026-09-01T10:00:00.000Z","files":[{"type":"file","name":"Plaint.pdf","path":"Bakshi/Plaint.pdf","size":2048,"modified":"2026-10-01T09:00:00.000Z","status":"ready","favorite":false}]}]}"#
             case "/library/categories":
                 return #"{"success":true,"categories":[]}"#
             case "/library/subfilters":
@@ -140,6 +142,7 @@ enum UITestSupport {
             case "/compliance": return #"{"success":true,"events":[]}"#
             case "/notifications": return #"{"success":true,"notifications":[]}"#
             case "/notifications/unread-count": return #"{"success":true,"count":0}"#
+            case "/user-files": return #"{"success":true,"folders":[]}"#
             default: return nil
             }
         }
