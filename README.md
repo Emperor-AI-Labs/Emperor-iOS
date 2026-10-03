@@ -128,6 +128,54 @@ private working in front of a client.
 **Attachments must be sent twice** — the top-level array and the last message are read by
 different passes, so both must carry them or the model sees an incomplete set.
 
+### Accounts, plans and refusals
+
+**Creating an account does not sign anyone in.** `/register` emails a confirmation link and
+returns no token; `/login` then refuses the address (403 `EMAIL_UNVERIFIED`) until it is
+confirmed. A one-time code from `/auth/otp/request` → `/auth/otp/verify` both signs in and
+confirms the address, so it is the quickest way past that — and the only way in for an account
+created through Google, which has no password (`/login` answers 409 `SSO_ACCOUNT`). The server
+sends at most three codes to one address in fifteen minutes and answers 200 past that, so
+`SignInFlow` paces requests rather than promise a code that is not coming.
+
+**Refusals carry a machine-readable `code`; the sentence is for a browser.** The platform meters
+plans and refuses new work outside one: `PLAN_REQUIRED`, `QUERY_LIMIT`, `FEATURE_NOT_IN_PLAN`,
+`DOCUMENT_LIMIT` (402), `STORAGE_LIMIT` (413), `MATTER_LIMIT`, `SCAN_LIMIT`, `ACCOUNT_SUSPENDED`
+(403), `RATE_LIMIT` (429). `Refusal` recognises them and `DisplayText` words them. **This app
+takes no money**, so it never repeats the server's "Upgrade your plan…" — a call to action
+leading to a purchase made elsewhere is what App Review rejects. `RefusalTests` fails the build
+if any refusal message says upgrade, buy or pricing. A refused question goes back to the
+composer; a refused background upload is stopped and its reason kept, because asking again gets
+the same answer.
+
+**A wrong one-time code is a 401 that says nothing about the session.** `APIError.classify`
+reads the `code` before the 401 rule, so `OTP_INVALID` is a refusal and never a sign-out.
+
+**`GET /auth/session` is the `/me` this API lacked.** It returns the account as it stands —
+plan, `needsPlan`, `suspended` — and a freshly signed token. The app reads it at launch and on
+return (at most every half hour), which is what keeps an account in daily use signed in.
+
+**No cookie jar.** The platform sets an httpOnly auth cookie on every sign-in for browser
+requests that cannot carry a header. This client authenticates every request with the bearer
+token, so it refuses cookies outright (`APIClient.refuseCookies`) rather than keep a second
+credential on the phone. Signing out calls `POST /logout` while the token still works.
+
+**The chat's busy refusal is recognised by its `[busy]` token**, never by the sentence after it,
+which the platform has reworded once already.
+
+**Numbered citations.** The system prompt now asks for `[1]`-style citations and a References
+section in every answer. They are a different thing from the `<@file:MARK:7>` annexure tokens
+above, and `AnswerCitations` keeps the two apart.
+
+### Matters and calendars
+
+- **`/compliance-calendar` returns a bare array**, and `next_due_date` can be prose — read the
+  day from `dateKey`.
+- **`/calendar/feed-url` returns a path that already starts with `/api`**, so it is resolved
+  against the host, not the API base. A reset happened only if the answer says `rotated: true`.
+- **`/cause-list` text fields can arrive as numbers** — the server copies some straight out of
+  stored JSON. `CauseListing` decodes either.
+
 ### A caution on reading the platform
 
 The platform's own `AGENTS.md` was corrected on 2026-08-25 and now carries a `file:line`
@@ -150,10 +198,11 @@ Send both the bearer token **and** `userId` on every request — `APIClient` doe
 automatically. The client sends both so that it keeps working unchanged once the server derives
 the caller from the token alone.
 
-Some features are built and tested but deliberately have no path to them from any screen — file
-and folder deletion, auction watchlists, server-side OCR history. Each is marked at its
-definition with the reason. **Do not wire one up without confirming the endpoint contract
-first.**
+Some features are built and tested but deliberately have no path to them from any screen —
+auction watchlists among them; "Built and deliberately held back" below has the list. Each is
+marked at its definition with the reason. **Do not wire one up without confirming the endpoint
+contract first.** File and folder deletion, translation history and the calendar subscription
+link were held back the same way, and were released once their contracts were confirmed.
 
 The specifics — what is outstanding, and in what order — are tracked privately rather than here.
 
@@ -205,8 +254,13 @@ up without reading why it is held.**
 - **Chat delete.** There is no route, and no SQL anywhere deletes a chat. The web client's
   delete is local-only — the conversation returns on the next load and never left any other
   device. A delete that does not delete is worse than none.
-- **File and folder deletion** (`FileManagementService`), **auction watchlists**, and
-  **server-side OCR history**.
+- **Auction watchlists.**
+- **Sharing a conversation.** These are privileged legal conversations; held back until the
+  endpoint contract is confirmed. No screen creates a share link.
+- **Marking a statutory deadline done** on the Corporate calendar. The screen reads the web's
+  done markers but does not write them, until the endpoint contract is confirmed.
+- **The compliance pipeline's history page.** The web's version reads from a service the app
+  cannot reach.
 
 ### Built, not yet reachable
 A different thing from the list above, and worth keeping separate: nobody decided to withhold
@@ -217,12 +271,6 @@ rather than as decisions to respect.
   lines of tests. Every field is decoded and each result carries its own verification note — for
   a caller that does not exist. The platform reaches this at `/mca-registry`; Android ships it as
   a drawer row. `AuctionDetailView` renders a CIN as a bare string and never decodes it.
-- **Image compression** (`PDFTools.compress(image:targetBytes:)`). Matches the platform's
-  `/tools/compress-image`. What is missing is a third `Mode` case in `PDFToolsView` and a picker
-  that takes an image rather than a PDF.
-- **Move a file** (`FileManagementService.move`). Deliberate in that moving is left to the web,
-  but listed here because it is a live route this client can call; its wire shape is pinned by
-  `ServiceWireTests` since nothing in the app exercises it.
 
 ### Waiting on the server
 - **`POST /delete-account` does not exist.** This blocks App Store listing outright under

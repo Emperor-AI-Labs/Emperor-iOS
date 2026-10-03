@@ -28,14 +28,16 @@ The reference copy is **source only** — no `node_modules`, no `Data/`, no `chr
 
 | Path | Why |
 |---|---|
-| `sync-server.js` | Every backend route. One 13,665-line `if/else` chain — **grep it, never read it whole** |
+| `sync-server.js` | Every backend route. One 17,000-line `if/else` chain — **grep it, never read it whole** |
 | `src/lib/clerk_identity.js` | The only live system prompt. Defines citation tokens and artifact wrappers |
 | `src/lib/output.js` | How the web client strips control tags — the spec our `StreamContent` mirrors |
 | `src/lib/streamManager.js` | Plan cursor + agentic work log — the spec our `ReasoningTracker` ports |
 | `src/lib/canvasShape.js` | Why artifact format must be sniffed, not trusted |
 | `src/lib/api.js` | The transport layer: `<status>` extraction, chunk holdback |
 | `src/providers/OpenRouterProvider.js` | Model aliases, retries, `<truncate:N/>` |
-| `src/roles/roleConfig.js` | The real role contract (7 UI roles → 3 wire values) |
+| `src/roles/roleConfig.js` | The real role contract. The web has eight roles; this app carries seven — Devil's Advocate is deliberately not one of them |
+| `src/lib/citations.js` | Numbered `[1]` citations and the References section — the spec `AnswerCitations` ports |
+| `lib/authFlows.js`, `lib/usageMeter.js`, `lib/planLimits.js` | Sign-up confirmation, one-time codes, and the plan allowances behind every refusal |
 | `lib/filing/index.js` | Filing assembly. Follow `getUserFromRequest` in `sync-server.js` for caller resolution |
 | `AGENTS.md` | Corrected 2026-08-25; every claim carries a `file:line` |
 
@@ -73,7 +75,7 @@ as possible into `Sources/EmperorCore/`**, which builds and tests here.
 
 ```bash
 sudo apt install swiftlang     # Swift 6.1.3 on Ubuntu; no iOS SDK, but the core builds
-cd emperor-ios && swift test    # 618 tests
+cd emperor-ios && swift test    # ~1,390 tests
 ```
 
 View models live in the core for this reason — turn state, recovery and error handling are
@@ -113,8 +115,8 @@ that makes no sense against the current source, `rm -rf .build` before investiga
 ## How to work on this repo
 
 - **Put logic in `Sources/EmperorCore/`.** It is Foundation-only — no UIKit, no SwiftUI — so it
-  compiles and tests anywhere, including Linux and CI. `swift test` runs 618 tests in a few
-  seconds. Anything that could plausibly live there should.
+  compiles and tests anywhere, including Linux and CI. `swift test` runs about 1,390 tests in
+  half a minute. Anything that could plausibly live there should.
 - **A view should hold no logic worth testing.** Everything a screen does other than lay itself
   out — loading, error wording, selection, empty-state rules — belongs in a `@MainActor` view
   model in the core. Where that needs a service, the service declares a protocol next to itself
@@ -137,6 +139,16 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   rather than trying to catch it locally.
 - **The Xcode project is generated**, not committed: `xcodegen generate`. Add files by editing
   `project.yml`.
+- **Golden data comes from the platform's own JavaScript, run under Node** — never retyped.
+  Each script takes the path to a platform checkout and supports `--check`:
+  `generate-tool-fixtures.mjs` (tool prompts), `generate-citation-fixtures.mjs`,
+  `generate-file-tool-fixtures.mjs` (page order, compression, image layout),
+  `generate-cause-list-fixtures.mjs`, `generate-compliance-feed-fixture.mjs` and
+  `generate-file-date-fixtures.mjs`. When a golden test fails after a platform change,
+  regenerate; do not edit the fixture to match.
+- **The UI is seen through CI.** `UITests/ScreenshotTour.swift` photographs every main screen in
+  both themes, and the `screenshot-tour` artifact holds them as plain PNGs —
+  `gh run download <run> -n screenshot-tour`. Look at them after any visible change.
 - The app target compiles `Sources/EmperorCore` directly, so the tested code and the shipped
   code are the same bytes.
 
@@ -195,6 +207,15 @@ Full detail in `README.md`. The short list:
     regardless. See `DuplicateCheck`.
 21. **`/office-preview` reports failure as `200 {"success":false}`.** The status code is not
     the answer. Reading it as one leaves the viewer empty with no explanation.
+22. **Creating an account does not sign in.** `/register` returns no token; the address must be
+    confirmed first, by link or by a one-time code (which also confirms it). See `SignInFlow`.
+23. **Refusals carry a `code`, and plan refusals are worded by this client.** The server's
+    sentence says "Upgrade…"; this app takes no money and must never repeat it. See `Refusal`
+    and `DisplayText.message(for:)`. A coded 401 (`OTP_INVALID`) is not a sign-out.
+24. **A refused upload must stop.** Retrying a 402/413 re-sends the same refused bytes forever.
+    See `ChunkOutcome`.
+25. **`/auth/session` renews the token.** Reading it at launch is what keeps a daily user
+    signed in. The client keeps no cookies; the bearer token is the only credential.
 
 ## Runtime connectivity
 

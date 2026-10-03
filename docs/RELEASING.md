@@ -228,7 +228,7 @@ first:
 - a non-`Sendable` type inside a `Sendable` struct,
 - a ternary inside `.foregroundStyle` whose two branches are different `ShapeStyle` types.
 
-`Sources/EmperorCore` already compiles and its 618 tests pass, so anything that breaks is in the
+`Sources/EmperorCore` already compiles and its tests pass, so anything that breaks is in the
 view layer only.
 
 **Two things Apple will ask about at submission**, both already handled:
