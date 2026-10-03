@@ -75,6 +75,9 @@ struct EmperorApp: App {
                 onClear: { ShareableFile.clear() }))
         // Off unless the build is configured for it — see `SocialSignInConfig`.
         session.signInFlow.social = SocialSignInConfig(info: Bundle.main.infoDictionary ?? [:])
+        // On unless the build switches it off — see `WebPlans`.
+        session.webPlans = WebPlans(
+            info: Bundle.main.infoDictionary ?? [:], apiBaseURL: APIConfig.current.baseURL)
         return session
     }
 

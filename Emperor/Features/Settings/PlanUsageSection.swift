@@ -1,14 +1,16 @@
 import SwiftUI
 
-/// "Plan & usage": the account's plan, its standing, and this month's allowances.
+/// "Plan & usage": the account's plan, its standing, this month's allowances — and, where the
+/// build allows it, the way to the plans page.
 ///
-/// **Informational only — there is nothing to buy here and nothing that points to where one
-/// could.** The app takes no money, and a call to action leading to a purchase made elsewhere is
-/// what App Review rejects. What this section is for is the question a refusal raises: how many
-/// questions are left, and when do they renew.
+/// The app takes no money. "View plans" opens the web app's plans page in the browser, where the
+/// plan is bought on the same account; coming back reads the account and the allowances again,
+/// so the new plan shows here without signing in again. See `WebPlans` for the build switch that
+/// removes the button.
 struct PlanUsageSection: View {
     @Environment(Session.self) private var session
     @Environment(\.theme) private var theme
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var model: AccountUsageViewModel?
 
@@ -50,20 +52,34 @@ struct PlanUsageSection: View {
                     }
                 }
             }
+
+            if session.webPlans.isOffered {
+                ViewPlansButton(style: .row)
+            }
         } header: {
             SectionHeader(title: "Plan & usage")
         } footer: {
-            if let line = model?.renewalLine {
-                Text(line)
-                    .font(.brand(.caption))
-                    .foregroundStyle(theme.textSecondary)
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                if let line = model?.renewalLine {
+                    Text(line)
+                }
+                if session.webPlans.isOffered {
+                    Text(WebPlans.settingsNote)
+                }
             }
+            .font(.brand(.caption))
+            .foregroundStyle(theme.textSecondary)
         }
         .listRowBackground(theme.surface)
         .task {
             if model == nil { model = AccountUsageViewModel(service: session.usage) }
             await model?.load()
         }
+        // Back from the plans page in the browser: the allowances may be a new plan's.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { reload() }
+        }
+        .onChange(of: session.currentUser?.planLabel) { _, _ in reload() }
     }
 
     private var planLabel: String {

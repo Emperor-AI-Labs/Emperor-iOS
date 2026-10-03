@@ -52,6 +52,8 @@ final class Session {
     let preferredModel: PreferredModelService
     /// Writes the account's role — see `Practice`.
     let practiceRoles: PracticeRoleService
+    /// Where a plan is bought, if this build sends anyone there — see `WebPlans`.
+    var webPlans: WebPlans
     let officePreview: OfficePreviewService
     /// Hand-made matters. Read-only — see `ProjectService` for why the writes are held back.
     let projects: ProjectService
@@ -110,6 +112,7 @@ final class Session {
         self.duplicates = DuplicateCheckService(client: client)
         self.preferredModel = PreferredModelService(client: client)
         self.practiceRoles = PracticeRoleService(client: client)
+        self.webPlans = WebPlans(isOffered: true, apiBaseURL: config.baseURL)
         self.officePreview = OfficePreviewService(client: client)
         self.complianceCalendar = ComplianceCalendarService(client: client)
         self.calendarFeed = CalendarFeedService(client: client, baseURL: config.baseURL)
@@ -283,12 +286,27 @@ final class Session {
     /// When the account was last re-read, so coming back to the app does not do it every time.
     private(set) var lastAccountRefresh: Date?
 
+    /// Set when the plans page was opened in the browser: the next return to the app reads the
+    /// account straight away rather than waiting out `accountRefreshInterval`, so a plan bought
+    /// there is in force here the moment the person comes back.
+    private(set) var isAwaitingPlanPurchase = false
+
+    /// The plans page is about to open in the browser.
+    func noteOpenedPlans() {
+        isAwaitingPlanPurchase = true
+    }
+
     /// How long an account reading stays good enough. Half an hour: a plan bought on the web
     /// shows up the next time the phone is picked up, without a request on every glance.
     nonisolated static let accountRefreshInterval: TimeInterval = 30 * 60
 
     /// `refreshAccount`, unless it ran recently. For the app becoming active again.
     func refreshAccountIfDue(now: Date = Date()) async {
+        if isAwaitingPlanPurchase {
+            isAwaitingPlanPurchase = false
+            await refreshAccount()
+            return
+        }
         if let last = lastAccountRefresh, now.timeIntervalSince(last) < Self.accountRefreshInterval {
             return
         }
@@ -325,6 +343,7 @@ final class Session {
         cache.clear()
         await auth.signOut()
         signInFlow.reset()
+        isAwaitingPlanPurchase = false
         state = .signedOut
     }
 }

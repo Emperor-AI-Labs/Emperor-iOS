@@ -141,12 +141,27 @@ sends at most three codes to one address in fifteen minutes and answers 200 past
 **Refusals carry a machine-readable `code`; the sentence is for a browser.** The platform meters
 plans and refuses new work outside one: `PLAN_REQUIRED`, `QUERY_LIMIT`, `FEATURE_NOT_IN_PLAN`,
 `DOCUMENT_LIMIT` (402), `STORAGE_LIMIT` (413), `MATTER_LIMIT`, `SCAN_LIMIT`, `ACCOUNT_SUSPENDED`
-(403), `RATE_LIMIT` (429). `Refusal` recognises them and `DisplayText` words them. **This app
-takes no money**, so it never repeats the server's "Upgrade your plan…" — a call to action
-leading to a purchase made elsewhere is what App Review rejects. `RefusalTests` fails the build
-if any refusal message says upgrade, buy or pricing. A refused question goes back to the
-composer; a refused background upload is stopped and its reason kept, because asking again gets
-the same answer.
+(403), `RATE_LIMIT` (429). `Refusal` recognises them and `DisplayText` words them: a refusal
+says what happened, never "Upgrade your plan…", and `RefusalTests` fails the build if one says
+upgrade, buy or pricing. A refused question goes back to the composer; a refused background
+upload is stopped and its reason kept, because asking again gets the same answer.
+
+**Plans are bought on the web.** This app takes no money. Where a plan is the answer — the
+plan refusals, the no-plan banner, Plan & usage in Settings — a separate **View plans** button
+opens the web app's `/buy` page in Safari, on the same host the app talks to, so the plan lands
+on the signed-in account. Returning to the app reads the account at once
+(`Session.noteOpenedPlans`). It is never offered for a paused account or the hourly ceiling,
+which no plan changes. App Review restricts links to purchases made outside the app (guidelines
+3.1.1 and 3.1.3) and what is allowed differs by storefront: `EMPEROR_WEB_PLANS: "NO"` in
+`project.yml` removes every button. Check the current guidelines before each submission. See
+`WebPlans`.
+
+**The role is the account's.** `users.practice_role` holds the web's id for it, so switching
+role in Settings switches the web too, and the other way round (`Practice`). The device keeps a
+copy for drawing the toolkit offline; a switch made here that has not reached the account yet
+is sent again rather than overwritten. A role this app does not carry — the web's Devil's
+Advocate — is left alone on the account. Needs the platform's `practice_role` change deployed;
+until then the role stays on the device and nothing breaks.
 
 **A wrong one-time code is a 401 that says nothing about the session.** `APIError.classify`
 reads the `code` before the 401 rule, so `OTP_INVALID` is a refusal and never a sign-out.

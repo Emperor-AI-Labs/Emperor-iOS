@@ -212,17 +212,23 @@ Full detail in `README.md`. The short list:
 22. **Creating an account does not sign in.** `/register` returns no token; the address must be
     confirmed first, by link or by a one-time code (which also confirms it). See `SignInFlow`.
 23. **Refusals carry a `code`, and plan refusals are worded by this client.** The server's
-    sentence says "Upgrade…"; this app takes no money and must never repeat it. See `Refusal`
-    and `DisplayText.message(for:)`. A coded 401 (`OTP_INVALID`) is not a sign-out.
+    sentence says "Upgrade…"; a refusal here says what happened and never repeats it. See
+    `Refusal` and `DisplayText.message(for:)`. The way to a plan is a separate "View plans"
+    button that opens the web app in Safari, behind the `EMPEROR_WEB_PLANS` build switch — see
+    `WebPlans`. A coded 401 (`OTP_INVALID`) is not a sign-out.
 24. **A refused upload must stop.** Retrying a 402/413 re-sends the same refused bytes forever.
     See `ChunkOutcome`.
 25. **`/auth/session` renews the token.** Reading it at launch is what keeps a daily user
     signed in. The client keeps no cookies; the bearer token is the only credential.
+26. **The role lives on the account** (`practice_role`, the web's role id — not
+    `PractitionerRole.rawValue`). `Practice` keeps the device's copy in step; a role the app
+    does not carry (Devil's Advocate) is never overwritten.
 
 ## Runtime connectivity
 
 The host is chosen by `APIEnvironment`, not hard-coded. Debug builds resolve to
-`dev.emperorailabs.com`; Release resolves to `backend.emperorailabs.com`. A Release build
+`dev.emperorailabs.com`; Release resolves to `app.emperorailabs.com` — the web app's own host,
+so the phone and the browser share every account. A Release build
 **cannot** be made to point at the dev tunnel — `APIConfig.resolveEnvironment` forces production
 regardless of the build setting, and `APIEnvironmentTests` pins that.
 
