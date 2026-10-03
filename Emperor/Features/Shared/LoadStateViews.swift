@@ -33,6 +33,9 @@ struct LoadFailureView: View {
         case .unauthenticated: return "Session expired"
         case .maintenance: return "Emperor is down for maintenance"
         case .server: return "Could not load"
+        // The refusal's own title — "Monthly questions used", "Account paused" — rather than
+        // "Could not load", which would read as a fault worth retrying.
+        case .refused: return failure.refusal.map(DisplayText.title(for:)) ?? "Not available"
         }
     }
 
@@ -42,6 +45,7 @@ struct LoadFailureView: View {
         case .unauthenticated: return "person.crop.circle.badge.exclamationmark"
         case .maintenance: return "wrench.and.screwdriver"
         case .server: return "exclamationmark.triangle"
+        case .refused: return "pause.circle"
         }
     }
 }
