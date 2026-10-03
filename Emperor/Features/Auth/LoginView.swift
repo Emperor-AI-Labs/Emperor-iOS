@@ -185,7 +185,8 @@ struct LoginView: View {
             // full name, email, password and its confirmation — plus an optional mobile number.
             VStack(spacing: 14) {
                 labelled("Full name") {
-                    TextField("Full name", text: $flow.name, prompt: Text("John Doe"))
+                    TextField("Full name", text: $flow.name, prompt: Text(verbatim: "John Doe"))
+                        .accessibilityIdentifier("Full name")
                         .textContentType(.name)
                         .textInputAutocapitalization(.words)
                         .focused($focused, equals: .name)
@@ -328,7 +329,8 @@ struct LoginView: View {
     // MARK: - Shared fields
 
     private func emailField(_ text: Binding<String>, submit: @escaping () -> Void) -> some View {
-        TextField("Email", text: text, prompt: Text("name@firm.com"))
+        TextField("Email", text: text, prompt: Text(verbatim: "name@firm.com"))
+            .accessibilityIdentifier("Email")
             .textContentType(.emailAddress)
             .keyboardType(.emailAddress)
             .textInputAutocapitalization(.never)
@@ -346,13 +348,14 @@ struct LoginView: View {
         HStack(spacing: 8) {
             Group {
                 if showsPassword {
-                    TextField(label, text: text, prompt: Text("••••••••"))
+                    TextField(label, text: text, prompt: Text(verbatim: "••••••••"))
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 } else {
-                    SecureField(label, text: text, prompt: Text("••••••••"))
+                    SecureField(label, text: text, prompt: Text(verbatim: "••••••••"))
                 }
             }
+            .accessibilityIdentifier(label)
             .textContentType(isNew ? .newPassword : .password)
             .focused($focused, equals: field)
             .submitLabel(field == .confirm || !isNew ? .go : .next)
@@ -384,7 +387,8 @@ struct LoginView: View {
             TextField("Mobile number", text: Binding(
                 get: { flow.phoneDisplay },
                 set: { flow.setPhone($0) }
-            ), prompt: Text("98765 43210"))
+            ), prompt: Text(verbatim: "98765 43210"))
+            .accessibilityIdentifier("Mobile number")
             .keyboardType(.phonePad)
             .textContentType(.telephoneNumber)
             .focused($focused, equals: .phone)
