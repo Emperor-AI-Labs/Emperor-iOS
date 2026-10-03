@@ -113,9 +113,11 @@ struct User: Codable, Equatable, Identifiable, Sendable {
     var needsPlan: Bool?
     /// Set by `/login` when an administrator has paused the account. Reading still works.
     var suspended: Bool?
+    /// The mobile number given at sign-up, as the platform stores it: `+91XXXXXXXXXX`.
+    var phone: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, email, name, avatar, title, organization, plan
+        case id, email, name, avatar, title, organization, plan, phone
         case preferredModel = "preferred_model"
         case planLabel, needsPlan, suspended
     }

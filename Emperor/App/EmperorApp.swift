@@ -52,17 +52,27 @@ struct EmperorApp: App {
             // In-memory everywhere: no Keychain prompt, and no state carried between test runs.
             // Sign-in is not faked — the tests drive the real login screen and the stub answers
             // `/login`, so the whole authentication path is exercised.
-            return Session(
+            let session = Session(
                 store: InMemoryCredentialStore(),
                 cache: ResponseCache(store: InMemoryCacheStore()),
                 urlSession: UITestSupport.makeSession())
+            // `-UITestSocial` draws the provider buttons so the screenshot tour can show them;
+            // the client id is a placeholder and nothing here can complete a real sign-in.
+            if ProcessInfo.processInfo.arguments.contains("-UITestSocial") {
+                session.signInFlow.social = SocialSignInConfig(
+                    isEnabled: true, googleClientID: "0000-uitest.apps.googleusercontent.com")
+            }
+            return session
         }
         #endif
-        return Session(
+        let session = Session(
             store: Keychain(),
             cache: ResponseCache(
                 store: FileCacheStore(directory: FileCacheStore.defaultDirectory()),
                 onClear: { ShareableFile.clear() }))
+        // Off unless the build is configured for it — see `SocialSignInConfig`.
+        session.signInFlow.social = SocialSignInConfig(info: Bundle.main.infoDictionary ?? [:])
+        return session
     }
 
     var body: some Scene {

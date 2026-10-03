@@ -14,7 +14,7 @@ struct LoginView: View {
     @State private var isAskingForReset = false
     @State private var showsPassword = false
 
-    private enum Field: Hashable { case name, email, password, code }
+    private enum Field: Hashable { case name, email, phone, password, confirm, code }
 
     var body: some View {
         let flow = session.signInFlow
@@ -127,9 +127,20 @@ struct LoginView: View {
         return Group {
             title("Sign in", "Welcome back.")
 
-            VStack(spacing: 12) {
-                emailField($flow.email, submit: { focused = .password })
-                passwordField($flow.password, isNew: false, submit: { run { await $0.signIn() } })
+            if flow.social.offersAny {
+                SocialSignInButtons(config: flow.social)
+                orDivider("or sign in with email")
+            }
+
+            VStack(spacing: 14) {
+                labelled("Email") {
+                    emailField($flow.email, submit: { focused = .password })
+                }
+                labelled("Password") {
+                    passwordField(
+                        $flow.password, label: "Password", field: .password, isNew: false,
+                        submit: { run { await $0.signIn() } })
+                }
             }
 
             messages(flow)
@@ -165,25 +176,45 @@ struct LoginView: View {
         return Group {
             title("Create your account", "We'll email you a link to confirm your address.")
 
-            VStack(spacing: 12) {
-                TextField("Full name", text: $flow.name)
-                    .textContentType(.name)
-                    .textInputAutocapitalization(.words)
-                    .focused($focused, equals: .name)
-                    .submitLabel(.next)
-                    .onSubmit { focused = .email }
-                    .authField("person", isFocused: focused == .name)
+            if flow.social.offersAny {
+                SocialSignInButtons(config: flow.social)
+                orDivider("or sign up with email")
+            }
 
-                emailField($flow.email, submit: { focused = .password })
+            // The web's sign-up fields, labels, placeholders and required set (`Register.jsx`):
+            // full name, email, password and its confirmation — plus an optional mobile number.
+            VStack(spacing: 14) {
+                labelled("Full name") {
+                    TextField("Full name", text: $flow.name, prompt: Text("John Doe"))
+                        .textContentType(.name)
+                        .textInputAutocapitalization(.words)
+                        .focused($focused, equals: .name)
+                        .submitLabel(.next)
+                        .onSubmit { focused = .email }
+                        .authField("person", isFocused: focused == .name)
+                }
 
-                VStack(alignment: .leading, spacing: 6) {
+                labelled("Email") {
+                    emailField($flow.email, submit: { focused = .phone })
+                }
+
+                labelled("Mobile number", detail: "Optional",
+                         hint: flow.phoneHint, hintIsWarning: flow.phoneHint != nil) {
+                    phoneField(flow)
+                }
+
+                labelled("Password",
+                         hint: flow.passwordHint ?? "At least \(SignInFlow.minimumPasswordLength) characters.",
+                         hintIsWarning: flow.passwordHint != nil) {
                     passwordField(
-                        $flow.password, isNew: true,
-                        submit: { run { await $0.createAccount() } })
-                    Text(flow.passwordHint ?? "At least \(SignInFlow.minimumPasswordLength) characters.")
-                        .font(.brand(.caption))
-                        .foregroundStyle(flow.passwordHint == nil ? theme.textTertiary : theme.warning)
-                        .padding(.leading, 4)
+                        $flow.password, label: "Password", field: .password, isNew: true,
+                        submit: { focused = .confirm })
+                }
+
+                labelled("Confirm password") {
+                    passwordField(
+                        $flow.confirmPassword, label: "Confirm password", field: .confirm,
+                        isNew: true, submit: { run { await $0.createAccount() } })
                 }
             }
 
@@ -297,7 +328,7 @@ struct LoginView: View {
     // MARK: - Shared fields
 
     private func emailField(_ text: Binding<String>, submit: @escaping () -> Void) -> some View {
-        TextField("Email", text: text)
+        TextField("Email", text: text, prompt: Text("name@firm.com"))
             .textContentType(.emailAddress)
             .keyboardType(.emailAddress)
             .textInputAutocapitalization(.never)
@@ -309,21 +340,22 @@ struct LoginView: View {
     }
 
     private func passwordField(
-        _ text: Binding<String>, isNew: Bool, submit: @escaping () -> Void
+        _ text: Binding<String>, label: String, field: Field, isNew: Bool,
+        submit: @escaping () -> Void
     ) -> some View {
         HStack(spacing: 8) {
             Group {
                 if showsPassword {
-                    TextField("Password", text: text)
+                    TextField(label, text: text, prompt: Text("••••••••"))
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 } else {
-                    SecureField("Password", text: text)
+                    SecureField(label, text: text, prompt: Text("••••••••"))
                 }
             }
             .textContentType(isNew ? .newPassword : .password)
-            .focused($focused, equals: .password)
-            .submitLabel(.go)
+            .focused($focused, equals: field)
+            .submitLabel(field == .confirm || !isNew ? .go : .next)
             .onSubmit(submit)
 
             Button {
@@ -335,7 +367,70 @@ struct LoginView: View {
             .buttonStyle(.plain)
             .accessibilityLabel(showsPassword ? "Hide password" : "Show password")
         }
-        .authField("lock", isFocused: focused == .password)
+        .authField("lock", isFocused: focused == field)
+    }
+
+    /// The mobile number: India's code beside the field, the number grouped as it is written.
+    private func phoneField(_ flow: SignInFlow) -> some View {
+        HStack(spacing: 10) {
+            Text("+91")
+                .font(.brand(.body, weight: .semibold))
+                .foregroundStyle(theme.textSecondary)
+                .accessibilityHidden(true)
+            Rectangle()
+                .fill(theme.separator)
+                .frame(width: 1, height: 20)
+                .accessibilityHidden(true)
+            TextField("Mobile number", text: Binding(
+                get: { flow.phoneDisplay },
+                set: { flow.setPhone($0) }
+            ), prompt: Text("98765 43210"))
+            .keyboardType(.phonePad)
+            .textContentType(.telephoneNumber)
+            .focused($focused, equals: .phone)
+        }
+        .authField("phone", isFocused: focused == .phone)
+    }
+
+    /// A field with its label above it, as the web lays out its forms. The label is for the eye:
+    /// the field carries the same name for VoiceOver, so it is not read twice.
+    private func labelled<Content: View>(
+        _ label: String, detail: String? = nil, hint: String? = nil, hintIsWarning: Bool = false,
+        @ViewBuilder field: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text(label)
+                    .font(.brand(.footnote, weight: .semibold))
+                    .foregroundStyle(theme.textPrimary)
+                if let detail {
+                    Text(detail)
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textTertiary)
+                }
+            }
+            .accessibilityHidden(true)
+            field()
+            if let hint {
+                Text(hint)
+                    .font(.brand(.caption))
+                    .foregroundStyle(hintIsWarning ? theme.warning : theme.textTertiary)
+                    .padding(.leading, 4)
+            }
+        }
+    }
+
+    /// "or sign up with email", between the providers and the form — the web's divider.
+    private func orDivider(_ text: String) -> some View {
+        HStack(spacing: 10) {
+            Rectangle().fill(theme.separator).frame(height: 1)
+            Text(text)
+                .font(.brand(.caption))
+                .foregroundStyle(theme.textTertiary)
+                .fixedSize()
+            Rectangle().fill(theme.separator).frame(height: 1)
+        }
+        .accessibilityHidden(true)
     }
 
     // MARK: - Footer

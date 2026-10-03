@@ -57,6 +57,12 @@ struct SettingsView: View {
                         LabeledContent("Email") {
                             Text(user.email ?? "—").foregroundStyle(theme.textPrimary)
                         }
+                        if let phone = user.phone, !phone.isEmpty {
+                            LabeledContent("Mobile") {
+                                Text("+91 " + IndianMobile.local(phone))
+                                    .foregroundStyle(theme.textPrimary)
+                            }
+                        }
                     } header: {
                         SectionHeader(title: "Account")
                     }

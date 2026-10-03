@@ -11,11 +11,14 @@ import FoundationNetworking
 /// account, an unconfirmed address, a wrong code — can be exercised with no server.
 protocol AuthProviding: Sendable {
     func login(email: String, password: String) async throws -> AuthResponse
-    func register(name: String, email: String, password: String) async throws -> Registration
+    func register(name: String, email: String, password: String, phone: String?) async throws
+        -> Registration
     func resendVerification(email: String) async throws
     func requestCode(email: String) async throws -> CodeRequest
     func verifyCode(email: String, code: String) async throws -> AuthResponse
     func requestPasswordReset(email: String) async throws
+    func signInWithGoogle(idToken: String) async throws -> AuthResponse
+    func signInWithApple(idToken: String, name: String?) async throws -> AuthResponse
 }
 
 /// What creating an account produced.
@@ -46,6 +49,16 @@ struct AuthService: AuthProviding {
         let name: String
         let email: String
         let password: String
+        /// `+91XXXXXXXXXX`, or absent. Optional on the platform as here: blank stores nothing,
+        /// and anything else must be a complete Indian mobile number (400 `BAD_PHONE`).
+        let phone: String?
+    }
+
+    private struct IDTokenBody: Encodable {
+        let idToken: String
+        /// Apple sends the person's name on the very first authorisation only, ever — it is
+        /// passed along then or lost.
+        let name: String?
     }
 
     private struct EmailBody: Encodable { let email: String }
@@ -93,10 +106,12 @@ struct AuthService: AuthProviding {
     /// confirms it too (`/auth/otp/verify` sets `email_verified`). It requires a password of at
     /// least eight characters and refuses an address already registered (409 `EXISTS`), or one
     /// that signs in with Google (409 `SSO_ACCOUNT`).
-    func register(name: String, email: String, password: String) async throws -> Registration {
+    func register(
+        name: String, email: String, password: String, phone: String?
+    ) async throws -> Registration {
         let request = try await client.makeRequest(
             "POST", "/register",
-            body: RegisterBody(name: name, email: email, password: password),
+            body: RegisterBody(name: name, email: email, password: password, phone: phone),
             requiresAuth: false)
         let response = try await client.send(request, as: RegisterResponse.self)
         if let token = response.token, !token.isEmpty, let user = response.user {
@@ -166,6 +181,27 @@ struct AuthService: AuthProviding {
     /// is spent or was revoked, and is handled like any other: the session ends.
     func currentSession() async throws -> AuthResponse {
         let request = try await client.makeRequest("GET", "/auth/session")
+        return try await client.send(request, as: AuthResponse.self)
+    }
+
+    /// Exchanges a Google ID token for an Emperor session.
+    ///
+    /// The token, never an email or a user id: the server verifies it against Google's keys and
+    /// decides who it names. Answered exactly as `/login` is. Not reachable until
+    /// `SocialSignInConfig` turns the button on — see there for what has to exist first.
+    func signInWithGoogle(idToken: String) async throws -> AuthResponse {
+        let request = try await client.makeRequest(
+            "POST", "/auth/google", body: IDTokenBody(idToken: idToken, name: nil),
+            requiresAuth: false)
+        return try await client.send(request, as: AuthResponse.self)
+    }
+
+    /// Exchanges an Apple identity token for an Emperor session, with the name Apple shares only
+    /// the first time.
+    func signInWithApple(idToken: String, name: String?) async throws -> AuthResponse {
+        let request = try await client.makeRequest(
+            "POST", "/auth/apple", body: IDTokenBody(idToken: idToken, name: name),
+            requiresAuth: false)
         return try await client.send(request, as: AuthResponse.self)
     }
 

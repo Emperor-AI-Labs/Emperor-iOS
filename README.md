@@ -160,6 +160,20 @@ requests that cannot carry a header. This client authenticates every request wit
 token, so it refuses cookies outright (`APIClient.refuseCookies`) rather than keep a second
 credential on the phone. Signing out calls `POST /logout` while the token still works.
 
+**Sign-up asks what the web asks** — full name, email, password and its confirmation, all
+required, with the web's placeholders — plus an optional Indian mobile number, sent as
+`+91XXXXXXXXXX`. `IndianMobile` ports the platform's `src/lib/phone.js` and is checked against
+it case by case (`scripts/generate-phone-fixtures.mjs`); the server stores the number only once
+its `users.phone` change is deployed.
+
+**Sign in with Apple and Continue with Google are built and switched off.** They need, in order:
+a Google Cloud OAuth client of the **iOS** type; the platform routes `POST /auth/google` and
+`POST /auth/apple`, each taking `{ idToken }` (Apple also `name`) and answering as `/login`
+does; and the Sign in with Apple capability on the app id. Then set `EMPEROR_GOOGLE_CLIENT_ID`
+and `EMPEROR_SOCIAL_SIGN_IN: "YES"` in `project.yml`. Google is never offered without Apple —
+App Review guideline 4.8 — and `SocialSignInConfig` enforces that. Google's flow is OAuth with
+PKCE in the system browser sheet, because Google refuses sign-in in an embedded web view.
+
 **The chat's busy refusal is recognised by its `[busy]` token**, never by the sentence after it,
 which the platform has reworded once already.
 

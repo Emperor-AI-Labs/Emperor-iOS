@@ -40,6 +40,14 @@ final class SignInFlow {
     var name = ""
     var email = ""
     var password = ""
+    /// Creating an account asks for the password twice, as the web's form does.
+    var confirmPassword = ""
+    /// Ten digits at most, kept local while typing — see `setPhone`. Optional.
+    private(set) var phone = ""
+
+    /// Which providers the sign-in screen may offer. Off unless the build is configured — see
+    /// `SocialSignInConfig`.
+    var social: SocialSignInConfig = .disabled
     /// Digits only, at most six — see `setCode`.
     private(set) var code = ""
 
@@ -110,10 +118,24 @@ final class SignInFlow {
         Self.isPlausibleEmail(email) && !password.isEmpty && !isWorking
     }
 
+    /// Every field the web marks required — name, email, password and its confirmation — and a
+    /// mobile number only if one was started. Whether the two passwords match is said on submit,
+    /// in the web's words, rather than by a button that will not press.
     var canCreateAccount: Bool {
         !trimmedName.isEmpty && Self.isPlausibleEmail(email)
-            && password.count >= Self.minimumPasswordLength && !isWorking
+            && password.count >= Self.minimumPasswordLength && !confirmPassword.isEmpty
+            && (phone.isEmpty || IndianMobile.isValid(phone)) && !isWorking
     }
+
+    /// Under the mobile field: what is wrong with it, or nil when it is empty or complete.
+    var phoneHint: String? {
+        guard step == .createAccount, !phone.isEmpty, !IndianMobile.isValid(phone) else { return nil }
+        if phone.count < 10 { return "\(10 - phone.count) more digit\(10 - phone.count == 1 ? "" : "s")." }
+        return "An Indian mobile number starts with 6, 7, 8 or 9."
+    }
+
+    /// The field's display form, "98765 43210".
+    var phoneDisplay: String { IndianMobile.local(phone) }
 
     var canVerifyCode: Bool { code.count == Self.codeLength && !isWorking }
 
@@ -161,10 +183,16 @@ final class SignInFlow {
 
     /// Clears everything — after signing out, so the next person to hold the phone starts clean.
     func reset() {
-        name = ""; email = ""; password = ""; code = ""
+        name = ""; email = ""; password = ""; confirmPassword = ""; phone = ""; code = ""
         error = nil; notice = nil; offersCode = false
         passwordResetSent = false
         step = .signIn
+    }
+
+    /// Keeps the ten local digits of whatever was typed or pasted — "+91 98765-43210" from a
+    /// contact card included — by the platform's own rules (`IndianMobile`).
+    func setPhone(_ raw: String) {
+        phone = IndianMobile.normalize(raw)
     }
 
     /// Keeps only digits and at most six of them, so a code pasted from an email with spaces or
@@ -199,14 +227,22 @@ final class SignInFlow {
 
     func createAccount() async {
         guard canCreateAccount else { return }
+        // The web's check and the web's words (`Register.jsx`).
+        guard password == confirmPassword else {
+            error = "Passwords do not match"
+            return
+        }
+        let phone = phone.isEmpty ? nil : IndianMobile.international(phone)
         await run {
             let outcome = try await self.auth.register(
-                name: self.trimmedName, email: self.trimmedEmail, password: self.password)
+                name: self.trimmedName, email: self.trimmedEmail, password: self.password,
+                phone: phone)
             switch outcome {
             case .signedIn(let response):
                 await self.finish(response)
             case .confirmationSent(let address):
                 self.password = ""
+                self.confirmPassword = ""
                 self.lastSendAt = self.now()
                 self.step = .checkInbox(email: address)
                 self.notice = nil
@@ -277,6 +313,45 @@ final class SignInFlow {
             // A code that cannot be used again is cleared, so the next attempt starts empty
             // rather than re-submitting the same six digits.
             self.code = ""
+        }
+    }
+
+    // MARK: - Google and Apple
+
+    /// Finishes a Google sign-in with the ID token Google returned.
+    func completeGoogle(idToken: String) async {
+        await run {
+            let response = try await self.auth.signInWithGoogle(idToken: idToken)
+            await self.finish(response)
+        } refused: { refusal in
+            self.error = DisplayText.message(for: refusal)
+        }
+        explainUnavailable(provider: "Google")
+    }
+
+    /// Finishes a Sign in with Apple, passing on the name Apple shares only the first time.
+    func completeApple(idToken: String, name: String?) async {
+        let cleaned = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        await run {
+            let response = try await self.auth.signInWithApple(
+                idToken: idToken, name: cleaned?.isEmpty == false ? cleaned : nil)
+            await self.finish(response)
+        } refused: { refusal in
+            self.error = DisplayText.message(for: refusal)
+        }
+        explainUnavailable(provider: "Apple")
+    }
+
+    /// The provider's own sheet failed or was closed. Closing it is a choice, not an error.
+    func socialSignInFailed(provider: String, declined: Bool) {
+        error = declined ? nil : "Signing in with \(provider) didn't finish. Please try again."
+    }
+
+    /// A 404 here means the platform has not grown the route yet. Said as such, rather than as
+    /// "The server returned status 404."
+    private func explainUnavailable(provider: String) {
+        if let message = error, message.contains("status 404") || message == "Not found" {
+            error = "Signing in with \(provider) isn't available yet. Use your email instead."
         }
     }
 

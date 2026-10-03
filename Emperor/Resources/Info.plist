@@ -22,6 +22,10 @@
 	<string>1</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>EmperorGoogleClientID</key>
+	<string>$(EMPEROR_GOOGLE_CLIENT_ID)</string>
+	<key>EmperorSocialSignIn</key>
+	<string>$(EMPEROR_SOCIAL_SIGN_IN)</string>
 	<key>EmperorEnvironment</key>
 	<string>$(EMPEROR_ENVIRONMENT)</string>
 	<key>NSCameraUsageDescription</key>

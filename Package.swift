@@ -32,6 +32,8 @@ let package = Package(
                 // Answers run through the platform's `citations.js` under Node; see
                 // `scripts/generate-citation-fixtures.mjs`.
                 .copy("Resources/citations.json"),
+                // The platform's phone rules, run under Node; see `scripts/generate-phone-fixtures.mjs`.
+                .copy("Resources/phone.json"),
                 // The Document Utilities' rules — page order, the size searches, the layouts —
                 // generated from the platform by `scripts/generate-file-tool-fixtures.mjs`.
                 .copy("Resources/file-tools"),

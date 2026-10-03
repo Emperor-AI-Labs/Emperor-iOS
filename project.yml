@@ -51,6 +51,12 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         # Consumed by `APIConfig.resolvedEnvironment`; driven by the per-config build setting.
         EmperorEnvironment: $(EMPEROR_ENVIRONMENT)
+        # Sign in with Apple and Continue with Google — off until all of: a Google Cloud OAuth
+        # client of the iOS type (its id below), the platform's `POST /auth/google` and
+        # `POST /auth/apple` routes, and the Sign in with Apple capability on the app id. Read by
+        # `SocialSignInConfig`; nothing is drawn while either is unset.
+        EmperorSocialSignIn: $(EMPEROR_SOCIAL_SIGN_IN)
+        EmperorGoogleClientID: $(EMPEROR_GOOGLE_CLIENT_ID)
         UILaunchScreen: {}
         # `--font-brand` in `emperor-ai/src/ui/theme.css`. Bundled rather than fetched: the web
         # pulls it from Google Fonts by `@import`, which an app cannot do.
@@ -74,6 +80,10 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.emperorailabs.emperor
+        # See `EmperorSocialSignIn` above. "YES" and a client id such as
+        # "1234-abcd.apps.googleusercontent.com" turn the providers on.
+        EMPEROR_SOCIAL_SIGN_IN: "NO"
+        EMPEROR_GOOGLE_CLIENT_ID: ""
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         TARGETED_DEVICE_FAMILY: "1,2" # iPhone and iPad

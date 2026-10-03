@@ -87,11 +87,11 @@ enum UITestSupport {
             // `success` is **not** optional on `AuthResponse`. Omitting it fails the decode and
             // sign-in never happens.
             case "/login", "/auth/otp/verify", "/auth/session":
-                return #"{"success":true,"token":"ui-test-token","user":{"id":1,"name":"Test Advocate","email":"test@example.com"}}"#
+                return #"{"success":true,"token":"ui-test-token","user":{"id":1,"name":"John Doe","email":"john.doe@firm.com","phone":"+919876543210"}}"#
             // What the platform answers now: the account exists, a confirmation link is on its
             // way, and nobody is signed in (`sync-server.js`, "Deliberately NO token").
             case "/register":
-                return #"{"success":true,"verificationRequired":true,"email":"new@example.com","user":{"id":2,"name":"New Advocate","email":"new@example.com"}}"#
+                return #"{"success":true,"verificationRequired":true,"email":"jane.doe@firm.com","user":{"id":2,"name":"Jane Doe","email":"jane.doe@firm.com"}}"#
             case "/auth/otp/request":
                 return #"{"success":true,"sent":true,"expiresInMinutes":10}"#
             // A metered account part-way through a month, so the usage meters have something

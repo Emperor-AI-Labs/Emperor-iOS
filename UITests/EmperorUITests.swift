@@ -31,7 +31,7 @@ final class EmperorUITests: XCTestCase {
         let email = app.textFields["Email"]
         XCTAssertTrue(email.waitForExistence(timeout: 10), "the login screen never appeared")
         email.tap()
-        email.typeText("test@example.com")
+        email.typeText("john.doe@firm.com")
 
         let password = app.secureTextFields["Password"]
         password.tap()
@@ -70,7 +70,7 @@ final class EmperorUITests: XCTestCase {
         let email = app.textFields["Email"]
         XCTAssertTrue(email.waitForExistence(timeout: 10))
         email.tap()
-        email.typeText("test@example.com")
+        email.typeText("john.doe@firm.com")
 
         app.buttons["Sign in with an email code"].tap()
 
@@ -95,13 +95,22 @@ final class EmperorUITests: XCTestCase {
         let name = app.textFields["Full name"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         name.tap()
-        name.typeText("New Advocate")
+        name.typeText("Jane Doe")
         let email = app.textFields["Email"]
         email.tap()
-        email.typeText("new@example.com")
+        email.typeText("jane.doe@firm.com")
+        // Optional, and grouped as it is typed.
+        let mobile = app.textFields["Mobile number"]
+        XCTAssertTrue(mobile.exists, "the sign-up form asks for a mobile number")
+        mobile.tap()
+        mobile.typeText("9876543210")
         let password = app.secureTextFields["Password"]
         password.tap()
         password.typeText("long-enough-password")
+        // The web's form asks for the password twice, and so does this one.
+        let confirm = app.secureTextFields["Confirm password"]
+        confirm.tap()
+        confirm.typeText("long-enough-password")
 
         app.buttons["Create account"].tap()
 

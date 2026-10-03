@@ -277,9 +277,40 @@ final class ServiceWireTests: XCTestCase {
         HTTPStub.always(.json(#"{"success":true,"token":"t","user":{"id":8}}"#))
         let auth = AuthService(client: client)
 
-        _ = try await auth.register(name: "R. Iyer", email: "r@x.in", password: "pw")
+        _ = try await auth.register(name: "R. Iyer", email: "r@x.in", password: "pw", phone: nil)
 
         XCTAssertEqual(HTTPStub.lastRequest?.bodyJSON["name"] as? String, "R. Iyer")
+        // No number given: the key is absent, never null — the platform stores NULL for absent.
+        XCTAssertNil(HTTPStub.lastRequest?.bodyJSON["phone"])
+    }
+
+    /// A mobile number goes in the international form the platform stores.
+    func testRegisterSendsTheMobileNumberInternationally() async throws {
+        let client = await makeClient(authenticated: false)
+        HTTPStub.always(.json(#"{"success":true,"verificationRequired":true,"email":"r@x.in"}"#))
+        let auth = AuthService(client: client)
+
+        _ = try await auth.register(
+            name: "R. Iyer", email: "r@x.in", password: "longenough", phone: "+919876543210")
+
+        XCTAssertEqual(HTTPStub.lastRequest?.bodyJSON["phone"] as? String, "+919876543210")
+    }
+
+    /// The ID token and nothing else — never an email or a user id, which would let the client
+    /// say who it is.
+    func testSocialSignInSendsOnlyTheToken() async throws {
+        let client = await makeClient(authenticated: false)
+        HTTPStub.always(.json(#"{"success":true,"token":"t","user":{"id":5}}"#))
+        let auth = AuthService(client: client)
+
+        _ = try await auth.signInWithGoogle(idToken: "g.jwt")
+        XCTAssertEqual(HTTPStub.lastRequest?.url?.path, "/api/auth/google")
+        XCTAssertEqual(HTTPStub.lastRequest?.bodyJSON.keys.sorted(), ["idToken"])
+
+        _ = try await auth.signInWithApple(idToken: "a.jwt", name: "John Doe")
+        XCTAssertEqual(HTTPStub.lastRequest?.url?.path, "/api/auth/apple")
+        XCTAssertEqual(HTTPStub.lastRequest?.bodyJSON["name"] as? String, "John Doe")
+        XCTAssertNil(HTTPStub.lastRequest?.value(forHTTPHeaderField: "Authorization"))
     }
 
     /// Signing out tells the server once — `POST /logout`, while the request can still carry

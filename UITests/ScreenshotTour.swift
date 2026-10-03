@@ -50,7 +50,7 @@ final class ScreenshotTour: XCTestCase {
         let email = app.textFields["Email"]
         if email.waitForExistence(timeout: 5) {
             email.tap()
-            email.typeText("test@example.com")
+            email.typeText("john.doe@firm.com")
         }
         tapIfPresent(app.buttons["Sign in with an email code"])
         let code = app.textFields["Sign-in code"]
@@ -98,6 +98,27 @@ final class ScreenshotTour: XCTestCase {
             let done = app.buttons["Done"].firstMatch
             if done.waitForExistence(timeout: 5) { done.tap() } else { app.swipeDown() }
         }
+    }
+
+    /// The sign-in screens as they look once Sign in with Apple and Google are switched on —
+    /// `-UITestSocial` draws them with a placeholder client id; nothing here signs in.
+    func testTheSignInProviders() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestMode", "-UITestSocial"]
+        app.launch()
+        guard app.textFields["Email"].waitForExistence(timeout: 15) else { return }
+        Thread.sleep(forTimeInterval: 0.8)
+        let signIn = XCTAttachment(screenshot: app.screenshot())
+        signIn.name = "providers-01-sign-in"
+        signIn.lifetime = .keepAlways
+        add(signIn)
+
+        tapIfPresent(app.buttons["Create an account"])
+        Thread.sleep(forTimeInterval: 0.8)
+        let create = XCTAttachment(screenshot: app.screenshot())
+        create.name = "providers-02-create-account"
+        create.lifetime = .keepAlways
+        add(create)
     }
 
     private func tapIfPresent(_ element: XCUIElement) {

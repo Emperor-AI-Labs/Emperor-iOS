@@ -20,8 +20,18 @@ final class SignInFlowTests: XCTestCase {
         func login(email: String, password: String) async throws -> AuthResponse {
             calls.append("login \(email)"); return try loginResult.get()
         }
-        func register(name: String, email: String, password: String) async throws -> Registration {
-            calls.append("register \(name) \(email)"); return try registerResult.get()
+        var socialResult: Result<AuthResponse, Error> = .failure(APIError.invalidCredentials)
+        func register(
+            name: String, email: String, password: String, phone: String?
+        ) async throws -> Registration {
+            calls.append("register \(name) \(email)" + (phone.map { " \($0)" } ?? ""))
+            return try registerResult.get()
+        }
+        func signInWithGoogle(idToken: String) async throws -> AuthResponse {
+            calls.append("google \(idToken)"); return try socialResult.get()
+        }
+        func signInWithApple(idToken: String, name: String?) async throws -> AuthResponse {
+            calls.append("apple \(idToken) \(name ?? "-")"); return try socialResult.get()
         }
         func resendVerification(email: String) async throws { calls.append("resend \(email)") }
         func requestCode(email: String) async throws -> CodeRequest {
@@ -59,6 +69,7 @@ final class SignInFlowTests: XCTestCase {
         let (flow, adopted) = make(auth)
         flow.show(.createAccount)
         flow.name = "A. Advocate"; flow.email = " a@b.in "; flow.password = "longenough"
+        flow.confirmPassword = "longenough"
 
         await flow.createAccount()
 
@@ -75,7 +86,7 @@ final class SignInFlowTests: XCTestCase {
         auth.registerResult = .success(.signedIn(Self.signedIn))
         let (flow, adopted) = make(auth)
         flow.show(.createAccount)
-        flow.name = "A"; flow.email = "a@b.in"; flow.password = "longenough"
+        flow.name = "A"; flow.email = "a@b.in"; flow.password = "longenough"; flow.confirmPassword = "longenough"
         await flow.createAccount()
         XCTAssertEqual(adopted(), [Self.signedIn])
     }
@@ -92,6 +103,8 @@ final class SignInFlowTests: XCTestCase {
         XCTAssertTrue(auth.calls.isEmpty)
 
         flow.password = "eight888"
+        XCTAssertFalse(flow.canCreateAccount, "the confirmation is required, as on the web")
+        flow.confirmPassword = "eight888"
         XCTAssertTrue(flow.canCreateAccount)
         XCTAssertNil(flow.passwordHint)
     }
@@ -103,11 +116,93 @@ final class SignInFlowTests: XCTestCase {
             status: 409))
         let (flow, _) = make(auth)
         flow.show(.createAccount)
-        flow.name = "A"; flow.email = "a@b.in"; flow.password = "longenough"
+        flow.name = "A"; flow.email = "a@b.in"; flow.password = "longenough"; flow.confirmPassword = "longenough"
         await flow.createAccount()
         XCTAssertEqual(flow.step, .signIn)
         XCTAssertEqual(flow.email, "a@b.in")
         XCTAssertEqual(flow.error, "An account with this email already exists. Sign in instead.")
+    }
+
+    // MARK: - The web's sign-up fields
+
+    /// Name, email, password and its confirmation are required, as on the web; a mismatch is
+    /// said on submit in the web's words, and nothing is sent.
+    func testMismatchedPasswordsAreCaughtInTheWebsWords() async {
+        let auth = FakeAuth()
+        let (flow, _) = make(auth)
+        flow.show(.createAccount)
+        flow.name = "John Doe"; flow.email = "name@firm.com"
+        flow.password = "longenough"; flow.confirmPassword = "longenoug"
+        XCTAssertTrue(flow.canCreateAccount)
+        await flow.createAccount()
+        XCTAssertEqual(flow.error, "Passwords do not match")
+        XCTAssertTrue(auth.calls.isEmpty)
+    }
+
+    /// The mobile number is optional; when given it must be a complete Indian mobile, and it is
+    /// sent in the form the platform stores.
+    func testAMobileNumberIsOptionalAndSentInternationally() async {
+        let auth = FakeAuth()
+        let (flow, _) = make(auth)
+        flow.show(.createAccount)
+        flow.name = "John Doe"; flow.email = "name@firm.com"
+        flow.password = "longenough"; flow.confirmPassword = "longenough"
+        XCTAssertTrue(flow.canCreateAccount, "no number at all is fine")
+
+        flow.setPhone("+91 98765 4")
+        XCTAssertFalse(flow.canCreateAccount, "a half-typed number is not")
+        XCTAssertEqual(flow.phoneHint, "4 more digits.")
+
+        flow.setPhone("+91 98765 43210")
+        XCTAssertEqual(flow.phoneDisplay, "98765 43210")
+        XCTAssertNil(flow.phoneHint)
+        await flow.createAccount()
+        XCTAssertEqual(auth.calls, ["register John Doe name@firm.com +919876543210"])
+    }
+
+    func testANumberThatCannotBeAMobileSaysWhy() {
+        let flow = SignInFlow(auth: FakeAuth())
+        flow.show(.createAccount)
+        flow.setPhone("5876543210")
+        XCTAssertEqual(flow.phoneHint, "An Indian mobile number starts with 6, 7, 8 or 9.")
+    }
+
+    // MARK: - Google and Apple
+
+    func testAGoogleTokenSignsIn() async {
+        let auth = FakeAuth()
+        auth.socialResult = .success(Self.signedIn)
+        let (flow, adopted) = make(auth)
+        await flow.completeGoogle(idToken: "g.jwt")
+        XCTAssertEqual(adopted(), [Self.signedIn])
+        XCTAssertEqual(auth.calls, ["google g.jwt"])
+    }
+
+    /// Apple shares the name only on the very first authorisation; a blank one is not sent.
+    func testAppleSendsTheNameOnlyWhenThereIsOne() async {
+        let auth = FakeAuth()
+        auth.socialResult = .success(Self.signedIn)
+        let (flow, _) = make(auth)
+        await flow.completeApple(idToken: "a.jwt", name: "  ")
+        await flow.completeApple(idToken: "a.jwt", name: " John Doe ")
+        XCTAssertEqual(auth.calls, ["apple a.jwt -", "apple a.jwt John Doe"])
+    }
+
+    /// Before the platform has the route, the button would meet a bare 404 — said plainly.
+    func testAMissingRouteSaysTheProviderIsNotAvailableYet() async {
+        let auth = FakeAuth()
+        auth.socialResult = .failure(APIError.classify(status: 404, body: Data()))
+        let (flow, _) = make(auth)
+        await flow.completeGoogle(idToken: "g.jwt")
+        XCTAssertEqual(flow.error, "Signing in with Google isn't available yet. Use your email instead.")
+    }
+
+    func testClosingTheProvidersSheetIsNotAnError() {
+        let flow = SignInFlow(auth: FakeAuth())
+        flow.socialSignInFailed(provider: "Google", declined: true)
+        XCTAssertNil(flow.error)
+        flow.socialSignInFailed(provider: "Google", declined: false)
+        XCTAssertEqual(flow.error, "Signing in with Google didn't finish. Please try again.")
     }
 
     // MARK: - Signing in
@@ -251,7 +346,7 @@ final class SignInFlowTests: XCTestCase {
         let auth = FakeAuth()
         let (flow, _) = make(auth)
         flow.show(.createAccount)
-        flow.name = "A"; flow.email = "a@b.in"; flow.password = "longenough"
+        flow.name = "A"; flow.email = "a@b.in"; flow.password = "longenough"; flow.confirmPassword = "longenough"
         await flow.createAccount()
 
         await flow.resendConfirmation()

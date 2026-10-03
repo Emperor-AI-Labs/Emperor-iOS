@@ -52,7 +52,7 @@ final class AccountTests: XCTestCase {
         """#))
 
         let outcome = try await session.auth.register(
-            name: "N", email: "New@Example.test", password: "longenough")
+            name: "N", email: "New@Example.test", password: "longenough", phone: nil)
 
         XCTAssertEqual(outcome, .confirmationSent(email: "new@example.test"))
         let sent = try XCTUnwrap(HTTPStub.lastRequest)

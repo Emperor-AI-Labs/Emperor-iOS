@@ -1,0 +1,289 @@
+[
+ {
+  "input": "",
+  "normalized": "",
+  "valid": false,
+  "api": "",
+  "local": ""
+ },
+ {
+  "input": " ",
+  "normalized": "",
+  "valid": false,
+  "api": "",
+  "local": ""
+ },
+ {
+  "input": "abc",
+  "normalized": "",
+  "valid": false,
+  "api": "",
+  "local": ""
+ },
+ {
+  "input": "9876543210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "98765 43210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "+91 98765 43210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "+91-98765-43210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "+919876543210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "919876543210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "91 98765 43210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "098765 43210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "09876543210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "0091 98765 43210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "+91 098765 43210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "+91 91234 56789",
+  "normalized": "9123456789",
+  "valid": true,
+  "api": "+919123456789",
+  "local": "91234 56789"
+ },
+ {
+  "input": "9123456789",
+  "normalized": "9123456789",
+  "valid": true,
+  "api": "+919123456789",
+  "local": "91234 56789"
+ },
+ {
+  "input": "91234 56789",
+  "normalized": "9123456789",
+  "valid": true,
+  "api": "+919123456789",
+  "local": "91234 56789"
+ },
+ {
+  "input": "9198765432",
+  "normalized": "9198765432",
+  "valid": true,
+  "api": "+919198765432",
+  "local": "91987 65432"
+ },
+ {
+  "input": "987654321",
+  "normalized": "987654321",
+  "valid": false,
+  "api": "+91987654321",
+  "local": "98765 4321"
+ },
+ {
+  "input": "98765",
+  "normalized": "98765",
+  "valid": false,
+  "api": "+9198765",
+  "local": "98765"
+ },
+ {
+  "input": "9876",
+  "normalized": "9876",
+  "valid": false,
+  "api": "+919876",
+  "local": "9876"
+ },
+ {
+  "input": "5876543210",
+  "normalized": "5876543210",
+  "valid": false,
+  "api": "+915876543210",
+  "local": "58765 43210"
+ },
+ {
+  "input": "1234567890",
+  "normalized": "1234567890",
+  "valid": false,
+  "api": "+911234567890",
+  "local": "12345 67890"
+ },
+ {
+  "input": "7000000000",
+  "normalized": "7000000000",
+  "valid": true,
+  "api": "+917000000000",
+  "local": "70000 00000"
+ },
+ {
+  "input": "6000000000",
+  "normalized": "6000000000",
+  "valid": true,
+  "api": "+916000000000",
+  "local": "60000 00000"
+ },
+ {
+  "input": "98765abc43210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "₹9,876,543,210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "(987) 654-3210",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "+1 415 555 0100",
+  "normalized": "1415555010",
+  "valid": false,
+  "api": "+911415555010",
+  "local": "14155 55010"
+ },
+ {
+  "input": "９８７６５４３２１０",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "९८७६५४३२१०",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "98765432101234",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "  +91 98765 43210  ",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ },
+ {
+  "input": "+91",
+  "normalized": "",
+  "valid": false,
+  "api": "",
+  "local": ""
+ },
+ {
+  "input": "91",
+  "normalized": "91",
+  "valid": false,
+  "api": "+9191",
+  "local": "91"
+ },
+ {
+  "input": "0",
+  "normalized": "0",
+  "valid": false,
+  "api": "+910",
+  "local": "0"
+ },
+ {
+  "input": "00",
+  "normalized": "00",
+  "valid": false,
+  "api": "+9100",
+  "local": "00"
+ },
+ {
+  "input": "+",
+  "normalized": "",
+  "valid": false,
+  "api": "",
+  "local": ""
+ },
+ {
+  "input": "+9",
+  "normalized": "9",
+  "valid": false,
+  "api": "+919",
+  "local": "9"
+ },
+ {
+  "input": "+91 9",
+  "normalized": "9",
+  "valid": false,
+  "api": "+919",
+  "local": "9"
+ },
+ {
+  "input": "9 8 7 6 5 4 3 2 1 0",
+  "normalized": "9876543210",
+  "valid": true,
+  "api": "+919876543210",
+  "local": "98765 43210"
+ }
+]
