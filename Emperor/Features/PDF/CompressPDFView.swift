@@ -80,6 +80,7 @@ struct CompressPDFView: View {
             } header: {
                 SectionHeader(title: "Document")
             }
+            .listRowBackground(theme.surface)
 
             if model.source != nil {
                 Section {
@@ -113,8 +114,10 @@ struct CompressPDFView: View {
                     SectionHeader(title: "Compression level")
                 } footer: {
                     Text("Scanned and photographed pages are redrawn as JPEG at this level; their text is kept as an invisible layer, so search and copy still work. Typed pages, and pages with links or form fields, are copied exactly as they are.")
-                        .font(.brand(.caption2))
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textSecondary)
                 }
+                .listRowBackground(theme.surface)
 
                 Section {
                     ToolRunButton(
@@ -139,6 +142,7 @@ struct CompressPDFView: View {
                     Section {
                         ToolFailureRow(message: failure)
                     }
+                    .listRowBackground(theme.surface)
                 }
 
                 if let outcome = model.currentOutcome, let source = model.source {
@@ -160,11 +164,14 @@ struct CompressPDFView: View {
                         SectionHeader(title: "Result")
                     } footer: {
                         Text("Your original is unchanged. The result is a new file.")
-                            .font(.brand(.caption2))
+                            .font(.brand(.caption))
+                            .foregroundStyle(theme.textSecondary)
                     }
+                    .listRowBackground(theme.surface)
                 }
             }
         }
+        .font(.brand(.body))
         .scrollContentBackground(.hidden)
     }
 }

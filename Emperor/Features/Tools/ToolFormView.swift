@@ -21,11 +21,21 @@ struct ToolFormView: View {
 
     var body: some View {
         Form {
+            // The tool's own tile beside what it does — the same tile it wears in the list.
             Section {
-                Text(tool.blurb)
-                    .font(.brand(.callout))
-                    .foregroundStyle(theme.textSecondary)
+                HStack(alignment: .top, spacing: Spacing.md) {
+                    IconTile(
+                        systemImage: ToolSymbol.symbol(for: tool.id),
+                        hue: TileHue.forTool(tool.id),
+                        size: .large)
+                    Text(tool.blurb)
+                        .font(.brand(.callout))
+                        .foregroundStyle(theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, Spacing.xs)
             }
+            .listRowBackground(theme.surface)
 
             Section {
                 ForEach(tool.inputs) { field in
@@ -33,8 +43,10 @@ struct ToolFormView: View {
                 }
             } footer: {
                 Text("Everything here is optional. Anything you leave blank, the assistant works out from the record.")
-                    .font(.brand(.caption2))
+                    .font(.brand(.caption))
+                    .foregroundStyle(theme.textTertiary)
             }
+            .listRowBackground(theme.surface)
 
             Section {
                 Button {
@@ -44,14 +56,14 @@ struct ToolFormView: View {
                     startedChatID = ChatListViewModel.newChatID()
                 } label: {
                     Text("Run")
-                        .font(.brand(.headline))
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.primaryAction)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             }
         }
+        .font(.brand(.body))
         .scrollContentBackground(.hidden)
         .background(theme.canvas)
         .navigationTitle(tool.title)
@@ -69,9 +81,9 @@ struct ToolFormView: View {
                 .accessibilityLabel(field.label)
 
         case .textarea:
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Spacing.xs + 2) {
                 Text(field.label)
-                    .font(.brand(.caption))
+                    .font(.brand(.caption, weight: .medium))
                     .foregroundStyle(theme.textSecondary)
                 TextField(
                     field.placeholder ?? field.label,

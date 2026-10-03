@@ -42,6 +42,7 @@ import SwiftUI
 ///   taps the button rather than swiping, so this cannot regress quietly.
 struct MoreView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.practice) private var practice
     @State private var destination: Destination?
 
     /// The rows, in the platform's own order.
@@ -70,12 +71,14 @@ struct MoreView: View {
             }
         }
 
-        /// Chosen to read as the web's `lucide` icon for the same row.
-        var symbol: String {
+        /// Chosen to read as the web's `lucide` icon for the same row. Outline names: the tile
+        /// draws the filled form where there is one.
+        func symbol(for role: PractitionerRole) -> String {
             switch self {
             // The web's row is `folder-open`.
             case .myFiles: return "folder"
-            case .deck: return "square.grid.2x2"
+            // The workspace is the role's own, so it wears the role's own mark.
+            case .deck: return role.systemImage
             // The web's `CalendarCheck`, the icon its Corporate Calendar tab carries.
             case .corporateCalendar: return "calendar.badge.checkmark"
             case .library: return "books.vertical"
@@ -84,10 +87,29 @@ struct MoreView: View {
             // one the scrapers keep for a team.
             case .projects: return "folder.badge.person.crop"
             case .tools: return "wrench.and.screwdriver"
+            // The web lists its file tools one by one and `Scissors` leads them.
             case .fileTools: return "scissors"
             case .translate: return "character.bubble"
             case .eAuctions: return "hammer"
             case .settings: return "gearshape"
+            }
+        }
+
+        /// The tile's hue — one of the web's muted tool colours, no two alike within a group,
+        /// and grey for Settings, as iOS draws its own.
+        func hue(for role: PractitionerRole) -> TileHue {
+            switch self {
+            case .myFiles: return .steel
+            case .corporateCalendar: return .teal
+            case .library: return .gold
+            case .projects: return .violet
+            // In the role's own colour, beside its own mark.
+            case .deck: return role.tileHue
+            case .tools: return .copper
+            case .fileTools: return .rose
+            case .translate: return .aqua
+            case .eAuctions: return .aqua
+            case .settings: return .graphite
             }
         }
     }
@@ -108,6 +130,7 @@ struct MoreView: View {
                 } header: {
                     SectionHeader(title: "Your practice")
                 }
+                .listRowBackground(theme.surface)
 
                 Section {
                     row(.deck)
@@ -121,10 +144,12 @@ struct MoreView: View {
                     // twenty-nine would be unreachable rather than merely unadvertised.
                     SectionHeader(title: "Tools")
                 }
+                .listRowBackground(theme.surface)
 
                 Section {
                     row(.settings)
                 }
+                .listRowBackground(theme.surface)
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
@@ -149,19 +174,25 @@ struct MoreView: View {
         }
     }
 
+    /// An iOS Settings row: the tile, the label, and a chevron — drawn here because the row
+    /// presents rather than pushes, so iOS supplies none.
+    ///
+    /// The system's own button style, not `.plain`, so the row highlights under the thumb as
+    /// every other list row does. The row is named by its title alone: the tile and the chevron
+    /// are decoration, and the UI tests find each row by that name.
     private func row(_ item: Destination) -> some View {
         Button {
             destination = item
         } label: {
-            HStack {
-                Label(item.title, systemImage: item.symbol)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.brand(.footnote, weight: .semibold))
-                    .foregroundStyle(theme.textTertiary)
+            HStack(spacing: Spacing.sm) {
+                IconRowLabel(
+                    title: item.title,
+                    systemImage: item.symbol(for: practice.role),
+                    hue: item.hue(for: practice.role))
+                RowChevron()
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .accessibilityLabel(Text(item.title))
     }
 }

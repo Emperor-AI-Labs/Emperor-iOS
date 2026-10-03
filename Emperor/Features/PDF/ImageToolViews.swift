@@ -37,7 +37,7 @@ struct ImageFileThumbnail: View {
             }
         }
         .frame(width: side, height: side)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
         .accessibilityHidden(true)
         .task(id: url) {
             image = UIImage(contentsOfFile: url.path)?
@@ -133,7 +133,7 @@ struct CompressImageView: View {
                             }
                         }
                         .frame(width: 64, height: 64)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                         .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(source.name)
@@ -163,8 +163,10 @@ struct CompressImageView: View {
                 SectionHeader(title: "Image")
             } footer: {
                 Text("JPG, PNG, HEIC, WebP and more, up to 1 GB. The result is always a JPG.")
-                    .font(.brand(.caption2))
+                    .font(.brand(.caption))
+                    .foregroundStyle(theme.textSecondary)
             }
+            .listRowBackground(theme.surface)
 
             if model.source != nil {
                 Section {
@@ -178,8 +180,9 @@ struct CompressImageView: View {
                             .font(.brand(.body))
                             .foregroundStyle(theme.textSecondary)
                     }
+                    .listRowBackground(theme.surface)
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: Spacing.sm) {
                             ForEach(ImageCompression.presetsKB, id: \.self) { preset in
                                 let selected = model.targetKB == String(preset)
                                 Button {
@@ -187,16 +190,13 @@ struct CompressImageView: View {
                                     isEditingTarget = false
                                 } label: {
                                     Text("\(preset) KB")
-                                        .font(.brand(.caption, weight: .semibold))
-                                        .foregroundStyle(selected ? theme.onAccent : theme.textPrimary)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 7)
-                                        .background(selected ? theme.accent : theme.surfaceElevated, in: Capsule())
+                                        .monospacedDigit()
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(ChipButtonStyle(isSelected: selected))
                                 .accessibilityAddTraits(selected ? .isSelected : [])
                             }
                         }
+                        .padding(.vertical, 1)
                     }
                     .listRowBackground(Color.clear)
                 } header: {
@@ -221,6 +221,7 @@ struct CompressImageView: View {
                     Section {
                         ToolFailureRow(message: failure)
                     }
+                    .listRowBackground(theme.surface)
                 }
 
                 if let report = model.report, let source = model.source,
@@ -240,11 +241,14 @@ struct CompressImageView: View {
                         SectionHeader(title: "Result")
                     } footer: {
                         Text("Your original is unchanged. The result is a new file.")
-                            .font(.brand(.caption2))
+                            .font(.brand(.caption))
+                            .foregroundStyle(theme.textSecondary)
                     }
+                    .listRowBackground(theme.surface)
                 }
             }
         }
+        .font(.brand(.body))
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
     }
@@ -402,6 +406,7 @@ struct ImageToPDFView: View {
                     title: "Images, in page order",
                     detail: model.images.count > 1 ? "Drag to reorder" : nil)
             }
+            .listRowBackground(theme.surface)
 
             if !model.images.isEmpty {
                 Section {
@@ -416,7 +421,8 @@ struct ImageToPDFView: View {
                     SectionHeader(title: "Page size")
                 } footer: {
                     Text("Each image is fitted to fill the page while keeping its proportions, centred with a uniform margin.")
-                        .font(.brand(.caption2))
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textSecondary)
                 }
 
                 Section {
@@ -436,6 +442,7 @@ struct ImageToPDFView: View {
                     Section {
                         ToolFailureRow(message: failure)
                     }
+                    .listRowBackground(theme.surface)
                 }
 
                 if let output = model.output {
@@ -444,9 +451,11 @@ struct ImageToPDFView: View {
                     } header: {
                         SectionHeader(title: "Result")
                     }
+                    .listRowBackground(theme.surface)
                 }
             }
         }
+        .font(.brand(.body))
         .scrollContentBackground(.hidden)
     }
 }

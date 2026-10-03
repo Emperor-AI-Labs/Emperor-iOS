@@ -51,11 +51,10 @@ struct LibraryView: View {
                 // Not an empty state. The corpus lives on a mounted volume, and a detached
                 // volume returns success with zero rows everywhere rather than failing — which
                 // is why the web renders silent empty tabs here.
-                ContentUnavailableView {
-                    Label("Library unavailable", systemImage: "books.vertical")
-                } description: {
-                    Text(model.unavailableMessage)
-                } actions: {
+                EmptyStateView(
+                    "Library unavailable", systemImage: "books.vertical",
+                    message: model.unavailableMessage, tone: .neutral
+                ) {
                     Button("Try again") {
                         Task { await model.loadCategories() }
                     }
@@ -67,7 +66,6 @@ struct LibraryView: View {
                     if !model.subFilters.isEmpty {
                         subFilterBar(model)
                     }
-                    Divider()
                     results(model)
                 }
             }
@@ -106,41 +104,34 @@ struct LibraryView: View {
 
     private func categoryBar(_ model: LibraryViewModel) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 ForEach(model.categories) { category in
                     let isSelected = category.key == model.selectedCategory
+                    let count = category.count ?? 0
                     Button {
                         Task { await model.select(category: category.key) }
                     } label: {
-                        HStack(spacing: 5) {
-                            Text(category.displayLabel)
-                            if let count = category.count, count > 0 {
-                                Text(count.formatted())
-                                    .foregroundStyle(theme.textTertiary)
-                            }
-                        }
-                        .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                        .foregroundStyle(isSelected ? theme.onAccent : theme.textSecondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(
-                            isSelected ? theme.accent : theme.surfaceElevated, in: Capsule())
+                        ChipLabel(
+                            title: category.displayLabel,
+                            count: count > 0 ? count : nil,
+                            isSelected: isSelected)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ChipButtonStyle(isSelected: isSelected))
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                     // A tab with nothing in it is still worth showing — it says the corpus has
                     // that category — but it cannot be browsed.
                     .disabled((category.count ?? 0) == 0)
                     .opacity((category.count ?? 0) == 0 ? 0.45 : 1)
                 }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.sm + 2)
         }
     }
 
     private func subFilterBar(_ model: LibraryViewModel) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
+            HStack(spacing: Spacing.xs + 2) {
                 filterChip("All", isSelected: model.selectedSubFilter == nil) {
                     model.selectedSubFilter = nil
                     Task { await model.reload() }
@@ -152,24 +143,31 @@ struct LibraryView: View {
                     }
                 }
             }
-            .padding(.horizontal)
-            .padding(.bottom, 10)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.bottom, Spacing.sm + 2)
         }
     }
 
     private func filterChip(
         _ text: String, isSelected: Bool, action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        // The second tier, quieter than the category chips above it: the accent as text on its
+        // own wash when chosen, plain words otherwise.
+        let weight: Font.Weight? = isSelected ? Font.Weight.semibold : Font.Weight.medium
+        return Button(action: action) {
             Text(text)
-                .font(.caption.weight(isSelected ? .semibold : .regular))
+                .font(.brand(.caption, weight: weight))
                 .foregroundStyle(isSelected ? theme.accentText : theme.textSecondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(
-                    isSelected ? theme.accentMuted : theme.surfaceElevated, in: Capsule())
+                .padding(.horizontal, Spacing.md)
+                .padding(.vertical, 6)
+                .background(isSelected ? theme.accentWash : Color.clear, in: Capsule())
+                .overlay(
+                    Capsule().strokeBorder(
+                        isSelected ? theme.accentMuted : theme.separator, lineWidth: 1))
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     @ViewBuilder
@@ -205,31 +203,32 @@ struct LibraryView: View {
                             ? "\(model.documents.count) of \(model.total.formatted())"
                             : nil)
                 }
+                .listRowBackground(theme.surface)
             }
-            .listStyle(.plain)
+            .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
         } empty: {
             if model.showsNoSearchResults {
-                ContentUnavailableView.search(text: model.query)
+                NoResultsView(query: model.query)
             } else {
-                ContentUnavailableView(
+                EmptyStateView(
                     "Nothing in this section",
                     systemImage: "books.vertical",
-                    description: Text("Try another category."))
+                    message: "Try another category.")
             }
         }
     }
 
     private func row(_ document: LibraryDocument) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: document.isPDF ? "doc.text" : "doc")
-                .foregroundStyle(theme.accentText)
-                .frame(width: 22)
+        HStack(spacing: Spacing.md) {
+            // The reference corpus in the Library row's own gold, so a bare act never looks
+            // like one of the user's own documents.
+            IconTile(systemImage: document.isPDF ? "doc.richtext" : "doc.text", hue: .gold)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(document.displayTitle)
-                    .font(.brand(.subheadline))
+                    .font(.brand(.subheadline, weight: .medium))
                     .foregroundStyle(theme.textPrimary)
                     .lineLimit(3)
                 HStack(spacing: 6) {
@@ -247,11 +246,9 @@ struct LibraryView: View {
             }
 
             Spacer(minLength: 0)
-            Image(systemName: "chevron.right")
-                .font(.brand(.caption))
-                .foregroundStyle(theme.textTertiary)
+            RowChevron()
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.xxs)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityHint("Opens the document")
@@ -278,10 +275,11 @@ private struct LibraryDocumentView: View {
                             .padding()
                     }
                 } else {
-                    ContentUnavailableView(
+                    EmptyStateView(
                         "Cannot preview this document",
                         systemImage: "doc.questionmark",
-                        description: Text("Share it to open in another app."))
+                        message: "Share it to open in another app.",
+                        tone: .neutral)
                 }
             }
             .background(theme.canvas)
@@ -298,6 +296,7 @@ private struct LibraryDocumentView: View {
                         ShareLink(item: url) {
                             Image(systemName: "square.and.arrow.up")
                         }
+                        .accessibilityLabel("Share")
                     }
                 }
             }

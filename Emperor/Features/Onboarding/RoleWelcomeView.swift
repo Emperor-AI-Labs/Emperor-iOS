@@ -22,10 +22,18 @@ struct RoleWelcomeView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: Spacing.xxl) {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Image("EmperorMark")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(height: 32)
+                            .padding(.bottom, Spacing.sm)
+                            .accessibilityHidden(true)
+                        // The brand face, as the sign-in screen just before it — this was a
+                        // serif, the only one in the app.
                         Text(RoleWelcome.greeting(for: name))
-                            .font(.system(.title, design: .serif, weight: .semibold))
+                            .font(.brand(.title, weight: .semibold))
                             .foregroundStyle(theme.textPrimary)
                             .accessibilityAddTraits(.isHeader)
                         Text(RoleWelcome.prompt)
@@ -34,18 +42,20 @@ struct RoleWelcomeView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    VStack(spacing: 10) {
+                    VStack(spacing: Spacing.sm + 2) {
                         ForEach(RoleWelcome.roles) { role in
                             option(role)
                         }
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 32)
-                .padding(.bottom, 24)
+                .frame(maxWidth: 560)
+                .padding(.horizontal, Spacing.xxl)
+                .padding(.top, Spacing.xxxl)
+                .padding(.bottom, Spacing.xxl)
+                .frame(maxWidth: .infinity)
             }
 
-            VStack(spacing: 6) {
+            VStack(spacing: Spacing.xs + 2) {
                 Button {
                     onFinish(chosen)
                 } label: {
@@ -64,10 +74,15 @@ struct RoleWelcomeView: View {
                 .foregroundStyle(theme.textSecondary)
                 .padding(.vertical, 8)
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 10)
-            .padding(.bottom, 12)
+            .frame(maxWidth: 560)
+            .padding(.horizontal, Spacing.xxl)
+            .padding(.top, Spacing.md)
+            .padding(.bottom, Spacing.md)
+            .frame(maxWidth: .infinity)
             .background(theme.canvas)
+            .overlay(alignment: .top) {
+                Rectangle().fill(theme.separator).frame(height: 0.5)
+            }
         }
         .background(theme.canvas.ignoresSafeArea())
     }
@@ -78,10 +93,16 @@ struct RoleWelcomeView: View {
             chosen = role
         } label: {
             RoleOptionLabel(role: role, isSelected: isSelected)
-                .padding(14)
+                .padding(Spacing.lg)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .panel(tinted: isSelected)
+                // The chosen card is ringed in the accent, so the choice reads at a glance and
+                // not only by its wash.
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                        .strokeBorder(isSelected ? theme.accent : Color.clear, lineWidth: 1.5))
                 .contentShape(Rectangle())
+                .animation(.easeOut(duration: 0.15), value: isSelected)
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)

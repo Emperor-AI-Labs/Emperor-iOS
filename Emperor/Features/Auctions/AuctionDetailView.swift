@@ -57,10 +57,11 @@ struct AuctionDetailView: View {
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
         } empty: {
-            ContentUnavailableView(
+            EmptyStateView(
                 "Notice unavailable",
                 systemImage: "questionmark.folder",
-                description: Text(AuctionService.noticeGoneMessage))
+                message: AuctionService.noticeGoneMessage,
+                tone: .neutral)
         }
         .refreshable { await model.load() }
         .alert(model.announcementTitle, isPresented: Binding(

@@ -89,7 +89,7 @@ struct LoginView: View {
                 enterCode(flow, email: email)
             }
         }
-        .padding(22)
+        .padding(Spacing.xxl)
         .panel()
         .transition(.opacity)
     }
@@ -233,10 +233,7 @@ struct LoginView: View {
 
     private func checkInbox(_ flow: SignInFlow, email: String) -> some View {
         Group {
-            Image(systemName: "envelope.open")
-                .font(.system(size: 34))
-                .foregroundStyle(theme.accentText)
-                .accessibilityHidden(true)
+            IconCircle(systemImage: "envelope.open")
 
             title(
                 "Confirm your email",
@@ -275,12 +272,12 @@ struct LoginView: View {
             .font(.system(.title2, design: .monospaced, weight: .semibold))
             .multilineTextAlignment(.center)
             .focused($focused, equals: .code)
-            .padding(.vertical, 16)
+            .padding(.vertical, Spacing.lg)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                     .fill(theme.surfaceElevated))
             .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                     .strokeBorder(focused == .code ? theme.accent : theme.separator,
                                   lineWidth: focused == .code ? 1.5 : 1))
             .accessibilityLabel("Sign-in code")

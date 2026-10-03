@@ -24,6 +24,7 @@ struct CaseWriteSheet: View {
     let onSave: (String?, String, Date?) async -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.theme) private var theme
 
     @State private var title = ""
     /// Not named `body`: that would collide with the `View.body` requirement.
@@ -50,7 +51,10 @@ struct CaseWriteSheet: View {
                             .lineLimit(4...12)
                     } footer: {
                         Text("Notes appear on this matter's timeline. They are yours — a court sync never overwrites them.")
+                            .font(.brand(.caption))
+                            .foregroundStyle(theme.textSecondary)
                     }
+                    .listRowBackground(theme.surface)
                 case .task:
                     Section {
                         TextField("What needs doing", text: $title)
@@ -59,8 +63,12 @@ struct CaseWriteSheet: View {
                             DatePicker("Due", selection: $dueDate, displayedComponents: .date)
                         }
                     }
+                    .listRowBackground(theme.surface)
                 }
             }
+            .font(.brand(.body))
+            .scrollContentBackground(.hidden)
+            .background(theme.canvas)
             .navigationTitle(kind.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -62,9 +62,12 @@ struct DuplicateReviewSheet: View {
                          ? "Turn on anything you want to upload again."
                          : "\(cleared.count) other \(cleared.count == 1 ? "document" : "documents") "
                            + "will be uploaded regardless.")
-                        .font(.brand(.caption2))
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textSecondary)
                 }
+                .listRowBackground(theme.surface)
             }
+            .font(.brand(.body))
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
             .navigationTitle("Already in your library")

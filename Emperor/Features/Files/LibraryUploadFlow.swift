@@ -198,7 +198,7 @@ struct UploadsInFlightBanner: View {
                             .font(.brand(.caption))
                             .foregroundStyle(theme.textSecondary)
                             .lineLimit(1)
-                        ProgressView(value: upload.progress)
+                        MeterBar(fraction: upload.progress, color: theme.accent)
                     }
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(
@@ -212,13 +212,16 @@ struct UploadsInFlightBanner: View {
                         Text(foregroundProgress < 1 ? "Uploading…" : "Reading the document…")
                             .font(.brand(.caption))
                             .foregroundStyle(theme.textSecondary)
-                        ProgressView(value: foregroundProgress)
+                        MeterBar(fraction: foregroundProgress, color: theme.accent)
                     }
                 }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.sm + 2)
             .background(theme.surface)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(theme.separator).frame(height: 0.5)
+            }
         }
     }
 }

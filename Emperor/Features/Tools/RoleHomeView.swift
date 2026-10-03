@@ -50,9 +50,13 @@ struct RoleHomeView: View {
 
                 if groups.isEmpty {
                     Section {
-                        Text("Nothing in this part of the deck.")
-                            .font(.brand(.subheadline))
-                            .foregroundStyle(theme.textSecondary)
+                        Label {
+                            Text("Nothing in this part of the deck.")
+                        } icon: {
+                            Image(systemName: "rectangle.stack")
+                        }
+                        .font(.brand(.subheadline))
+                        .foregroundStyle(theme.textSecondary)
                     }
                     .listRowBackground(theme.surface)
                 }
@@ -71,8 +75,9 @@ struct RoleHomeView: View {
                 if let tool = roleTool(toolID) {
                     ToolFormView(tool: tool)
                 } else {
-                    ContentUnavailableView(
-                        "Card unavailable", systemImage: "rectangle.on.rectangle.slash")
+                    EmptyStateView(
+                        "Card unavailable", systemImage: "rectangle.on.rectangle.slash",
+                        tone: .neutral)
                 }
             }
             .onAppear {
@@ -101,56 +106,60 @@ struct RoleHomeView: View {
     private var filterStrip: some View {
         let active = filterID
         return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 ForEach(practice.role.cardFilters) { filter in
                     let isSelected = active == filter.id
-                    let weight: Font.Weight? =
-                        isSelected ? Font.Weight.semibold : Font.Weight.regular
                     Button {
                         filterID = filter.id
                     } label: {
-                        Text(filter.label)
-                            .font(.brand(.subheadline, weight: weight))
-                            .foregroundStyle(isSelected ? theme.onAccent : theme.textSecondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(
-                                isSelected ? theme.accent : theme.surfaceElevated, in: Capsule())
+                        ChipLabel(title: filter.label, isSelected: isSelected)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ChipButtonStyle(isSelected: isSelected))
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.sm + 2)
         }
     }
 
+    /// A card as the web's deck draws it: a tile in the colour `toolColor` gives the card's tool
+    /// id, with the document the web puts on it, then the card's words.
     private func row(_ card: RoleCard) -> some View {
         NavigationLink(value: card.toolID) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(card.title)
-                        .font(.brand(.subheadline, weight: .semibold))
-                        .foregroundStyle(theme.textPrimary)
-                    if card.isSafetyFirst {
-                        // The platform flags these rows; they are the ones where getting the
-                        // answer wrong has a person on the other end of it.
-                        StatusPill(text: "Safety first", tone: .warning)
-                    }
-                }
-                if let subtitle = card.subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.brand(.caption))
-                        .foregroundStyle(theme.textSecondary)
-                }
-                if !card.dropdown.isEmpty {
-                    Text(card.dropdown.prefix(3).joined(separator: " · "))
-                        .font(.brand(.caption2))
-                        .foregroundStyle(theme.textTertiary)
-                        .lineLimit(2)
+            HStack(alignment: .top, spacing: Spacing.md) {
+                IconTile(
+                    systemImage: ToolSymbol.symbol(for: card.toolID),
+                    hue: TileHue.forTool(card.toolID))
+                cardText(card)
+            }
+            .padding(.vertical, Spacing.xxs)
+        }
+    }
+
+    private func cardText(_ card: RoleCard) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Text(card.title)
+                    .font(.brand(.subheadline, weight: .semibold))
+                    .foregroundStyle(theme.textPrimary)
+                if card.isSafetyFirst {
+                    // The platform flags these rows; they are the ones where getting the
+                    // answer wrong has a person on the other end of it.
+                    StatusPill(text: "Safety first", tone: .warning)
                 }
             }
-            .padding(.vertical, 2)
+            if let subtitle = card.subtitle, !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.brand(.caption))
+                    .foregroundStyle(theme.textSecondary)
+            }
+            if !card.dropdown.isEmpty {
+                Text(card.dropdown.prefix(3).joined(separator: " · "))
+                    .font(.brand(.caption2))
+                    .foregroundStyle(theme.textTertiary)
+                    .lineLimit(2)
+            }
         }
     }
 }

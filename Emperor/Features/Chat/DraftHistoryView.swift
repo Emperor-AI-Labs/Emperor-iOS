@@ -51,8 +51,8 @@ struct DraftHistoryView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.bottom, 8)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.bottom, Spacing.sm)
 
             ListStateView(presentation: model.presentation, retry: { await model.load() }) {
                 list(model)
@@ -62,12 +62,12 @@ struct DraftHistoryView: View {
                 // `showsEmptyState` too — a branch on `showsNoSearchResults` above would
                 // never be reached.
                 if model.showsNoSearchResults {
-                    ContentUnavailableView.search(text: model.query)
+                    NoResultsView(query: model.query)
                 } else {
-                    ContentUnavailableView(
+                    EmptyStateView(
                         model.kind.title,
                         systemImage: model.kind.systemImage,
-                        description: Text(model.kind.emptyMessage))
+                        message: model.kind.emptyMessage)
                 }
             }
         }
@@ -97,11 +97,14 @@ struct DraftHistoryView: View {
     private func list(_ model: DraftHistoryViewModel) -> some View {
         List {
             ForEach(model.groups) { group in
-                Section(group.title) {
+                Section {
                     ForEach(group.items) { item in
                         row(model, item)
                     }
+                } header: {
+                    SectionHeader(title: group.title, detail: "\(group.items.count)")
                 }
+                .listRowBackground(theme.surface)
             }
         }
         .listStyle(.insetGrouped)
@@ -113,12 +116,15 @@ struct DraftHistoryView: View {
         Button {
             model.open(item)
         } label: {
-            HStack(spacing: 12) {
-                Image(systemName: model.kind.systemImage)
-                    .foregroundStyle(theme.accent)
+            HStack(spacing: Spacing.md) {
+                // The tile a draft wears where the conversation produced it, too.
+                IconTile(
+                    systemImage: model.kind.systemImage,
+                    hue: model.kind == .document ? .indigo : .teal)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.displayTitle)
+                        .font(.brand(.subheadline, weight: .medium))
                         .lineLimit(2)
                         .foregroundStyle(theme.textPrimary)
                     Text(item.sourceLabel)

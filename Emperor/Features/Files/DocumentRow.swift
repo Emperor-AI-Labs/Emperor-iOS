@@ -25,11 +25,12 @@ struct DocumentRowLabel: View {
     var isBusy = false
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             leadingMark
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(DisplayText.fileName(file.name))
+                    .font(.brand(.subheadline, weight: .medium))
                     .lineLimit(2)
                     .foregroundStyle(file.isReadable ? theme.textPrimary : theme.textSecondary)
                 if let location {
@@ -59,14 +60,18 @@ struct DocumentRowLabel: View {
     private var leadingMark: some View {
         switch leading {
         case .kind:
-            Image(systemName: DocumentKind.symbol(for: file.name))
-                .font(.brand(.title3))
-                .foregroundStyle(file.isReadable ? theme.accentText : theme.textTertiary)
-                .frame(width: 28)
-                .accessibilityHidden(true)
+            // The kind's own tile — rose for a PDF, steel for Word, as a file manager colours
+            // them — and grey while the document cannot be used yet, so a row still being read
+            // looks it at a glance.
+            IconTile(
+                systemImage: DocumentKind.symbol(for: file.name),
+                hue: file.isReadable ? DocumentKind.hue(for: file.name) : .graphite)
         case .selection(let isSelected):
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(isSelected ? theme.accent : theme.textSecondary)
+                .font(.brand(.title3))
+                .foregroundStyle(isSelected ? theme.accentText : theme.textTertiary)
+                .frame(width: 30)
+                .accessibilityLabel(isSelected ? "Selected" : "Not selected")
         }
     }
 }
@@ -118,17 +123,33 @@ struct DocumentStatusLine: View {
     }
 }
 
-/// The symbol for a document's kind, read off its extension — the only signal a listing has.
+/// The symbol and tile for a document's kind, read off its extension — the only signal a
+/// listing has.
 enum DocumentKind {
     static func symbol(for fileName: String) -> String {
-        let ext = fileName.split(separator: ".").last.map { $0.lowercased() } ?? ""
-        switch ext {
+        switch fileExtension(fileName) {
         case "pdf": return "doc.richtext"
         case "docx", "doc", "odt", "rtf": return "doc.text"
         case "csv": return "tablecells"
         case "png", "jpg", "jpeg": return "photo"
         default: return "doc.plaintext"
         }
+    }
+
+    /// The colour a file manager would give the kind, from the web's muted palette: rose for a
+    /// PDF, steel for a word-processor file, teal for a sheet, violet for a picture.
+    static func hue(for fileName: String) -> TileHue {
+        switch fileExtension(fileName) {
+        case "pdf": return .rose
+        case "docx", "doc", "odt", "rtf": return .steel
+        case "csv": return .teal
+        case "png", "jpg", "jpeg": return .violet
+        default: return .graphite
+        }
+    }
+
+    private static func fileExtension(_ fileName: String) -> String {
+        fileName.split(separator: ".").last.map { $0.lowercased() } ?? ""
     }
 }
 
@@ -143,13 +164,14 @@ struct ActionNoticeToast: View {
 
     var body: some View {
         Text(notice)
-            .font(.brand(.footnote))
+            .font(.brand(.footnote, weight: .medium))
             .multilineTextAlignment(.center)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.sm + 2)
             .background(theme.surfaceElevated, in: Capsule())
+            .overlay(Capsule().strokeBorder(theme.separator, lineWidth: 1))
             .foregroundStyle(theme.textPrimary)
-            .shadow(radius: 6, y: 2)
+            .shadow(color: theme.cardShadow, radius: 8, y: 3)
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
             .transition(.opacity)

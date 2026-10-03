@@ -63,6 +63,7 @@ struct ProjectListView: View {
                     NavigationLink(value: project.id) {
                         row(project)
                     }
+                    .listRowBackground(theme.surface)
                 }
             }
             .listStyle(.insetGrouped)
@@ -73,11 +74,10 @@ struct ProjectListView: View {
             // `presentation.isEmpty` is measured against the *filtered* list, so a search that
             // matches nothing has already routed to this branch — a check for it up there could
             // never be reached, and the reader would be shown a blank list with no explanation.
-            ContentUnavailableView {
-                Label(model.emptyTitle, systemImage: "folder.badge.person.crop")
-            } description: {
-                Text(model.emptyDetail)
-            } actions: {
+            EmptyStateView(
+                model.emptyTitle, systemImage: "folder.badge.person.crop",
+                message: model.emptyDetail
+            ) {
                 if !model.includeArchived {
                     Button("Include archived matters") {
                         Task { await model.setIncludeArchived(true) }

@@ -67,13 +67,16 @@ struct CaseListView: View {
         ListStateView(presentation: model.presentation, retry: { await model.load() }) {
             List {
                 ForEach(model.groups) { group in
-                    Section(group.title) {
+                    Section {
                         ForEach(group.cases) { legalCase in
                             NavigationLink(value: CaseRoute(caseID: legalCase.id)) {
                                 row(legalCase)
                             }
                         }
+                    } header: {
+                        SectionHeader(title: group.title, detail: "\(group.cases.count)")
                     }
+                    .listRowBackground(theme.surface)
                 }
             }
             .listStyle(.insetGrouped)
@@ -84,12 +87,19 @@ struct CaseListView: View {
             // nothing already routes here — branching on it in the content closure above
             // would never be reached.
             if model.showsNoSearchResults {
-                ContentUnavailableView.search(text: model.query)
+                NoResultsView(query: model.query)
             } else {
-                ContentUnavailableView(
+                EmptyStateView(
                     "No matters yet",
-                    systemImage: "folder",
-                    description: Text("Cases added on the web appear here, with their hearing dates."))
+                    systemImage: "briefcase",
+                    message: "Cases added on the web appear here, with their hearing dates.") {
+                    Button {
+                        isSearchingCourts = true
+                    } label: {
+                        Label(CourtSearchViewModel.Copy.title, systemImage: "magnifyingglass")
+                    }
+                    .buttonStyle(.primaryAction)
+                }
             }
         }
         .searchable(text: $bindable.query, prompt: "Filter your matters")
@@ -97,14 +107,16 @@ struct CaseListView: View {
     }
 
     private func row(_ legalCase: LegalCase) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Spacing.xs + 1) {
             Text(legalCase.displayTitle)
                 .font(.brand(.headline))
+                .foregroundStyle(theme.textPrimary)
                 .lineLimit(2)
 
             HStack(spacing: 6) {
                 if let reference = legalCase.caseReference {
                     Text(reference)
+                        .monospacedDigit()
                 }
                 if let court = legalCase.courtName {
                     Text("·")
@@ -114,11 +126,14 @@ struct CaseListView: View {
             .font(.brand(.subheadline))
             .foregroundStyle(theme.textSecondary)
 
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 if let hearing = legalCase.nextHearingDate {
-                    Label(
-                        DisplayText.longDay(WireDate.dayKey(hearing)),
-                        systemImage: "calendar")
+                    Label {
+                        Text(DisplayText.longDay(WireDate.dayKey(hearing)))
+                    } icon: {
+                        Image(systemName: "calendar")
+                            .foregroundStyle(theme.accentText)
+                    }
                 }
                 // Says where the row came from. A matter the court maintains and one typed in
                 // by hand carry very different confidence, and the badge is the only signal.
@@ -128,13 +143,13 @@ struct CaseListView: View {
                 }
             }
             .font(.brand(.caption))
-            .foregroundStyle(theme.textTertiary)
+            .foregroundStyle(theme.textSecondary)
 
             if let stage = legalCase.stage ?? legalCase.status {
                 Text(stage).font(.brand(.caption2)).foregroundStyle(theme.textTertiary)
             }
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, Spacing.xs)
         .accessibilityElement(children: .combine)
     }
 }

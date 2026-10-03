@@ -26,10 +26,10 @@ struct AuthFieldChrome: ViewModifier {
         .padding(.horizontal, 14)
         .padding(.vertical, 13)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                 .fill(theme.surfaceElevated))
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                 .strokeBorder(isFocused ? theme.accent : theme.separator,
                               lineWidth: isFocused ? 1.5 : 1))
         .animation(.easeOut(duration: 0.15), value: isFocused)
@@ -64,8 +64,13 @@ struct AuthMessage: View {
         }
         .font(.brand(.footnote))
         .foregroundStyle(color)
-        .padding(12)
-        .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(Spacing.md)
+        .background(
+            color.opacity(0.12),
+            in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .strokeBorder(color.opacity(0.25), lineWidth: 1))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(tone == .error ? "Error: \(text)" : text)
     }

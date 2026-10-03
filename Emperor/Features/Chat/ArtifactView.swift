@@ -23,6 +23,7 @@ struct ArtifactDetailView: View {
                     MarkdownArtifactView(markdown: artifact.body)
                 }
             }
+            .background(theme.canvas)
             .navigationTitle(artifact.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -131,18 +132,23 @@ struct CitationStrip: View {
                     Button {
                         onSelect(mention)
                     } label: {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 5) {
                             Image(systemName: "doc.text.magnifyingglass")
+                                .foregroundStyle(theme.accentText)
                             Text(DisplayText.fileName(mention.fileName))
+                                .foregroundStyle(theme.textPrimary)
                                 .lineLimit(1)
                             if let pages = mention.pageDescription {
-                                Text(pages).foregroundStyle(theme.textSecondary)
+                                Text(pages)
+                                    .monospacedDigit()
+                                    .foregroundStyle(theme.textSecondary)
                             }
                         }
-                        .font(.brand(.caption2))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(theme.surfaceElevated, in: Capsule())
+                        .font(.brand(.caption, weight: .medium))
+                        .padding(.horizontal, Spacing.sm + 2)
+                        .padding(.vertical, 6)
+                        .background(theme.surface, in: Capsule())
+                        .overlay(Capsule().strokeBorder(theme.separator, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                     // Read as one phrase. Separately, VoiceOver announces a filename and a

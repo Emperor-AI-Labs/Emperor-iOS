@@ -115,7 +115,12 @@ struct MarkdownContentView: View {
                     .textSelection(.enabled)
                     .padding(10)
             }
-            .background(theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 8))
+            .background(
+                theme.surfaceElevated,
+                in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                    .strokeBorder(theme.separator, lineWidth: 1))
         }
     }
 
@@ -220,7 +225,12 @@ private struct MarkdownTableView: View {
                     }
                 }
             }
-            .background(theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 8))
+            .background(
+                theme.surface,
+                in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                    .strokeBorder(theme.separator, lineWidth: 1))
             .padding(.vertical, 2)
         }
     }
@@ -242,7 +252,10 @@ private struct MarkdownTableView: View {
         // authority column carries the same citation badges as the prose above it — and bold
         // in a cell is bold, as it already is in the exported file.
         CitedText(text: text, citations: citations)
-            .font(isHeader ? .caption.weight(.semibold) : .caption)
+            // Spelled out on both sides: `font(_:)` takes an `Optional`, the shape the type
+            // checker argues with when both branches are implicit members.
+            .font((isHeader ? Font.brand(.caption, weight: .semibold) : Font.brand(.caption))
+                .monospacedDigit())
             .multilineTextAlignment(alignment == .trailing ? .trailing : .leading)
             // Wide enough to read a date or a short phrase; capped so one long cell cannot
             // push every other column off the screen.

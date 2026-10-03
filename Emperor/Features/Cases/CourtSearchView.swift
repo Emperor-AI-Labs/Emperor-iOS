@@ -61,6 +61,7 @@ struct CourtSearchView: View {
                 // out together — so there is no stable text to query. Identifiers are for
                 // exactly this: the thing a test names should not change when the copy does.
                 .accessibilityIdentifier("court-picker")
+                .listRowBackground(theme.surface)
 
                 // Only where there is a choice. Ten tribunals and three consumer fora publish no
                 // pre-registration lookup, so offering the pill and refusing it would be worse
@@ -84,22 +85,25 @@ struct CourtSearchView: View {
 
             if let notice = model.notice {
                 Section {
-                    Label(notice, systemImage: "checkmark.circle")
+                    Label(notice, systemImage: "checkmark.circle.fill")
                         .font(.brand(.footnote))
                         .foregroundStyle(theme.success)
                 }
+                .listRowBackground(theme.surface)
             }
 
             if let message = model.errorMessage {
                 Section {
-                    Label(message, systemImage: "exclamationmark.triangle")
+                    Label(message, systemImage: "exclamationmark.triangle.fill")
                         .font(.brand(.footnote))
                         .foregroundStyle(theme.danger)
                 }
+                .listRowBackground(theme.surface)
             }
 
             resultsSection(model)
         }
+        .font(.brand(.body))
         .scrollContentBackground(.hidden)
         .background(theme.canvas)
         .sheet(isPresented: Binding(
@@ -128,6 +132,7 @@ struct CourtSearchView: View {
                         .font(.brand(.footnote))
                         .foregroundStyle(theme.textSecondary)
                 }
+                .listRowBackground(theme.surface)
             } else {
                 Section {
                     // DCDRC only. Its commissions are not published flat — they are reached a
@@ -172,12 +177,15 @@ struct CourtSearchView: View {
                         yearField(model)
                     }
                 } header: {
-                    Text(court.name)
+                    SectionHeader(title: court.name)
                 } footer: {
                     if model.expectsLongWait {
                         Text(CourtSearchViewModel.Copy.captchaWait)
+                            .font(.brand(.caption))
+                            .foregroundStyle(theme.textSecondary)
                     }
                 }
+                .listRowBackground(theme.surface)
             }
         }
     }
@@ -280,6 +288,8 @@ struct CourtSearchView: View {
             // the court" — so without this the user blames the court and retries forever.
             if let notice = model.incompleteNotice {
                 Text(notice)
+                    .font(.brand(.caption))
+                    .foregroundStyle(theme.warning)
             }
         }
     }
@@ -290,30 +300,35 @@ struct CourtSearchView: View {
     private func resultsSection(_ model: CourtSearchViewModel) -> some View {
         if model.hasSearched, model.results.isEmpty, !model.isSearching {
             Section {
-                Text(model.emptyMessage)
+                Label(model.emptyMessage, systemImage: "magnifyingglass")
                     .font(.brand(.footnote))
                     .foregroundStyle(theme.textSecondary)
             }
+            .listRowBackground(theme.surface)
         } else if !model.results.isEmpty {
-            Section("Found at the court") {
+            Section {
                 ForEach(model.results) { result in
                     resultRow(model, result)
                 }
+            } header: {
+                SectionHeader(title: "Found at the court", detail: "\(model.results.count)")
             }
+            .listRowBackground(theme.surface)
         }
     }
 
     private func resultRow(
         _ model: CourtSearchViewModel, _ result: CourtSearchResult
     ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Spacing.sm - 2) {
             Text(result.displayTitle)
-                .font(.brand(.callout, weight: .medium))
+                .font(.brand(.callout, weight: .semibold))
                 .foregroundStyle(theme.textPrimary)
 
             if let reference = result.reference {
                 Text(reference)
                     .font(.brand(.caption))
+                    .monospacedDigit()
                     .foregroundStyle(theme.textSecondary)
             }
 
@@ -335,8 +350,9 @@ struct CourtSearchView: View {
             }
 
             saveButton(model, result)
+                .padding(.top, Spacing.xxs)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.xs + 2)
     }
 
     @ViewBuilder
@@ -355,12 +371,18 @@ struct CourtSearchView: View {
                     if model.savingID == result.id {
                         ProgressView().controlSize(.small)
                     } else {
-                        Image(systemName: "plus.circle")
+                        Image(systemName: "plus.circle.fill")
                     }
                     Text(CourtSearchViewModel.Copy.saveButton)
                 }
-                .font(.brand(.caption, weight: .medium))
+                .font(.brand(.caption, weight: .semibold))
+                .foregroundStyle(theme.accentText)
+                .padding(.horizontal, Spacing.md)
+                .padding(.vertical, 6)
+                .background(theme.accentWash, in: Capsule())
+                .overlay(Capsule().strokeBorder(theme.accentMuted, lineWidth: 1))
             }
+            // Borderless, so in a list row only the capsule takes the tap.
             .buttonStyle(.borderless)
             // Saving re-scrapes the court before it answers, so one at a time.
             .disabled(model.savingID != nil)
@@ -407,14 +429,18 @@ private struct CourtPicker: View {
                         row(court)
                     }
                 } header: {
-                    Text(section.title)
+                    SectionHeader(title: section.title)
                 } footer: {
                     if section.courts.contains(where: { !$0.isSearchable }) {
                         Text(CourtSearchViewModel.Copy.notSearchable)
+                            .font(.brand(.caption))
+                            .foregroundStyle(theme.textSecondary)
                     }
                 }
+                .listRowBackground(theme.surface)
             }
         }
+        .font(.brand(.body))
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(theme.canvas)
@@ -423,7 +449,7 @@ private struct CourtPicker: View {
         .navigationBarTitleDisplayMode(.inline)
         .overlay {
             if sections.isEmpty {
-                ContentUnavailableView.search(text: query)
+                NoResultsView(query: query)
             }
         }
     }
@@ -440,7 +466,9 @@ private struct CourtPicker: View {
                     .multilineTextAlignment(.leading)
                 Spacer(minLength: 8)
                 if model.court?.id == court.id {
-                    Image(systemName: "checkmark").foregroundStyle(theme.accent)
+                    Image(systemName: "checkmark")
+                        .font(.brand(.subheadline, weight: .semibold))
+                        .foregroundStyle(theme.accentText)
                 } else if !court.isSearchable {
                     // Says which of the two it is: not "coming soon", but "this app cannot look
                     // this one up". The section footer carries the reason.
@@ -480,7 +508,10 @@ private struct CaptchaSheet: View {
                     HStack {
                         Spacer()
                         ZStack {
-                            RoundedRectangle(cornerRadius: 8).fill(.white)
+                            // White on purpose — see the type's note. The one colour here that is
+                            // not the theme's, because the court's image needs it to be legible.
+                            RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                                .fill(Color.white)
                             if let image = model.captcha?.image,
                                let rendered = UIImage(data: image) {
                                 Image(uiImage: rendered)
@@ -521,9 +552,12 @@ private struct CaptchaSheet: View {
                         .onSubmit { Task { await model.submitCaptcha() } }
                 } footer: {
                     if let error = model.captchaError {
-                        Text(error).foregroundStyle(theme.danger)
+                        Text(error)
+                            .font(.brand(.caption))
+                            .foregroundStyle(theme.danger)
                     }
                 }
+                .listRowBackground(theme.surface)
 
                 Section {
                     Button {
@@ -544,6 +578,7 @@ private struct CaptchaSheet: View {
                     .listRowBackground(Color.clear)
                 }
             }
+            .font(.brand(.body))
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
             .navigationTitle("CAPTCHA")

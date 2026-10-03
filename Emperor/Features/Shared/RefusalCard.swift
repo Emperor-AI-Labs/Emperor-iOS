@@ -11,9 +11,9 @@ struct RefusalCard: View {
     let refusal: Refusal
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: Spacing.md) {
             Image(systemName: symbol)
-                .font(.brand(.title3))
+                .font(.brand(.title3, weight: .medium))
                 .foregroundStyle(theme.warning)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
@@ -27,13 +27,13 @@ struct RefusalCard: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(14)
+        .padding(Spacing.lg)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                 .fill(theme.warning.opacity(0.10)))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(theme.warning.opacity(0.35), lineWidth: 1))
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .strokeBorder(theme.warning.opacity(0.3), lineWidth: 1))
         .accessibilityElement(children: .combine)
     }
 
@@ -55,7 +55,7 @@ struct AccountStandingBanner: View {
     let standing: Session.Standing
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: Spacing.sm + 2) {
             Image(systemName: standing == .suspended ? "pause.circle.fill" : "exclamationmark.circle.fill")
                 .foregroundStyle(theme.warning)
                 .accessibilityHidden(true)
@@ -67,8 +67,13 @@ struct AccountStandingBanner: View {
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .padding(12)
-        .background(theme.warning.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(Spacing.md)
+        .background(
+            theme.warning.opacity(0.10),
+            in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .strokeBorder(theme.warning.opacity(0.3), lineWidth: 1))
         .accessibilityElement(children: .combine)
     }
 }

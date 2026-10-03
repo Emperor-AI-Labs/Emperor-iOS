@@ -60,10 +60,11 @@ struct ProjectDetailView: View {
             // Unreachable in practice — a load that returns without a project throws instead, so
             // the failure branch catches it. Present because `ListStateView` requires both
             // closures, and because "empty" must never silently render as blank content.
-            ContentUnavailableView(
+            EmptyStateView(
                 "Matter unavailable",
                 systemImage: "questionmark.folder",
-                description: Text(ProjectService.projectGoneMessage))
+                message: ProjectService.projectGoneMessage,
+                tone: .neutral)
         }
         .refreshable { await model.load() }
     }

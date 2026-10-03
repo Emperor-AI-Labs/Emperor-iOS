@@ -18,6 +18,9 @@ struct ChatThreadView: View {
     /// Nothing raises it again: tapping the field does that on its own, which is the behaviour
     /// the platform already gives a focusable field and the one a reader expects.
     @FocusState private var isComposerFocused: Bool
+    /// The composer's round controls and the height of its field, scaled with Dynamic Type so
+    /// the bar keeps its proportions at every text size.
+    @ScaledMetric(relativeTo: .body) private var composerControl: CGFloat = 36
 
     let chatID: String
     /// An opening message to send as soon as the thread is ready.
@@ -139,11 +142,11 @@ struct ChatThreadView: View {
                             Notice(
                                 icon: "exclamationmark.triangle",
                                 text: "This answer was interrupted before it finished. Nothing above has been lost — send again to have it completed.",
-                                tint: .orange)
+                                tint: theme.warning)
                         }
 
                         if let busy = model.busyNotice {
-                            Notice(icon: "clock", text: busy, tint: .secondary)
+                            Notice(icon: "clock", text: busy, tint: theme.textSecondary)
                         }
 
                         // A send that failed outright. Shown in the transcript rather than as
@@ -156,14 +159,14 @@ struct ChatThreadView: View {
                             Notice(
                                 icon: "exclamationmark.triangle",
                                 text: blocked,
-                                tint: .orange)
+                                tint: theme.warning)
                         }
 
                         if let error = model.errorMessage {
                             Notice(
                                 icon: "exclamationmark.circle",
                                 text: error,
-                                tint: .red)
+                                tint: theme.danger)
                         }
 
                         // Declined on purpose — no plan, this month's questions used. Its own
@@ -173,7 +176,12 @@ struct ChatThreadView: View {
                             RefusalCard(refusal: refusal)
                         }
                     }
-                    .padding()
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.vertical, Spacing.lg)
+                    // A readable measure on an iPad or a phone held sideways: an answer set the
+                    // full width of a 13-inch screen is a line nobody can follow back.
+                    .frame(maxWidth: 760)
+                    .frame(maxWidth: .infinity)
                 }
                 .onChange(of: model.live?.prose) { scrollToBottom(proxy, model) }
                 .onChange(of: model.messages.count) { scrollToBottom(proxy, model) }
@@ -286,7 +294,7 @@ struct ChatThreadView: View {
                         } label: {
                             Label(
                                 DisplayText.attachmentTitle(attachment),
-                                systemImage: "doc")
+                                systemImage: "doc.text")
                         }
                     }
                 }
@@ -307,9 +315,10 @@ struct ChatThreadView: View {
             // An HStack rather than a `Label`, deliberately: a toolbar is free to render a Label
             // icon-only, and this number is the whole reason the control is here.
             HStack(spacing: 3) {
-                Image(systemName: "doc")
+                Image(systemName: "paperclip")
                 if !model.attachments.isEmpty {
                     Text("\(model.attachments.count)")
+                        .monospacedDigit()
                 }
             }
         }
@@ -389,7 +398,7 @@ struct ChatThreadView: View {
     ) -> some View {
         @Bindable var composer = composer
 
-        return VStack(spacing: 8) {
+        return VStack(spacing: Spacing.sm) {
             // Said before the question is typed, not after it is refused.
             if let standing = session.standing, model.refusal == nil {
                 AccountStandingBanner(standing: standing)
@@ -440,16 +449,19 @@ struct ChatThreadView: View {
                                 model.detach(attachment)
                             } label: {
                                 HStack(spacing: 5) {
-                                    Image(systemName: "doc")
+                                    Image(systemName: "doc.text")
+                                        .foregroundStyle(theme.accentText)
                                     Text(DisplayText.fileName(attachment.name))
+                                        .foregroundStyle(theme.textPrimary)
                                         .lineLimit(1)
                                     Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(theme.textSecondary)
+                                        .foregroundStyle(theme.textTertiary)
                                 }
-                                .font(.brand(.caption))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 5)
+                                .font(.brand(.caption, weight: .medium))
+                                .padding(.horizontal, Spacing.sm + 2)
+                                .padding(.vertical, 6)
                                 .background(theme.surfaceElevated, in: Capsule())
+                                .overlay(Capsule().strokeBorder(theme.separator, lineWidth: 1))
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(
@@ -460,7 +472,7 @@ struct ChatThreadView: View {
                 }
             }
 
-            HStack(spacing: 10) {
+            HStack(alignment: .bottom, spacing: Spacing.sm) {
                 // Straight to the picker rather than a menu. Attaching from the library is what
                 // the button is for in nearly every case, and the menu charged a tap for that to
                 // offer scanning beside it — which the library already offers, under "Digitise
@@ -472,44 +484,86 @@ struct ChatThreadView: View {
                 Button {
                     isBrowsingFiles = true
                 } label: {
-                    Image(systemName: "plus.circle")
-                        .font(.brand(.title3))
+                    Image(systemName: "plus")
+                        .font(.brand(.body, weight: .semibold))
+                        .foregroundStyle(theme.textSecondary)
+                        .frame(width: composerControl, height: composerControl)
+                        .background(theme.surfaceElevated, in: Circle())
+                        .overlay(Circle().strokeBorder(theme.separator, lineWidth: 1))
+                        .contentShape(Circle())
                 }
+                .buttonStyle(.plain)
                 .accessibilityLabel("Attach a document")
                 .disabled(model.isStreaming)
+                .opacity(model.isStreaming ? 0.5 : 1)
 
-                TextField("Ask about this matter…", text: $composer.text, axis: .vertical)
-                    .lineLimit(1...5)
-                    .textFieldStyle(.roundedBorder)
-                    .focused($isComposerFocused)
-                    .disabled(composer.isEnhancing)
+                // The field and the rewrite button share one rounded well, as a message field
+                // does — the wand acts on what is typed, so it sits with it.
+                HStack(alignment: .bottom, spacing: Spacing.xs) {
+                    TextField("Ask about this matter…", text: $composer.text, axis: .vertical)
+                        .lineLimit(1...5)
+                        .textFieldStyle(.plain)
+                        .font(.brand(.body))
+                        .foregroundStyle(theme.textPrimary)
+                        .focused($isComposerFocused)
+                        .disabled(composer.isEnhancing)
+                        .padding(.vertical, Spacing.sm)
+                        .padding(.leading, Spacing.md + 2)
 
-                // Dictation and a thumb keyboard both produce exactly the rough prompts this
-                // rewrites, which is why it earns a place in a crowded bar on a phone.
-                Button {
-                    composer.attachments = model.attachments
-                    composer.enhance()
-                } label: {
-                    if composer.isEnhancing {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: "wand.and.sparkles").font(.brand(.title3))
+                    // Dictation and a thumb keyboard both produce exactly the rough prompts this
+                    // rewrites, which is why it earns a place in a crowded bar on a phone.
+                    Button {
+                        composer.attachments = model.attachments
+                        composer.enhance()
+                    } label: {
+                        Group {
+                            if composer.isEnhancing {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Image(systemName: "wand.and.sparkles")
+                                    .font(.brand(.body, weight: .medium))
+                            }
+                        }
+                        .foregroundStyle(theme.accentText)
+                        .frame(width: composerControl, height: composerControl)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(
+                        composer.isEnhancing
+                            ? PromptEnhancerViewModel.Copy.running
+                            : PromptEnhancerViewModel.Copy.button)
+                    .disabled(!composer.canEnhance || model.isStreaming)
+                    .opacity(!composer.canEnhance || model.isStreaming ? 0.4 : 1)
+                    .padding(.trailing, Spacing.xxs)
                 }
-                .accessibilityLabel(
-                    composer.isEnhancing
-                        ? PromptEnhancerViewModel.Copy.running
-                        : PromptEnhancerViewModel.Copy.button)
-                .disabled(!composer.canEnhance || model.isStreaming)
+                .frame(minHeight: composerControl)
+                .background(
+                    theme.surfaceElevated,
+                    in: RoundedRectangle(cornerRadius: composerControl / 2, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: composerControl / 2, style: .continuous)
+                        .strokeBorder(
+                            isComposerFocused ? theme.accentMuted : theme.separator,
+                            lineWidth: 1))
 
                 if model.isStreaming {
                     Button {
                         model.stop()
                     } label: {
-                        Image(systemName: "stop.circle.fill").font(.brand(.title2))
+                        Image(systemName: "stop.fill")
+                            .font(.brand(.footnote, weight: .bold))
+                            .foregroundStyle(theme.onAccent)
+                            .frame(width: composerControl, height: composerControl)
+                            .background(theme.accent, in: Circle())
+                            .contentShape(Circle())
                     }
+                    .buttonStyle(.plain)
                     .accessibilityLabel("Stop this answer")
                 } else {
+                    let canSend = !(composer.isEnhancing
+                        || model.sendBlockedReason != nil
+                        || composer.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     Button {
                         // Lowered as the question goes, not when the answer finishes. The answer
                         // starts arriving at once and streams for seconds; on a phone the
@@ -519,20 +573,27 @@ struct ChatThreadView: View {
                         model.send(composer.text)
                         composer.clear()
                     } label: {
-                        Image(systemName: "arrow.up.circle.fill").font(.brand(.title2))
+                        Image(systemName: "arrow.up")
+                            .font(.brand(.body, weight: .bold))
+                            .foregroundStyle(canSend ? theme.onAccent : theme.textTertiary)
+                            .frame(width: composerControl, height: composerControl)
+                            .background(canSend ? theme.accent : theme.surfaceElevated, in: Circle())
+                            .contentShape(Circle())
                     }
+                    .buttonStyle(.plain)
                     .accessibilityLabel("Send")
-                    .disabled(
-                        composer.isEnhancing
-                            || model.sendBlockedReason != nil
-                            || composer.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                                .isEmpty)
+                    .disabled(!canSend)
                 }
             }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
+            .padding(.horizontal, Spacing.md)
+            .padding(.top, Spacing.xs)
+            .padding(.bottom, Spacing.sm)
         }
-        .background(theme.surface)
+        .padding(.top, Spacing.sm)
+        .background(theme.canvas)
+        .overlay(alignment: .top) {
+            Rectangle().fill(theme.separator).frame(height: 0.5)
+        }
         .animation(.easeOut(duration: 0.15), value: composer.canUndo)
         .animation(.easeOut(duration: 0.15), value: composer.failureNotice)
         // Offered rather than forced: a rewrite full of blanks is still sendable as it stands,
@@ -591,11 +652,27 @@ private struct MessageBubble: View {
     var body: some View {
         if message.role == .user {
             HStack {
-                Spacer(minLength: 40)
+                Spacer(minLength: 48)
+                // The question in the accent's own wash with a hairline of it, so it reads as
+                // the reader's side of the exchange without a slab of colour in a working
+                // document. Corners like a message's, the one at the speaker's side tucked in.
                 Text(message.content)
+                    .font(.brand(.body))
+                    .foregroundStyle(theme.textPrimary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(theme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
+                    .background(
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 18, bottomLeadingRadius: 18,
+                            bottomTrailingRadius: 6, topTrailingRadius: 18,
+                            style: .continuous)
+                            .fill(theme.surfaceAccent))
+                    .overlay(
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 18, bottomLeadingRadius: 18,
+                            bottomTrailingRadius: 6, topTrailingRadius: 18,
+                            style: .continuous)
+                            .stroke(theme.accentMuted, lineWidth: 0.5))
                     .contextMenu {
                         if canEdit {
                             Button {
@@ -646,6 +723,7 @@ private struct MessageBubble: View {
 }
 
 private struct AnswerView: View {
+    @Environment(\.theme) private var theme
     let content: StreamContent
     let isStreaming: Bool
     var onSelectCitation: (AnnexureMention) -> Void = { _ in }
@@ -675,14 +753,14 @@ private struct AnswerView: View {
             }
 
             ForEach(content.errors, id: \.self) { error in
-                Notice(icon: "exclamationmark.circle", text: error, tint: .red)
+                Notice(icon: "exclamationmark.circle", text: error, tint: theme.danger)
             }
 
             if content.wasInterrupted {
                 Notice(
                     icon: "exclamationmark.triangle",
                     text: "This answer was interrupted before it finished.",
-                    tint: .orange)
+                    tint: theme.warning)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -702,26 +780,28 @@ private struct ArtifactCard: View {
     let artifact: StreamArtifact
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: artifact.kind == .canvas ? "doc.text" : "tablecells")
-                .font(.brand(.title3))
-                .foregroundStyle(theme.accentText)
+        HStack(spacing: Spacing.md) {
+            // The same tile a document wears in Your drafts, so a draft looks like itself in
+            // both places.
+            IconTile(
+                systemImage: artifact.kind == .canvas ? "doc.text" : "tablecells",
+                hue: artifact.kind == .canvas ? .indigo : .teal,
+                size: .large)
             VStack(alignment: .leading, spacing: 2) {
                 Text(artifact.title)
                     .font(.brand(.subheadline, weight: .semibold))
+                    .foregroundStyle(theme.textPrimary)
                     .lineLimit(2)
                 Text(artifact.kind == .canvas ? "Document" : "Table")
                     .font(.brand(.caption))
                     .foregroundStyle(theme.textSecondary)
             }
             Spacer(minLength: 0)
-            Image(systemName: "chevron.right")
-                .font(.brand(.caption))
-                .foregroundStyle(theme.textTertiary)
+            RowChevron()
         }
-        .padding(12)
+        .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
+        .panel(radius: Radius.control)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
@@ -736,15 +816,21 @@ private struct Notice: View {
     let tint: Color
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
             Image(systemName: icon)
             Text(text)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .font(.brand(.footnote))
         .foregroundStyle(tint)
-        .padding(10)
+        .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        .background(
+            tint.opacity(0.08),
+            in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .strokeBorder(tint.opacity(0.25), lineWidth: 1))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(text)
     }

@@ -1,0 +1,158 @@
+{
+  "palette": [
+    "#7c86c9",
+    "#5fa08c",
+    "#b3924f",
+    "#6f9ac0",
+    "#9b83c0",
+    "#c0808f",
+    "#5f9e9e",
+    "#c0996b"
+  ],
+  "tools": {
+    "arguments": {
+      "color": "#5f9e9e",
+      "icon": "Swords"
+    },
+    "assistant": {
+      "color": "#5f9e9e",
+      "icon": "MessagesSquare"
+    },
+    "bench-note": {
+      "color": "#c0996b",
+      "icon": "StickyNote"
+    },
+    "blind-spots": {
+      "color": "#5fa08c",
+      "icon": "ShieldAlert"
+    },
+    "board-resolution": {
+      "color": "#6f9ac0",
+      "icon": "Landmark"
+    },
+    "brief-workup": {
+      "color": "#c0996b",
+      "icon": "FolderOpen"
+    },
+    "case-brief": {
+      "color": "#c0808f",
+      "icon": "BookOpen"
+    },
+    "case-comparison": {
+      "color": "#5f9e9e",
+      "icon": "GitCompareArrows"
+    },
+    "case-gist": {
+      "color": "#7c86c9",
+      "icon": "ScrollText"
+    },
+    "caseflow": {
+      "color": "#5f9e9e",
+      "icon": "Route"
+    },
+    "citation-check": {
+      "color": "#b3924f",
+      "icon": "Quote"
+    },
+    "clause-extract": {
+      "color": "#6f9ac0",
+      "icon": "Scissors"
+    },
+    "compliance-calendar": {
+      "color": "#7c86c9",
+      "icon": "CalendarClock"
+    },
+    "contract-analysis": {
+      "color": "#c0996b",
+      "icon": "ShieldAlert"
+    },
+    "custom-document": {
+      "color": "#c0996b",
+      "icon": "FilePlus2"
+    },
+    "doc-assembly": {
+      "color": "#6f9ac0",
+      "icon": "Files"
+    },
+    "doc-index": {
+      "color": "#c0808f",
+      "icon": "FileSearch"
+    },
+    "draft-contract": {
+      "color": "#5f9e9e",
+      "icon": "FileSignature"
+    },
+    "draft-judgment": {
+      "color": "#7c86c9",
+      "icon": "Gavel"
+    },
+    "draft-pleading": {
+      "color": "#b3924f",
+      "icon": "FileText"
+    },
+    "draft-review": {
+      "color": "#9b83c0",
+      "icon": "ClipboardCheck"
+    },
+    "due-diligence": {
+      "color": "#c0996b",
+      "icon": "ClipboardCheck"
+    },
+    "highlighter": {
+      "color": "#5fa08c",
+      "icon": "Highlighter"
+    },
+    "irac": {
+      "color": "#6f9ac0",
+      "icon": "Brain"
+    },
+    "know-your-rights": {
+      "color": "#c0996b",
+      "icon": "HeartHandshake"
+    },
+    "law-timeline": {
+      "color": "#9b83c0",
+      "icon": "Layers"
+    },
+    "list-of-dates": {
+      "color": "#5f9e9e",
+      "icon": "CalendarClock"
+    },
+    "pil-template": {
+      "color": "#9b83c0",
+      "icon": "Megaphone"
+    },
+    "research": {
+      "color": "#6f9ac0",
+      "icon": "Search"
+    },
+    "simplify": {
+      "color": "#5fa08c",
+      "icon": "Sparkles"
+    }
+  },
+  "hashes": {
+    "": "#7c86c9",
+    "a": "#5fa08c",
+    "ldoc-civil-plaint": "#c0808f",
+    "lsec-criminal-bail": "#9b83c0",
+    "ldoc-constitutional-writ-petition-under-article-32-with-synopsis-and-list-of-dates": "#b3924f",
+    "cdoc-share-purchase-agreement": "#9b83c0",
+    "adoc-award-drafting": "#c0996b",
+    "pdoc-list-of-documents": "#9b83c0",
+    "sdoc-moot-memorial": "#b3924f",
+    "ndoc-rti-application": "#c0996b",
+    "scdoc-opinion": "#c0808f",
+    "𝓔mperor-न्याय": "#7c86c9"
+  },
+  "roles": {
+    "Litigator": "#7c86c9",
+    "Senior Counsel": "#9c6b72",
+    "Corporate Counsel": "#5fa08c",
+    "Arbitrators & Judges": "#b3924f",
+    "Student / Academic": "#6f9ac0",
+    "Paralegal": "#9b83c0",
+    "Legal Aid / NGO": "#c0808f",
+    "Devil's Advocate": "#b05a4e"
+  }
+}

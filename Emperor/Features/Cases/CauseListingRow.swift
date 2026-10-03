@@ -28,7 +28,7 @@ struct CauseListingRow: View {
     }
 
     private func row(_ display: CauseListingDisplay) -> some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: Spacing.md) {
             locationBadge(display)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -80,7 +80,7 @@ struct CauseListingRow: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.xs + 2)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             leadsWithTime ? display.spokenLeadingWithTime(listing) : display.spoken(listing))
@@ -110,10 +110,17 @@ struct CauseListingRow: View {
             }
         }
         .frame(width: badgeWidth)
-        .padding(.vertical, 6)
+        .padding(.vertical, Spacing.sm)
+        // A wash of the accent, so the gutter reads as the listing's address at a glance — the
+        // one thing on the row that says where to be — rather than as another grey box. The
+        // citation badge's wash, because that is the strength `CitationTests` holds accent text
+        // to 4.5:1 on, in both appearances; "Court 12" is accent text at caption size.
         .background(
-            theme.surfaceElevated,
-            in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            theme.accentWash,
+            in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .strokeBorder(theme.accentMuted, lineWidth: 0.5))
     }
 
     private func badgeCaption(_ text: String) -> some View {

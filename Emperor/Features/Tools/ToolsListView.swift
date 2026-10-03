@@ -31,9 +31,10 @@ struct ToolsListView: View {
                         title: "Your toolkit", detail: practice.role.label)
                 } footer: {
                     Text("Chosen for \(practice.role.label). Change it in Settings — everything else is still below.")
-                        .font(.brand(.caption2))
+                        .font(.brand(.caption))
                         .foregroundStyle(theme.textTertiary)
                 }
+                .listRowBackground(theme.surface)
 
                 Section {
                     ForEach(ANALYSIS_TOOLS) { row($0) }
@@ -42,6 +43,7 @@ struct ToolsListView: View {
                         title: "Analysis",
                         detail: "Run against a document you have attached")
                 }
+                .listRowBackground(theme.surface)
 
                 Section {
                     ForEach(REGISTRY_TOOLS) { row($0) }
@@ -54,9 +56,10 @@ struct ToolsListView: View {
                     // narrows what is offered first; it must never be what puts a tool out of
                     // reach, which is why the full registry stays here underneath it.
                     Text("Every tool the platform ships. Each one starts a conversation you can carry on afterwards.")
-                        .font(.brand(.caption2))
+                        .font(.brand(.caption))
                         .foregroundStyle(theme.textTertiary)
                 }
+                .listRowBackground(theme.surface)
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
@@ -77,22 +80,33 @@ struct ToolsListView: View {
                 } else {
                     // Ids arrive off a navigation route, so an unknown one says so rather than
                     // showing an empty form.
-                    ContentUnavailableView(
-                        "Tool unavailable", systemImage: "wrench.and.screwdriver")
+                    EmptyStateView(
+                        "Tool unavailable", systemImage: "wrench.and.screwdriver", tone: .neutral)
                 }
             }
         }
     }
 
+    /// A tool as the web draws it: its own icon on its own colour — the web's `toolColor`,
+    /// which hashes the id, so a tool wears the same tile on both — then its name and what it
+    /// is for.
     private func row(_ tool: ToolSpec) -> some View {
         NavigationLink(value: tool.id) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(tool.title).font(.brand(.subheadline))
-                Text(tool.short)
-                    .font(.brand(.caption))
-                    .foregroundStyle(theme.textSecondary)
-                    .lineLimit(2)
+            HStack(spacing: Spacing.md) {
+                IconTile(
+                    systemImage: ToolSymbol.symbol(for: tool.id),
+                    hue: TileHue.forTool(tool.id))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(tool.title)
+                        .font(.brand(.subheadline, weight: .medium))
+                        .foregroundStyle(theme.textPrimary)
+                    Text(tool.short)
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textSecondary)
+                        .lineLimit(2)
+                }
             }
+            .padding(.vertical, Spacing.xxs)
         }
     }
 }

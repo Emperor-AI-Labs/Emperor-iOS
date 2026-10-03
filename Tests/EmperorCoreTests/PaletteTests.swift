@@ -143,6 +143,68 @@ final class PaletteTests: XCTestCase {
             Palette.light.textPrimary.contrastRatio(against: Palette.light.canvas), 4.5)
     }
 
+    // MARK: - Icon tiles and elevation
+
+    /// The white glyph on an icon tile is a graphic that carries meaning — it is the only thing
+    /// telling My Files from Library — so it is held to WCAG's 3:1 for non-text contrast, on every
+    /// hue, in both appearances.
+    func testIconTileGlyphsClearTheGraphicsFloor() {
+        for (name, palette) in cases {
+            for hue in TileHue.allCases {
+                let ratio = palette.onTile.contrastRatio(against: palette.tile(hue))
+                XCTAssertGreaterThanOrEqual(
+                    ratio, 3.0,
+                    "\(name)/\(hue): the glyph on its tile is \(String(format: "%.2f", ratio)):1")
+            }
+        }
+    }
+
+    /// A tile has to read as a shape on the card and the canvas it sits on, or the row loses its
+    /// landmark. The dark card is the hard case: the web's hues are mid-tones, and deepened too far
+    /// for the glyph they sink into it.
+    func testIconTilesStandOutFromTheirSurfaces() {
+        for (name, palette) in cases {
+            for hue in TileHue.allCases {
+                for (surfaceName, surface) in [
+                    ("canvas", palette.canvas), ("surface", palette.surface),
+                ] {
+                    let ratio = palette.tile(hue).contrastRatio(against: surface)
+                    XCTAssertGreaterThanOrEqual(
+                        ratio, 3.0,
+                        "\(name)/\(hue) on \(surfaceName) is \(String(format: "%.2f", ratio)):1")
+                }
+            }
+        }
+    }
+
+    /// The tiles are the web's hues, deepened — never a colour invented here, and never louder
+    /// than the web's own. Each channel of the fill is at or below the web's value.
+    func testTilesAreTheWebsHuesDeepened() {
+        for hue in TileHue.allCases {
+            let web = PaletteColor(hex: hue.webHex)
+            let tile = Palette.dark.tile(hue)
+            XCTAssertLessThanOrEqual(tile.red, web.red, "\(hue)")
+            XCTAssertLessThanOrEqual(tile.green, web.green, "\(hue)")
+            XCTAssertLessThanOrEqual(tile.blue, web.blue, "\(hue)")
+            XCTAssertLessThan(tile.luminance, web.luminance, "\(hue) is not deepened")
+        }
+    }
+
+    /// Cards lift on light with a faint shadow and do not cast one on dark, where the hairline
+    /// does that job and a shadow on near-black is a smudge.
+    func testCardsCastAShadowOnlyInLight() {
+        XCTAssertEqual(Palette.dark.cardShadow.opacity, 0, accuracy: 0.0001)
+        XCTAssertGreaterThan(Palette.light.cardShadow.opacity, 0)
+        XCTAssertLessThanOrEqual(
+            Palette.light.cardShadow.opacity, 0.14,
+            "no heavier than the web's own --ex-shadow-sm")
+    }
+
+    func testEachPaletteKnowsWhichItIs() {
+        XCTAssertTrue(Palette.dark.isDark)
+        XCTAssertFalse(Palette.light.isDark)
+    }
+
     // MARK: - Where we deliberately differ from the website
 
     /// The palette is ported from `emperor-ai/src/ui/theme.css`, and three values are

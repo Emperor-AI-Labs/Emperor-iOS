@@ -104,7 +104,7 @@ struct UsageMeterRow: View {
     let isMetered: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Spacing.sm - 2) {
             HStack(alignment: .firstTextBaseline) {
                 Text(meter.title)
                     .font(.brand(.subheadline))
@@ -116,9 +116,8 @@ struct UsageMeterRow: View {
                     .foregroundStyle(meter.isExhausted ? theme.danger : theme.textSecondary)
             }
             if let fraction = meter.fraction {
-                ProgressView(value: fraction)
-                    .tint(barColour)
-                    .accessibilityHidden(true)
+                MeterBar(fraction: fraction, color: barColour)
+                    .padding(.top, Spacing.xxs)
             }
             if let note = meter.note, isMetered {
                 Text(note)
@@ -127,7 +126,7 @@ struct UsageMeterRow: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.xs + 2)
         .accessibilityElement(children: .combine)
     }
 

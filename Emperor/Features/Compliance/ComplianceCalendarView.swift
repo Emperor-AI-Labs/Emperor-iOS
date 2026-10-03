@@ -68,10 +68,14 @@ struct ComplianceCalendarView: View {
 
                 if model.isFilteredToNothing {
                     Section {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(ComplianceCalendarViewModel.Copy.nothingMatches)
-                                .font(.brand(.subheadline))
-                                .foregroundStyle(theme.textSecondary)
+                        VStack(alignment: .leading, spacing: Spacing.sm) {
+                            Label {
+                                Text(ComplianceCalendarViewModel.Copy.nothingMatches)
+                            } icon: {
+                                Image(systemName: "line.3.horizontal.decrease.circle")
+                            }
+                            .font(.brand(.subheadline))
+                            .foregroundStyle(theme.textSecondary)
                             Button("Clear filters") { model.clearFilters() }
                                 .font(.brand(.subheadline, weight: .semibold))
                                 .foregroundStyle(theme.accentText)
@@ -110,13 +114,13 @@ struct ComplianceCalendarView: View {
         } empty: {
             // Only after a load that returned: "the feed has nothing dated", never "we could
             // not ask" — that is `LoadFailureView`'s job.
-            ContentUnavailableView {
-                Label(ComplianceCalendarViewModel.Copy.nothingTracked,
-                      systemImage: "calendar.badge.checkmark")
-            } description: {
-                Text(ComplianceCalendarViewModel.Copy.nothingTrackedDetail)
-            } actions: {
+            EmptyStateView(
+                ComplianceCalendarViewModel.Copy.nothingTracked,
+                systemImage: "calendar.badge.checkmark",
+                message: ComplianceCalendarViewModel.Copy.nothingTrackedDetail
+            ) {
                 Button("Refresh") { Task { await model.load() } }
+                    .buttonStyle(.secondaryAction)
             }
         }
         .toolbar {
@@ -131,34 +135,39 @@ struct ComplianceCalendarView: View {
     /// The web's three counts — overdue, next seven days, open — over whatever is filtered.
     private func summaryStrip(_ model: ComplianceCalendarViewModel) -> some View {
         let summary = model.summary
-        return HStack(spacing: 8) {
-            countTile(summary.overdue, label: "Overdue", systemImage: "exclamationmark.triangle",
-                      color: summary.overdue > 0 ? theme.danger : theme.textSecondary)
-            countTile(summary.dueSoon, label: "Next 7 days", systemImage: "clock",
-                      color: summary.dueSoon > 0 ? theme.warning : theme.textSecondary)
+        return HStack(spacing: Spacing.sm) {
+            countTile(summary.overdue, label: "Overdue", systemImage: "exclamationmark.triangle.fill",
+                      color: summary.overdue > 0 ? theme.danger : theme.textTertiary)
+            countTile(summary.dueSoon, label: "Next 7 days", systemImage: "clock.fill",
+                      color: summary.dueSoon > 0 ? theme.warning : theme.textTertiary)
             countTile(summary.open, label: "Open", systemImage: "calendar",
                       color: theme.accentText)
         }
     }
 
+    /// One of the three counts: its mark in a small wash of its colour, the number large and in
+    /// even-width figures so the three line up, and what it counts.
     private func countTile(_ count: Int, label: String, systemImage: String, color: Color)
         -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
             Image(systemName: systemImage)
                 .font(.brand(.caption, weight: .semibold))
                 .foregroundStyle(color)
+                .frame(minWidth: 26, minHeight: 26)
+                .background(color.opacity(0.14), in: Circle())
             Text("\(count)")
                 .font(.brand(.title2, weight: .semibold).monospacedDigit())
                 .foregroundStyle(theme.textPrimary)
+                .padding(.top, Spacing.xxs)
             Text(label)
-                .font(.brand(.caption2))
+                .font(.brand(.caption, weight: .medium))
                 .foregroundStyle(theme.textSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.md)
         .panel()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label): \(count)")
@@ -169,7 +178,7 @@ struct ComplianceCalendarView: View {
     private func categoryChips(_ model: ComplianceCalendarViewModel) -> some View {
         let selected = model.category
         return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 chip("All", systemImage: nil, count: model.count(in: nil),
                      isSelected: selected == nil) {
                     model.select(category: nil)
@@ -191,25 +200,10 @@ struct ComplianceCalendarView: View {
         _ title: String, systemImage: String?, count: Int, isSelected: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        // Spelled out rather than an implicit member on each side of the ternary: `brand` takes
-        // an `Optional` weight, which `-parse` accepts and the type checker then argues with.
-        let weight: Font.Weight? = isSelected ? Font.Weight.semibold : Font.Weight.regular
-        return Button(action: action) {
-            HStack(spacing: 5) {
-                if let systemImage {
-                    Image(systemName: systemImage)
-                }
-                Text(title)
-                Text("\(count)")
-                    .foregroundStyle(isSelected ? theme.onAccent : theme.textTertiary)
-            }
-            .font(.brand(.subheadline, weight: weight))
-            .foregroundStyle(isSelected ? theme.onAccent : theme.textSecondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(isSelected ? theme.accent : theme.surfaceElevated, in: Capsule())
+        Button(action: action) {
+            ChipLabel(title: title, systemImage: systemImage, count: count, isSelected: isSelected)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ChipButtonStyle(isSelected: isSelected))
         .accessibilityLabel("\(title), \(count)")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
@@ -258,7 +252,7 @@ struct ComplianceCalendarView: View {
         -> some View {
         let urgency = model.urgency(of: deadline)
         let done = model.isDone(deadline)
-        return HStack(alignment: .top, spacing: 12) {
+        return HStack(alignment: .top, spacing: Spacing.md) {
             dateTile(deadline.dueDay, urgency: urgency)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -291,7 +285,7 @@ struct ComplianceCalendarView: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.xs)
     }
 
     private func sourceLine(_ deadline: StatutoryDeadline) -> String {
@@ -313,10 +307,15 @@ struct ComplianceCalendarView: View {
                 .font(.brand(.caption2))
                 .foregroundStyle(theme.textSecondary)
         }
-        .frame(minWidth: 44)
-        .padding(.vertical, 6)
-        .padding(.horizontal, 4)
-        .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .frame(minWidth: 46)
+        .padding(.vertical, Spacing.sm - 2)
+        .padding(.horizontal, Spacing.xs)
+        .background(
+            accent.opacity(0.12),
+            in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .strokeBorder(accent.opacity(0.25), lineWidth: 0.5))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(day.map(DisplayText.longDay) ?? "No date")
     }

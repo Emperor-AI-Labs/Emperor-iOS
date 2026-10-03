@@ -37,19 +37,25 @@ struct EnhancedPromptSheet: View {
                         .accessibilityLabel(prompt(for: label))
                     }
                 } header: {
-                    Text("What's missing")
+                    SectionHeader(title: "What's missing")
                 } footer: {
                     Text(PromptEnhancerViewModel.Copy.fillFooter)
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textSecondary)
                 }
+                .listRowBackground(theme.surface)
 
-                Section("Your question will read") {
+                Section {
                     Text(preview)
                         .font(.brand(.callout))
                         .foregroundStyle(theme.textPrimary)
                         .textSelection(.enabled)
+                } header: {
+                    SectionHeader(title: "Your question will read")
                 }
                 .listRowBackground(theme.surfaceElevated)
             }
+            .font(.brand(.body))
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
             .navigationTitle(PromptEnhancerViewModel.Copy.fillTitle)

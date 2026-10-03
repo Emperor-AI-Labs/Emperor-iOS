@@ -15,6 +15,9 @@ struct EmperorApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        // Before any view exists, so the first navigation bar drawn already wears the brand.
+        BrandAppearance.apply()
+
         #if DEBUG
         if UITestSupport.isActive {
             // Both directions have to be set, not just one. `UserDefaults` survives between

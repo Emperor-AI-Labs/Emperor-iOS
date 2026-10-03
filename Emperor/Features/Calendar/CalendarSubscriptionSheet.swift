@@ -120,12 +120,13 @@ struct CalendarSubscriptionSheet: View {
                     } label: {
                         HStack {
                             Label("Reset link…", systemImage: "arrow.triangle.2.circlepath")
-                            Spacer(minLength: 8)
+                                .foregroundStyle(theme.danger)
+                            Spacer(minLength: Spacing.sm)
                             if model.isResetting {
                                 ProgressView()
                             }
                         }
-                        .font(.brand(.subheadline))
+                        .font(.brand(.subheadline, weight: .medium))
                     }
                     .disabled(!model.canUseLink)
                 } footer: {
@@ -141,9 +142,10 @@ struct CalendarSubscriptionSheet: View {
         } empty: {
             // Unreachable in practice: a load that returns carries a link or throws. Legible
             // rather than blank if that ever stops being true.
-            ContentUnavailableView(
+            EmptyStateView(
                 "No link yet", systemImage: "link",
-                description: Text("Emperor did not return a calendar link. Try again shortly."))
+                message: "Emperor did not return a calendar link. Try again shortly.",
+                tone: .neutral)
         }
         .confirmationDialog(
             CalendarSubscriptionViewModel.Copy.resetTitle,
@@ -168,11 +170,9 @@ struct CalendarSubscriptionSheet: View {
     }
 
     private var intro: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: "calendar.badge.plus")
-                .font(.brand(.title))
-                .foregroundStyle(theme.accentText)
-                .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            IconTile(systemImage: "calendar.badge.plus", hue: .indigo, size: .large)
+                .padding(.bottom, Spacing.xs)
             Text("Your diary in Calendar")
                 .font(.brand(.title3, weight: .semibold))
                 .foregroundStyle(theme.textPrimary)

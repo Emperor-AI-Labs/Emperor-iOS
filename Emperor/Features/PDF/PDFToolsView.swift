@@ -18,7 +18,7 @@ struct PDFToolsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: Spacing.xxl) {
                     Text("Everyday document jobs. Split, merge, rearrange, compress and image to PDF run on this phone — those files never leave it. PDF to Word is read on Emperor's servers.")
                         .font(.brand(.subheadline))
                         .foregroundStyle(theme.textSecondary)
@@ -27,8 +27,11 @@ struct PDFToolsView: View {
                     group("Documents", tools: DocumentTool.documentTools)
                     group("Images", tools: DocumentTool.imageTools)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                // A readable width on an iPad, centred, rather than cards stretched edge to edge.
+                .frame(maxWidth: 760)
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.md)
+                .frame(maxWidth: .infinity)
             }
             .background(theme.canvas)
             .navigationTitle("File tools")
@@ -49,13 +52,14 @@ struct PDFToolsView: View {
     private var columns: [GridItem] {
         dynamicTypeSize.isAccessibilitySize
             ? [GridItem(.flexible())]
-            : [GridItem(.adaptive(minimum: 158), spacing: 12, alignment: .top)]
+            : [GridItem(.adaptive(minimum: 158), spacing: Spacing.md, alignment: .top)]
     }
 
     private func group(_ title: String, tools: [DocumentTool]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Spacing.sm + 2) {
             SectionHeader(title: title)
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                .padding(.horizontal, Spacing.xs)
+            LazyVGrid(columns: columns, alignment: .leading, spacing: Spacing.md) {
                 ForEach(tools) { tool in
                     NavigationLink(value: tool) {
                         ToolCard(tool: tool)
@@ -87,13 +91,9 @@ private struct ToolCard: View {
     let tool: DocumentTool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Spacing.sm + 2) {
             HStack(alignment: .top) {
-                Image(systemName: tool.symbol)
-                    .font(.brand(.title3, weight: .semibold))
-                    .foregroundStyle(theme.accentText)
-                    .frame(width: 44, height: 44)
-                    .background(theme.surfaceAccent, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                IconTile(systemImage: tool.symbol, hue: hue, size: .large)
                 Spacer(minLength: 6)
                 StatusPill(
                     text: tool.isOnDevice ? "On this phone" : "Uploaded",
@@ -103,17 +103,33 @@ private struct ToolCard: View {
             Text(tool.title)
                 .font(.brand(.headline))
                 .foregroundStyle(theme.textPrimary)
+                .padding(.top, Spacing.xxs)
             Text(tool.summary)
                 .font(.brand(.caption))
                 .foregroundStyle(theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .padding(14)
+        .padding(Spacing.lg)
         .frame(maxWidth: .infinity, minHeight: 168, alignment: .topLeading)
         .panel()
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityHint(tool.isOnDevice ? "Runs on this phone" : "The document is uploaded to be converted")
+    }
+
+    /// One of the web's muted hues per tool, so the grid reads as seven tools rather than one
+    /// tile seven times. Fixed here rather than hashed: these are the app's own cards, not
+    /// registry tools, and the seven should never collide.
+    private var hue: TileHue {
+        switch tool {
+        case .split: return .rose
+        case .merge: return .steel
+        case .rearrange: return .violet
+        case .compressPDF: return .teal
+        case .imageToPDF: return .gold
+        case .compressImage: return .aqua
+        case .pdfToWord: return .indigo
+        }
     }
 }

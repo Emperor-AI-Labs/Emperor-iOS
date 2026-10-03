@@ -44,6 +44,11 @@ struct MainTabView: View {
             get: { navigator.selectedTab },
             set: { navigator.selectedTab = $0 }
         )) {
+            // Outline names throughout: the bar fills each one itself, which is the iOS
+            // convention, so every symbol here is one whose filled form reads as clearly as its
+            // outline. The marks are the conventional ones for each place — a house, a
+            // briefcase for the docket, two speech bubbles for conversations, the calendar page,
+            // and the ellipsis iOS uses for "the rest".
             CauseListView()
                 .tabItem {
                     Label("Home", systemImage: "house")
@@ -56,14 +61,16 @@ struct MainTabView: View {
                 }
                 .tag(AppNavigator.Tab.cases)
 
+            // Two plain bubbles rather than the bubble with lines of text in it that this was:
+            // at tab-bar size the text lines blurred into a grey patch.
             ChatListView()
                 .tabItem {
-                    Label("Chat", systemImage: "bubble.left.and.text.bubble.right")
+                    Label("Chat", systemImage: "bubble.left.and.bubble.right")
                 }
                 .tag(AppNavigator.Tab.chat)
 
-            // The outline calendar, matching the outline symbols either side of it — not the
-            // web's `CalendarCheck`, which belonged to the Corporate Calendar this place held.
+            // The calendar page, matching the symbols either side of it — not the web's
+            // `CalendarCheck`, which belonged to the Corporate Calendar this place held.
             CalendarView()
                 .tabItem {
                     Label("Calendar", systemImage: "calendar")
@@ -72,7 +79,7 @@ struct MainTabView: View {
 
             MoreView()
                 .tabItem {
-                    Label("More", systemImage: "line.3.horizontal")
+                    Label("More", systemImage: "ellipsis.circle")
                 }
                 .tag(AppNavigator.Tab.more)
         }

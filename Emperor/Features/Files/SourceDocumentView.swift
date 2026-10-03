@@ -66,12 +66,18 @@ struct SourceDocumentView: View {
                         // line breaks are LibreOffice's reading of the file, so a page number
                         // taken from here may not match the one the sender sees — which for a
                         // filing is the difference that matters.
-                        Text("Converted for viewing. Page breaks may differ from the original.")
-                            .font(.brand(.caption2))
+                        Label(
+                            "Converted for viewing. Page breaks may differ from the original.",
+                            systemImage: "info.circle")
+                            .font(.brand(.caption))
                             .foregroundStyle(theme.textSecondary)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
+                            .padding(.vertical, Spacing.sm)
+                            .padding(.horizontal, Spacing.lg)
                             .background(theme.surface)
+                            .overlay(alignment: .top) {
+                                Rectangle().fill(theme.separator).frame(height: 0.5)
+                            }
                     }
                 }
         } else if let data = model.data, let image = UIImage(data: data) {
@@ -88,10 +94,11 @@ struct SourceDocumentView: View {
                     .padding()
             }
         } else {
-            ContentUnavailableView(
+            EmptyStateView(
                 "Cannot preview this document",
                 systemImage: "doc.questionmark",
-                description: Text(model.unavailableMessage))
+                message: model.unavailableMessage,
+                tone: .neutral)
         }
     }
 }

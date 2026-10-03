@@ -38,6 +38,7 @@ struct ReportAnswerSheet: View {
                 } header: {
                     SectionHeader(title: "What is wrong with it")
                 }
+                .listRowBackground(theme.surface)
 
                 Section {
                     TextField("Anything that would help (optional)", text: $comment, axis: .vertical)
@@ -48,12 +49,18 @@ struct ReportAnswerSheet: View {
                     // end of their explanation and never be told.
                     if remaining < 500 {
                         Text("\(max(remaining, 0)) characters left.")
+                            .font(.brand(.caption))
+                            .monospacedDigit()
                             .foregroundStyle(remaining < 0 ? theme.danger : theme.textTertiary)
                     } else {
                         Text("The answer itself is not sent — only this conversation's id, so a reviewer can find it.")
+                            .font(.brand(.caption))
+                            .foregroundStyle(theme.textSecondary)
                     }
                 }
+                .listRowBackground(theme.surface)
             }
+            .font(.brand(.body))
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
             .navigationTitle("Report this answer")

@@ -59,26 +59,27 @@ struct NotificationsView: View {
                     SectionHeader(
                         title: "Recent",
                         detail: model.unreadCount > 0 ? "\(model.unreadCount) new" : nil)
+                } footer: {
+                    // No cursor exists on this API and it clamps at 200 with no truncation
+                    // signal, so older rows are genuinely unreachable. Saying so beats implying
+                    // the list is complete.
+                    if model.mayHaveOlderUnreachable {
+                        Text("Showing the most recent \(NotificationService.maximumLimit). Older updates are not available here.")
+                            .font(.brand(.caption))
+                            .foregroundStyle(theme.textSecondary)
+                    }
                 }
-
-                // No cursor exists on this API and it clamps at 200 with no truncation signal,
-                // so older rows are genuinely unreachable. Saying so beats implying the list
-                // is complete.
-                if model.mayHaveOlderUnreachable {
-                    Text("Showing the most recent \(NotificationService.maximumLimit). Older updates are not available here.")
-                        .font(.brand(.caption))
-                        .foregroundStyle(theme.textSecondary)
-                }
+                .listRowBackground(theme.surface)
             }
-            .listStyle(.plain)
+            .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
             .refreshable { await model.load() }
         } empty: {
-            ContentUnavailableView(
+            EmptyStateView(
                 "Nothing new",
                 systemImage: "bell",
-                description: Text("Changes on your matters — new orders, hearing dates, status — appear here."))
+                message: "Changes on your matters — new orders, hearing dates, status — appear here.")
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -110,14 +111,19 @@ struct NotificationsView: View {
                 break
             }
         } label: {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: notification.kind.systemImage)
-                    .foregroundStyle(notification.isRead ? theme.textSecondary : theme.accentText)
-                    .frame(width: 22)
+            HStack(alignment: .top, spacing: Spacing.md) {
+                // Each kind in its own hue, greyed once read, so the unread stand out by
+                // colour as well as by weight and the dot.
+                IconTile(
+                    systemImage: notification.kind.systemImage,
+                    hue: notification.isRead ? .graphite : hue(notification.kind))
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(notification.title ?? notification.kind.label)
-                        .font(.subheadline.weight(notification.isRead ? .regular : .semibold))
+                        .font(notification.isRead
+                              ? Font.brand(.subheadline)
+                              : Font.brand(.subheadline, weight: .semibold))
+                        .foregroundStyle(theme.textPrimary)
                         .lineLimit(2)
                     if let body = notification.body, !body.isEmpty {
                         Text(body)
@@ -136,16 +142,27 @@ struct NotificationsView: View {
 
                 if !notification.isRead {
                     Circle()
-                        .fill(theme.accent)
+                        .fill(theme.accentText)
                         .frame(width: 8, height: 8)
-                        .padding(.top, 5)
+                        .padding(.top, 6)
                         .accessibilityLabel("Unread")
                 }
             }
             .contentShape(Rectangle())
-            .padding(.vertical, 3)
+            .padding(.vertical, Spacing.xxs)
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
+    }
+
+    private func hue(_ kind: NotificationKind) -> TileHue {
+        switch kind {
+        case .hearing: return .teal
+        case .order: return .indigo
+        case .status: return .steel
+        case .team: return .violet
+        case .auction: return .gold
+        case .other: return .graphite
+        }
     }
 }

@@ -64,7 +64,7 @@ struct CaseDetailView: View {
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
         } empty: {
-            ContentUnavailableView("Matter unavailable", systemImage: "questionmark.folder")
+            EmptyStateView("Matter unavailable", systemImage: "questionmark.folder", tone: .neutral)
         }
         .refreshable { await model.load() }
         .toolbar {
@@ -113,7 +113,7 @@ struct CaseDetailView: View {
 
     @ViewBuilder
     private func overview(_ legalCase: LegalCase, _ model: CaseDetailViewModel) -> some View {
-        Section("Overview") {
+        Section {
             if let reference = legalCase.caseReference {
                 LabeledContent("Case", value: reference)
             }
@@ -139,10 +139,19 @@ struct CaseDetailView: View {
             }
 
             // Said plainly, because it decides whether the dates above are worth trusting.
-            Text(model.syncDescription)
-                .font(.brand(.caption))
-                .foregroundStyle(model.isCourtSynced ? theme.textSecondary : theme.warning)
+            Label {
+                Text(model.syncDescription)
+            } icon: {
+                Image(systemName: model.isCourtSynced ? "building.columns" : "exclamationmark.triangle")
+            }
+            .font(.brand(.caption))
+            .foregroundStyle(model.isCourtSynced ? theme.textSecondary : theme.warning)
+        } header: {
+            // A plain heading rather than `Section("Overview")`, which iOS draws in its own
+            // capitals and face; the words are unchanged, and the Calendar's UI test finds them.
+            SectionHeader(title: "Overview")
         }
+        .listRowBackground(theme.surface)
     }
 
     /// The tab strip: one row, scrolling horizontally, as the library's category bar does.
@@ -159,30 +168,18 @@ struct CaseDetailView: View {
             HStack(spacing: 8) {
                 ForEach(model.tabs) { tab in
                     let isSelected = selectedID == tab.id
-                    // Spelled out rather than an implicit member on each side of the ternary:
-                    // `brand(_:weight:)` takes an `Optional`, and that is the shape `-parse`
-                    // accepts and the type checker then argues with. See `ProjectDetailView`.
-                    let weight: Font.Weight? = isSelected ? Font.Weight.semibold : Font.Weight.regular
                     Button {
                         model.selectedTabID = tab.id
                     } label: {
-                        HStack(spacing: 5) {
-                            Text(tab.label)
-                            Text(tab.count.formatted())
-                                .foregroundStyle(isSelected ? theme.onAccent : theme.textTertiary)
-                        }
-                        .font(.brand(.subheadline, weight: weight))
-                        .foregroundStyle(isSelected ? theme.onAccent : theme.textSecondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(isSelected ? theme.accent : theme.surfaceElevated, in: Capsule())
+                        ChipLabel(title: tab.label, count: tab.count, isSelected: isSelected)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ChipButtonStyle(isSelected: isSelected))
                     .accessibilityLabel("\(tab.label), \(tab.count)")
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.sm + 2)
         }
     }
 
@@ -207,6 +204,7 @@ struct CaseDetailView: View {
                     }
                 }
             }
+            .listRowBackground(theme.surface)
         }
     }
 
@@ -214,13 +212,20 @@ struct CaseDetailView: View {
         Button {
             Task { await model.openOrder(item) }
         } label: {
-            HStack {
+            HStack(spacing: Spacing.md) {
                 itemRow(item, model)
                 Spacer(minLength: 0)
                 if model.isWriting {
                     ProgressView()
+                } else {
+                    // An order opens a document, so it says so where the eye ends the row.
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.brand(.subheadline))
+                        .foregroundStyle(theme.accentText)
+                        .accessibilityHidden(true)
                 }
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         // Fetching an order is a live call to a court portal and can take seconds.
@@ -292,6 +297,7 @@ private struct OrderDocumentView: View {
                             ShareLink(item: url) {
                                 Image(systemName: "square.and.arrow.up")
                             }
+                            .accessibilityLabel("Share")
                         }
                     }
                 }

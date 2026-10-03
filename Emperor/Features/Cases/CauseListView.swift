@@ -16,6 +16,8 @@ struct CauseListView: View {
     @State private var isDigitising = false
     @State private var isShowingUpdates = false
     @State private var unread = 0
+    /// The day steps, a fingertip wide and growing with the text beside them.
+    @ScaledMetric(relativeTo: .subheadline) private var stepSide: CGFloat = 36
 
     var body: some View {
         NavigationStack {
@@ -51,15 +53,21 @@ struct CauseListView: View {
                     .padding(.top, 8)
             }
             header(model)
-            Divider()
 
             ListStateView(presentation: model.presentation, retry: { await model.load() }) {
-                List(model.listingsForSelectedDay) { listing in
-                    NavigationLink(value: listing.caseID) {
-                        CauseListingRow(listing: listing)
+                // Each listing on its own card row, as the Calendar's day draws the same rows —
+                // one look for a listing wherever it appears.
+                List {
+                    Section {
+                        ForEach(model.listingsForSelectedDay) { listing in
+                            NavigationLink(value: listing.caseID) {
+                                CauseListingRow(listing: listing)
+                            }
+                        }
                     }
+                    .listRowBackground(theme.surface)
                 }
-                .listStyle(.plain)
+                .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
                 .background(theme.canvas)
                 .refreshable { await model.load() }
@@ -117,68 +125,92 @@ struct CauseListView: View {
     }
 
     /// The date bar, plus the framing line that says whose cases these are.
+    ///
+    /// The day leads, left-aligned under the large title the way a diary page is headed, with
+    /// the two steps beside it as round buttons a thumb finds without looking. "Today" appears
+    /// only once there is somewhere to come back from — the heading itself does the same on a
+    /// tap, but a control nobody can see is not one anybody uses.
     private func header(_ model: CauseListViewModel) -> some View {
-        VStack(spacing: 6) {
-            HStack {
-                Button {
-                    model.step(days: -1)
-                } label: {
-                    Image(systemName: "chevron.left")
+        HStack(alignment: .center, spacing: Spacing.md) {
+            Button {
+                model.goToToday()
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(DisplayText.longDay(model.selectedDay))
+                        .font(.brand(.headline, weight: .semibold))
+                        .foregroundStyle(theme.textPrimary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
+                    // On every state, including the empty one.
+                    Text(CauseListViewModel.Copy.subtitle)
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textTertiary)
                 }
-                .accessibilityLabel("Previous day")
-
-                Spacer()
-
-                Button {
-                    model.goToToday()
-                } label: {
-                    VStack(spacing: 1) {
-                        Text(DisplayText.longDay(model.selectedDay))
-                            .font(.brand(.subheadline, weight: .semibold))
-                        // On every state, including the empty one.
-                        Text(CauseListViewModel.Copy.subtitle)
-                            .font(.brand(.caption2))
-                            .foregroundStyle(theme.textTertiary)
-                    }
-                }
-                .buttonStyle(.plain)
-                // `allowsHitTesting` rather than `.disabled`: the latter dims the screen's
-                // primary heading on every cold open, because today is the default day.
-                .allowsHitTesting(!model.isShowingToday)
-                .accessibilityElement(children: .combine)
-                .accessibilityHint(model.isShowingToday ? "" : "Return to today")
-
-                Spacer()
-
-                Button {
-                    model.step(days: 1)
-                } label: {
-                    Image(systemName: "chevron.right")
-                }
-                .accessibilityLabel("Next day")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal)
-            .padding(.top, 8)
-            .padding(.bottom, 6)
+            .buttonStyle(.plain)
+            // `allowsHitTesting` rather than `.disabled`: the latter dims the screen's
+            // primary heading on every cold open, because today is the default day.
+            .allowsHitTesting(!model.isShowingToday)
+            .accessibilityElement(children: .combine)
+            .accessibilityHint(model.isShowingToday ? "" : "Return to today")
+
+            if !model.isShowingToday {
+                Button("Today") { model.goToToday() }
+                    .font(.brand(.caption, weight: .semibold))
+                    .foregroundStyle(theme.accentText)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, 6)
+                    .background(theme.accentWash, in: Capsule())
+                    .buttonStyle(.plain)
+                    .transition(.opacity)
+            }
+
+            HStack(spacing: Spacing.sm) {
+                stepButton("chevron.left", label: "Previous day") { model.step(days: -1) }
+                stepButton("chevron.right", label: "Next day") { model.step(days: 1) }
+            }
         }
+        // The system's own margin, so the day lines up under the large title above it.
+        .padding(.horizontal)
+        .padding(.top, Spacing.sm)
+        .padding(.bottom, Spacing.xs)
+        .animation(.easeOut(duration: 0.15), value: model.isShowingToday)
+    }
+
+    /// A round step button, the size of a fingertip.
+    private func stepButton(
+        _ systemImage: String, label: String, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.brand(.subheadline, weight: .semibold))
+                .foregroundStyle(theme.textPrimary)
+                .frame(width: min(stepSide, 52), height: min(stepSide, 52))
+                .background(theme.surface, in: Circle())
+                .overlay(Circle().strokeBorder(theme.separator, lineWidth: 1))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     /// An empty day is a real answer, so it is never skipped — but it should not be a dead end
     /// either. The signpost says where the next listing actually is.
     private func emptyState(_ model: CauseListViewModel) -> some View {
-        ContentUnavailableView {
-            Label(model.emptyTitle, systemImage: "calendar.badge.checkmark")
-        } description: {
-            Text(model.emptyDetail)
-        } actions: {
+        EmptyStateView(
+            model.emptyTitle, systemImage: "calendar.badge.checkmark", message: model.emptyDetail
+        ) {
             if let next = model.nextListedDay {
                 Button("Next listing — \(DisplayText.longDay(next))") {
                     model.select(day: next)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.primaryAction)
             }
             if let previous = model.previousListedDay {
                 Button("Previous listing") { model.select(day: previous) }
+                    .buttonStyle(.secondaryAction)
             }
         }
     }

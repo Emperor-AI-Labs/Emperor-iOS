@@ -38,9 +38,12 @@ struct SettingsView: View {
                     NavigationLink {
                         RolePickerView()
                     } label: {
-                        LabeledContent("Practising as") {
-                            Text(practice.role.label).foregroundStyle(theme.textPrimary)
-                        }
+                        // The role's own mark and colour, as the role choice draws it.
+                        IconRowLabel(
+                            title: "Practising as",
+                            systemImage: practice.role.systemImage,
+                            hue: practice.role.tileHue,
+                            value: practice.role.label)
                     }
                 } header: {
                     SectionHeader(title: "Your work")
@@ -75,8 +78,9 @@ struct SettingsView: View {
                     NavigationLink {
                         DisclaimerReferenceView()
                     } label: {
-                        Label(Disclaimer.title, systemImage: "exclamationmark.shield")
-                            .foregroundStyle(theme.textPrimary)
+                        IconRowLabel(
+                            title: Disclaimer.title, systemImage: "exclamationmark.shield",
+                            hue: .gold)
                     }
                 } header: {
                     SectionHeader(title: "Important")
@@ -89,8 +93,12 @@ struct SettingsView: View {
                     Button(role: .destructive) {
                         isConfirmingSignOut = true
                     } label: {
-                        Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+                        // Danger-coloured words beside a rose tile: findable, not alarming.
+                        IconRowLabel(
+                            title: "Sign out", systemImage: "rectangle.portrait.and.arrow.right",
+                            hue: .rose, titleColor: theme.danger)
                     }
+                    .accessibilityLabel(Text("Sign out"))
                 } footer: {
                     // What signing out actually does on this device, which is the part a person
                     // handing the phone to someone else needs to know.
@@ -99,6 +107,7 @@ struct SettingsView: View {
                 }
                 .listRowBackground(theme.surface)
             }
+            .font(.brand(.body))
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(theme.canvas)

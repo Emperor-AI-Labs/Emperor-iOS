@@ -80,7 +80,7 @@ struct RearrangePDFView: View {
         let parsed = model.parsed
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
                 sourcePanel(model)
 
                 if model.source != nil {
@@ -90,8 +90,11 @@ struct RearrangePDFView: View {
                 }
 
                 OnDeviceNote()
+                    .padding(.horizontal, Spacing.xs)
             }
-            .padding(16)
+            .frame(maxWidth: 760)
+            .padding(Spacing.lg)
+            .frame(maxWidth: .infinity)
         }
         .scrollDismissesKeyboard(.interactively)
     }
@@ -122,7 +125,7 @@ struct RearrangePDFView: View {
                 ToolFailureRow(message: openFailure)
             }
         }
-        .padding(14)
+        .padding(Spacing.lg)
         .panel()
     }
 
@@ -140,8 +143,14 @@ struct RearrangePDFView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .focused($isEditing)
-                .padding(10)
-                .background(theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .padding(Spacing.md)
+                .background(
+                    theme.surfaceElevated,
+                    in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                        .strokeBorder(isEditing ? theme.accent : theme.separator,
+                                      lineWidth: isEditing ? 1.5 : 1))
                 .accessibilityLabel("Page order")
 
             Text("Pages come out in exactly the order you write them — nothing is sorted or tidied up. Write `9-7` to count backwards, `5x3` for three copies of page 5, and repeat a page as often as you like. `all`, `reverse`, `odd`, `even`, `first` and `last` also work.")
@@ -150,19 +159,14 @@ struct RearrangePDFView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.sm) {
                     ForEach(PageOrder.examples) { example in
                         Button {
                             model.apply(example)
                         } label: {
                             Text(example.label)
-                                .font(.brand(.caption, weight: .semibold))
-                                .foregroundStyle(theme.textPrimary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 7)
-                                .background(theme.surfaceElevated, in: Capsule())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(ChipButtonStyle(isSelected: false))
                         .disabled(model.state.isRunning)
                         .accessibilityHint(example.why)
                     }
@@ -175,12 +179,14 @@ struct RearrangePDFView: View {
                         ToolFailureRow(message: error)
                     }
                 }
-                .padding(10)
+                .padding(Spacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(theme.danger.opacity(0.1), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .background(
+                    theme.danger.opacity(0.1),
+                    in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             }
         }
-        .padding(14)
+        .padding(Spacing.lg)
         .panel()
     }
 
@@ -221,7 +227,7 @@ struct RearrangePDFView: View {
                 }
             }
         }
-        .padding(14)
+        .padding(Spacing.lg)
         .panel()
     }
 
@@ -259,7 +265,7 @@ struct RearrangePDFView: View {
                 ToolResultRow(file: output)
             }
         }
-        .padding(14)
+        .padding(Spacing.lg)
         .panel()
     }
 }
@@ -348,9 +354,9 @@ private struct PageChip: View {
             .padding(.top, 4)
         }
         .padding(4)
-        .background(theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(theme.surface, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                 .strokeBorder(theme.separator, lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Position \(position + 1) of \(total): page \(page)")

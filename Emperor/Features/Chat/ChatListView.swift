@@ -74,40 +74,62 @@ struct ChatListView: View {
 
     private func content(_ model: ChatListViewModel) -> some View {
         ListStateView(presentation: model.presentation, retry: { await model.load() }) {
-            List(model.chats) { chat in
-                NavigationLink(value: chat.id) {
-                    row(for: chat)
+            List {
+                Section {
+                    ForEach(model.chats) { chat in
+                        NavigationLink(value: chat.id) {
+                            row(for: chat)
+                        }
+                    }
+                } header: {
+                    SectionHeader(title: "Recent", detail: "\(model.chats.count)")
                 }
+                .listRowBackground(theme.surface)
             }
-            .listStyle(.plain)
+            .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
             .refreshable { await model.load() }
         } empty: {
-            ContentUnavailableView(
+            EmptyStateView(
                 "No conversations yet",
-                systemImage: "doc.text",
-                description: Text("Start one, or bring in a paperbook to ask about."))
+                systemImage: "bubble.left.and.bubble.right",
+                message: "Start one, or bring in a paperbook to ask about.") {
+                Button {
+                    path.append(ChatListViewModel.newChatID())
+                } label: {
+                    Label("New conversation", systemImage: "square.and.pencil")
+                }
+                .buttonStyle(.primaryAction)
+            }
         }
     }
 
+    /// The title, when it was last touched, and a line of what was said — the order a mail list
+    /// reads in, so the eye finds the matter first and the date beside it.
     private func row(for chat: ChatSummary) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(chat.displayTitle)
-                .font(.brand(.headline))
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                Text(chat.displayTitle)
+                    .font(.brand(.headline))
+                    .foregroundStyle(theme.textPrimary)
+                    .lineLimit(1)
+                Spacer(minLength: Spacing.sm)
+                if let updated = chat.updatedAt {
+                    Text(updated, format: .relative(presentation: .named))
+                        .font(.brand(.caption))
+                        .monospacedDigit()
+                        .foregroundStyle(theme.textTertiary)
+                        .lineLimit(1)
+                }
+            }
             if let preview = chat.lastPreview, !preview.isEmpty {
                 Text(preview)
                     .font(.brand(.subheadline))
                     .foregroundStyle(theme.textSecondary)
                     .lineLimit(2)
             }
-            if let updated = chat.updatedAt {
-                Text(updated, format: .relative(presentation: .named))
-                    .font(.brand(.caption))
-                    .foregroundStyle(theme.textTertiary)
-            }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.xs)
     }
 }

@@ -12,6 +12,7 @@ struct ReasoningPanel: View {
     let liveStatus: String?
 
     @State private var isExpanded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if snapshot.isEmpty && liveStatus == nil {
@@ -20,14 +21,19 @@ struct ReasoningPanel: View {
             VStack(alignment: .leading, spacing: 0) {
                 header
                 if isExpanded {
-                    Divider().padding(.vertical, 8)
+                    Rectangle()
+                        .fill(theme.separator)
+                        .frame(height: 1)
+                        .padding(.vertical, Spacing.sm + 2)
                     detail
+                        .transition(.opacity)
                 }
             }
-            .padding(12)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm + 2)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
-            .animation(.easeInOut(duration: 0.2), value: isExpanded)
+            .panel(radius: Radius.control)
+            .animation(reduceMotion ? nil : Animation.easeInOut(duration: 0.2), value: isExpanded)
         }
     }
 
@@ -37,33 +43,41 @@ struct ReasoningPanel: View {
         Button {
             isExpanded.toggle()
         } label: {
-            HStack(spacing: 8) {
-                if isStreaming {
-                    ProgressView().controlSize(.mini)
-                } else {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.brand(.caption))
-                        .foregroundStyle(theme.textSecondary)
+            HStack(spacing: Spacing.sm) {
+                // A fixed slot, so the summary does not shift sideways when the spinner gives
+                // way to the tick.
+                ZStack {
+                    if isStreaming {
+                        ProgressView().controlSize(.mini)
+                    } else {
+                        Image(systemName: "checklist")
+                            .font(.brand(.footnote, weight: .medium))
+                            .foregroundStyle(theme.accentText)
+                    }
                 }
+                .frame(width: 18)
+                .accessibilityHidden(true)
 
                 Text(summary)
-                    .font(.brand(.caption))
+                    .font(.brand(.footnote, weight: .medium))
                     .foregroundStyle(theme.textSecondary)
                     .lineLimit(1)
 
                 Spacer(minLength: 0)
 
                 if !snapshot.isEmpty {
-                    Image(systemName: "chevron.down")
-                        .font(.brand(.caption2))
+                    Image(systemName: "chevron.right")
+                        .font(.brand(.caption, weight: .semibold))
                         .foregroundStyle(theme.textTertiary)
-                        .rotationEffect(.degrees(isExpanded ? 0 : -90))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        .accessibilityHidden(true)
                 }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(snapshot.isEmpty)
+        .accessibilityValue(snapshot.isEmpty ? "" : (isExpanded ? "Expanded" : "Collapsed"))
     }
 
     /// While running, the live status is more informative than a count. Once finished, the
@@ -128,9 +142,10 @@ struct ReasoningPanel: View {
         _ title: String, @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(title.uppercased())
-                .font(.brand(.caption2, weight: .semibold))
+            Text(title)
+                .font(.brand(.caption, weight: .semibold))
                 .foregroundStyle(theme.textTertiary)
+                .accessibilityAddTraits(.isHeader)
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -140,8 +155,9 @@ struct ReasoningPanel: View {
         HStack(alignment: .firstTextBaseline, spacing: 7) {
             statusIcon(row.status)
             Text(row.title)
-                .font(isSubtask ? .caption : .caption.weight(.medium))
-                .foregroundStyle(row.status == .pending ? .tertiary : .secondary)
+                // Spelled out on both sides: `font(_:)` takes an `Optional`.
+                .font(isSubtask ? Font.brand(.caption) : Font.brand(.caption, weight: .medium))
+                .foregroundStyle(row.status == .pending ? theme.textTertiary : theme.textSecondary)
             Spacer(minLength: 0)
         }
         .padding(.leading, isSubtask ? 16 : 0)
@@ -155,7 +171,8 @@ struct ReasoningPanel: View {
                 // A superseded call is struck through: it really happened, but its results
                 // were thrown away, and it must not read as work the answer rests on.
                 .strikethrough(step.status == .superseded)
-                .foregroundStyle(step.status == .superseded ? .tertiary : .secondary)
+                .foregroundStyle(
+                    step.status == .superseded ? theme.textTertiary : theme.textSecondary)
             Spacer(minLength: 0)
         }
     }

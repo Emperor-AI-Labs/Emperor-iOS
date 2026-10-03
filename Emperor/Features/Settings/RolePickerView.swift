@@ -62,11 +62,10 @@ struct RoleOptionLabel: View {
     let isSelected: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: role.systemImage)
-                .font(.brand(.title3))
-                .foregroundStyle(isSelected ? theme.accentText : theme.textSecondary)
-                .frame(width: 28)
+        HStack(alignment: .top, spacing: Spacing.md) {
+            // The role's own colour, as `roleConfig.js` gives it — the same tile the workspace
+            // row in More and "Practising as" in Settings wear.
+            IconTile(systemImage: role.systemImage, hue: role.tileHue)
             VStack(alignment: .leading, spacing: 3) {
                 Text(role.label)
                     .font(.brand(.subheadline, weight: .semibold))
@@ -79,11 +78,12 @@ struct RoleOptionLabel: View {
                     .foregroundStyle(theme.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 8)
+            Spacer(minLength: Spacing.sm)
             if isSelected {
-                Image(systemName: "checkmark")
-                    .font(.brand(.footnote, weight: .semibold))
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.brand(.title3))
                     .foregroundStyle(theme.accentText)
+                    .accessibilityHidden(true)
             }
         }
     }

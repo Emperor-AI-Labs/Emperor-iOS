@@ -88,41 +88,53 @@ struct OCRScreen: View {
                     Text(model.language == .original
                          ? "The document will be read and kept in its original language."
                          : "The document will be read, then translated into \(model.language.rawValue).")
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textSecondary)
                 }
+                .listRowBackground(theme.surface)
             }
 
             if !model.isRunning && model.result == nil {
                 Section {
+                    // The two ways in, as action rows: the words in the accent, as an action is
+                    // drawn, beside a tile that says what each does.
                     if mode == .translate {
                         Button {
                             isScanning = true
                         } label: {
-                            Label("Scan with the camera", systemImage: "doc.viewfinder")
+                            IconRowLabel(
+                                title: "Scan with the camera", systemImage: "doc.viewfinder",
+                                hue: .indigo, titleColor: theme.accentText)
                         }
                     }
                     Button {
                         isPickingFile = true
                     } label: {
-                        Label("Choose a PDF", systemImage: "folder")
+                        IconRowLabel(
+                            title: "Choose a PDF", systemImage: "folder", hue: .steel,
+                            titleColor: theme.accentText)
                     }
                 } footer: {
                     if mode == .pdfToWord {
                         // The one File tool that leaves the phone, as on the web — so it says so
                         // where the choice is made.
                         Text("The PDF is uploaded to Emperor and converted into an editable Word document. The other file tools work on this phone.")
+                            .font(.brand(.caption))
+                            .foregroundStyle(theme.textSecondary)
                     }
                 }
+                .listRowBackground(theme.surface)
             }
 
             if model.isRunning || model.isSubmitting {
-                Section("Progress") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ProgressView(value: model.progress)
+                Section {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        MeterBar(fraction: model.progress, color: theme.accent)
                         Text(model.statusDescription)
                             .font(.brand(.caption))
                             .foregroundStyle(theme.textSecondary)
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, Spacing.xs)
 
                     if !model.logLines.isEmpty {
                         DisclosureGroup("Details") {
@@ -133,12 +145,16 @@ struct OCRScreen: View {
                                     .foregroundStyle(theme.textSecondary)
                             }
                         }
+                        .font(.brand(.subheadline))
                     }
+                } header: {
+                    SectionHeader(title: "Progress")
                 }
+                .listRowBackground(theme.surface)
             }
 
             if let result = model.result {
-                Section("Ready") {
+                Section {
                     Button {
                         previewURL = ShareableFile.url(for: result.data, named: result.fileName)
                     } label: {
@@ -161,11 +177,15 @@ struct OCRScreen: View {
                         Label(mode == .translate ? "Digitise another" : "Convert another",
                               systemImage: "arrow.counterclockwise")
                     }
+                } header: {
+                    SectionHeader(title: "Ready")
                 }
+                .listRowBackground(theme.surface)
             }
 
             historySection(model)
         }
+        .font(.brand(.body))
         .refreshable { await model.loadHistory() }
         .sheet(isPresented: $isScanning) {
             DocumentScannerView { scan in
@@ -278,6 +298,7 @@ struct OCRScreen: View {
                 title: mode == .translate ? "Recent translations" : "Recent documents",
                 detail: jobs.isEmpty ? nil : "\(jobs.count)")
         }
+        .listRowBackground(theme.surface)
     }
 
     private func historyRow(_ job: OCRJob, _ model: OCRViewModel) -> some View {
@@ -287,12 +308,10 @@ struct OCRScreen: View {
         return Button {
             Task { await model.open(job) }
         } label: {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: canOpen ? "doc.text.fill" : "doc.text")
-                    .font(.brand(.title3))
-                    .foregroundStyle(canOpen ? theme.accentText : theme.textTertiary)
-                    .frame(width: 28)
-                    .accessibilityHidden(true)
+            HStack(alignment: .top, spacing: Spacing.md) {
+                // A Word document, as the result is, in the kind's own colour — grey until it
+                // can be opened.
+                IconTile(systemImage: "doc.text", hue: canOpen ? .steel : .graphite)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(job.displayName)
                         .font(.brand(.subheadline, weight: .semibold))

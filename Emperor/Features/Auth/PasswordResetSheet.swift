@@ -30,11 +30,13 @@ struct PasswordResetSheet: View {
                         Label {
                             Text(SignInFlow.passwordResetNotice)
                                 .font(.brand(.callout))
+                                .foregroundStyle(theme.textPrimary)
                         } icon: {
-                            Image(systemName: "envelope")
+                            Image(systemName: "envelope.badge")
                                 .foregroundStyle(theme.accentText)
                         }
                     }
+                    .listRowBackground(theme.surface)
                 } else {
                     Section {
                         TextField("Email", text: $email)
@@ -47,17 +49,22 @@ struct PasswordResetSheet: View {
                             .onSubmit(send)
                     } footer: {
                         Text("We'll email a link to reset your password. It opens in your browser.")
+                            .font(.brand(.caption))
+                            .foregroundStyle(theme.textSecondary)
                     }
+                    .listRowBackground(theme.surface)
                 }
 
                 if let error = flow.error {
                     Section {
-                        Text(error)
+                        Label(error, systemImage: "exclamationmark.circle.fill")
                             .font(.brand(.footnote))
                             .foregroundStyle(theme.danger)
                     }
+                    .listRowBackground(theme.surface)
                 }
             }
+            .font(.brand(.body))
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
             .navigationTitle("Reset password")

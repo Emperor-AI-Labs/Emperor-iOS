@@ -179,12 +179,12 @@ struct FileLibraryView: View {
             // from the *filtered* list, so a search matching nothing already satisfies
             // `showsEmptyState` and content is never rendered.
             if model.showsNoSearchResults {
-                ContentUnavailableView.search(text: model.query)
+                NoResultsView(query: model.query)
             } else {
-                ContentUnavailableView(
+                EmptyStateView(
                     "No documents yet",
                     systemImage: "folder",
-                    description: Text("Scan a paperbook to add your first document."))
+                    message: "Scan a paperbook to add your first document.")
             }
         }
         .searchable(text: $bindable.query, prompt: "Search documents and matters")
@@ -265,6 +265,7 @@ struct FileLibraryView: View {
                 } header: {
                     sectionHeader(group)
                 }
+                .listRowBackground(theme.surface)
             }
         }
         .listStyle(.insetGrouped)
@@ -283,7 +284,7 @@ struct FileLibraryView: View {
     ///   what goes with a folder and the screen is about managing documents rather than picking
     ///   one. The picker stays a picker.
     private func sectionHeader(_ group: FileLibraryViewModel.FolderGroup) -> some View {
-        Text(group.title)
+        SectionHeader(title: group.title)
     }
 
     private func row(for file: FileNode.StoredFile, in model: FileLibraryViewModel) -> some View {

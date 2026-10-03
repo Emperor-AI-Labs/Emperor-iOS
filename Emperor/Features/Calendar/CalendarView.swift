@@ -39,6 +39,8 @@ struct CalendarView: View {
     @State private var model: CalendarViewModel?
     @State private var isAddingEvent = false
     @State private var isSubscribing = false
+    /// The month steps, scaled with the heading they sit beside.
+    @ScaledMetric(relativeTo: .footnote) private var stepSide: CGFloat = 32
 
     var body: some View {
         NavigationStack {
@@ -91,6 +93,7 @@ struct CalendarView: View {
                     } header: {
                         SectionHeader(title: "Diary", detail: "\(day.events.count)")
                     }
+                    .listRowBackground(theme.surface)
                 }
 
                 if !model.overdue.isEmpty {
@@ -102,6 +105,7 @@ struct CalendarView: View {
                         SectionHeader(
                             title: "Past due", detail: "\(model.overdue.count) open")
                     }
+                    .listRowBackground(theme.surface)
                 }
 
                 // The selected day is listed in full directly above, so the agenda leaves it
@@ -117,6 +121,7 @@ struct CalendarView: View {
                     } header: {
                         SectionHeader(title: DisplayText.longDay(upcoming.key))
                     }
+                    .listRowBackground(theme.surface)
                 }
             }
             .listStyle(.insetGrouped)
@@ -128,10 +133,10 @@ struct CalendarView: View {
             // returns, and that shows a spinner or a failure instead. Left as something legible
             // rather than an `EmptyView`, so that if the reasoning is ever wrong the screen says
             // what it means — going blank is the bug this grid was built to end.
-            ContentUnavailableView(
+            EmptyStateView(
                 "Nothing scheduled",
                 systemImage: "calendar",
-                description: Text("Hearings on your matters, and anything you add here, appear together."))
+                message: "Hearings on your matters, and anything you add here, appear together.")
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -171,8 +176,8 @@ struct CalendarView: View {
         // forty-odd times.
         let marks = model.marks
         return Section {
-            VStack(spacing: 5) {
-                HStack(spacing: 4) {
+            VStack(spacing: Spacing.xs) {
+                HStack(spacing: Spacing.xs) {
                     ForEach(Array(CalendarMonth.weekdayInitials.enumerated()), id: \.offset) {
                         _, initial in
                         Text(initial)
@@ -181,11 +186,13 @@ struct CalendarView: View {
                             .frame(maxWidth: .infinity)
                     }
                 }
+                .padding(.bottom, Spacing.xxs)
+                .accessibilityHidden(true)
                 if let month = model.month {
                     // Keyed by position: a week has no identity of its own, and the days inside
                     // it carry real dates that do.
                     ForEach(Array(month.weeks.enumerated()), id: \.offset) { _, week in
-                        HStack(spacing: 4) {
+                        HStack(spacing: Spacing.xs) {
                             ForEach(week) { day in
                                 dayCell(day, model, mark: marks[day.key] ?? CalendarDayMark.clear)
                             }
@@ -194,11 +201,12 @@ struct CalendarView: View {
                 }
                 legend
             }
-            .padding(.vertical, 2)
-            .listRowInsets(EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
+            .padding(.vertical, Spacing.xxs)
+            .listRowInsets(EdgeInsets(top: 12, leading: 10, bottom: 10, trailing: 10))
         } header: {
             monthHeader(model)
         }
+        .listRowBackground(theme.surface)
     }
 
     /// What the two marks mean. Hidden from VoiceOver, which hears each day's mark as words.
@@ -216,38 +224,51 @@ struct CalendarView: View {
         }
         .font(.brand(.caption2))
         .foregroundStyle(theme.textTertiary)
-        .padding(.top, 4)
-        .padding(.leading, 4)
+        .padding(.top, Spacing.sm)
+        .padding(.leading, Spacing.xs)
         .accessibilityHidden(true)
     }
 
+    /// The month's name, as the heading of its own card, with the way back to today and the
+    /// two steps beside it — round, as Home's day steps are.
     private func monthHeader(_ model: CalendarViewModel) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Spacing.sm) {
             Text(model.month?.title ?? "")
-                .font(.brand(.subheadline, weight: .bold))
+                .font(.brand(.headline, weight: .semibold))
                 .foregroundStyle(theme.textPrimary)
-            Spacer(minLength: 8)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: Spacing.sm)
             // Only once there is somewhere to come back from.
             if !model.isShowingToday {
                 Button("Today") { model.goToToday() }
                     .font(.brand(.caption, weight: .semibold))
-                    .buttonStyle(.plain)
                     .foregroundStyle(theme.accentText)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, 6)
+                    .background(theme.accentWash, in: Capsule())
+                    .buttonStyle(.plain)
             }
-            Button { model.step(months: -1) } label: {
-                Image(systemName: "chevron.left")
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Previous month")
-            Button { model.step(months: 1) } label: {
-                Image(systemName: "chevron.right")
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Next month")
+            monthStep("chevron.left", label: "Previous month") { model.step(months: -1) }
+            monthStep("chevron.right", label: "Next month") { model.step(months: 1) }
         }
-        .font(.brand(.footnote, weight: .semibold))
-        .foregroundStyle(theme.accentText)
         .textCase(nil)
+        .padding(.bottom, Spacing.xs)
+    }
+
+    private func monthStep(
+        _ systemImage: String, label: String, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.brand(.footnote, weight: .semibold))
+                .foregroundStyle(theme.textPrimary)
+                .frame(width: min(stepSide, 48), height: min(stepSide, 48))
+                .background(theme.surface, in: Circle())
+                .overlay(Circle().strokeBorder(theme.separator, lineWidth: 1))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     private func dayCell(
@@ -264,20 +285,22 @@ struct CalendarView: View {
         return Button {
             model.select(day: day.key)
         } label: {
-            VStack(spacing: 2) {
-                Text("\(day.number)").font(.brand(.footnote, weight: weight))
+            VStack(spacing: 3) {
+                Text("\(day.number)")
+                    .font(.brand(.subheadline, weight: weight).monospacedDigit())
                 marker(mark, isSelected: isSelected)
             }
             .foregroundStyle(foreground)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 5)
+            .padding(.vertical, 6)
             .background(
                 isSelected ? theme.accent : Color.clear,
-                in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                     .strokeBorder(
-                        isToday && !isSelected ? theme.accent : Color.clear, lineWidth: 1))
+                        isToday && !isSelected ? theme.accentText : Color.clear, lineWidth: 1.5))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(DisplayText.longDay(day.key))
@@ -329,6 +352,7 @@ struct CalendarView: View {
                 .font(.brand(.caption))
                 .foregroundStyle(theme.textTertiary)
         }
+        .listRowBackground(theme.surface)
     }
 
     /// A listing, which opens its case on the Cases tab — see the type's documentation for why
@@ -338,13 +362,10 @@ struct CalendarView: View {
         Button {
             navigator.openCase(listing.caseID)
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 CauseListingRow(listing: listing, leadsWithTime: true)
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.brand(.footnote, weight: .semibold))
-                    .foregroundStyle(theme.textTertiary)
-                    .accessibilityHidden(true)
+                RowChevron()
             }
             .contentShape(Rectangle())
         }
@@ -357,19 +378,23 @@ struct CalendarView: View {
     // MARK: - Diary entries
 
     private func eventRow(_ event: ComplianceEvent, _ model: CalendarViewModel) -> some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .top, spacing: Spacing.md) {
             Button {
                 Task { await model.toggleDone(event) }
             } label: {
                 Image(systemName: event.isDone ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(event.isDone ? theme.accent : theme.textSecondary)
+                    .font(.brand(.title3))
+                    .foregroundStyle(event.isDone ? theme.accentText : theme.textTertiary)
+                    // A fingertip's worth, though the mark itself is small.
+                    .frame(minWidth: 28, minHeight: 28)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(event.isDone ? "Mark not done" : "Mark done")
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.title ?? "—")
-                    .font(.brand(.subheadline))
+                    .font(.brand(.subheadline, weight: .medium))
                     .strikethrough(event.isDone)
                     .foregroundStyle(event.isDone ? theme.textSecondary : theme.textPrimary)
                     .lineLimit(2)
@@ -429,8 +454,12 @@ private struct ComplianceEventSheet: View {
                     // who expects a reminder and does not get one is worse off than one who
                     // knows to set their own.
                     Text("Emperor does not send reminders for diary entries yet. Set your own alert if this date matters.")
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textSecondary)
                 }
+                .listRowBackground(theme.surface)
             }
+            .font(.brand(.body))
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
             .navigationTitle("Add to diary")

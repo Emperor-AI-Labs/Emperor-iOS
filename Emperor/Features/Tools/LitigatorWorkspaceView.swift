@@ -59,14 +59,16 @@ struct LitigatorWorkspaceView: View {
                     // and proceeding — but if the platform's taxonomy ever leaves a stage with
                     // nothing in it, this says so and offers the way back rather than going blank.
                     Section {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: Spacing.sm) {
                             Text("Nothing is drafted at this stage.")
                                 .font(.brand(.subheadline, weight: .semibold))
                                 .foregroundStyle(theme.textPrimary)
                             Button("Show every stage") { model.select(proceeding: nil) }
-                                .font(.brand(.subheadline))
+                                .font(.brand(.subheadline, weight: .semibold))
+                                .foregroundStyle(theme.accentText)
+                                .buttonStyle(.borderless)
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, Spacing.xs)
                     }
                     .listRowBackground(theme.surface)
                 }
@@ -87,7 +89,7 @@ struct LitigatorWorkspaceView: View {
                 } else {
                     // Ids arrive off a navigation route, so an unknown one says so rather than
                     // showing an empty form.
-                    ContentUnavailableView("Document unavailable", systemImage: "doc.text")
+                    EmptyStateView("Document unavailable", systemImage: "doc.text", tone: .neutral)
                 }
             }
         }
@@ -101,14 +103,14 @@ struct LitigatorWorkspaceView: View {
     private var matterStrip: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.sm) {
                     ForEach(model.matters) { matter in
                         chip(matter)
                             .id(matter.id)
                     }
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 10)
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm + 2)
             }
             .onAppear {
                 proxy.scrollTo(model.matter.id, anchor: .center)
@@ -123,23 +125,12 @@ struct LitigatorWorkspaceView: View {
 
     private func chip(_ matter: LitigatorMatter) -> some View {
         let isSelected = model.matter.id == matter.id
-        // Spelled out rather than an implicit member on each side of the ternary: `brand` takes
-        // an `Optional` weight, which `-parse` accepts and the type checker then argues with.
-        let weight: Font.Weight? = isSelected ? Font.Weight.semibold : Font.Weight.regular
         return Button {
             model.select(matter)
         } label: {
-            HStack(spacing: 5) {
-                Image(systemName: matter.systemImage)
-                Text(matter.chipLabel)
-            }
-            .font(.brand(.subheadline, weight: weight))
-            .foregroundStyle(isSelected ? theme.onAccent : theme.textSecondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(isSelected ? theme.accent : theme.surfaceElevated, in: Capsule())
+            ChipLabel(title: matter.chipLabel, systemImage: matter.systemImage, isSelected: isSelected)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ChipButtonStyle(isSelected: isSelected))
         // The chip may say "Labour"; VoiceOver says what it is.
         .accessibilityLabel(matter.label)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
@@ -147,18 +138,19 @@ struct LitigatorWorkspaceView: View {
     }
 
     private var matterHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Label {
-                    Text(model.matter.label)
-                        .font(.brand(.title3, weight: .semibold))
-                        .foregroundStyle(theme.textPrimary)
-                } icon: {
-                    Image(systemName: model.matter.systemImage)
-                        .foregroundStyle(theme.accentText)
-                }
-                .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 8)
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(alignment: .center, spacing: Spacing.md) {
+                // Litigator's own colour, beside the matter's mark.
+                IconTile(
+                    systemImage: model.matter.systemImage,
+                    hue: PractitionerRole.litigator.tileHue,
+                    size: .large)
+                Text(model.matter.label)
+                    .font(.brand(.title3, weight: .semibold))
+                    .foregroundStyle(theme.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: Spacing.sm)
                 StatusPill(text: "\(model.documentCount) documents", tone: .accent)
             }
             Text(model.summary)
@@ -166,7 +158,7 @@ struct LitigatorWorkspaceView: View {
                 .foregroundStyle(theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.xs)
     }
 
     /// The web's "Selector 2": the proceeding a Civil or Criminal matter is narrowed to, which
@@ -193,10 +185,11 @@ struct LitigatorWorkspaceView: View {
 
     private func documentRow(_ document: LitigatorDocumentRow) -> some View {
         NavigationLink(value: document.id) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
                 Image(systemName: "doc.text")
                     .font(.brand(.subheadline))
                     .foregroundStyle(theme.accentText)
+                    .frame(width: 20)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(document.label)
@@ -219,10 +212,11 @@ struct LitigatorWorkspaceView: View {
     /// the section's documents to draft.
     private func anyDocumentRow(_ group: LitigatorSectionGroup) -> some View {
         NavigationLink(value: group.id) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
                 Image(systemName: "list.bullet.rectangle")
                     .font(.brand(.subheadline))
                     .foregroundStyle(theme.accentText)
+                    .frame(width: 20)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(group.anyDocumentLabel)

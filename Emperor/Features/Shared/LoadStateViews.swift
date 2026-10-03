@@ -13,16 +13,12 @@ struct LoadFailureView: View {
     var retry: (() async -> Void)?
 
     var body: some View {
-        ContentUnavailableView {
-            Label(title, systemImage: icon)
-        } description: {
-            Text(failure.message)
-        } actions: {
+        EmptyStateView(title, systemImage: icon, message: failure.message, tone: tone) {
             if failure.isRetryable, let retry {
                 Button("Try again") {
                     Task { await retry() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.primaryAction)
             }
         }
     }
@@ -48,6 +44,15 @@ struct LoadFailureView: View {
         case .refused: return "pause.circle"
         }
     }
+
+    /// Calm by default. Only the two that ask something of the reader — sign in again, or a
+    /// fault on our side — take the warning colour; an outage or a refusal is not an alarm.
+    private var tone: IconCircle.Tone {
+        switch failure.kind {
+        case .unauthenticated, .server: return .warning
+        case .offline, .maintenance, .refused: return .neutral
+        }
+    }
 }
 
 /// Shown above content that is on screen but may be out of date, because the last refresh
@@ -63,12 +68,15 @@ struct StaleBanner: View {
     var retry: (() async -> Void)?
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: failure.kind == .offline ? "wifi.slash" : "exclamationmark.triangle")
+        HStack(spacing: Spacing.sm + 2) {
+            Image(systemName: failure.kind == .offline ? "wifi.slash" : "exclamationmark.triangle.fill")
+                .foregroundStyle(theme.warning)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(failure.kind == .offline
                      ? "Offline — showing what was last loaded."
                      : "Could not refresh. Showing what was last loaded.")
+                    .foregroundStyle(theme.textPrimary)
                     .lineLimit(2)
                 if let cachedAt {
                     Text("As of \(cachedAt, format: .relative(presentation: .named))")
@@ -79,13 +87,18 @@ struct StaleBanner: View {
             if failure.isRetryable, let retry {
                 Button("Retry") { Task { await retry() } }
                     .font(.brand(.caption, weight: .semibold))
+                    .foregroundStyle(theme.accentText)
+                    .buttonStyle(.borderless)
             }
         }
         .font(.brand(.caption))
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.sm + 2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.warning.opacity(0.12))
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(theme.warning.opacity(0.25)).frame(height: 0.5)
+        }
     }
 }
 
@@ -97,12 +110,13 @@ struct CachedStamp: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "clock.arrow.circlepath")
+                .accessibilityHidden(true)
             Text("As of \(cachedAt, format: .relative(presentation: .named))")
             Spacer(minLength: 0)
         }
         .font(.brand(.caption))
         .foregroundStyle(theme.textSecondary)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, Spacing.lg)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.surfaceElevated)
@@ -123,6 +137,8 @@ struct ListStateView<Content: View, Empty: View>: View {
     var body: some View {
         if presentation.showsLoadingPlaceholder {
             ProgressView()
+                .tint(theme.textSecondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if presentation.showsFailureState, let failure = presentation.failure {
             LoadFailureView(failure: failure, retry: retry)
         } else if presentation.showsEmptyState {

@@ -292,8 +292,8 @@ private struct LibraryScreen: View {
                 }
             }
             .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.bottom, 8)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.bottom, Spacing.sm)
 
             ListStateView(
                 presentation: model.presentation(for: model.section),
@@ -306,7 +306,7 @@ private struct LibraryScreen: View {
                 }
             } empty: {
                 if model.showsNoSearchResults(in: model.section) {
-                    ContentUnavailableView.search(text: model.query)
+                    NoResultsView(query: model.query)
                 } else {
                     emptyView(model.emptyCopy(for: model.section))
                 }
@@ -329,10 +329,7 @@ private struct LibraryScreen: View {
     }
 
     private func emptyView(_ copy: MyFilesViewModel.EmptyCopy) -> some View {
-        ContentUnavailableView(
-            copy.title,
-            systemImage: copy.systemImage,
-            description: Text(copy.message))
+        EmptyStateView(copy.title, systemImage: copy.systemImage, message: copy.message)
     }
 
     // MARK: - Lists
@@ -393,7 +390,7 @@ private struct LibraryScreen: View {
         if isSearching {
             let results = model.searchResults(under: path, matching: query)
             if results.isEmpty {
-                ContentUnavailableView.search(text: query)
+                NoResultsView(query: query)
             } else {
                 List {
                     if !results.folders.isEmpty {
@@ -455,14 +452,12 @@ private struct LibraryScreen: View {
 
     private func folderRow(_ folder: FolderSummary) -> some View {
         NavigationLink(value: FolderRoute(path: folder.path)) {
-            HStack(spacing: 12) {
-                Image(systemName: "folder.fill")
-                    .font(.brand(.title3))
-                    .foregroundStyle(theme.warning)
-                    .frame(width: 28)
-                    .accessibilityHidden(true)
+            HStack(spacing: Spacing.md) {
+                // A folder in the web's gold, the way a file manager draws one.
+                IconTile(systemImage: "folder", hue: .gold)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(folder.displayName)
+                        .font(.brand(.subheadline, weight: .medium))
                         .lineLimit(2)
                         .foregroundStyle(theme.textPrimary)
                     Text(folder.contentsSummary)
@@ -661,10 +656,11 @@ private struct LibraryScreen: View {
             ActivityView(url: url) { model.sharing = nil }
                 .presentationDetents([.medium, .large])
         } else {
-            ContentUnavailableView(
+            EmptyStateView(
                 "Could not prepare that document",
                 systemImage: "exclamationmark.triangle",
-                description: Text("There was no room to save a copy to share. Free some space and try again."))
+                message: "There was no room to save a copy to share. Free some space and try again.",
+                tone: .warning)
         }
     }
 }
@@ -686,10 +682,10 @@ private struct MoveDocumentSheet: View {
         NavigationStack {
             Group {
                 if destinations.isEmpty {
-                    ContentUnavailableView(
+                    EmptyStateView(
                         "Nowhere else to put it",
                         systemImage: "folder",
-                        description: Text("Create another folder first, then move the document into it."))
+                        message: "Create another folder first, then move the document into it.")
                 } else {
                     List {
                         Section {
@@ -698,10 +694,8 @@ private struct MoveDocumentSheet: View {
                                     onChoose(folder)
                                     dismiss()
                                 } label: {
-                                    HStack(spacing: 10) {
-                                        Image(systemName: "folder")
-                                            .foregroundStyle(theme.warning)
-                                            .accessibilityHidden(true)
+                                    HStack(spacing: Spacing.md) {
+                                        IconTile(systemImage: "folder", hue: .gold, size: .small)
                                         Text(folder.displayName)
                                             .foregroundStyle(theme.textPrimary)
                                             .lineLimit(1)

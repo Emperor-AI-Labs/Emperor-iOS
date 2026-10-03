@@ -97,13 +97,8 @@ struct ToolSourceRow: View {
     var change: (() -> Void)?
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.brand(.title3))
-                .foregroundStyle(theme.accentText)
-                .frame(width: 36, height: 36)
-                .background(theme.surfaceAccent, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .accessibilityHidden(true)
+        HStack(spacing: Spacing.md) {
+            IconTile(systemImage: systemImage, hue: .rose, size: .large)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
                     .font(.brand(.subheadline, weight: .semibold))
@@ -117,10 +112,11 @@ struct ToolSourceRow: View {
             if let change {
                 Button("Change", action: change)
                     .font(.brand(.caption, weight: .semibold))
+                    .foregroundStyle(theme.accentText)
                     .buttonStyle(.borderless)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, Spacing.xs)
     }
 }
 
@@ -133,10 +129,8 @@ struct ToolResultRow: View {
     var body: some View {
         if let url = ShareableFile.url(for: file.data, named: file.name) {
             ShareLink(item: url) {
-                HStack(spacing: 12) {
-                    Image(systemName: "doc.fill")
-                        .foregroundStyle(theme.success)
-                        .accessibilityHidden(true)
+                HStack(spacing: Spacing.md) {
+                    IconTile(systemImage: "checkmark", hue: .teal)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(file.name)
                             .font(.brand(.subheadline, weight: .semibold))
@@ -146,11 +140,13 @@ struct ToolResultRow: View {
                             .font(.brand(.caption))
                             .foregroundStyle(theme.textSecondary)
                     }
-                    Spacer(minLength: 8)
+                    Spacer(minLength: Spacing.sm)
                     Image(systemName: "square.and.arrow.up")
+                        .font(.brand(.body, weight: .medium))
                         .foregroundStyle(theme.accentText)
                         .accessibilityHidden(true)
                 }
+                .padding(.vertical, Spacing.xxs)
             }
             .accessibilityLabel("Save or share \(file.name)")
         }
@@ -251,7 +247,7 @@ struct OnDeviceNote: View {
 
     var body: some View {
         Label("Everything happens on this phone. No document is uploaded.", systemImage: "lock.iphone")
-            .font(.brand(.caption2))
+            .font(.brand(.caption))
             .foregroundStyle(theme.textSecondary)
     }
 }

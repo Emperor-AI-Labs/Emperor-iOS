@@ -61,6 +61,7 @@ struct SplitPDFView: View {
             } header: {
                 SectionHeader(title: "Document")
             }
+            .listRowBackground(theme.surface)
 
             if chosen != nil {
                 Section {
@@ -84,8 +85,10 @@ struct SplitPDFView: View {
                     // A live description of what the current selection would actually produce,
                     // because "1-3, 2" is three pages and reads like four.
                     Text(splitFooter)
-                        .font(.brand(.caption2))
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textSecondary)
                 }
+                .listRowBackground(theme.surface)
             }
 
             Section {
@@ -102,6 +105,7 @@ struct SplitPDFView: View {
                 Section {
                     ToolFailureRow(message: failure)
                 }
+                .listRowBackground(theme.surface)
             }
 
             if !outputs.isEmpty {
@@ -114,8 +118,10 @@ struct SplitPDFView: View {
                         title: "Result",
                         detail: outputs.count > 1 ? "\(outputs.count) files" : nil)
                 }
+                .listRowBackground(theme.surface)
             }
         }
+        .font(.brand(.body))
         .scrollContentBackground(.hidden)
         .background(theme.canvas)
         .navigationTitle("Split PDF")
@@ -204,9 +210,10 @@ struct MergePDFView: View {
         Form {
             Section {
                 ForEach(chosen) { file in
-                    HStack {
+                    HStack(spacing: Spacing.md) {
+                        IconTile(systemImage: "doc.richtext", hue: .rose, size: .small)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(file.name).font(.brand(.subheadline)).lineLimit(1)
+                            Text(file.name).font(.brand(.subheadline, weight: .medium)).lineLimit(1)
                             Text(file.pageCount.map { "\($0) page\($0 == 1 ? "" : "s")" }
                                  ?? "could not be opened")
                                 .font(.brand(.caption))
@@ -240,6 +247,7 @@ struct MergePDFView: View {
                     title: "Documents, in order",
                     detail: chosen.count > 1 ? "Drag to reorder" : nil)
             }
+            .listRowBackground(theme.surface)
 
             Section {
                 ToolRunButton(
@@ -255,6 +263,7 @@ struct MergePDFView: View {
                 Section {
                     ToolFailureRow(message: failure)
                 }
+                .listRowBackground(theme.surface)
             }
 
             if let output {
@@ -263,8 +272,10 @@ struct MergePDFView: View {
                 } header: {
                     SectionHeader(title: "Result")
                 }
+                .listRowBackground(theme.surface)
             }
         }
+        .font(.brand(.body))
         .scrollContentBackground(.hidden)
         .background(theme.canvas)
         .navigationTitle("Merge PDF")

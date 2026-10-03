@@ -84,19 +84,16 @@ struct AuctionListView: View {
                     // On the content state as well as the empty one. Every figure above was
                     // parsed out of a PDF by a scraper, and the notice is the only authority.
                     Text(AuctionListViewModel.Copy.confirmWithNotice)
-                        .font(.brand(.caption2))
+                        .font(.brand(.caption))
                         .foregroundStyle(theme.textTertiary)
                 }
+                .listRowBackground(theme.surface)
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
         } empty: {
-            ContentUnavailableView {
-                Label(model.emptyTitle, systemImage: "hammer")
-            } description: {
-                Text(model.emptyDetail)
-            } actions: {
+            EmptyStateView(model.emptyTitle, systemImage: "hammer", message: model.emptyDetail) {
                 if model.upcomingOnly {
                     Button("Include past auctions") {
                         model.upcomingOnly = false

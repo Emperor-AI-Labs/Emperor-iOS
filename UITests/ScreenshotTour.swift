@@ -74,8 +74,30 @@ final class ScreenshotTour: XCTestCase {
         }
         snap("home")
 
+        // The updates sheet, from Home's bell. Its label carries the unread count, so it is
+        // found by how it starts.
+        let updates = app.navigationBars["Home"].buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Updates")).firstMatch
+        if updates.waitForExistence(timeout: 5) {
+            updates.tap()
+            if app.navigationBars["Updates"].waitForExistence(timeout: 10) {
+                snap("updates")
+                tapIfPresent(app.navigationBars["Updates"].buttons["Done"])
+            }
+        }
+
         app.tabBars.buttons["Cases"].tap()
         snap("cases")
+
+        // Finding a case at the court — the form before a court is chosen.
+        let find = app.buttons["Find a case"].firstMatch
+        if find.waitForExistence(timeout: 5) {
+            find.tap()
+            if app.navigationBars["Find a case"].waitForExistence(timeout: 10) {
+                snap("find-a-case")
+                tapIfPresent(app.navigationBars["Find a case"].buttons["Done"])
+            }
+        }
 
         // The Calendar opens on today, where the stub lists one matter and one diary entry; the
         // listing then opens its case on the Cases tab, on the overview.
@@ -136,6 +158,43 @@ final class ScreenshotTour: XCTestCase {
             }
             let done = app.buttons["Done"].firstMatch
             if done.waitForExistence(timeout: 5) { done.tap() } else { app.swipeDown() }
+        }
+    }
+
+    /// What each tab says when there is nothing to show — every fixture empty. The empty state is
+    /// a component of its own, drawn on more screens than any other, and the populated tour never
+    /// reaches it.
+    func testTheEmptyStatesDark() { emptyTour(light: false) }
+    func testTheEmptyStatesLight() { emptyTour(light: true) }
+
+    private func emptyTour(light: Bool) {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestMode", "-UITestEmpty"] + (light ? ["-UITestLight"] : [])
+        app.launch()
+        let theme = light ? "light" : "dark"
+        guard app.textFields["Email"].waitForExistence(timeout: 15) else { return }
+        let email = app.textFields["Email"]
+        email.tap()
+        email.typeText("john.doe@firm.com")
+        let password = app.secureTextFields["Password"]
+        if password.waitForExistence(timeout: 5) {
+            password.tap()
+            password.typeText("hunter2")
+        }
+        tapIfPresent(app.buttons["Sign in"])
+        guard app.tabBars.buttons["Home"].waitForExistence(timeout: 15) else { return }
+
+        var step = 0
+        for tab in ["Home", "Cases", "Chat", "Calendar"] {
+            let button = app.tabBars.buttons[tab]
+            guard button.waitForExistence(timeout: 5) else { continue }
+            button.tap()
+            step += 1
+            Thread.sleep(forTimeInterval: 0.8)
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = String(format: "empty-%@-%02d-%@", theme, step, tab.lowercased())
+            shot.lifetime = .keepAlways
+            add(shot)
         }
     }
 
