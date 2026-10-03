@@ -636,8 +636,11 @@ private struct AnswerView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if !content.prose.isEmpty {
-                Text(content.prose)
-                    .textSelection(.enabled)
+                // Markdown, not plain text. The platform renders the reply through its own
+                // Markdown component and says so (`ToolWorkspace.jsx:503`); drawn with a bare
+                // `Text`, every heading, list and table in an answer arrived as the characters
+                // that were meant to produce them.
+                MarkdownContentView(markdown: content.prose)
             }
 
             if !content.mentions.isEmpty {
