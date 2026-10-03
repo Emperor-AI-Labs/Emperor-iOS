@@ -651,11 +651,17 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(corporate.waitForExistence(timeout: 10), "the roles were not listed")
         corporate.tap()
 
-        // Back on Settings, which now says the new role.
+        // Back on Settings, which now says the new role. Polled rather than waited on with an
+        // expectation: `waitForExpectations` sends the test case across actors, which Swift 6
+        // refuses to compile here.
         XCTAssertTrue(selector.waitForExistence(timeout: 10))
-        let says = NSPredicate(format: "label CONTAINS %@", "Corporate Counsel")
-        expectation(for: says, evaluatedWith: selector)
-        waitForExpectations(timeout: 10)
+        var polls = 0
+        while !selector.label.contains("Corporate Counsel") && polls < 40 {
+            Thread.sleep(forTimeInterval: 0.25)
+            polls += 1
+        }
+        XCTAssertTrue(
+            selector.label.contains("Corporate Counsel"), "Settings did not show the new role")
 
         // And the workspace is the new role's.
         app.navigationBars["Settings"].buttons["Done"].tap()
