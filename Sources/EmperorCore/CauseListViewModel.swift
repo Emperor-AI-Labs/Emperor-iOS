@@ -26,19 +26,20 @@ import Observation
 @MainActor
 final class CauseListViewModel {
 
-    /// Framing copy, carried over verbatim from the web client so the two products cannot
-    /// disagree about what this screen claims to be (`src/pages/home/TodayCauseList.jsx:290`,
-    /// `src/pages/CaseManagement.jsx:493`).
+    /// Framing copy, carried over from the web client so the two products cannot disagree about
+    /// what this screen claims to be (`src/pages/home/TodayCauseList.jsx:290`,
+    /// `src/pages/CaseManagement.jsx:493`). The three empty-state titles drop the web's full stop:
+    /// here they are headings, and no other heading in the app ends in one.
     enum Copy {
         static let subtitle = "Your cases, by hearing date"
-        static let nothingAtAll = "Nothing listed."
+        static let nothingAtAll = "Nothing listed"
         /// Deliberately not "No cases added yet" — this screen only ever sees *listings*, so it
         /// cannot tell an empty docket from a docket whose matters have no hearing date yet.
         /// Asserting the former would be a guess presented as fact.
         static let nothingAtAllDetail =
             "No hearing dates have come through for your matters. New cases appear here once the court sync has run."
-        static let nothingToday = "Nothing listed for today."
-        static let nothingThisDay = "Nothing listed for this day."
+        static let nothingToday = "Nothing listed for today"
+        static let nothingThisDay = "Nothing listed for this day"
         /// The safety sentence. Never drop it: it is the only thing standing between an empty
         /// day and a practitioner concluding they are free.
         static let confirmWithCourt = "Always confirm against the court's official cause list."
