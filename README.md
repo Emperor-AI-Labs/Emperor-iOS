@@ -72,11 +72,21 @@ character.
 
 **`POST /chat` is destructive to history.** The server replaces the chat's stored messages
 with exactly what the request contained, plus the new answer. Anything omitted from the
-`messages` array is **deleted server-side**. Always send the full conversation.
+`messages` array is **deleted server-side**. Always send the full conversation — every
+message with every key it was stored with. A field this client does not model (the web's work
+log, `serverRun`) is deleted unless it goes back; `ChatMessage.extra` keeps them.
 
-**Do not call `POST /sync` after a chat turn.** `/chat` already persists the turn twice, and
-`/sync` silently drops any chat whose message count is lower than the server's — so a stale
-local copy is discarded without an error.
+**`POST /sync` after a chat turn is for the work log only, and only when it is provably
+safe.** `/chat` already persists the turn, and `/sync` either silently ignores a chat whose
+message count is lower than the server's or deletes and re-inserts every message of it. The web
+calls it at the end of every turn to store the turn's work log — safe for the web because at
+that instant its array is exactly what the server holds. This client does the same only when
+`WorkLogSync` allows: the turn ended cleanly, the history loaded whole, `/stream-status`
+reports nothing running, and a fresh `GET /messages` matches the transcript message for
+message, ending in this client's own question (by id) and the server's finished answer. What it
+posts is those stored bytes with the log added to the last message — never a re-encoding — and
+its next turn waits for it. A save that does not happen is silent; the answer is stored either
+way.
 
 **A 200 on the final upload chunk means "bytes received", not "file ready".** Assembly,
 OCR and indexing all run after the response has closed, so a failure there produces no HTTP
@@ -262,8 +272,15 @@ Step labels are kept raw. The platform generalises them to "Reading your files�
 one-line status, which would throw away the document name and page range — exactly what
 makes a log worth reading.
 
-**Known limitation:** the work log is not persisted. The server stores only the answer text,
-so reopening a chat shows the answer without the log of how it was produced.
+**The work log is stored with the answer, in the web's shapes.** The web stores `reasoning`,
+`workflowTasks` and `workLog` on every assistant message it finishes (`streamManager.js`), and
+the server keeps message JSON verbatim. `WorkLogWire` reads them back — leniently: a malformed
+field costs only itself — and the panel is drawn, collapsed, above every stored answer that has
+one. This client attaches its own finished panel to its own answer in the same shapes, so the
+next `POST /chat` carries it, and stores it straight away through `/sync` when that is safe
+(above). Both directions are pinned to the web's own `startStream` run under Node
+(`scripts/generate-worklog-fixtures.mjs`). One deliberate difference: a stopped run keeps the
+plan rows it never reached pending, where the web ticks every row.
 
 ## Still to do
 
@@ -310,6 +327,9 @@ rather than as decisions to respect.
 - Two small changes would release the held-back chat features: let `/sync` accept a
   metadata-only update (skip the message rewrite when `messages` is absent, rather than skipping
   the whole chat when it is short), and add a real chat delete.
+- A way to set fields on one stored message without rewriting the chat would let the work log
+  be stored after every turn, not only when the stored conversation provably matches, and would
+  remove the `GET /chats` the save makes to echo the chat's title, role and model back.
 - `save-case` should include `diaryNumber` in `ext_id`; without it, unrelated matters collide on
   the unique index and the second is refused as "already on the team dashboard"
   (`CourtSearchViewModel.collisionWarning` warns about this from the client, which is the most

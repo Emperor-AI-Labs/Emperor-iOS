@@ -180,8 +180,16 @@ enum MessageRole: String, Codable {
 ///
 /// `messages.data` is an opaque TEXT column and `getMessages` returns `JSON.parse` output
 /// unmodified, so there is no server-enforced schema — this is the union of what the
-/// codebase actually produces. `extra` preserves unknown keys so a message can round-trip
-/// back through `POST /sync` without losing fields.
+/// codebase actually produces.
+///
+/// ## Every key goes back
+///
+/// `POST /chat` stores the history it is sent *as* the conversation, so a message this client
+/// decodes and posts back is the message from then on. Anything a typed struct drops on the way
+/// through is deleted from the server: the web's work log on its own answers, a `serverRun` mark,
+/// whatever a later platform build adds. So `extra` holds every key this type does not model, and
+/// a modelled key whose value is not the expected type — or is `null` — is kept there raw rather
+/// than dropped. Encoding writes both back.
 struct ChatMessage: Codable, Equatable, Identifiable {
     var id: String?
     var role: MessageRole
@@ -194,6 +202,11 @@ struct ChatMessage: Codable, Equatable, Identifiable {
     var incompleteReason: String?
     var attachments: [JSONValue]?
     var sources: [JSONValue]?
+    /// Every key the stored message carried that is not modelled above, value for value.
+    var extra: [String: JSONValue] = [:]
+    /// `role` or `content` that was missing on the wire and filled with a default, so it is not
+    /// written back as though the server had sent it.
+    private var defaulted: Set<String> = []
 
     var timestamp: Date? { WireDate.parse(timestampRaw) }
 
@@ -201,11 +214,44 @@ struct ChatMessage: Codable, Equatable, Identifiable {
     /// never written back into the blob — so a stable identity has to be synthesised.
     var stableID: String { id ?? "\(role.rawValue)-\(timestampRaw ?? "")-\(content.count)" }
 
-    enum CodingKeys: String, CodingKey {
+    // MARK: - The work log stored with an answer
+
+    /// The reasoning panel this answer was stored with, by either client. See `WorkLogWire`.
+    var storedWorkLog: ReasoningSnapshot? {
+        role == .assistant ? WorkLogWire.snapshot(from: extra) : nil
+    }
+
+    /// Whether any of the panel's keys is present, readable or not.
+    var hasWorkLog: Bool { WorkLogWire.keys.contains { extra[$0] != nil } }
+
+    /// Stores a finished turn's panel on the answer, under the web's own keys.
+    ///
+    /// On the message rather than beside it, because the next `POST /chat` stores the history
+    /// it is sent: a log that lived anywhere else would be deleted by the very next question.
+    mutating func attachWorkLog(_ fields: [String: JSONValue]) {
+        for key in WorkLogWire.keys {
+            if let value = fields[key] { extra[key] = value }
+        }
+    }
+
+    // MARK: - Coding
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
         case id, role, content, usage, isTyping, done, incomplete, incompleteReason
         case attachments, sources
         case timestampRaw = "timestamp"
     }
+
+    /// Any key at all, for the ones this type does not model.
+    private struct AnyKey: CodingKey {
+        let stringValue: String
+        var intValue: Int? { nil }
+        init(_ string: String) { stringValue = string }
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
+    }
+
+    private static let modelledKeys = Set(CodingKeys.allCases.map(\.rawValue))
 
     init(role: MessageRole, content: String, id: String? = nil) {
         self.role = role
@@ -216,10 +262,26 @@ struct ChatMessage: Codable, Equatable, Identifiable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        let all = try decoder.container(keyedBy: AnyKey.self)
+        var raw: [String: JSONValue] = [:]
+        for key in all.allKeys {
+            raw[key.stringValue] = try? all.decode(JSONValue.self, forKey: key)
+        }
+
         // Role is occasionally absent on hand-written rows; assume assistant rather than throw,
         // because one malformed row should not fail the whole history load.
-        role = (try? c.decode(MessageRole.self, forKey: .role)) ?? .assistant
-        content = (try? c.decode(String.self, forKey: .content)) ?? ""
+        if let decoded = try? c.decode(MessageRole.self, forKey: .role) {
+            role = decoded
+        } else {
+            role = .assistant
+            defaulted.insert(CodingKeys.role.rawValue)
+        }
+        if let decoded = try? c.decode(String.self, forKey: .content) {
+            content = decoded
+        } else {
+            content = ""
+            defaulted.insert(CodingKeys.content.rawValue)
+        }
         id = try? c.decodeIfPresent(String.self, forKey: .id)
         timestampRaw = try? c.decodeIfPresent(String.self, forKey: .timestampRaw)
         usage = try? c.decodeIfPresent(JSONValue.self, forKey: .usage)
@@ -229,6 +291,48 @@ struct ChatMessage: Codable, Equatable, Identifiable {
         incompleteReason = try? c.decodeIfPresent(String.self, forKey: .incompleteReason)
         attachments = try? c.decodeIfPresent([JSONValue].self, forKey: .attachments)
         sources = try? c.decodeIfPresent([JSONValue].self, forKey: .sources)
+
+        // Unknown keys, and any modelled one that did not decode as its type — a null, a number
+        // where a string was expected. Kept raw so it goes back as it came.
+        let typed: [String: Bool] = [
+            "role": !defaulted.contains("role"), "content": !defaulted.contains("content"),
+            "id": id != nil, "timestamp": timestampRaw != nil, "usage": usage != nil,
+            "isTyping": isTyping != nil, "done": done != nil, "incomplete": incomplete != nil,
+            "incompleteReason": incompleteReason != nil, "attachments": attachments != nil,
+            "sources": sources != nil,
+        ]
+        for (key, value) in raw where typed[key] != true {
+            extra[key] = value
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: AnyKey.self)
+        func put<T: Encodable>(_ value: T?, _ key: CodingKeys) throws {
+            if let value {
+                try c.encode(value, forKey: AnyKey(key.rawValue))
+            } else if let kept = extra[key.rawValue] {
+                try c.encode(kept, forKey: AnyKey(key.rawValue))
+            }
+        }
+        try put(id, .id)
+        // A default the decoder filled in is not the server's; write back what it sent, or
+        // nothing. Once changed deliberately, it is written.
+        let roleIsDefault = defaulted.contains("role") && role == .assistant
+        try put(roleIsDefault ? nil : role, .role)
+        let contentIsDefault = defaulted.contains("content") && content.isEmpty
+        try put(contentIsDefault ? nil : content, .content)
+        try put(timestampRaw, .timestampRaw)
+        try put(usage, .usage)
+        try put(isTyping, .isTyping)
+        try put(done, .done)
+        try put(incomplete, .incomplete)
+        try put(incompleteReason, .incompleteReason)
+        try put(attachments, .attachments)
+        try put(sources, .sources)
+        for (key, value) in extra where !Self.modelledKeys.contains(key) {
+            try c.encode(value, forKey: AnyKey(key))
+        }
     }
 }
 

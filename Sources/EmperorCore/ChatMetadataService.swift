@@ -19,12 +19,13 @@ import Foundation
 ///    so the client cannot tell.
 ///
 /// 2. **Sending the full history rewrites it.** Passing the messages through makes the server
-///    delete every stored message for that chat and re-insert the client's own serialisation.
-///    `ChatMessage` is a typed struct, so anything the server stores that this build does not
-///    model is dropped on the way through.
+///    delete every stored message for that chat and re-insert the array it was sent. Even with
+///    `ChatMessage` now keeping every key, that rewrites the whole conversation to change a
+///    title — and races any turn running on it from another device. (The work-log save does use
+///    `/sync`, but only under `WorkLogSync`'s conditions, sending the stored bytes back.)
 ///
-/// Together: renaming a real conversation means destroying and rebuilding every message in it,
-/// through a lossy model, in order to change a title. That is the wrong trade for a cosmetic
+/// Together: renaming a real conversation means destroying and rebuilding every message in it
+/// in order to change a title. That is the wrong trade for a cosmetic
 /// operation, and the failure it risks — a turn quietly missing a field, or a conversation
 /// truncated — is exactly the kind this product cannot afford.
 ///

@@ -120,6 +120,36 @@ struct ReasoningSnapshot: Equatable, Sendable {
             return total
         }
     }
+
+    /// The same state with nothing left running, for a stream that has ended.
+    ///
+    /// On a clean finish, work still in flight did come back — the model went on to write the
+    /// answer — and every plan row is done. On a stop or a failure we do not know, so a call in
+    /// flight is reported `ended` rather than ticked, and so is the plan row the run was on; rows
+    /// it never reached stay pending. Rounds are re-derived from their steps. Idempotent.
+    func settled(ended: WorkStatus) -> ReasoningSnapshot {
+        var settled = self
+        settled.workLog = workLog.map { entry in
+            guard case .group(var group) = entry else { return entry }
+            for index in group.steps.indices where group.steps[index].status == .inProgress {
+                group.steps[index].status = ended
+            }
+            group.status = WorkGroup.rollUp(group.steps)
+            return .group(group)
+        }
+        func settle(_ row: PlanRow) -> PlanRow {
+            var row = row
+            if ended == .completed {
+                row.status = .completed
+            } else if row.status == .inProgress {
+                row.status = ended
+            }
+            row.subtasks = row.subtasks.map(settle)
+            return row
+        }
+        settled.plan = plan.map(settle)
+        return settled
+    }
 }
 
 /// What the caller learns while a turn streams.
@@ -151,6 +181,32 @@ protocol ChatProviding: Sendable {
         attachments: [ChatAttachment]?,
         webSearch: Bool
     ) async throws -> AsyncThrowingStream<ChatTurnEvent, Error>
+    /// Stores a finished turn's work log on its answer, the way the web does. Never throws and
+    /// never surfaces: see `WorkLogSync` for when it declines, and why that is always silent.
+    ///
+    /// - Parameters:
+    ///   - fields: the three `WorkLogWire` keys, as attached to the answer.
+    ///   - transcript: this client's conversation, ending with the question and that answer.
+    ///   - commit: asked immediately before the rewrite is sent; `false` abandons it. The view
+    ///     model answers whether the conversation is still exactly as it was.
+    func saveWorkLog(
+        _ fields: [String: JSONValue],
+        transcript: [ChatMessage],
+        chatID: String,
+        commit: @escaping @Sendable () async -> Bool
+    ) async -> WorkLogSaveOutcome
+}
+
+extension ChatProviding {
+    /// A stand-in that stores nothing, for fakes that do not exercise saving.
+    func saveWorkLog(
+        _ fields: [String: JSONValue],
+        transcript: [ChatMessage],
+        chatID: String,
+        commit: @escaping @Sendable () async -> Bool
+    ) async -> WorkLogSaveOutcome {
+        .skipped(.nothingToSave)
+    }
 }
 
 /// The conversation list, kept separate from `ChatProviding`.
@@ -174,6 +230,9 @@ struct ChatService: ChatProviding, ChatListProviding {
         }
     }
 
+    /// The conversation, every message carrying every key it was stored with — see
+    /// `ChatMessage`. That is what lets the next `POST /chat` give it back unchanged, including the
+    /// work log either client stored on an answer.
     func messages(chatID: String) async throws -> [ChatMessage] {
         let request = try await client.makeRequest("GET", "/messages", query: ["chatId": chatID])
         let all = try await client.send(request, as: MessagesResponse.self).messages
@@ -204,7 +263,11 @@ struct ChatService: ChatProviding, ChatListProviding {
     ///
     /// - Important: `/chat` is **destructive to history**. The server persists exactly
     ///   `messages + answer`, deleting every other message on the chat first, so anything
-    ///   omitted from `history` is deleted server-side. Always pass the full conversation.
+    ///   omitted from `history` is deleted server-side. Always pass the full conversation —
+    ///   and every key of every message in it, which `ChatMessage` keeps for that reason.
+    ///
+    /// The answer this stores carries no work log: `/chat` writes `{role, content, usage, …}`
+    /// only. The log is stored afterwards by `saveWorkLog`, as the web stores its own.
     ///
     /// The run is not tied to the socket: disconnecting does not cancel generation, and the
     /// server keeps checkpointing to the database. A dropped connection should therefore be
@@ -272,6 +335,82 @@ struct ChatService: ChatProviding, ChatListProviding {
             continuation.onTermination = { _ in task.cancel() }
         }
     }
+
+    // MARK: - Storing the work log
+
+    /// Stores a finished turn's work log with its answer: `POST /sync`, as the web does when a
+    /// turn ends (`src/lib/store.js`, `persistAssistantSession` → `syncWithServer`).
+    ///
+    /// **Read `WorkLogSync` before changing anything here.** `/sync` deletes every stored message
+    /// of the chat and re-inserts the array it is sent, so this declines — silently — unless the
+    /// conversation stored on the server is, at this moment, exactly the one on screen ending in
+    /// this client's own answer, with nothing running. The array sent is the stored bytes from a
+    /// fresh `GET /messages`, not this client's re-encoding, so attachments, citations and any
+    /// field this build does not know go back exactly as they were stored.
+    ///
+    /// Every request here goes through `perform`, not `send`: a refusal or an expired session
+    /// met while storing a log is not news worth signing anyone out over, or worth a word on
+    /// screen. The answer is already stored; only the log is at stake.
+    func saveWorkLog(
+        _ fields: [String: JSONValue],
+        transcript: [ChatMessage],
+        chatID: String,
+        commit: @escaping @Sendable () async -> Bool
+    ) async -> WorkLogSaveOutcome {
+        guard let credentials = await client.currentCredentials() else {
+            return .skipped(.signedOut)
+        }
+        do {
+            // The chat row first and the messages last, so the stretch between reading what is
+            // stored and rewriting it is as short as it can be.
+            var listing = try await client.makeRequest("GET", "/chats")
+            listing.timeoutInterval = Self.saveTimeout
+            let (listData, listResponse) = try await client.perform(listing)
+            guard (200..<300).contains(listResponse.statusCode),
+                  let chats = try? JSONDecoder().decode(ChatListResponse.self, from: listData).chats,
+                  let chat = chats.first(where: { $0.id == chatID })
+            else { return .skipped(.chatNotListed) }
+
+            var read = try await client.makeRequest("GET", "/messages", query: ["chatId": chatID])
+            read.timeoutInterval = Self.saveTimeout
+            let (data, response) = try await client.perform(read)
+            guard (200..<300).contains(response.statusCode),
+                  let stored = try? JSONDecoder().decode(MessagesResponse.self, from: data).messages,
+                  let bytes = RawJSON.arrayElements(forKey: "messages", in: data),
+                  bytes.count == stored.count
+            else { return .skipped(.unreadable) }
+
+            if let mismatch = WorkLogSync.mismatch(server: stored, local: transcript) {
+                return .skipped(mismatch)
+            }
+            guard let body = WorkLogSync.body(
+                userID: credentials.userIDString, chat: chat, storedMessages: bytes, adding: fields)
+            else { return .skipped(.unreadable) }
+
+            guard !Task.isCancelled, await commit() else { return .skipped(.newTurnStarted) }
+
+            var write = try await client.makeRequest("POST", "/sync")
+            write.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            write.httpBody = body
+            write.timeoutInterval = Self.saveTimeout
+            // Not cancellable once committed. The view model waits for this before its next turn
+            // goes out, and that wait is only an ordering guarantee if the request it waits for is
+            // the one that reached the server — a cancelled request may or may not have.
+            let client = self.client
+            let sent = Task { try await client.perform(write) }
+            let (reply, status) = try await sent.value
+            guard (200..<300).contains(status.statusCode),
+                  (try? JSONDecoder().decode(WriteResponse.self, from: reply))?.success == true
+            else { return .failed }
+            return .saved
+        } catch {
+            return Task.isCancelled ? .skipped(.newTurnStarted) : .failed
+        }
+    }
+
+    /// Short, because the next question waits for a save already on its way (see
+    /// `ChatViewModel.send`). The answer is not at stake, so a slow network costs only the log.
+    static let saveTimeout: TimeInterval = 20
 
     private func snapshot(of tracker: ReasoningTracker) -> ReasoningSnapshot {
         ReasoningSnapshot(

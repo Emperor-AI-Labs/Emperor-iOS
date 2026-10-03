@@ -37,6 +37,14 @@ final class ChatViewModel {
     /// Set when a run finished but the server says the answer was cut short.
     private(set) var wasInterrupted = false
 
+    /// What became of the last attempt to store a turn's work log. Never shown — the answer is
+    /// stored whatever happens to the log — and kept so the conditions can be tested.
+    private(set) var workLogSave: WorkLogSaveOutcome?
+    /// A work-log save still on its way. The next turn waits for it: see `send(_:)`.
+    private var saveTask: Task<Void, Never>?
+    /// When the turn now streaming was sent, for the "Worked · 00:47" the web shows.
+    private var turnStartedAt: Date?
+
     /// Whether `messages` is the whole conversation, so it is safe to post back.
     ///
     /// **This gates sending, and it is not a nicety.** `POST /chat` replaces the chat's stored
@@ -352,9 +360,21 @@ final class ChatViewModel {
         isStreaming = true
         live = StreamContent()
         status = "Preparing…"
+        turnStartedAt = Date()
+
+        // A work-log save from the turn before may still be on its way. It rewrites the whole
+        // conversation, so it must never reach the server *after* this turn's request does —
+        // above all when this turn is an edit, which stores a shorter history that the rewrite
+        // would put back. Cancelling stops a save that has not committed (it checks again
+        // before sending, and finds this turn streaming); one already sent is waited for. The
+        // save's requests have a short timeout of their own, so the wait is bounded.
+        let pendingSave = saveTask
+        pendingSave?.cancel()
+        saveTask = nil
 
         let outbound = attachments.isEmpty ? nil : attachments
         streamTask = Task { [weak self] in
+            await pendingSave?.value
             guard let self else { return }
             do {
                 // The full conversation must go every time: the server replaces the chat's
@@ -388,6 +408,12 @@ final class ChatViewModel {
                         break
                     }
                 }
+                // A stop ends the loop the same way the end of the body does. It is not a
+                // completion: what was in flight never confirmed, and nothing is saved for it.
+                if Task.isCancelled {
+                    await self.finishStreaming()
+                    return
+                }
                 await self.confirmCompletion()
             } catch is CancellationError {
                 await self.finishStreaming()
@@ -415,35 +441,130 @@ final class ChatViewModel {
     /// An aborted run ends its response cleanly with no error bytes, so end-of-stream alone
     /// proves nothing. `/stream-status` is the only authoritative signal.
     private func confirmCompletion() async {
-        if let status = try? await service.streamStatus(chatID: chatID), status.error == nil {
+        let status = try? await service.streamStatus(chatID: chatID)
+        if let status, status.error == nil {
             wasInterrupted = status.incomplete == true
         }
         // The server's verdict is necessary but not sufficient: `/chat` discards the provider's
         // `status:'length'` finding (`sync-server.js:7797`), so a draft stranded mid-document is
         // reported complete. Trust the shape of the answer as well as the server's word.
         if live?.hasUnclosedDocumentBlock == true { wasInterrupted = true }
-        await finishStreaming()
+        let answered = await finishStreaming(ended: .completed)
+        saveWorkLog(answered: answered, status: status)
     }
 
-    private func finishStreaming() async {
+    /// Ends the turn on screen. Returns whether it appended an answer.
+    ///
+    /// - Parameter ended: how the stream ended — `.completed` only from a clean end of body.
+    ///   Anything else may have left work in flight that never came back.
+    @discardableResult
+    private func finishStreaming(ended: WorkStatus = .stopped) async -> Bool {
         // Reentrancy guard. `stop()` and a late-arriving poll can both reach here, and without
         // this the turn is appended twice.
         guard isStreaming else {
             live = nil
             status = nil
-            return
+            return false
         }
+        var answered = false
         if let live, !live.prose.isEmpty || !live.artifacts.isEmpty {
             // `persistableContent`, NOT `prose`. The next `send` posts this whole array back,
             // and the server replaces its stored messages with exactly what it receives
             // (`sync-server.js:4250`) — so posting the stripped prose would permanently delete
             // this turn's drafted document and every citation token from the server's copy.
-            messages.append(ChatMessage(role: .assistant, content: live.persistableContent))
+            var answer = ChatMessage(role: .assistant, content: live.persistableContent)
+            // The panel moves onto the answer, as the web's does (`streamManager.js` builds the
+            // finished message with it). From here it is drawn from the answer — exactly as it
+            // will be when the conversation is reopened — and it travels with the history the
+            // next question posts, which `/chat` stores as sent.
+            let finished = progress.settled(ended: ended)
+            if !finished.isEmpty {
+                answer.attachWorkLog(WorkLogWire.fields(
+                    for: finished,
+                    seconds: Int(Date().timeIntervalSince(turnStartedAt ?? Date())),
+                    ended: ended))
+                progress = ReasoningSnapshot()
+            }
+            messages.append(answer)
+            answered = true
         }
         live = nil
         status = nil
         isStreaming = false
         streamTask = nil
+        return answered
+    }
+
+    // MARK: - Storing the work log
+
+    /// Stores the work log of the turn that just finished, if — and only if — that is safe.
+    ///
+    /// The web stores its log by posting the whole conversation to `/sync` when a turn ends.
+    /// `/sync` deletes every stored message and re-inserts what it is sent, so the conditions are
+    /// the point; `WorkLogSync` has the full account. Checked here, in order:
+    ///
+    /// - this turn ended cleanly and appended an answer carrying a log;
+    /// - the conversation was loaded whole (`historyIsIntact`) — otherwise what is on screen is
+    ///   not what is stored;
+    /// - `/stream-status` answered, without error, that nothing is running — a run's checkpoint
+    ///   would be deleted by the rewrite, and its own final save would overwrite the log anyway.
+    ///
+    /// The service then checks the stored conversation against this one, and asks
+    /// `isUnchanged(count:lastID:)` once more immediately before sending. Every way out is
+    /// silent: the answer is stored by `/chat` regardless, and the log still travels with the
+    /// next question's history.
+    private func saveWorkLog(answered: Bool, status: StreamStatus?) {
+        guard answered, let answer = messages.last, answer.role == .assistant else {
+            workLogSave = .skipped(.noAnswer)
+            return
+        }
+        guard answer.hasWorkLog else {
+            workLogSave = .skipped(.nothingToSave)
+            return
+        }
+        guard historyIsIntact else {
+            workLogSave = .skipped(.historyNotIntact)
+            return
+        }
+        guard let status, status.error == nil else {
+            workLogSave = .skipped(.statusUnknown)
+            return
+        }
+        guard !status.active else {
+            workLogSave = .skipped(.runStillActive)
+            return
+        }
+
+        let fields = answer.extra.filter { WorkLogWire.keys.contains($0.key) }
+        let transcript = messages
+        let count = messages.count
+        let lastID = answer.stableID
+        let service = self.service
+        let chatID = self.chatID
+        saveTask = Task {
+            let outcome = await service.saveWorkLog(
+                fields, transcript: transcript, chatID: chatID,
+                commit: { [weak self] in
+                    await self?.isUnchanged(count: count, lastID: lastID) ?? false
+                })
+            self.workLogSave = outcome
+        }
+    }
+
+    /// Whether the conversation is still exactly the one the save was prepared from: no turn
+    /// streaming, nothing appended, removed or edited, and still known to be whole.
+    ///
+    /// Every new turn also appends its question, so the count alone would catch one; streaming is
+    /// checked as well so that this does not rest on how `send` happens to be written.
+    private func isUnchanged(count: Int, lastID: String) -> Bool {
+        !isStreaming && historyIsIntact
+            && messages.count == count && messages.last?.stableID == lastID
+    }
+
+    /// Waits for a work-log save still on its way. For tests, which otherwise cannot tell a save
+    /// that has not happened yet from one that never will.
+    func settleWorkLogSave() async {
+        await saveTask?.value
     }
 
     /// Stops rendering locally. It does **not** stop the run: generation continues on the

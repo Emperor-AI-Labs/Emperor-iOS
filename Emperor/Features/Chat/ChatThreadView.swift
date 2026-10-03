@@ -122,7 +122,10 @@ struct ChatThreadView: View {
                         }
 
                         // Above the answer, as in the web client: it explains the work the
-                        // answer below is about to rest on.
+                        // answer below is about to rest on. Only while the turn runs — once the
+                        // answer is in, the panel moves onto it and `MessageBubble` draws it, as
+                        // it will when the conversation is reopened. It stays here only for a
+                        // turn that produced no answer to carry it.
                         if model.isStreaming || !model.progress.isEmpty {
                             ReasoningPanel(
                                 snapshot: model.progress,
@@ -689,36 +692,49 @@ private struct MessageBubble: View {
                     }
             }
         } else {
-            AnswerView(
-                content: StreamContent.parse(message.content),
-                isStreaming: false,
-                onSelectCitation: onSelectCitation)
-                // On the answer only. Reporting your own question would file a complaint about
-                // something the model did not write.
-                .contextMenu {
-                    Button {
-                        // The parsed prose, not the raw content: the stored message still
-                        // carries `<think>` and `<usage>` tags, and pasting those into an email
-                        // to a client would be its own kind of bad day.
-                        UIPasteboard.general.string = StreamContent.parse(message.content).prose
-                    } label: {
-                        Label("Copy", systemImage: "doc.on.doc")
-                    }
-                    if let url = exportedPDF() {
-                        ShareLink(item: url) {
-                            Label("Export as PDF", systemImage: "square.and.arrow.up")
-                        }
-                    }
-                    Button(role: .destructive) {
-                        isReporting = true
-                    } label: {
-                        Label("Report this answer", systemImage: "flag")
-                    }
+            // The same spacing the live panel has above a streaming answer, so the panel does not
+            // shift when the finished turn moves onto its answer.
+            VStack(alignment: .leading, spacing: 16) {
+                // The work log stored with this answer — by this app or the web — collapsed, as
+                // the live panel is once a run has finished. Nothing when none was stored.
+                if let log = message.storedWorkLog {
+                    ReasoningPanel(snapshot: log, isStreaming: false, liveStatus: nil)
                 }
-                .sheet(isPresented: $isReporting) {
-                    ReportAnswerSheet(chatID: chatID)
-                }
+                answer
+            }
         }
+    }
+
+    private var answer: some View {
+        AnswerView(
+            content: StreamContent.parse(message.content),
+            isStreaming: false,
+            onSelectCitation: onSelectCitation)
+            // On the answer only. Reporting your own question would file a complaint about
+            // something the model did not write.
+            .contextMenu {
+                Button {
+                    // The parsed prose, not the raw content: the stored message still
+                    // carries `<think>` and `<usage>` tags, and pasting those into an email
+                    // to a client would be its own kind of bad day.
+                    UIPasteboard.general.string = StreamContent.parse(message.content).prose
+                } label: {
+                    Label("Copy", systemImage: "doc.on.doc")
+                }
+                if let url = exportedPDF() {
+                    ShareLink(item: url) {
+                        Label("Export as PDF", systemImage: "square.and.arrow.up")
+                    }
+                }
+                Button(role: .destructive) {
+                    isReporting = true
+                } label: {
+                    Label("Report this answer", systemImage: "flag")
+                }
+            }
+            .sheet(isPresented: $isReporting) {
+                ReportAnswerSheet(chatID: chatID)
+            }
     }
 }
 

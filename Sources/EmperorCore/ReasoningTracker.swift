@@ -37,6 +37,14 @@ struct WorkGroup: Equatable, Identifiable, Sendable {
     static func == (a: WorkGroup, b: WorkGroup) -> Bool {
         a.status == b.status && a.steps == b.steps
     }
+
+    /// A finished round's status, from its steps: superseded only if every call was, stopped if
+    /// any call never came back, otherwise completed. The same derivation as `finalizeLog`.
+    static func rollUp(_ steps: [WorkStep]) -> WorkStatus {
+        if !steps.isEmpty, steps.allSatisfy({ $0.status == .superseded }) { return .superseded }
+        if steps.contains(where: { $0.status == .stopped }) { return .stopped }
+        return .completed
+    }
 }
 
 enum WorkLogEntry: Equatable, Identifiable, Sendable {
@@ -58,9 +66,21 @@ struct PlanRow: Equatable, Identifiable, Sendable {
     var title: String
     var status: WorkStatus
     var subtasks: [PlanRow]
+    /// The task or subtask exactly as the model wrote it in `<plan>` — `tools`, `description` and
+    /// anything else — because the web stores the row by spreading this object, not by rebuilding
+    /// it from the title. See `WorkLogWire`.
+    var source: [String: JSONValue] = [:]
+
+    init(title: String, status: WorkStatus, subtasks: [PlanRow], source: [String: JSONValue] = [:]) {
+        self.title = title
+        self.status = status
+        self.subtasks = subtasks
+        self.source = source
+    }
 
     static func == (a: PlanRow, b: PlanRow) -> Bool {
         a.title == b.title && a.status == b.status && a.subtasks == b.subtasks
+            && a.source == b.source
     }
 }
 
@@ -85,7 +105,8 @@ final class ReasoningTracker {
     /// Sentence-by-sentence deliberation, in arrival order.
     private(set) var reasoning: [String] = []
 
-    private var rawPlan: StreamPlan?
+    /// The plan's tasks as the model wrote them — see `WorkLogWire.planTasks(in:)`.
+    private var planTasks: [[String: JSONValue]]?
     private var planCursor = 0
     private var openGroupIndex: Int?
     /// Raw-stream offset where the current narration window starts.
@@ -136,32 +157,32 @@ final class ReasoningTracker {
     /// On a clean finish, work left running did come back — the model went on to write the
     /// answer. On a stop or a hard failure we genuinely do not know, so those steps are
     /// reported as unfinished rather than ticked off.
+    ///
+    /// The plan follows the same rule. A clean finish completes it; a stop leaves the rows the
+    /// run never reached pending and marks the one it was on as stopped, rather than leave a
+    /// spinner turning under an answer that is over. (The web ticks every row whatever the ending
+    /// — `completePlanTasks` runs on a stop too — which shows a stopped run as having done work
+    /// it never reached.)
+    ///
+    /// The finished reasoning is the reasoner's own record — `<think>` sentences, whitespace
+    /// collapsed — so what the panel shows once the answer is in is what is stored with it.
     func finish(ended: WorkStatus = .completed) {
-        for index in workLog.indices {
-            guard case .group(var group) = workLog[index] else { continue }
-            group.steps = group.steps.map { step in
-                var step = step
-                if step.status == .inProgress { step.status = ended }
-                return step
-            }
-            group.status = rollUp(group.steps)
-            workLog[index] = .group(group)
-        }
+        let settled = ReasoningSnapshot(plan: plan, workLog: workLog).settled(ended: ended)
+        workLog = settled.workLog
+        plan = settled.plan
         openGroupIndex = nil
-
-        if ended == .completed, rawPlan != nil {
-            plan = completeAll(plan)
-        }
-        reasoning = StreamContent.parse(latestRaw).reasoning
+        reasoning = WorkLogWire.reasoningPoints(in: latestRaw)
     }
 
     // MARK: - Plan
 
+    /// Parsed the web's way (`parsePlanTasks`) rather than through `StreamPlan`, so a subtask the
+    /// typed model would reject still shows — and so every key the model wrote is kept for the
+    /// stored record.
     private func parsePlanIfNeeded(_ raw: String) {
-        guard rawPlan == nil, raw.contains("</plan>") else { return }
-        let parsed = StreamContent.parse(raw)
-        guard let plan = parsed.plan, !plan.tasks.isEmpty else { return }
-        rawPlan = plan
+        guard planTasks == nil, raw.contains("</plan>"),
+              let tasks = WorkLogWire.planTasks(in: raw) else { return }
+        planTasks = tasks
         planCursor = 0
         rebuildPlan()
     }
@@ -169,7 +190,7 @@ final class ReasoningTracker {
     /// Once the actual answer is being written, any reading or research steps are genuinely
     /// behind us — otherwise the panel sits stuck on step one while prose streams past.
     private func advanceIfAnswerStarted(_ raw: String) {
-        guard rawPlan != nil, let end = raw.range(of: "</plan>") else { return }
+        guard planTasks != nil, let end = raw.range(of: "</plan>") else { return }
         let after = StreamContent.parse(String(raw[end.upperBound...])).prose
         if after.count > 40 {
             advancePlan(to: max(totalSubtasks - 1, 0))
@@ -177,12 +198,17 @@ final class ReasoningTracker {
     }
 
     private var totalSubtasks: Int {
-        (rawPlan?.tasks ?? []).reduce(0) { $0 + ($1.subtasks?.count ?? 0) }
+        (planTasks ?? []).reduce(0) { $0 + Self.subtasks(of: $1).count }
+    }
+
+    private static func subtasks(of task: [String: JSONValue]) -> [[String: JSONValue]] {
+        guard case .array(let subtasks)? = task["subtasks"] else { return [] }
+        return subtasks.map { if case .object(let fields) = $0 { return fields } else { return [:] } }
     }
 
     /// The cursor only ever moves forward, and never past the last row.
     private func advancePlan(to target: Int) {
-        guard rawPlan != nil else { return }
+        guard planTasks != nil else { return }
         let last = max(0, totalSubtasks - 1)
         let next = max(planCursor, min(target, last))
         guard next != planCursor else { return }
@@ -193,14 +219,16 @@ final class ReasoningTracker {
     /// Derives every row's status from the single flat cursor: before it is done, at it is
     /// running, after it is pending. A task rolls up from its own subtasks.
     private func rebuildPlan() {
-        guard let rawPlan else { return }
+        guard let planTasks else { return }
         var index = 0
-        plan = rawPlan.tasks.map { task in
-            let subtasks = (task.subtasks ?? []).map { sub -> PlanRow in
+        plan = planTasks.map { task in
+            let subtasks = Self.subtasks(of: task).map { sub -> PlanRow in
                 let status: WorkStatus =
                     index < planCursor ? .completed : (index == planCursor ? .inProgress : .pending)
                 index += 1
-                return PlanRow(title: sub.label, status: status, subtasks: [])
+                return PlanRow(
+                    title: sub["label"]?.stringValue ?? "", status: status, subtasks: [],
+                    source: sub)
             }
             let status: WorkStatus
             if subtasks.isEmpty {
@@ -212,13 +240,9 @@ final class ReasoningTracker {
             } else {
                 status = .pending
             }
-            return PlanRow(title: task.title, status: status, subtasks: subtasks)
-        }
-    }
-
-    private func completeAll(_ rows: [PlanRow]) -> [PlanRow] {
-        rows.map { row in
-            PlanRow(title: row.title, status: .completed, subtasks: completeAll(row.subtasks))
+            return PlanRow(
+                title: task["title"]?.stringValue ?? "", status: status, subtasks: subtasks,
+                source: task)
         }
     }
 
@@ -267,15 +291,9 @@ final class ReasoningTracker {
             if step.status == .inProgress { step.status = .completed }
             return step
         }
-        group.status = rollUp(group.steps)
+        group.status = WorkGroup.rollUp(group.steps)
         workLog[index] = .group(group)
         openGroupIndex = nil
-    }
-
-    private func rollUp(_ steps: [WorkStep]) -> WorkStatus {
-        if !steps.isEmpty, steps.allSatisfy({ $0.status == .superseded }) { return .superseded }
-        if steps.contains(where: { $0.status == .stopped }) { return .stopped }
-        return .completed
     }
 
     /// Applies a server-issued rollback.

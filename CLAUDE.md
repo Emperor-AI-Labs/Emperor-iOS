@@ -75,7 +75,7 @@ as possible into `Sources/EmperorCore/`**, which builds and tests here.
 
 ```bash
 sudo apt install swiftlang     # Swift 6.1.3 on Ubuntu; no iOS SDK, but the core builds
-cd emperor-ios && swift test    # ~1,390 tests
+cd emperor-ios && swift test    # ~1,560 tests
 ```
 
 View models live in the core for this reason — turn state, recovery and error handling are
@@ -115,7 +115,7 @@ that makes no sense against the current source, `rm -rf .build` before investiga
 ## How to work on this repo
 
 - **Put logic in `Sources/EmperorCore/`.** It is Foundation-only — no UIKit, no SwiftUI — so it
-  compiles and tests anywhere, including Linux and CI. `swift test` runs about 1,390 tests in
+  compiles and tests anywhere, including Linux and CI. `swift test` runs about 1,560 tests in
   half a minute. Anything that could plausibly live there should.
 - **A view should hold no logic worth testing.** Everything a screen does other than lay itself
   out — loading, error wording, selection, empty-state rules — belongs in a `@MainActor` view
@@ -144,6 +144,8 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   `generate-tool-fixtures.mjs` (tool prompts), `generate-citation-fixtures.mjs`,
   `generate-file-tool-fixtures.mjs` (page order, compression, image layout),
   `generate-litigator-fixtures.mjs` (Litigator's drafting taxonomy — data and fixtures),
+  `generate-worklog-fixtures.mjs` (the work log the web stores with each answer, and a
+  `/messages` body),
   `generate-phone-fixtures.mjs`, `generate-tile-fixtures.mjs` (tool tile colours and symbols),
   `generate-cause-list-fixtures.mjs`, `generate-compliance-feed-fixture.mjs` and
   `generate-file-date-fixtures.mjs`. When a golden test fails after a platform change,
@@ -159,7 +161,8 @@ that makes no sense against the current source, `rm -rf .build` before investiga
 Full detail in `README.md`. The short list:
 
 1. **`POST /chat` is destructive to history** — the server stores exactly the messages you sent
-   plus the answer, deleting the rest. Always send the full conversation.
+   plus the answer, deleting the rest. Always send the full conversation, every key of every
+   message (`ChatMessage.extra`).
 2. **A clean end-of-stream does not mean the answer finished.** Confirm with `/stream-status`.
 3. **`<truncate:N/>` offsets are UTF-16**, because the server computes them in JavaScript.
 4. **Filenames are sanitised per UTF-16 code unit** — mapping over Swift `Character`s breaks
@@ -202,7 +205,9 @@ Full detail in `README.md`. The short list:
     whose incoming `messages` array is shorter than the count it holds, so a metadata-only
     update — which is what a rename is — does nothing at all to a conversation that has ever
     been used, and says it worked. Sending the messages instead makes it delete and re-insert
-    every one of them. This is why chat rename has no caller; see `ChatMetadataService`.
+    every one of them. This is why chat rename has no caller; see `ChatMetadataService`. The one
+    thing this client writes through `/sync` is a finished turn's work log, under `WorkLogSync`'s
+    conditions (fresh read, exact match, the stored bytes sent back).
 20. **`/check-duplicates` is the one route that refuses a client-supplied `userId`**, because
     its answer says which folders hold a document. It 401s without a real token, and that
     **must not block an upload** — the prompt is a courtesy and the server dedupes on arrival

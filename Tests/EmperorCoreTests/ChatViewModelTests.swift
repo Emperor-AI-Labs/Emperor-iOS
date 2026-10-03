@@ -308,7 +308,9 @@ final class ChatViewModelTests: XCTestCase {
         }
     }
 
-    func testProgressSnapshotIsRecorded() async {
+    /// The finished panel moves onto the answer it explains, as the web's does, so it is drawn
+    /// from the answer from then on — the same way it is drawn when the conversation is reopened.
+    func testProgressSnapshotTravelsWithTheAnswer() async {
         await withModel { fake, model in
             let snapshot = ReasoningSnapshot(
                 plan: [PlanRow(title: "Read the record", status: .inProgress, subtasks: [])],
@@ -317,7 +319,26 @@ final class ChatViewModelTests: XCTestCase {
             model.send("Question")
             await settle(model)
 
+            XCTAssertEqual(model.messages.last?.storedWorkLog?.plan.first?.title, "Read the record")
+            XCTAssertEqual(model.messages.last?.storedWorkLog?.plan.first?.status, .completed,
+                           "a clean finish completes the plan")
+            XCTAssertTrue(model.progress.isEmpty, "drawn once, on the answer, not twice")
+        }
+    }
+
+    /// With no answer to carry it, the panel stays where it was — it is the only account of the
+    /// work the turn did.
+    func testProgressStaysWhenThereIsNoAnswer() async {
+        await withModel { fake, model in
+            let snapshot = ReasoningSnapshot(
+                plan: [PlanRow(title: "Read the record", status: .inProgress, subtasks: [])],
+                workLog: [], reasoning: [])
+            fake.events = [.progress(snapshot)]
+            model.send("Question")
+            await settle(model)
+
             XCTAssertEqual(model.progress.plan.first?.title, "Read the record")
+            XCTAssertEqual(model.messages.count, 1)
         }
     }
 

@@ -227,4 +227,56 @@ final class ReasoningTrackerTests: XCTestCase {
         XCTAssertEqual(ReasoningTracker.summarise("**Now** let me `read` it."),
                        "Now let me read it.")
     }
+
+    // MARK: - The stored record
+
+    /// The plan is parsed the web's way: a subtask the typed model would reject still shows, and
+    /// every key the model wrote is kept for the stored record.
+    func testThePlanKeepsWhatTheModelWrote() {
+        let tracker = run([
+            #"<plan>{"tasks":[{"title":"Read","id":"t1","subtasks":[{"label":"Open the deed","tools":["read_raw_pages"],"description":"Root of title."},{"tools":[]}]},{"title":"Answer"}]}</plan>"#,
+        ])
+        XCTAssertEqual(tracker.plan.map(\.title), ["Read", "Answer"])
+        XCTAssertEqual(tracker.plan[0].subtasks.map(\.title), ["Open the deed", ""])
+        XCTAssertEqual(tracker.plan[0].source["id"], .string("t1"))
+        XCTAssertEqual(tracker.plan[0].subtasks[0].source["description"], .string("Root of title."))
+        XCTAssertEqual(tracker.plan[1].subtasks, [], "a task with no subtasks gets an empty list")
+    }
+
+    func testAPlanTheWebWouldRejectIsRejected() {
+        XCTAssertNil(WorkLogWire.planTasks(in: #"<plan>{"tasks":[{"title":"A","subtasks":{"label":"x"}}]}</plan>"#))
+        XCTAssertNil(WorkLogWire.planTasks(in: #"<plan>{"tasks":[]}</plan>"#))
+        XCTAssertNil(WorkLogWire.planTasks(in: "<plan>not json</plan>"))
+        XCTAssertEqual(WorkLogWire.planTasks(in: #"<plan>{"tasks":[7,{"title":"B","subtasks":null}]}</plan>"#)?.count, 2)
+        // Only the first block counts, as `match` finds only the first.
+        XCTAssertEqual(
+            WorkLogWire.planTasks(in: #"<plan>{"tasks":[{"title":"First"}]}</plan><plan>{"tasks":[{"title":"Second"}]}</plan>"#)?
+                .first?["title"],
+            .string("First"))
+    }
+
+    /// A stop must not leave a spinner turning under an answer that is over.
+    func testAStopSettlesThePlanRowItWasOn() {
+        let tracker = run([planChunk])
+        tracker.finish(ended: .stopped)
+        XCTAssertEqual(tracker.plan[0].subtasks.map(\.status), [.stopped, .pending])
+        XCTAssertEqual(tracker.plan[0].status, .stopped)
+        XCTAssertEqual(tracker.plan[1].status, .pending, "a row never reached is not done")
+    }
+
+    /// The finished reasoning is the reasoner's own record — `<think>` only, whitespace
+    /// collapsed, a sentence still open at the end included.
+    func testTheFinishedReasoningIsTheReasonersRecord() {
+        let tracker = run([
+            "<think>The deed\n   is the root.</think>",
+            "<thinking>A wrapper the provider never writes.</thinking>",
+            "Answer.<think>Still \u{FEFF}weighing\u{000B} it",
+        ])
+        tracker.finish(ended: .stopped)
+        XCTAssertEqual(tracker.reasoning, ["The deed is the root.", "Still weighing it"])
+    }
+
+    func testWhitespaceCollapsesAsJavaScriptsDoes() {
+        XCTAssertEqual(WorkLogWire.collapsingWhitespace("\u{FEFF} a\u{000B}\u{00A0} b \u{2028}"), "a b")
+    }
 }

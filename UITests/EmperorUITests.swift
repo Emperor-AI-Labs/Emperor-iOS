@@ -502,6 +502,31 @@ final class EmperorUITests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
+    // MARK: - Chat
+
+    /// A stored answer carries the work log it was produced with — the stub's answer was stored
+    /// with one, as the web stores every answer — drawn collapsed above it, and opening to the
+    /// calls that were made.
+    func testAStoredAnswerShowsTheWorkItRestsOn() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tabBars.buttons["Chat"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Chat"].tap()
+        let conversation = app.staticTexts["Bakshi v. State"]
+        XCTAssertTrue(conversation.waitForExistence(timeout: 10), "the conversation is not listed")
+        conversation.tap()
+
+        let panel = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch
+        XCTAssertTrue(panel.waitForExistence(timeout: 10), "the stored work log is not drawn")
+        XCTAssertTrue(panel.label.contains("2 steps"), "the panel miscounts: \(panel.label)")
+
+        let step = app.staticTexts["Searching the record for: Section 34(3) limitation"]
+        XCTAssertFalse(step.exists, "a stored panel opens collapsed")
+        panel.tap()
+        XCTAssertTrue(step.waitForExistence(timeout: 5), "the panel does not open to its steps")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
     // MARK: - Empty states
 
     /// `ListStateView` routes to `empty()` whenever the *filtered* list is empty, which is a

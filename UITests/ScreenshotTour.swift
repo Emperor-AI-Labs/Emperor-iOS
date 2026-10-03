@@ -116,7 +116,8 @@ final class ScreenshotTour: XCTestCase {
             }
         }
 
-        // A conversation: the stub serves a stored answer with headings, a table and citations.
+        // A conversation: the stub serves a stored answer with headings, a table and citations,
+        // and the work log it was stored with, collapsed above it.
         app.tabBars.buttons["Chat"].tap()
         snap("chats")
         let conversation = app.staticTexts["Bakshi v. State"]
