@@ -108,7 +108,7 @@ final class CalendarTests: XCTestCase {
 
             let day = model.day("2026-09-14")
             XCTAssertEqual(day.events.count, 1)
-            XCTAssertEqual(day.hearings.count, 1)
+            XCTAssertEqual(day.listings.map(\.caseID), ["c1"])
             XCTAssertEqual(day.itemCount, 2)
             XCTAssertFalse(day.isEmpty)
         }

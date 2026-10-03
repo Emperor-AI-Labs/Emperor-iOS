@@ -123,16 +123,17 @@ final class EmperorUITests: XCTestCase {
 
     // MARK: - The tab bar
 
-    /// The destinations the platform's own mobile nav declares. Corporate is role-gated, and the
-    /// default role — Litigator, which this suite never changes — is one of the three that
-    /// carry it (`MobileNav.jsx`, `canCompliance`).
+    /// The bar the product owner chose: Home · Cases · Chat · Calendar · More, the same for every
+    /// role. Calendar holds the place the web gives its role-gated Corporate tab, which is now a
+    /// row in More — so it must not come back here by accident.
     func testSigningInRevealsTheTabs() {
         let app = signIn(launch())
-        for tab in ["Home", "Cases", "Chat", "Corporate", "More"] {
+        for tab in ["Home", "Cases", "Chat", "Calendar", "More"] {
             XCTAssertTrue(
                 app.tabBars.buttons[tab].waitForExistence(timeout: 10),
                 "the \(tab) tab is missing")
         }
+        XCTAssertFalse(app.tabBars.buttons["Corporate"].exists, "Corporate lives in More now")
     }
 
     /// Every tab renders. A tab that crashes on appear takes the app down, and this is what
@@ -143,7 +144,7 @@ final class EmperorUITests: XCTestCase {
 
         for (tab, title) in [
             ("Home", "Home"), ("Cases", "Cases"), ("Chat", "Emperor"),
-            ("Corporate", "Corporate Calendar"), ("More", "More"),
+            ("Calendar", "Calendar"), ("More", "More"),
         ] {
             app.tabBars.buttons[tab].tap()
             XCTAssertTrue(
@@ -166,13 +167,82 @@ final class EmperorUITests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
-    // MARK: - Corporate
+    // MARK: - Calendar
 
-    /// The tab lists a statutory deadline and opens it, and the way back is the back button.
-    func testTheCorporateTabOpensADeadline() {
+    /// The day's listing is on the Calendar, led by its sitting time, and tapping it lands on the
+    /// **Cases** tab with that matter open on its overview — the stub's `/cause-list`, `/cases`
+    /// and `/case` all describe `case1`, listed today, which is the day the Calendar opens on.
+    ///
+    /// Then the whole way round a second time. The request to open a case is taken once; this is
+    /// what notices if it is never cleared (the case would re-open on every visit to Cases) or
+    /// never re-armed (the second tap would do nothing).
+    func testACalendarListingOpensItsCaseOnTheCasesTab() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["Corporate"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["Corporate"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Calendar"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Calendar"].tap()
+        XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
+
+        let listing = app.buttons["calendar-listing-case1"]
+        XCTAssertTrue(listing.waitForExistence(timeout: 10), "today's listing is not on the Calendar")
+        XCTAssertTrue(
+            listing.label.hasPrefix("10:30 AM. Item 7, Court 12"),
+            "the listing does not lead with its time, item and court: \(listing.label)")
+
+        for pass in 1...2 {
+            app.buttons["calendar-listing-case1"].tap()
+
+            let matter = app.navigationBars["Bakshi v. State of Maharashtra"]
+            XCTAssertTrue(
+                matter.waitForExistence(timeout: 10),
+                "pass \(pass): tapping the listing did not open its case")
+            XCTAssertTrue(
+                app.tabBars.buttons["Cases"].isSelected,
+                "pass \(pass): the case opened somewhere other than the Cases tab")
+            let overview = app.staticTexts.matching(
+                NSPredicate(format: "label ==[c] %@", "Overview")).firstMatch
+            XCTAssertTrue(
+                overview.waitForExistence(timeout: 10),
+                "pass \(pass): the case did not open on its overview")
+
+            // Back lands on the docket, not on whatever Cases showed before.
+            matter.buttons.element(boundBy: 0).tap()
+            XCTAssertTrue(
+                app.navigationBars["Cases"].waitForExistence(timeout: 10),
+                "pass \(pass): back from the case did not land on the docket")
+
+            app.tabBars.buttons["Calendar"].tap()
+            XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
+        }
+
+        // And coming back to Cases does not open the case again by itself.
+        app.tabBars.buttons["Cases"].tap()
+        XCTAssertTrue(app.navigationBars["Cases"].waitForExistence(timeout: 10))
+        XCTAssertFalse(
+            app.navigationBars["Bakshi v. State of Maharashtra"].exists,
+            "an old request re-opened the case")
+
+        // The day's diary entry follows its listings, in a section of its own. Scrolled to, as
+        // it sits below the month and the listing: a list only builds the rows it is showing.
+        app.tabBars.buttons["Calendar"].tap()
+        let diary = app.staticTexts["File written statement"]
+        var swipes = 0
+        while !diary.exists, swipes < 3 {
+            app.swipeUp()
+            swipes += 1
+        }
+        XCTAssertTrue(diary.waitForExistence(timeout: 5), "the day's diary entry is missing")
+    }
+
+    // MARK: - Corporate Calendar
+
+    /// More opens the Corporate Calendar for every role; it lists a statutory deadline and opens
+    /// it, the way back is the back button, and the screen closes from its own Done.
+    func testTheCorporateCalendarOpensFromMoreAndOpensADeadline() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["More"].tap()
+        app.buttons["Corporate Calendar"].tap()
+        XCTAssertTrue(app.navigationBars["Corporate Calendar"].waitForExistence(timeout: 10))
 
         let deadline = app.staticTexts["GSTR-1"]
         XCTAssertTrue(deadline.waitForExistence(timeout: 10), "the deadline is not listed")
@@ -187,6 +257,9 @@ final class EmperorUITests: XCTestCase {
             "the deadline cannot be shared")
         app.navigationBars["GSTR1"].buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.navigationBars["Corporate Calendar"].waitForExistence(timeout: 10))
+
+        app.navigationBars["Corporate Calendar"].buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
     }
 
     // MARK: - Calendar subscription
@@ -196,9 +269,8 @@ final class EmperorUITests: XCTestCase {
     /// the Calendar app, which is the point of it and the end of any test.
     func testCalendarOffersAPrivateLinkThatCanBeCopied() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["More"].tap()
-        app.buttons["Calendar"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Calendar"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Calendar"].tap()
         XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
 
         app.navigationBars["Calendar"].buttons["Subscribe"].tap()
@@ -233,15 +305,20 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
         app.tabBars.buttons["More"].tap()
 
+        // Hidden for now at the product owner's request; their screens are kept. See the note
+        // at `MoreView`'s rows for how to bring them back.
+        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
+        for hidden in ["Projects", "eAuctions"] {
+            XCTAssertFalse(app.buttons[hidden].exists, "\(hidden) is meant to be hidden")
+        }
+
         for (row, title) in [
             ("My Files", "My Files"),
-            ("Calendar", "Calendar"),
+            ("Corporate Calendar", "Corporate Calendar"),
             ("Library", "Library"),
-            ("Projects", "Projects"),
             ("All tools", "Tools"),
             ("File tools", "File tools"),
             ("Translate", "Translate"),
-            ("eAuctions", "eAuctions"),
             ("Settings", "Settings"),
         ] {
             let cell = app.buttons[row]
@@ -434,7 +511,7 @@ final class EmperorUITests: XCTestCase {
         let app = signIn(launch("-UITestEmpty"))
         XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
 
-        for tab in ["Home", "Cases", "Chat", "Corporate"] {
+        for tab in ["Home", "Cases", "Chat", "Calendar"] {
             app.tabBars.buttons[tab].tap()
             // `ContentUnavailableView` renders as static text; any of it is enough to prove the
             // empty branch drew something.

@@ -2,88 +2,81 @@ import SwiftUI
 
 /// The signed-in app.
 ///
-/// **This is the web app's own mobile navigation, not a choice made here.**
-/// `src/shell/MobileNav.jsx` is rendered by `AppShell` under 768px and its comment reads
-/// *"Native-app-style bottom tab bar (mobile only). Primary destinations + 'More' (drawer)."*
-/// Its items are **Home · Cases · Chat · Corporate · More**. So the platform had already
-/// answered what Emperor looks like on a phone, and it answered "a tab bar" — which is also
-/// what iOS wants.
+/// **A tab bar, as the web's own mobile navigation is.** `src/shell/MobileNav.jsx` is rendered by
+/// `AppShell` under 768px and its comment reads *"Native-app-style bottom tab bar (mobile only).
+/// Primary destinations + 'More' (drawer)."* So the platform had already answered what Emperor
+/// looks like on a phone, and it answered "a tab bar" — which is also what iOS wants. Android uses
+/// a navigation drawer with nineteen rows and no tab bar at all; it is the outlier, not this.
 ///
-/// **Corporate is role-gated, exactly as the web gates it**: shown to Corporate Counsel, Senior
-/// Counsel and Litigator (`canCompliance` — `corporate`, `counsel`, `litigator`), hidden for the
-/// other four. See `PractitionerRole.hasCorporateTab`. The role is read from `Practice`, so the
-/// tab appears or goes the moment the role changes in Settings, without a relaunch. The screen
-/// behind it, the Corporate Calendar, is open to every role all the same — the others reach it
-/// from Calendar, as the web's calendar tabs let them.
+/// **The destinations are the product owner's choice, not the web's.** The web's bar is
+/// Home · Cases · Chat · Corporate · More, with Corporate (the statutory Corporate Calendar) shown
+/// only to Corporate Counsel, Senior Counsel and Litigator. This app's is
+/// **Home · Cases · Chat · Calendar · More**, the same for every role: the fourth place goes to
+/// the user's own Calendar — their hearings, day by day, and their diary — because every role
+/// has hearings to keep, and a deadline register is somewhere one goes rather than lives. The
+/// Corporate Calendar moved to More, where every role reaches it (the web's calendar tabs offer
+/// it to every role too, `CalendarTabs.jsx`).
 ///
-/// That settles a question the two mobile clients had answered differently: Android uses a
-/// navigation drawer with nineteen rows and no tab bar at all. It is the outlier, not this.
-///
-/// `Library` and `Diary` were tabs once and are now inside **More**, which is where the web puts
-/// them too — they are places you go occasionally, not places you live. `Today` becomes
+/// `Library` was a tab once and is now inside **More**, which is where the web puts it too — a
+/// place you go occasionally, not a place you live. `Diary` made the same move, was renamed
+/// Calendar to match the platform, and is back in the bar for the reason above. `Today` became
 /// **Home**, matching the platform's label for the same screen: the thing you open the phone to
 /// find out.
 ///
 /// Notifications stay out of the bar. The platform's own dashboard puts them in the topbar as a
 /// bell with a count (`src/shell/NotificationBell.jsx`), and the Home screen carries them the
 /// same way.
+///
+/// ## Crossing tabs
+///
+/// The selected tab lives in an `AppNavigator`, made here and handed down the environment, so
+/// one tab can ask another to show something without reaching into it — the Calendar opening a
+/// listed case on the Cases tab is the one that does. Made here rather than higher up so that
+/// signing out discards it with everything else: a request to open a case must not survive into
+/// the next account.
 struct MainTabView: View {
     @Environment(\.theme) private var theme
-    @Environment(\.practice) private var practice
 
-    /// Explicit, so a tab that disappears can hand the selection somewhere deliberate.
-    @State private var selection: Destination = .home
-
-    private enum Destination: Hashable {
-        case home, cases, chat, corporate, more
-    }
+    @State private var navigator = AppNavigator()
 
     var body: some View {
-        // Read once per render; `Practice` is observed, so a role change re-renders this.
-        let showsCorporate = practice.role.hasCorporateTab
-        TabView(selection: $selection) {
+        TabView(selection: Binding(
+            get: { navigator.selectedTab },
+            set: { navigator.selectedTab = $0 }
+        )) {
             CauseListView()
                 .tabItem {
                     Label("Home", systemImage: "house")
                 }
-                .tag(Destination.home)
+                .tag(AppNavigator.Tab.home)
 
             CaseListView()
                 .tabItem {
                     Label("Cases", systemImage: "briefcase")
                 }
-                .tag(Destination.cases)
+                .tag(AppNavigator.Tab.cases)
 
             ChatListView()
                 .tabItem {
                     Label("Chat", systemImage: "bubble.left.and.text.bubble.right")
                 }
-                .tag(Destination.chat)
+                .tag(AppNavigator.Tab.chat)
 
-            if showsCorporate {
-                // The web's `CalendarCheck` icon and its "Corporate" label. The screen owns no
-                // stack of its own, because Calendar pushes the same screen into its own.
-                NavigationStack {
-                    ComplianceCalendarView()
-                }
+            // The outline calendar, matching the outline symbols either side of it — not the
+            // web's `CalendarCheck`, which belonged to the Corporate Calendar this place held.
+            CalendarView()
                 .tabItem {
-                    Label("Corporate", systemImage: "calendar.badge.checkmark")
+                    Label("Calendar", systemImage: "calendar")
                 }
-                .tag(Destination.corporate)
-            }
+                .tag(AppNavigator.Tab.calendar)
 
             MoreView()
                 .tabItem {
                     Label("More", systemImage: "line.3.horizontal")
                 }
-                .tag(Destination.more)
+                .tag(AppNavigator.Tab.more)
         }
-        // A role without the tab must not leave the bar pointing at a tab that is gone. Not
-        // reachable today — role is chosen in Settings, which the Corporate tab does not
-        // offer — but cheap to make impossible rather than merely unlikely.
-        .onChange(of: showsCorporate) { _, shows in
-            if !shows && selection == .corporate { selection = .home }
-        }
+        .environment(\.navigator, navigator)
         // The web marks the active item with `--ex-accent` and a soft pill behind the icon.
         // The colour ports; the pill does not — a custom indicator would mean rebuilding the
         // tab bar to draw something iOS already draws, and losing the platform's own

@@ -3,7 +3,8 @@ import Foundation
 // The Corporate Calendar: statutory deadlines from the platform's compliance pipeline.
 //
 // The web page is `src/pages/ComplianceCalendar.jsx`, reached from the mobile bar's role-gated
-// "Corporate" tab (`src/shell/MobileNav.jsx`). Its dated rows come from
+// "Corporate" tab (`src/shell/MobileNav.jsx`); this app reaches it from More, for every role —
+// see `MainTabView` for why the bar differs. Its dated rows come from
 // `GET /compliance-calendar`, which serialises `lib/complianceCalendarFeed.js`'s
 // `toCalendarEvent` for every row of the pipeline's `compliance_master` table. Everything below
 // was read off that function and `db/schedule.js`, not off the page.
@@ -462,25 +463,6 @@ enum CourtCalendar {
         case 2: return "\(number)nd"
         case 3: return "\(number)rd"
         default: return "\(number)th"
-        }
-    }
-}
-
-// MARK: - Who sees the tab
-
-extension PractitionerRole {
-    /// Whether the tab bar carries **Corporate**.
-    ///
-    /// Exactly the web's set: `MobileNav.jsx` shows the tab when `uiRole` is one of
-    /// `corporate`, `counsel` or `litigator` — this app's Corporate Counsel, Senior Counsel and
-    /// Litigator. The page itself is open to every role (`App.jsx`'s `ComplianceRoute` was
-    /// ungated after it bounced other roles to Home); what the role decides is only whether it
-    /// earns a place in the bar. The others reach it from Calendar, as the web's calendar tabs
-    /// do.
-    var hasCorporateTab: Bool {
-        switch self {
-        case .corporateCounsel, .seniorCounsel, .litigator: return true
-        case .adjudicator, .student, .paralegal, .legalAid: return false
         }
     }
 }

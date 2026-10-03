@@ -9,6 +9,11 @@ import SwiftUI
 /// Read-mostly by design. The only two writes offered are a note and a task — the two things
 /// that make sense standing up outside a courtroom. Everything else the web workspace can do
 /// is a desk job, and a wrong entry here is harder to notice than one made at a screen.
+///
+/// The Calendar opens a listed case here, on the Cases tab, asking for its overview. The overview
+/// is not a tab but the head of the screen, so a fresh screen shows it with nothing to select;
+/// `CaseRoute.request` is what makes the screen a fresh one even when the same case was already
+/// open and scrolled down to its orders.
 struct CaseDetailView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session

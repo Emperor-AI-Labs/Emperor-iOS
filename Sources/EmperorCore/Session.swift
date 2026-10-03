@@ -57,7 +57,7 @@ final class Session {
     let feedback: FeedbackService
     /// This month's allowances and usage, for Settings. Read only.
     let usage: UsageService
-    /// The statutory deadlines behind the Corporate tab.
+    /// The statutory deadlines behind the Corporate Calendar.
     let complianceCalendar: ComplianceCalendarService
     /// The private calendar-subscription link. Takes the base URL because the route answers a
     /// path that has to be resolved against it.

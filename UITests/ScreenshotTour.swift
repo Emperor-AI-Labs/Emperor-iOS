@@ -74,9 +74,24 @@ final class ScreenshotTour: XCTestCase {
         }
         snap("home")
 
-        for tab in ["Cases", "Corporate"] where app.tabBars.buttons[tab].exists {
-            app.tabBars.buttons[tab].tap()
-            snap(tab.lowercased())
+        app.tabBars.buttons["Cases"].tap()
+        snap("cases")
+
+        // The Calendar opens on today, where the stub lists one matter and one diary entry; the
+        // listing then opens its case on the Cases tab, on the overview.
+        if app.tabBars.buttons["Calendar"].exists {
+            app.tabBars.buttons["Calendar"].tap()
+            let listing = app.buttons["calendar-listing-case1"]
+            let isListed = listing.waitForExistence(timeout: 10)
+            snap("calendar")
+            if isListed {
+                listing.tap()
+                let matter = app.navigationBars["Bakshi v. State of Maharashtra"]
+                if matter.waitForExistence(timeout: 10) {
+                    snap("case-overview")
+                    backOut(app)
+                }
+            }
         }
 
         // A conversation: the stub serves a stored answer with headings, a table and citations.
@@ -94,8 +109,9 @@ final class ScreenshotTour: XCTestCase {
         // Everything behind More, each opened and closed from its own Done.
         app.tabBars.buttons["More"].tap()
         snap("more")
-        for row in ["My Files", "Calendar", "Library", "Projects", "Your workspace",
-                    "All tools", "File tools", "Translate", "eAuctions", "Settings"] {
+        // Projects and eAuctions are hidden for now; see `MoreView`.
+        for row in ["My Files", "Corporate Calendar", "Library", "Your workspace",
+                    "All tools", "File tools", "Translate", "Settings"] {
             let button = app.buttons[row].firstMatch
             guard button.waitForExistence(timeout: 5) else { continue }
             button.tap()

@@ -8,30 +8,41 @@ import SwiftUI
 /// spread across a year are mostly empty cells in a grid this size. What the screen does and
 /// does not do, and why, is on `ComplianceCalendarViewModel`.
 ///
-/// It owns no `NavigationStack`, so it can be both the Corporate tab's root and a screen pushed
-/// from Calendar — the two ways in the web offers (the mobile bar for three roles, the calendar
-/// tabs for everyone). The caller supplies the stack.
+/// Reached from More, for every role, and presented there — so it owns its `NavigationStack` and
+/// carries its own **Done**, as every screen More presents does (see `MoreView`). It was a
+/// role-gated Corporate tab here, as it is on the web, until the product owner gave that place in
+/// the bar to the user's own Calendar; see `MainTabView`.
 struct ComplianceCalendarView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
+    @Environment(\.dismiss) private var dismiss
 
     @State private var model: ComplianceCalendarViewModel?
 
     var body: some View {
-        Group {
-            if let model {
-                content(model)
-            } else {
-                ProgressView()
+        NavigationStack {
+            Group {
+                if let model {
+                    content(model)
+                } else {
+                    ProgressView()
+                }
             }
-        }
-        .navigationTitle(ComplianceCalendarViewModel.Copy.title)
-        .task {
-            guard model == nil else { return }
-            let created = ComplianceCalendarViewModel(
-                service: session.complianceCalendar, cache: session.cache)
-            model = created
-            await created.load()
+            .navigationTitle(ComplianceCalendarViewModel.Copy.title)
+            // On the root rather than inside `content`, so the way out is there in every state —
+            // the spinner, and the failure view if the load never returns.
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .task {
+                guard model == nil else { return }
+                let created = ComplianceCalendarViewModel(
+                    service: session.complianceCalendar, cache: session.cache)
+                model = created
+                await created.load()
+            }
         }
     }
 

@@ -118,7 +118,10 @@ final class CauseListViewModel {
     /// The room and item are the ones the row prints (`CauseListingDisplay`), so the order on
     /// screen can never disagree with the numbers on screen. Computed once per row, before
     /// sorting: they come from a dozen regular expressions each.
-    private static func sortKey(_ listing: CauseListing) -> (String, Int, String, Int, String, String) {
+    ///
+    /// Shared with the Calendar (`CalendarListings`), which orders a day by sitting time and then
+    /// by this — so the two screens cannot walk the same matters in different orders.
+    nonisolated static func sortKey(_ listing: CauseListing) -> (String, Int, String, Int, String, String) {
         let display = listing.display
         let forum = listing.courtName?.trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased() ?? ""

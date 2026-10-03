@@ -187,15 +187,6 @@ final class ComplianceCalendarTests: XCTestCase {
         XCTAssertEqual(CourtCalendar.tile("2026-10-31")?.month, "Oct")
     }
 
-    // MARK: - Who gets the tab
-
-    /// `MobileNav.jsx`: `['corporate', 'counsel', 'litigator'].includes(uiRole)`.
-    func testTheCorporateTabIsExactlyTheWebsRoleSet() {
-        XCTAssertEqual(
-            Set(PractitionerRole.allCases.filter(\.hasCorporateTab)),
-            [.corporateCounsel, .seniorCounsel, .litigator])
-    }
-
     // MARK: - The service, on the wire
 
     override func setUp() {

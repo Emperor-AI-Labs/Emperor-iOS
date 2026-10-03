@@ -1,6 +1,18 @@
 import SwiftUI
 
-/// Hearings and obligations together.
+/// The Calendar tab: the user's matters, day by day, and their own diary beside them.
+///
+/// ## A day
+///
+/// Selecting a day in the month shows the matters listed on it — from the cause list, topped up
+/// from the docket's next hearing dates — **in the order the day will run**: by sitting time,
+/// then the listings whose list printed no time, by courtroom and item. Each row is the one Home
+/// draws (`CauseListingRow`), led by its time. Tapping one opens that case on the **Cases** tab,
+/// on its overview: the case belongs to the docket, and a second copy of its screen inside this
+/// tab would be a second place to look for the same matter. The day's diary entries follow as
+/// their own section. The rules are `CalendarListings` and `CalendarViewModel`.
+///
+/// Every date is a day in India (README trap 9); the grid and "today" are pinned to it.
 ///
 /// ## Subscribing from the Calendar app
 ///
@@ -17,25 +29,19 @@ import SwiftUI
 /// either. On the one screen whose purpose is not missing a limitation date, a reminder control
 /// would be the worst possible place to make a promise the product cannot keep.
 ///
-/// ## Corporate Calendar
-///
-/// For roles without the Corporate tab, the statutory calendar is one row away here — the web's
-/// calendar tabs offer it to every role (`CalendarTabs.jsx`), and only the bottom bar is
-/// gated. Roles with the tab are not shown the row twice.
+/// The Corporate Calendar is not linked from here any more: it has its own row in More, for
+/// every role.
 struct CalendarView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
-    @Environment(\.practice) private var practice
-
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.navigator) private var navigator
 
     @State private var model: CalendarViewModel?
     @State private var isAddingEvent = false
     @State private var isSubscribing = false
-    @State private var path: [String] = []
 
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack {
             Group {
                 if let model {
                     content(model)
@@ -44,26 +50,17 @@ struct CalendarView: View {
                 }
             }
             .navigationTitle("Calendar")
-            // On the root rather than inside `content`, so it is there in every state — including
-            // the spinner before the first load returns, and the failure view if it never does.
-            // A screen you cannot leave until it finishes loading is the one case where the way
-            // out matters most.
+            // On the root rather than inside `content`, so subscribing does not wait on — or
+            // depend on — the calendar having loaded: the link is a separate request. Leading,
+            // because a tab root has no Done to sit there and the trailing side holds "+".
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
-                // On the root too, so subscribing does not wait on — or depend on — the
-                // calendar having loaded: the link is a separate request.
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button("Subscribe") { isSubscribing = true }
                         .accessibilityHint("Adds your hearings and diary to the Calendar app")
                 }
             }
             .sheet(isPresented: $isSubscribing) {
                 CalendarSubscriptionSheet()
-            }
-            .navigationDestination(for: String.self) { caseID in
-                CaseDetailView(caseID: caseID)
             }
             .task {
                 guard model == nil else { return }
@@ -81,11 +78,20 @@ struct CalendarView: View {
     private func content(_ model: CalendarViewModel) -> some View {
         ListStateView(presentation: model.presentation, retry: { await model.load() }) {
             List {
-                if !practice.role.hasCorporateTab {
-                    corporateCalendarLink
-                }
                 monthSection(model)
-                selectedDaySection(model)
+
+                // Read once: it filters the diary for the day.
+                let day = model.selectedCalendarDay
+                listingsSection(day, model)
+                if !day.events.isEmpty {
+                    Section {
+                        ForEach(day.events) { event in
+                            eventRow(event, model)
+                        }
+                    } header: {
+                        SectionHeader(title: "Diary", detail: "\(day.events.count)")
+                    }
+                }
 
                 if !model.overdue.isEmpty {
                     Section {
@@ -100,16 +106,16 @@ struct CalendarView: View {
 
                 // The selected day is listed in full directly above, so the agenda leaves it
                 // out rather than printing the same day twice on one screen.
-                ForEach(model.upcoming(excluding: model.selectedDay)) { day in
-                    Section(DisplayText.longDay(day.key)) {
-                        ForEach(day.hearings) { legalCase in
-                            NavigationLink(value: legalCase.id) {
-                                hearingRow(legalCase)
-                            }
+                ForEach(model.upcoming(excluding: model.selectedDay)) { upcoming in
+                    Section {
+                        ForEach(upcoming.listings) { listing in
+                            listingButton(listing)
                         }
-                        ForEach(day.events) { event in
+                        ForEach(upcoming.events) { event in
                             eventRow(event, model)
                         }
+                    } header: {
+                        SectionHeader(title: DisplayText.longDay(upcoming.key))
                     }
                 }
             }
@@ -151,44 +157,19 @@ struct CalendarView: View {
         }
     }
 
-    // MARK: - Corporate Calendar
-
-    /// The statutory calendar, pushed into this stack — the web's "Corporate Calendar" tab
-    /// beside "My Calendar".
-    private var corporateCalendarLink: some View {
-        Section {
-            NavigationLink {
-                ComplianceCalendarView()
-            } label: {
-                Label {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Corporate Calendar")
-                            .font(.brand(.subheadline, weight: .semibold))
-                            .foregroundStyle(theme.textPrimary)
-                        Text("Statutory deadlines — ROC, tax, GST, PF and more")
-                            .font(.brand(.caption))
-                            .foregroundStyle(theme.textSecondary)
-                    }
-                } icon: {
-                    Image(systemName: "calendar.badge.checkmark")
-                        .foregroundStyle(theme.accentText)
-                }
-            }
-        }
-        .listRowBackground(theme.surface)
-    }
-
     // MARK: - The month
 
-    /// The month as a grid of whole weeks, with a dot on every day that has something on it.
+    /// The month as a grid of whole weeks, with a mark on every day that has something on it: a
+    /// filled dot where a matter is listed, a ring where there are only diary entries.
     ///
-    /// The dot rather than a count: the grid answers "which days", and the day's own section
-    /// below answers "what". A number in a cell this size is unreadable and, at a glance, is
-    /// easily taken for the date.
+    /// A mark rather than a count: the grid answers "which days", and the day's own sections
+    /// below answer "what". A number in a cell this size is unreadable and, at a glance, is
+    /// easily taken for the date. Two shapes rather than two colours, so the difference does not
+    /// depend on seeing colour.
     private func monthSection(_ model: CalendarViewModel) -> some View {
-        // Read once. `populatedDays` walks both arrays to build a set, and the grid is about to
-        // ask it forty-odd times.
-        let populated = model.populatedDays
+        // Read once. `marks` walks both sources to build a map, and the grid is about to ask it
+        // forty-odd times.
+        let marks = model.marks
         return Section {
             VStack(spacing: 5) {
                 HStack(spacing: 4) {
@@ -206,17 +187,38 @@ struct CalendarView: View {
                     ForEach(Array(month.weeks.enumerated()), id: \.offset) { _, week in
                         HStack(spacing: 4) {
                             ForEach(week) { day in
-                                dayCell(day, model, hasItems: populated.contains(day.key))
+                                dayCell(day, model, mark: marks[day.key] ?? CalendarDayMark.clear)
                             }
                         }
                     }
                 }
+                legend
             }
             .padding(.vertical, 2)
             .listRowInsets(EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
         } header: {
             monthHeader(model)
         }
+    }
+
+    /// What the two marks mean. Hidden from VoiceOver, which hears each day's mark as words.
+    private var legend: some View {
+        HStack(spacing: 14) {
+            HStack(spacing: 5) {
+                marker(.listed, isSelected: false)
+                Text("Cases listed")
+            }
+            HStack(spacing: 5) {
+                marker(.diary, isSelected: false)
+                Text("Diary")
+            }
+            Spacer(minLength: 0)
+        }
+        .font(.brand(.caption2))
+        .foregroundStyle(theme.textTertiary)
+        .padding(.top, 4)
+        .padding(.leading, 4)
+        .accessibilityHidden(true)
     }
 
     private func monthHeader(_ model: CalendarViewModel) -> some View {
@@ -249,7 +251,7 @@ struct CalendarView: View {
     }
 
     private func dayCell(
-        _ day: CalendarMonth.Day, _ model: CalendarViewModel, hasItems: Bool
+        _ day: CalendarMonth.Day, _ model: CalendarViewModel, mark: CalendarDayMark
     ) -> some View {
         let isSelected = day.key == model.selectedDay
         let isToday = day.key == model.todayKey
@@ -264,9 +266,7 @@ struct CalendarView: View {
         } label: {
             VStack(spacing: 2) {
                 Text("\(day.number)").font(.brand(.footnote, weight: weight))
-                Circle()
-                    .fill(hasItems ? (isSelected ? theme.onAccent : theme.accent) : Color.clear)
-                    .frame(width: 5, height: 5)
+                marker(mark, isSelected: isSelected)
             }
             .foregroundStyle(foreground)
             .frame(maxWidth: .infinity)
@@ -281,49 +281,80 @@ struct CalendarView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(DisplayText.longDay(day.key))
-        .accessibilityValue(hasItems ? "Has entries" : "Nothing scheduled")
+        .accessibilityValue(mark.spoken)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    /// What is on the selected day — and when there is nothing, which kind of nothing it is.
-    /// An empty day in a full diary and an empty diary are different things to be told.
-    private func selectedDaySection(_ model: CalendarViewModel) -> some View {
-        let day = model.selectedCalendarDay
-        return Section {
-            if day.isEmpty {
-                Text(model.hasNothingToShow
-                     ? "Nothing scheduled yet. Add a diary entry with the + above."
-                     : "Nothing on this day.")
+    /// A filled dot for a listed day, a ring for a diary-only one, nothing for a clear one — at a
+    /// fixed size, so every cell is the same height whatever is on it.
+    @ViewBuilder
+    private func marker(_ mark: CalendarDayMark, isSelected: Bool) -> some View {
+        switch mark {
+        case .listed:
+            Circle()
+                .fill(isSelected ? theme.onAccent : theme.accent)
+                .frame(width: 6, height: 6)
+        case .diary:
+            Circle()
+                .strokeBorder(isSelected ? theme.onAccent : theme.textTertiary, lineWidth: 1)
+                .frame(width: 6, height: 6)
+        case .clear:
+            Color.clear
+                .frame(width: 6, height: 6)
+        }
+    }
+
+    // MARK: - The selected day
+
+    /// The matters listed on the selected day, in the order it will run — and when there are
+    /// none, which kind of nothing it is. The footer says whose cases these are and to confirm
+    /// with the court, on every state: an empty day must never read as a free one.
+    private func listingsSection(_ day: CalendarDay, _ model: CalendarViewModel) -> some View {
+        Section {
+            if day.listings.isEmpty {
+                Text(model.selectedDayEmptyText)
                     .font(.brand(.subheadline))
                     .foregroundStyle(theme.textSecondary)
             } else {
-                ForEach(day.hearings) { legalCase in
-                    NavigationLink(value: legalCase.id) {
-                        hearingRow(legalCase)
-                    }
-                }
-                ForEach(day.events) { event in
-                    eventRow(event, model)
+                ForEach(day.listings) { listing in
+                    listingButton(listing)
                 }
             }
         } header: {
-            SectionHeader(title: DisplayText.longDay(day.key))
+            SectionHeader(
+                title: DisplayText.longDay(day.key),
+                detail: day.listings.isEmpty ? nil : "\(day.listings.count) listed")
+        } footer: {
+            Text(CalendarViewModel.Copy.listingsFooter)
+                .font(.brand(.caption))
+                .foregroundStyle(theme.textTertiary)
         }
     }
 
-    private func hearingRow(_ legalCase: LegalCase) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "building.columns")
-                .foregroundStyle(theme.accentText)
-                .frame(width: 22)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(legalCase.displayTitle).font(.brand(.subheadline)).lineLimit(2)
-                if let court = legalCase.courtName {
-                    Text(court).font(.brand(.caption)).foregroundStyle(theme.textSecondary)
-                }
+    /// A listing, which opens its case on the Cases tab — see the type's documentation for why
+    /// it is not pushed here. A button with a chevron rather than a `NavigationLink`, because it
+    /// leaves this tab; it still looks like every other row that leads somewhere.
+    private func listingButton(_ listing: CauseListing) -> some View {
+        Button {
+            navigator.openCase(listing.caseID)
+        } label: {
+            HStack(spacing: 8) {
+                CauseListingRow(listing: listing, leadsWithTime: true)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.brand(.footnote, weight: .semibold))
+                    .foregroundStyle(theme.textTertiary)
+                    .accessibilityHidden(true)
             }
+            .contentShape(Rectangle())
         }
-        .accessibilityElement(children: .combine)
+        .buttonStyle(.plain)
+        .accessibilityLabel(listing.display.spokenLeadingWithTime(listing))
+        .accessibilityHint("Opens the case on the Cases tab")
+        .accessibilityIdentifier("calendar-listing-\(listing.caseID)")
     }
+
+    // MARK: - Diary entries
 
     private func eventRow(_ event: ComplianceEvent, _ model: CalendarViewModel) -> some View {
         HStack(spacing: 10) {

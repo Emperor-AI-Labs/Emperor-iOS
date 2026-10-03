@@ -105,13 +105,17 @@ enum UITestSupport {
             // screenshot tour shows the answer renderer and the citation badges doing their job.
             case "/messages":
                 return ###"{"success":true,"messages":[{"id":"m1","role":"user","content":"What is the limitation period for a petition under Section 34 of the Arbitration Act?"},{"id":"m2","role":"assistant","content":"## Short answer\n\nA petition under **Section 34** must be filed within **three months** of receiving the award [1], extendable by a further thirty days on sufficient cause — and no further [2].\n\n## How the period runs\n\n1. Time starts when the party *receives* a signed copy of the award [1].\n2. Where a request under Section 33 was made, time runs from its disposal.\n3. Section 5 of the Limitation Act, 1963 does not apply to the outer limit [2].\n\n| Step | Period |\n|---|---|\n| Ordinary limit | 3 months |\n| Condonable extension | 30 days |\n\n> The thirty days are an outer limit, not a starting point for condonation.\n\n## References\n\n[1] Arbitration and Conciliation Act, 1996 — Section 34(3).\n[2] Union of India v. Popular Construction Co., (2001) 8 SCC 470."}]}"###
+            // `case1` throughout — `/cases`, `/case` and `/cause-list` describe one matter, heard
+            // today, so the Calendar lists it once (the two sources de-duplicate) and opening it
+            // lands on the same matter's overview.
             case "/cases":
-                return #"{"success":true,"cases":[{"id":"case1","title":"Bakshi v. State of Maharashtra","court_name":"Bombay High Court","next_hearing_date":"2026-09-20"}]}"#
+                return casesBody()
             case "/case":
-                return #"{"success":true,"case":{"id":"case1","title":"Bakshi v. State of Maharashtra","court_name":"Bombay High Court"},"events":[],"items":[]}"#
+                return caseBody()
             // `listings`, not `cases`; `date` and `caseId` are the two keys `CauseListing`
-            // requires. Dated today, in India, so Home has a row to draw — with the court, item,
-            // coram and time a published list supplies, which is what the row is built around.
+            // requires. Dated today, in India, so Home and the Calendar have a row to draw — with
+            // the court, item, coram and time a published list supplies, which is what the row
+            // is built around.
             case "/cause-list":
                 return causeListBody()
             // A **bare array** — this route has no envelope. One dated row and one that needs
@@ -121,8 +125,9 @@ enum UITestSupport {
             // `path` is resolved against the API base's origin and must carry a full secret.
             case "/calendar/feed-url":
                 return #"{"success":true,"path":"/api/calendar/my.ics?feed=0123456789abcdef0123456789abcdef","rotated":false}"#
+            // Due today, so the Calendar's day carries a diary entry under its listing.
             case "/compliance":
-                return #"{"success":true,"events":[{"id":"e1","title":"File written statement"}]}"#
+                return complianceBody()
             case "/notifications":
                 return #"{"success":true,"notifications":[{"id":"n1","title":"Hearing listed"}]}"#
             case "/notifications/unread-count":
@@ -163,6 +168,30 @@ enum UITestSupport {
         /// Today and `days` from now, as the `YYYY-MM-DD` keys the server sends — in India.
         private static func dayKey(_ days: Int) -> String {
             WireDate.dayKey(Date().addingTimeInterval(TimeInterval(days) * 86_400))
+        }
+
+        private static func casesBody() -> String {
+            """
+            {"success":true,"cases":[{"id":"case1","title":"Bakshi v. State of Maharashtra",\
+            "court_name":"Bombay High Court","case_number":"1234","case_year":"2025",\
+            "next_hearing_date":"\(dayKey(0))"}]}
+            """
+        }
+
+        private static func caseBody() -> String {
+            """
+            {"success":true,"case":{"id":"case1","title":"Bakshi v. State of Maharashtra",\
+            "court_name":"Bombay High Court","case_type":"W.P.","case_number":"1234",\
+            "case_year":"2025","judge":"Hon'ble Mr. Justice A. S. Gadkari",\
+            "stage":"Admission","next_hearing_date":"\(dayKey(0))"},"events":[],"items":[]}
+            """
+        }
+
+        private static func complianceBody() -> String {
+            """
+            {"success":true,"events":[{"id":"e1","title":"File written statement",\
+            "type":"filing","status":"open","due_date":"\(dayKey(0))"}]}
+            """
         }
 
         private static func causeListBody() -> String {

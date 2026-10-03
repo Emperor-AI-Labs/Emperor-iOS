@@ -117,15 +117,16 @@ enum ComplianceKind: Hashable, Sendable {
     }
 }
 
-/// One day's worth of everything: hearings from the docket and obligations from the calendar.
+/// One day's worth of everything: the user's matters listed that day, in the order the day will
+/// run (`CalendarListings`), and their own diary entries.
 struct CalendarDay: Identifiable, Equatable, Sendable {
     let key: String
-    var hearings: [LegalCase]
+    var listings: [CauseListing]
     var events: [ComplianceEvent]
 
     var id: String { key }
-    var isEmpty: Bool { hearings.isEmpty && events.isEmpty }
-    var itemCount: Int { hearings.count + events.count }
+    var isEmpty: Bool { listings.isEmpty && events.isEmpty }
+    var itemCount: Int { listings.count + events.count }
 }
 
 struct ComplianceListResponse: Codable, Sendable {

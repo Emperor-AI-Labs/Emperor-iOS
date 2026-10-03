@@ -102,6 +102,8 @@ final class FakeCases: CaseProviding, @unchecked Sendable {
     var detail: CaseDetail?
     var listings: [CauseListing] = []
     var error: Error?
+    /// Fails `/cause-list` alone, for a screen that also reads the docket.
+    var causeListError: Error?
     var orderData = Data("%PDF-1.4 stub".utf8)
     /// `/cause-list` takes no date parameter and returns the entire history, so the client
     /// fetches once and windows locally. Counting proves it does not re-fetch per day.
@@ -124,7 +126,7 @@ final class FakeCases: CaseProviding, @unchecked Sendable {
 
     func causeList() async throws -> [CauseListing] {
         causeListCallCount += 1
-        if let error { throw error }
+        if let error = causeListError ?? error { throw error }
         return listings
     }
 

@@ -1,15 +1,23 @@
 import SwiftUI
 
 /// The docket, grouped by when each matter is next in court.
+///
+/// Also where another tab sends a matter to be opened — the Calendar does, for a listed case. The
+/// stack is bound to `path` so it can be replaced from outside: `AppNavigator` holds the request,
+/// and this takes it when it appears or when the request arrives while it is already on screen.
+/// Taking clears it, so it is applied once. The case opens on a fresh `CaseDetailView`, whose
+/// overview leads the screen.
 struct CaseListView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
+    @Environment(\.navigator) private var navigator
 
     @State private var model: CaseListViewModel?
     @State private var isSearchingCourts = false
+    @State private var path: [CaseRoute] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 if let model {
                     content(model)
@@ -31,8 +39,8 @@ struct CaseListView: View {
             .sheet(isPresented: $isSearchingCourts) {
                 CourtSearchView { Task { await model?.load() } }
             }
-            .navigationDestination(for: String.self) { caseID in
-                CaseDetailView(caseID: caseID)
+            .navigationDestination(for: CaseRoute.self) { route in
+                CaseDetailView(caseID: route.caseID)
             }
             .task {
                 guard model == nil else { return }
@@ -41,6 +49,15 @@ struct CaseListView: View {
                 await created.load()
             }
         }
+        // Both, because either can be first: a tab never shown before is created by the switch
+        // the request causes, and one already alive sees the request change instead.
+        .onAppear { openRequestedCase() }
+        .onChange(of: navigator.pendingCase) { _, _ in openRequestedCase() }
+    }
+
+    private func openRequestedCase() {
+        guard let stack = navigator.takePendingCaseStack() else { return }
+        path = stack
     }
 
     @ViewBuilder
@@ -52,7 +69,7 @@ struct CaseListView: View {
                 ForEach(model.groups) { group in
                     Section(group.title) {
                         ForEach(group.cases) { legalCase in
-                            NavigationLink(value: legalCase.id) {
+                            NavigationLink(value: CaseRoute(caseID: legalCase.id)) {
                                 row(legalCase)
                             }
                         }
