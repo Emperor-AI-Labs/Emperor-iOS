@@ -10,6 +10,22 @@ import Foundation
 /// Tables go through `MarkdownTable`, the same reader the on-screen renderer uses, so a
 /// chronology cannot come out as a grid on screen and pipe characters in the file.
 enum MarkdownHTML {
+    /// A chat answer's prose, as the fragment the exporters read.
+    ///
+    /// An answer is markdown (`ToolWorkspace.jsx:542`: "The reply is Markdown"), so it is
+    /// bridged like any markdown document — handed over raw, its line breaks collapse and a
+    /// References list runs together into one line of `[1] … [2] … [3] …`. The rare answer the
+    /// model wrote as block HTML is sniffed the way an artifact is, and passed through as it is.
+    ///
+    /// Citation markers stay the plain `[1]` they were written as, beside a References list
+    /// with one entry per line: that is how a citation reads on paper, and a filed document has
+    /// no use for links into an app.
+    static func answerFragment(_ prose: String) -> String {
+        StreamArtifact.detectFormat(of: prose, declared: .table) == .html
+            ? prose
+            : html(from: prose)
+    }
+
     static func html(from markdown: String) -> String {
         var out = ""
         for segment in MarkdownTable.segments(in: markdown) {
@@ -28,17 +44,42 @@ enum MarkdownHTML {
             let trimmed = block.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { continue }
 
-            if trimmed.hasPrefix("#") {
-                let hashes = trimmed.prefix { $0 == "#" }.count
-                let body = trimmed.dropFirst(hashes).trimmingCharacters(in: .whitespaces)
-                out += "<h\(min(3, hashes))>\(inline(body))</h\(min(3, hashes))>"
-                continue
+            // A heading is its own line, wherever in the block it falls, as it is on screen.
+            // The lines around it are paragraphs — a References list written straight under its
+            // heading, which is how the system prompt lays one out, is not more heading, and a
+            // heading written straight under the last paragraph is not more paragraph.
+            var paragraph: [String] = []
+            func flushParagraph() {
+                if paragraph.contains(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) {
+                    // A soft newline inside a paragraph is a line break, as it is on screen.
+                    out += "<p>\(paragraph.map(inline).joined(separator: "<br>"))</p>"
+                }
+                paragraph = []
             }
-            // A soft newline inside a paragraph is a line break, as it is on screen.
-            let lines = trimmed.components(separatedBy: "\n").map(inline)
-            out += "<p>\(lines.joined(separator: "<br>"))</p>"
+            for line in trimmed.components(separatedBy: "\n") {
+                if let heading = heading(line.trimmingCharacters(in: .whitespaces)) {
+                    flushParagraph()
+                    out += heading
+                } else {
+                    paragraph.append(line)
+                }
+            }
+            flushParagraph()
         }
         return out
+    }
+
+    /// `## Title` as an HTML heading, capped at `h3`; nil for a line that is not one.
+    ///
+    /// The rule the screen uses (`MarkdownBlocks`): up to six hashes and then a space, so
+    /// `#1 of 2026` opening a paragraph stays the paragraph it is.
+    private static func heading(_ line: String) -> String? {
+        let hashes = line.prefix { $0 == "#" }.count
+        guard (1...6).contains(hashes) else { return nil }
+        let rest = line.dropFirst(hashes)
+        guard rest.isEmpty || rest.first == " " else { return nil }
+        let level = min(3, hashes)
+        return "<h\(level)>\(inline(rest.trimmingCharacters(in: .whitespaces)))</h\(level)>"
     }
 
     private static func table(_ table: MarkdownTable) -> String {

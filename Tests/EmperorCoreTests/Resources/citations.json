@@ -1,0 +1,1064 @@
+{
+ "source": "src/lib/citations.js — formatCitationsInMarkdown",
+ "generatedBy": "scripts/generate-citation-fixtures.mjs",
+ "cases": [
+  {
+   "name": "the platform selftest: one marker and its entry",
+   "input": "Right to life [1].\n\n[1] Article 21, Constitution of India.",
+   "deviation": null,
+   "web": {
+    "output": "Right to life [1](#cite-1).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Article 21, Constitution of India.</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Article 21, Constitution of India."
+     }
+    ],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "the platform selftest: a numbered list under References & Authorities",
+   "input": "Fundamental rights [1].\n\n### References & Authorities\n1. Constitution of India.",
+   "deviation": null,
+   "web": {
+    "output": "Fundamental rights [1](#cite-1).\n\n### References & Authorities\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Constitution of India.</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Constitution of India."
+     }
+    ],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "the platform selftest: a list of markers",
+   "input": "See documents [1, 2, 3] for details.",
+   "deviation": null,
+   "web": {
+    "output": "See documents [1](#cite-1) [2](#cite-2) [3](#cite-3) for details.",
+    "references": [],
+    "markers": [
+     1,
+     2,
+     3
+    ]
+   }
+  },
+  {
+   "name": "the platform selftest: full-width and spoken markers",
+   "input": "As noted in 【2】 and Citation 4.",
+   "deviation": null,
+   "web": {
+    "output": "As noted in [2](#cite-2) and [4](#cite-4).",
+    "references": [],
+    "markers": [
+     2,
+     4
+    ]
+   }
+  },
+  {
+   "name": "the platform selftest: a link and a trigger are not markers",
+   "input": "[Read More](https://example.com) and [CANVAS_TRIGGER: doc]",
+   "deviation": null,
+   "web": {
+    "output": "[Read More](https://example.com) and [CANVAS_TRIGGER: doc]",
+    "references": [],
+    "markers": []
+   }
+  },
+  {
+   "name": "a realistic answer",
+   "input": "Under the Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 (the **POSH Act**) [1], every employer with ten or more employees must constitute an Internal Committee. The obligation is not discretionary: Section 4 makes it mandatory, and Section 26 [1] attaches a penalty of up to ₹50,000 for non-compliance.\n\n### Whether the complaint is within time\n\nThe Delhi High Court in *Santosh Kumar* [2] held that the three-month limitation under Section 9 may be extended by a further three months for reasons recorded in writing. The framework itself derives from **Vishaka v. State of Rajasthan** [3], which laid down binding guidelines before Parliament legislated [1, 3].\n\n1. Constitute the Committee under Section 4 [1].\n2. Record reasons for any extension of time, as *Santosh Kumar* requires [2].\n3. Keep the minutes of every sitting; Ref. 3 explains why the guidelines still matter.\n\n| Step | Authority |\n| --- | --- |\n| Constitution of the Committee | Section 4 [1] |\n| Extension of limitation | Santosh Kumar [2] |\n\n> The Committee's inquiry is a fact-finding exercise, not a trial [3].\n\n## References\n[1] Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 — Sections 4, 9, 26.\n[2] Santosh Kumar vs. Secretary, Ministry of Defence, (2018) WP(C) 6919/2017 — Scope of statutory remedy.\n[3] Vishaka vs. State of Rajasthan, (1997) 6 SCC 241 — Guidelines for workplace harassment.",
+   "deviation": null,
+   "web": {
+    "output": "Under the Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 (the **POSH Act**) [1](#cite-1), every employer with ten or more employees must constitute an Internal Committee. The obligation is not discretionary: Section 4 makes it mandatory, and Section 26 [1](#cite-1) attaches a penalty of up to ₹50,000 for non-compliance.\n\n### Whether the complaint is within time\n\nThe Delhi High Court in *Santosh Kumar* [2](#cite-2) held that the three-month limitation under Section 9 may be extended by a further three months for reasons recorded in writing. The framework itself derives from **Vishaka v. State of Rajasthan** [3](#cite-3), which laid down binding guidelines before Parliament legislated [1](#cite-1) [3](#cite-3).\n\n1. Constitute the Committee under Section 4 [1](#cite-1).\n2. Record reasons for any extension of time, as *Santosh Kumar* requires [2](#cite-2).\n3. Keep the minutes of every sitting; [3](#cite-3) explains why the guidelines still matter.\n\n| Step | Authority |\n| --- | --- |\n| Constitution of the Committee | Section 4 [1](#cite-1) |\n| Extension of limitation | Santosh Kumar [2](#cite-2) |\n\n> The Committee's inquiry is a fact-finding exercise, not a trial [3](#cite-3).\n\n## References\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 — Sections 4, 9, 26.</div>\n<div id=\"cite-ref-2\" data-cite-target=\"2\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;2&#93;</span> Santosh Kumar vs. Secretary, Ministry of Defence, (2018) WP(C) 6919/2017 — Scope of statutory remedy.</div>\n<div id=\"cite-ref-3\" data-cite-target=\"3\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;3&#93;</span> Vishaka vs. State of Rajasthan, (1997) 6 SCC 241 — Guidelines for workplace harassment.</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 — Sections 4, 9, 26."
+     },
+     {
+      "number": 2,
+      "text": "Santosh Kumar vs. Secretary, Ministry of Defence, (2018) WP(C) 6919/2017 — Scope of statutory remedy."
+     },
+     {
+      "number": 3,
+      "text": "Vishaka vs. State of Rajasthan, (1997) 6 SCC 241 — Guidelines for workplace harassment."
+     }
+    ],
+    "markers": [
+     1,
+     1,
+     2,
+     3,
+     1,
+     3,
+     1,
+     2,
+     3,
+     1,
+     2,
+     3
+    ]
+   }
+  },
+  {
+   "name": "a realistic answer, streaming, mid-marker",
+   "input": "Under the Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 (the **POSH Act**) [1], every employer with ten or more employees must constitute an Internal Committee. The obligation is not discretionary: Section 4 makes it mandatory, and Section 26 [1] attaches a penalty of up to ₹50,000 for non-compliance.\n\n### Whether the complaint is within time\n\nThe Delhi High Court in *Santosh Kumar* [2",
+   "deviation": null,
+   "web": {
+    "output": "Under the Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 (the **POSH Act**) [1](#cite-1), every employer with ten or more employees must constitute an Internal Committee. The obligation is not discretionary: Section 4 makes it mandatory, and Section 26 [1](#cite-1) attaches a penalty of up to ₹50,000 for non-compliance.\n\n### Whether the complaint is within time\n\nThe Delhi High Court in *Santosh Kumar* [2",
+    "references": [],
+    "markers": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "a realistic answer, streaming, References heading arrived",
+   "input": "Under the Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 (the **POSH Act**) [1], every employer with ten or more employees must constitute an Internal Committee. The obligation is not discretionary: Section 4 makes it mandatory, and Section 26 [1] attaches a penalty of up to ₹50,000 for non-compliance.\n\n### Whether the complaint is within time\n\nThe Delhi High Court in *Santosh Kumar* [2] held that the three-month limitation under Section 9 may be extended by a further three months for reasons recorded in writing. The framework itself derives from **Vishaka v. State of Rajasthan** [3], which laid down binding guidelines before Parliament legislated [1, 3].\n\n1. Constitute the Committee under Section 4 [1].\n2. Record reasons for any extension of time, as *Santosh Kumar* requires [2].\n3. Keep the minutes of every sitting; Ref. 3 explains why the guidelines still matter.\n\n| Step | Authority |\n| --- | --- |\n| Constitution of the Committee | Section 4 [1] |\n| Extension of limitation | Santosh Kumar [2] |\n\n> The Committee's inquiry is a fact-finding exercise, not a trial [3].\n\n## References\n",
+   "deviation": null,
+   "web": {
+    "output": "Under the Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 (the **POSH Act**) [1](#cite-1), every employer with ten or more employees must constitute an Internal Committee. The obligation is not discretionary: Section 4 makes it mandatory, and Section 26 [1](#cite-1) attaches a penalty of up to ₹50,000 for non-compliance.\n\n### Whether the complaint is within time\n\nThe Delhi High Court in *Santosh Kumar* [2](#cite-2) held that the three-month limitation under Section 9 may be extended by a further three months for reasons recorded in writing. The framework itself derives from **Vishaka v. State of Rajasthan** [3](#cite-3), which laid down binding guidelines before Parliament legislated [1](#cite-1) [3](#cite-3).\n\n1. Constitute the Committee under Section 4 [1](#cite-1).\n2. Record reasons for any extension of time, as *Santosh Kumar* requires [2](#cite-2).\n3. Keep the minutes of every sitting; [3](#cite-3) explains why the guidelines still matter.\n\n| Step | Authority |\n| --- | --- |\n| Constitution of the Committee | Section 4 [1](#cite-1) |\n| Extension of limitation | Santosh Kumar [2](#cite-2) |\n\n> The Committee's inquiry is a fact-finding exercise, not a trial [3](#cite-3).\n\n## References\n",
+    "references": [],
+    "markers": [
+     1,
+     1,
+     2,
+     3,
+     1,
+     3,
+     1,
+     2,
+     3,
+     1,
+     2,
+     3
+    ]
+   }
+  },
+  {
+   "name": "a realistic answer, streaming, first entry arriving",
+   "input": "Under the Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 (the **POSH Act**) [1], every employer with ten or more employees must constitute an Internal Committee. The obligation is not discretionary: Section 4 makes it mandatory, and Section 26 [1] attaches a penalty of up to ₹50,000 for non-compliance.\n\n### Whether the complaint is within time\n\nThe Delhi High Court in *Santosh Kumar* [2] held that the three-month limitation under Section 9 may be extended by a further three months for reasons recorded in writing. The framework itself derives from **Vishaka v. State of Rajasthan** [3], which laid down binding guidelines before Parliament legislated [1, 3].\n\n1. Constitute the Committee under Section 4 [1].\n2. Record reasons for any extension of time, as *Santosh Kumar* requires [2].\n3. Keep the minutes of every sitting; Ref. 3 explains why the guidelines still matter.\n\n| Step | Authority |\n| --- | --- |\n| Constitution of the Committee | Section 4 [1] |\n| Extension of limitation | Santosh Kumar [2] |\n\n> The Committee's inquiry is a fact-finding exercise, not a trial [3].\n\n## References\n[1] Sexual Har",
+   "deviation": null,
+   "web": {
+    "output": "Under the Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 (the **POSH Act**) [1](#cite-1), every employer with ten or more employees must constitute an Internal Committee. The obligation is not discretionary: Section 4 makes it mandatory, and Section 26 [1](#cite-1) attaches a penalty of up to ₹50,000 for non-compliance.\n\n### Whether the complaint is within time\n\nThe Delhi High Court in *Santosh Kumar* [2](#cite-2) held that the three-month limitation under Section 9 may be extended by a further three months for reasons recorded in writing. The framework itself derives from **Vishaka v. State of Rajasthan** [3](#cite-3), which laid down binding guidelines before Parliament legislated [1](#cite-1) [3](#cite-3).\n\n1. Constitute the Committee under Section 4 [1](#cite-1).\n2. Record reasons for any extension of time, as *Santosh Kumar* requires [2](#cite-2).\n3. Keep the minutes of every sitting; [3](#cite-3) explains why the guidelines still matter.\n\n| Step | Authority |\n| --- | --- |\n| Constitution of the Committee | Section 4 [1](#cite-1) |\n| Extension of limitation | Santosh Kumar [2](#cite-2) |\n\n> The Committee's inquiry is a fact-finding exercise, not a trial [3](#cite-3).\n\n## References\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Sexual Har</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Sexual Har"
+     }
+    ],
+    "markers": [
+     1,
+     1,
+     2,
+     3,
+     1,
+     3,
+     1,
+     2,
+     3,
+     1,
+     2,
+     3
+    ]
+   }
+  },
+  {
+   "name": "a realistic answer, streaming, second entry not yet numbered",
+   "input": "Under the Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 (the **POSH Act**) [1], every employer with ten or more employees must constitute an Internal Committee. The obligation is not discretionary: Section 4 makes it mandatory, and Section 26 [1] attaches a penalty of up to ₹50,000 for non-compliance.\n\n### Whether the complaint is within time\n\nThe Delhi High Court in *Santosh Kumar* [2] held that the three-month limitation under Section 9 may be extended by a further three months for reasons recorded in writing. The framework itself derives from **Vishaka v. State of Rajasthan** [3], which laid down binding guidelines before Parliament legislated [1, 3].\n\n1. Constitute the Committee under Section 4 [1].\n2. Record reasons for any extension of time, as *Santosh Kumar* requires [2].\n3. Keep the minutes of every sitting; Ref. 3 explains why the guidelines still matter.\n\n| Step | Authority |\n| --- | --- |\n| Constitution of the Committee | Section 4 [1] |\n| Extension of limitation | Santosh Kumar [2] |\n\n> The Committee's inquiry is a fact-finding exercise, not a trial [3].\n\n## References\n[1] Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 — Sections 4, 9, 26.\n[2",
+   "deviation": null,
+   "web": {
+    "output": "Under the Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 (the **POSH Act**) [1](#cite-1), every employer with ten or more employees must constitute an Internal Committee. The obligation is not discretionary: Section 4 makes it mandatory, and Section 26 [1](#cite-1) attaches a penalty of up to ₹50,000 for non-compliance.\n\n### Whether the complaint is within time\n\nThe Delhi High Court in *Santosh Kumar* [2](#cite-2) held that the three-month limitation under Section 9 may be extended by a further three months for reasons recorded in writing. The framework itself derives from **Vishaka v. State of Rajasthan** [3](#cite-3), which laid down binding guidelines before Parliament legislated [1](#cite-1) [3](#cite-3).\n\n1. Constitute the Committee under Section 4 [1](#cite-1).\n2. Record reasons for any extension of time, as *Santosh Kumar* requires [2](#cite-2).\n3. Keep the minutes of every sitting; [3](#cite-3) explains why the guidelines still matter.\n\n| Step | Authority |\n| --- | --- |\n| Constitution of the Committee | Section 4 [1](#cite-1) |\n| Extension of limitation | Santosh Kumar [2](#cite-2) |\n\n> The Committee's inquiry is a fact-finding exercise, not a trial [3](#cite-3).\n\n## References\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 — Sections 4, 9, 26.</div>\n[2",
+    "references": [
+     {
+      "number": 1,
+      "text": "Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 — Sections 4, 9, 26."
+     }
+    ],
+    "markers": [
+     1,
+     1,
+     2,
+     3,
+     1,
+     3,
+     1,
+     2,
+     3,
+     1,
+     2,
+     3
+    ]
+   }
+  },
+  {
+   "name": "the three separators an entry may use",
+   "input": "Held [1], [2] and [3].\n\n[1]: Indian Contract Act, 1872\n[2] - Specific Relief Act, 1963\n[3] — Limitation Act, 1963",
+   "deviation": null,
+   "web": {
+    "output": "Held [1](#cite-1), [2](#cite-2) and [3](#cite-3).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Indian Contract Act, 1872</div>\n<div id=\"cite-ref-2\" data-cite-target=\"2\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;2&#93;</span> Specific Relief Act, 1963</div>\n<div id=\"cite-ref-3\" data-cite-target=\"3\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;3&#93;</span> — Limitation Act, 1963</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Indian Contract Act, 1872"
+     },
+     {
+      "number": 2,
+      "text": "Specific Relief Act, 1963"
+     },
+     {
+      "number": 3,
+      "text": "— Limitation Act, 1963"
+     }
+    ],
+    "markers": [
+     1,
+     2,
+     3
+    ]
+   }
+  },
+  {
+   "name": "entries behind a bullet or a number",
+   "input": "Cited [1] [2] [3] [4].\n\nReferences:\n- [1] Code of Civil Procedure, 1908\n* [2] Code of Criminal Procedure, 1973\n• [3] Bharatiya Nagarik Suraksha Sanhita, 2023\n1. [4] Bharatiya Sakshya Adhiniyam, 2023",
+   "deviation": null,
+   "web": {
+    "output": "Cited [1](#cite-1) [2](#cite-2) [3](#cite-3) [4](#cite-4).\n\nReferences:\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Code of Civil Procedure, 1908</div>\n<div id=\"cite-ref-2\" data-cite-target=\"2\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;2&#93;</span> Code of Criminal Procedure, 1973</div>\n<div id=\"cite-ref-3\" data-cite-target=\"3\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;3&#93;</span> Bharatiya Nagarik Suraksha Sanhita, 2023</div>\n<div id=\"cite-ref-4\" data-cite-target=\"4\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;4&#93;</span> Bharatiya Sakshya Adhiniyam, 2023</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Code of Civil Procedure, 1908"
+     },
+     {
+      "number": 2,
+      "text": "Code of Criminal Procedure, 1973"
+     },
+     {
+      "number": 3,
+      "text": "Bharatiya Nagarik Suraksha Sanhita, 2023"
+     },
+     {
+      "number": 4,
+      "text": "Bharatiya Sakshya Adhiniyam, 2023"
+     }
+    ],
+    "markers": [
+     1,
+     2,
+     3,
+     4
+    ]
+   }
+  },
+  {
+   "name": "a marker or number glued to the bracket",
+   "input": "Cited [1] and [2].\n\n-[1] Glued to a dash\n1.[2] Glued to a number",
+   "deviation": null,
+   "web": {
+    "output": "Cited [1](#cite-1) and [2](#cite-2).\n\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Glued to a dash</div>\n<div id=\"cite-ref-2\" data-cite-target=\"2\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;2&#93;</span> Glued to a number</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Glued to a dash"
+     },
+     {
+      "number": 2,
+      "text": "Glued to a number"
+     }
+    ],
+    "markers": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "an indented bullet is not an entry, an indented bracket is",
+   "input": "Cited [1] and [2].\n\n  - [1] Indented bullet\n  [2] Indented bracket",
+   "deviation": null,
+   "web": {
+    "output": "Cited [1](#cite-1) and [2](#cite-2).\n\n  - [1](#cite-1) Indented bullet\n<div id=\"cite-ref-2\" data-cite-target=\"2\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;2&#93;</span> Indented bracket</div>",
+    "references": [
+     {
+      "number": 2,
+      "text": "Indented bracket"
+     }
+    ],
+    "markers": [
+     1,
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "name": "a quotation is not an entry",
+   "input": "Cited [1].\n\n> [1] Inside a quotation",
+   "deviation": null,
+   "web": {
+    "output": "Cited [1](#cite-1).\n\n> [1](#cite-1) Inside a quotation",
+    "references": [],
+    "markers": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "a bracket glued to its text is not an entry",
+   "input": "Cited [1].\n\n[1]Glued",
+   "deviation": null,
+   "web": {
+    "output": "Cited [1](#cite-1).\n\n[1](#cite-1)Glued",
+    "references": [],
+    "markers": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "a bold References heading still lists its bracketed lines",
+   "input": "Body [3].\n\n**References**\n[3] - Maneka Gandhi v. Union of India, (1978) 1 SCC 248",
+   "deviation": null,
+   "web": {
+    "output": "Body [3](#cite-3).\n\n**References**\n<div id=\"cite-ref-3\" data-cite-target=\"3\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;3&#93;</span> Maneka Gandhi v. Union of India, (1978) 1 SCC 248</div>",
+    "references": [
+     {
+      "number": 3,
+      "text": "Maneka Gandhi v. Union of India, (1978) 1 SCC 248"
+     }
+    ],
+    "markers": [
+     3
+    ]
+   }
+  },
+  {
+   "name": "Sources: with a numbered list",
+   "input": "Per [1] and [2].\n\nSources:\n1. Indian Kanoon\n2. SCC Online",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1) and [2](#cite-2).\n\nSources:\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Indian Kanoon</div>\n<div id=\"cite-ref-2\" data-cite-target=\"2\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;2&#93;</span> SCC Online</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Indian Kanoon"
+     },
+     {
+      "number": 2,
+      "text": "SCC Online"
+     }
+    ],
+    "markers": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "Authorities, numbered, after blank lines",
+   "input": "Per [1].\n\n#### Authorities\n\n\n1. K.S. Puttaswamy v. Union of India, (2017) 10 SCC 1",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1).\n\n#### Authorities\n\n\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> K.S. Puttaswamy v. Union of India, (2017) 10 SCC 1</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "K.S. Puttaswamy v. Union of India, (2017) 10 SCC 1"
+     }
+    ],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "a numbered list with no heading is not references",
+   "input": "Per [1].\n\n1. First step\n2. Second step",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1).\n\n1. First step\n2. Second step",
+    "references": [],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "the heading word inside a sentence is not a heading",
+   "input": "The References section follows.\n1. Not an entry",
+   "deviation": null,
+   "web": {
+    "output": "The References section follows.\n1. Not an entry",
+    "references": [],
+    "markers": []
+   }
+  },
+  {
+   "name": "five hashes is not a heading",
+   "input": "Per [1].\n\n##### Sources\n1. Not an entry",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1).\n\n##### Sources\n1. Not an entry",
+    "references": [],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "References and Authorities spelt out is not a heading",
+   "input": "Per [1].\n\n## References and Authorities\n1. Not an entry",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1).\n\n## References and Authorities\n1. Not an entry",
+    "references": [],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "a heading with trailing colon and spaces",
+   "input": "Per [1].\n\nREFERENCES :  \n1. Constitution of India",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1).\n\nREFERENCES :  \n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Constitution of India</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Constitution of India"
+     }
+    ],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "a numbered entry under the heading needs a space",
+   "input": "Per [1].\n\nReferences\n1.Not an entry\n2. An entry",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1).\n\nReferences\n1.Not an entry\n<div id=\"cite-ref-2\" data-cite-target=\"2\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;2&#93;</span> An entry</div>",
+    "references": [
+     {
+      "number": 2,
+      "text": "An entry"
+     }
+    ],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "an indented number under the heading is not an entry",
+   "input": "Per [1].\n\nReferences\n  1. Indented",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1).\n\nReferences\n  1. Indented",
+    "references": [],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "only the first heading starts the section",
+   "input": "Steps:\n1. Before any heading\n\nSources\n1. After the first\n\nReferences\n2. After the second",
+   "deviation": null,
+   "web": {
+    "output": "Steps:\n1. Before any heading\n\nSources\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> After the first</div>\n\nReferences\n<div id=\"cite-ref-2\" data-cite-target=\"2\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;2&#93;</span> After the second</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "After the first"
+     },
+     {
+      "number": 2,
+      "text": "After the second"
+     }
+    ],
+    "markers": []
+   }
+  },
+  {
+   "name": "two trailing spaces make an entry with no text",
+   "input": "Per [1].\n\n[1]  ",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> </div>",
+    "references": [
+     {
+      "number": 1,
+      "text": ""
+     }
+    ],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "one trailing space is not an entry",
+   "input": "Per [1].\n\n[1] ",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1).\n\n[1](#cite-1) ",
+    "references": [],
+    "markers": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "a colon with nothing after it is not an entry",
+   "input": "Per [1].\n\n[1]:",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1).\n\n[1](#cite-1):",
+    "references": [],
+    "markers": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "a dash with nothing after it is the text",
+   "input": "Per [1].\n\n[1] -",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> -</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "-"
+     }
+    ],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "a body line that opens with a marker is an entry",
+   "input": "[1] The Act came into force in 2013 [2].\n\n[2] Gazette notification, 9 December 2013",
+   "deviation": null,
+   "web": {
+    "output": "<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> The Act came into force in 2013 [2](#cite-2).</div>\n<div id=\"cite-ref-2\" data-cite-target=\"2\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;2&#93;</span> Gazette notification, 9 December 2013</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "The Act came into force in 2013 [2]."
+     },
+     {
+      "number": 2,
+      "text": "Gazette notification, 9 December 2013"
+     }
+    ],
+    "markers": []
+   }
+  },
+  {
+   "name": "a number listed twice",
+   "input": "Per [1].\n\n[1] First listing\n[1] Second listing",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> First listing</div>\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Second listing</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "First listing"
+     },
+     {
+      "number": 1,
+      "text": "Second listing"
+     }
+    ],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "markers inside a reference",
+   "input": "Per [1] and [2].\n\n[1] Vishaka v. State of Rajasthan, as affirmed in [2]\n[2] Medha Kotwal Lele v. Union of India, (2013) 1 SCC 297",
+   "deviation": null,
+   "web": {
+    "output": "Per [1](#cite-1) and [2](#cite-2).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Vishaka v. State of Rajasthan, as affirmed in [2](#cite-2)</div>\n<div id=\"cite-ref-2\" data-cite-target=\"2\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;2&#93;</span> Medha Kotwal Lele v. Union of India, (2013) 1 SCC 297</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Vishaka v. State of Rajasthan, as affirmed in [2]"
+     },
+     {
+      "number": 2,
+      "text": "Medha Kotwal Lele v. Union of India, (2013) 1 SCC 297"
+     }
+    ],
+    "markers": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "list spacing variants",
+   "input": "A [1,2] B [1 , 2] C [ 1 ] D [1, ] E [,1]",
+   "deviation": null,
+   "web": {
+    "output": "A [1](#cite-1) [2](#cite-2) B [1](#cite-1) [2](#cite-2) C [ 1 ] D [1, ] E [,1]",
+    "references": [],
+    "markers": [
+     1,
+     2,
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "ranges, letters and words are not markers",
+   "input": "See [2–4], [1-3], [1a], [a1], [Settled], [^1], [ ] and [x].",
+   "deviation": null,
+   "web": {
+    "output": "See [2–4], [1-3], [1a], [a1], [Settled], [^1], [ ] and [x].",
+    "references": [],
+    "markers": []
+   }
+  },
+  {
+   "name": "a link whose text is a number is not a marker",
+   "input": "[1](https://indiankanoon.org/doc/1) and [2] (see above).",
+   "deviation": null,
+   "web": {
+    "output": "[1](https://indiankanoon.org/doc/1) and [2](#cite-2) (see above).",
+    "references": [],
+    "markers": [
+     2
+    ]
+   }
+  },
+  {
+   "name": "adjacent markers",
+   "input": "Held [1][2] and [3]【4】.",
+   "deviation": null,
+   "web": {
+    "output": "Held [1](#cite-1)[2](#cite-2) and [3](#cite-3)[4](#cite-4).",
+    "references": [],
+    "markers": [
+     1,
+     2,
+     3,
+     4
+    ]
+   }
+  },
+  {
+   "name": "a marker inside literal brackets",
+   "input": "Held [[1]] and [see [2]].",
+   "deviation": null,
+   "web": {
+    "output": "Held [[1](#cite-1)] and [see [2](#cite-2)].",
+    "references": [],
+    "markers": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "leading zeros",
+   "input": "Held [01] and [007].",
+   "deviation": null,
+   "web": {
+    "output": "Held [01](#cite-01) and [007](#cite-007).",
+    "references": [],
+    "markers": [
+     1,
+     7
+    ]
+   }
+  },
+  {
+   "name": "spoken markers",
+   "input": "See Citation 1, citation 2, CITATION 3, Ref 4, ref. 5 and REF.6.",
+   "deviation": null,
+   "web": {
+    "output": "See [1](#cite-1), [2](#cite-2), [3](#cite-3), [4](#cite-4), [5](#cite-5) and REF.6.",
+    "references": [],
+    "markers": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ]
+   }
+  },
+  {
+   "name": "spoken markers inside words",
+   "input": "A Recitation 4 and a Cross-ref 2, but not Ref 12a, citation 3_x, Refs 5 or Reference 6.",
+   "deviation": null,
+   "web": {
+    "output": "A Re[4](#cite-4) and a Cross-[2](#cite-2), but not Ref 12a, citation 3_x, Refs 5 or Reference 6.",
+    "references": [],
+    "markers": [
+     4,
+     2
+    ]
+   }
+  },
+  {
+   "name": "spoken markers across a line break",
+   "input": "As Citation\n7 shows.",
+   "deviation": null,
+   "web": {
+    "output": "As [7](#cite-7) shows.",
+    "references": [],
+    "markers": [
+     7
+    ]
+   }
+  },
+  {
+   "name": "a neutral citation number is citation-shaped",
+   "input": "Reported as Citation 2023 INSC 5.",
+   "deviation": null,
+   "web": {
+    "output": "Reported as [2023](#cite-2023) INSC 5.",
+    "references": [],
+    "markers": [
+     2023
+    ]
+   }
+  },
+  {
+   "name": "full-width lists",
+   "input": "See 【1, 2】 and 【3】【4】.",
+   "deviation": null,
+   "web": {
+    "output": "See [1](#cite-1) [2](#cite-2) and [3](#cite-3)[4](#cite-4).",
+    "references": [],
+    "markers": [
+     1,
+     2,
+     3,
+     4
+    ]
+   }
+  },
+  {
+   "name": "Devanagari prose",
+   "input": "भारतीय न्याय संहिता [1] की धारा 63 [2] देखें।\n\n## References\n[1] भारतीय न्याय संहिता, 2023\n[2] धारा 63 — बलात्संग",
+   "deviation": null,
+   "web": {
+    "output": "भारतीय न्याय संहिता [1](#cite-1) की धारा 63 [2](#cite-2) देखें।\n\n## References\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> भारतीय न्याय संहिता, 2023</div>\n<div id=\"cite-ref-2\" data-cite-target=\"2\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;2&#93;</span> धारा 63 — बलात्संग</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "भारतीय न्याय संहिता, 2023"
+     },
+     {
+      "number": 2,
+      "text": "धारा 63 — बलात्संग"
+     }
+    ],
+    "markers": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "Devanagari digits are not markers",
+   "input": "धारा [१] और [1].\n\n[१] Not an entry\n[1] An entry",
+   "deviation": null,
+   "web": {
+    "output": "धारा [१] और [1](#cite-1).\n\n[१] Not an entry\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> An entry</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "An entry"
+     }
+    ],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "a table carrying markers",
+   "input": "Chronology:\n\n| Date | Event |\n| --- | --- |\n| 09.12.2013 | Act in force [1] |\n| 13.08.1997 | Vishaka decided [2] |\n\n[1] POSH Act, 2013\n[2] Vishaka v. State of Rajasthan",
+   "deviation": null,
+   "web": {
+    "output": "Chronology:\n\n| Date | Event |\n| --- | --- |\n| 09.12.2013 | Act in force [1](#cite-1) |\n| 13.08.1997 | Vishaka decided [2](#cite-2) |\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> POSH Act, 2013</div>\n<div id=\"cite-ref-2\" data-cite-target=\"2\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;2&#93;</span> Vishaka v. State of Rajasthan</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "POSH Act, 2013"
+     },
+     {
+      "number": 2,
+      "text": "Vishaka v. State of Rajasthan"
+     }
+    ],
+    "markers": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "an orphan marker",
+   "input": "Body [1] and [7].\n\n[1] Listed",
+   "deviation": null,
+   "web": {
+    "output": "Body [1](#cite-1) and [7](#cite-7).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Listed</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Listed"
+     }
+    ],
+    "markers": [
+     1,
+     7
+    ]
+   }
+  },
+  {
+   "name": "no references at all",
+   "input": "Under the Act [1], and as held [2].",
+   "deviation": null,
+   "web": {
+    "output": "Under the Act [1](#cite-1), and as held [2](#cite-2).",
+    "references": [],
+    "markers": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "nothing citation-shaped",
+   "input": "No citations here.",
+   "deviation": null,
+   "web": {
+    "output": "No citations here.",
+    "references": [],
+    "markers": []
+   }
+  },
+  {
+   "name": "inline code keeps its brackets",
+   "input": "Write `arr[1]` in code, cite [1].\n\n[1] Listed",
+   "deviation": "code",
+   "web": {
+    "output": "Write `arr[1](#cite-1)` in code, cite [1](#cite-1).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Listed</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Listed"
+     }
+    ],
+    "markers": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "a fenced block is never references",
+   "input": "```\n[1] not an entry\nSee [1]\n```\nCite [1].\n\n[1] Listed",
+   "deviation": "code",
+   "web": {
+    "output": "```\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> not an entry</div>\nSee [1](#cite-1)\n```\nCite [1](#cite-1).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Listed</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "not an entry"
+     },
+     {
+      "number": 1,
+      "text": "Listed"
+     }
+    ],
+    "markers": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "a link keeps its text",
+   "input": "[see [1] here](https://example.com) and [1].\n\n[1] Listed",
+   "deviation": "link",
+   "web": {
+    "output": "[see [1](#cite-1) here](https://example.com) and [1](#cite-1).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Listed</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Listed"
+     }
+    ],
+    "markers": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "a reference-style link keeps its label",
+   "input": "Read [the judgment][2], cite [1].\n\n[1] Listed\n[2] Also listed",
+   "deviation": "link",
+   "web": {
+    "output": "Read [the judgment][2](#cite-2), cite [1](#cite-1).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Listed</div>\n<div id=\"cite-ref-2\" data-cite-target=\"2\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;2&#93;</span> Also listed</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Listed"
+     },
+     {
+      "number": 2,
+      "text": "Also listed"
+     }
+    ],
+    "markers": [
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "name": "a link definition that a link uses is not an entry",
+   "input": "Read [the Act][3].\n\n[3]: https://indiankanoon.org/doc/1",
+   "deviation": "link",
+   "web": {
+    "output": "Read [the Act][3](#cite-3).\n<div id=\"cite-ref-3\" data-cite-target=\"3\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;3&#93;</span> https://indiankanoon.org/doc/1</div>",
+    "references": [
+     {
+      "number": 3,
+      "text": "https://indiankanoon.org/doc/1"
+     }
+    ],
+    "markers": [
+     3
+    ]
+   }
+  },
+  {
+   "name": "an escaped bracket is the author asking for one",
+   "input": "The form \\[1] is literal; cite [1].\n\n[1] Listed",
+   "deviation": "escape",
+   "web": {
+    "output": "The form \\[1](#cite-1) is literal; cite [1](#cite-1).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Listed</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Listed"
+     }
+    ],
+    "markers": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "an autolink keeps its URL",
+   "input": "See <https://example.com/a[1]> and [1].\n\n[1] Listed",
+   "deviation": "link",
+   "web": {
+    "output": "See <https://example.com/a[1](#cite-1)> and [1](#cite-1).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Listed</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Listed"
+     }
+    ],
+    "markers": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "an annexure token still arriving is not read",
+   "input": "Annexure P-1 <@Agreement [1].pdf:P-",
+   "deviation": "annexure",
+   "web": {
+    "output": "Annexure P-1 <@Agreement [1](#cite-1).pdf:P-",
+    "references": [],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "the web inserts markers the model left out",
+   "input": "The Supreme Court in Vishaka vs. State of Rajasthan formulated guidelines.\n\n## References\n[1] Vishaka vs. State of Rajasthan, (1997) 6 SCC 241.",
+   "deviation": "autolink",
+   "web": {
+    "output": "The Supreme Court in Vishaka [1](#cite-1) vs. State of Rajasthan formulated guidelines.\n\n## References\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Vishaka vs. State of Rajasthan, (1997) 6 SCC 241.</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "Vishaka vs. State of Rajasthan, (1997) 6 SCC 241."
+     }
+    ],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "the web lets an entry run onto the next line",
+   "input": "Cited [1].\n\n[1]\nPOSH Act, 2013",
+   "deviation": "multiline",
+   "web": {
+    "output": "Cited [1](#cite-1).\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> POSH Act, 2013</div>",
+    "references": [
+     {
+      "number": 1,
+      "text": "POSH Act, 2013"
+     }
+    ],
+    "markers": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "the web cuts a numbered entry at its first <",
+   "input": "Per [1].\n\nReferences\n1. Damages < 50,000 under Section 73",
+   "deviation": "angle",
+   "web": {
+    "output": "Per [1](#cite-1).\n\nReferences\n<div id=\"cite-ref-1\" data-cite-target=\"1\" class=\"ex-cite-ref-item\"><span class=\"ex-cite-ref-pill\">&#91;1&#93;</span> Damages</div>< 50,000 under Section 73",
+    "references": [
+     {
+      "number": 1,
+      "text": "Damages"
+     }
+    ],
+    "markers": [
+     1
+    ]
+   }
+  }
+ ]
+}

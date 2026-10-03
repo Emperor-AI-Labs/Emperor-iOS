@@ -12,45 +12,87 @@ import SwiftUI
 /// `AttributedString` cannot give us — its `.full` option encodes blocks as `presentationIntent`
 /// runs that SwiftUI's `Text` ignores. Inline markup inside each block is still left to
 /// `AttributedString`, so emphasis and links are parsed once, by the thing that already does it.
+///
+/// Numbered citations are found before either runs (`CitedMarkdown`): the References entries are
+/// lifted out and drawn as a list, and each `[N]` that names one of them becomes a badge that
+/// opens it. An answer without references comes out exactly as it did before.
 struct MarkdownContentView: View {
     @Environment(\.theme) private var theme
     let markdown: String
+    /// Whether the answer is still arriving. Only the last block can be mid-marker, and only
+    /// then; see `CitationMarkup.linked`.
+    var isStreaming = false
+
+    /// The reference whose card is showing, after a tap on its number.
+    @State private var shownCitation: CitationReference?
 
     var body: some View {
+        content(CitedMarkdown.parse(markdown))
+    }
+
+    /// One parse per update, shared by every block and by the tap handler, so a badge and the
+    /// card it opens can never disagree about what a number means.
+    private func content(_ cited: CitedMarkdown) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(Array(MarkdownTable.segments(in: markdown).enumerated()), id: \.offset) {
-                _, segment in
-                switch segment {
-                case .prose(let text):
-                    ForEach(Array(MarkdownBlocks.parse(text).enumerated()), id: \.offset) {
-                        _, block in
-                        blockView(block)
-                    }
-                case .table(let table):
-                    MarkdownTableView(table: table)
-                }
+            ForEach(Array(cited.blocks.enumerated()), id: \.offset) { offset, block in
+                citedBlockView(
+                    block, citations: cited.index,
+                    isTail: isStreaming && offset == cited.blocks.count - 1)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // A badge is a link to a private scheme, intercepted here. Anything else — a real link
+        // in the answer — is handed back to the system and opens as it always did.
+        //
+        // A card rather than a scroll to the References, which is what the web does
+        // (`citations.js:317`): the transcript's scroll view belongs to the screen, not to this
+        // answer, and a card can be read and dismissed without losing one's place.
+        .environment(\.openURL, OpenURLAction { url in
+            guard let number = CitationLink.number(from: url) else { return .systemAction }
+            guard let reference = cited.index.reference(for: number) else { return .discarded }
+            shownCitation = reference
+            return .handled
+        })
+        .sheet(item: $shownCitation) { reference in
+            CitationReferenceSheet(reference: reference)
+        }
     }
 
     @ViewBuilder
-    private func blockView(_ block: MarkdownBlock) -> some View {
+    private func citedBlockView(
+        _ block: CitedBlock, citations: CitationIndex, isTail: Bool
+    ) -> some View {
+        switch block {
+        case .block(let markdownBlock):
+            blockView(markdownBlock, citations: citations, isTail: isTail)
+        case .table(let table):
+            MarkdownTableView(table: table, citations: citations)
+        case .references(let references):
+            CitationReferenceList(references: references, citations: citations)
+        }
+    }
+
+    @ViewBuilder
+    private func blockView(
+        _ block: MarkdownBlock, citations: CitationIndex, isTail: Bool
+    ) -> some View {
         switch block {
         case .heading(let level, let text):
-            InlineMarkdownText(text: text)
+            InlineMarkdownText(text: text, citations: citations, holdingTrailingMarker: isTail)
                 .font(.brand(headingStyle(level), weight: .bold))
                 .foregroundStyle(theme.textPrimary)
                 .padding(.top, level <= 2 ? 6 : 2)
 
         case .paragraph(let text):
-            InlineMarkdownText(text: text)
+            InlineMarkdownText(text: text, citations: citations, holdingTrailingMarker: isTail)
 
         case .bullet(let depth, let text):
-            listRow(marker: bullet(depth), text: text, depth: depth)
+            listRow(marker: bullet(depth), text: text, depth: depth, citations: citations,
+                    isTail: isTail)
 
         case .numbered(let depth, let number, let text):
-            listRow(marker: "\(number).", text: text, depth: depth)
+            listRow(marker: "\(number).", text: text, depth: depth, citations: citations,
+                    isTail: isTail)
 
         case .quote(let text):
             HStack(alignment: .top, spacing: 8) {
@@ -59,7 +101,7 @@ struct MarkdownContentView: View {
                 Rectangle()
                     .fill(theme.accentMuted)
                     .frame(width: 3)
-                InlineMarkdownText(text: text)
+                InlineMarkdownText(text: text, citations: citations, holdingTrailingMarker: isTail)
                     .foregroundStyle(theme.textSecondary)
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -77,7 +119,9 @@ struct MarkdownContentView: View {
         }
     }
 
-    private func listRow(marker: String, text: String, depth: Int) -> some View {
+    private func listRow(
+        marker: String, text: String, depth: Int, citations: CitationIndex, isTail: Bool
+    ) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(marker)
                 .font(.brand(.subheadline))
@@ -85,7 +129,7 @@ struct MarkdownContentView: View {
                 // Fixed, so the text of every item in a list starts at the same place however
                 // wide its marker is — "10." against "1." otherwise sets up a ragged edge.
                 .frame(minWidth: 18, alignment: .trailing)
-            InlineMarkdownText(text: text)
+            InlineMarkdownText(text: text, citations: citations, holdingTrailingMarker: isTail)
         }
         .padding(.leading, CGFloat(depth) * 16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -130,26 +174,18 @@ struct MarkdownArtifactView: View {
     }
 }
 
-/// Inline markdown — bold, italics, links. Everything a block is not.
-private struct InlineMarkdownText: View {
+/// Inline markdown — bold, italics, links, citation badges. Everything a block is not.
+///
+/// Not file-private: the References list and the citation card draw their text with it too.
+struct InlineMarkdownText: View {
     let text: String
+    var citations: CitationIndex = .empty
+    var holdingTrailingMarker = false
 
     var body: some View {
-        Text(attributed)
-            .textSelection(.enabled)
+        CitedText(
+            text: text, citations: citations, holdingTrailingMarker: holdingTrailingMarker)
             .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var attributed: AttributedString {
-        // `.inlineOnlyPreservingWhitespace`, NOT `.full`. `.full` strips newlines and encodes
-        // breaks as `presentationIntent` runs, which SwiftUI's `Text` ignores — every
-        // multi-paragraph draft would render as one unbroken blob. A failure to parse falls
-        // back to the raw text rather than showing nothing.
-        (try? AttributedString(
-            markdown: text,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace,
-                           failurePolicy: .returnPartiallyParsedIfPossible)))
-            ?? AttributedString(text)
     }
 }
 
@@ -161,6 +197,7 @@ private struct InlineMarkdownText: View {
 private struct MarkdownTableView: View {
     @Environment(\.theme) private var theme
     let table: MarkdownTable
+    var citations: CitationIndex = .empty
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: true) {
@@ -201,10 +238,12 @@ private struct MarkdownTableView: View {
     private func cell(
         _ text: String, alignment: HorizontalAlignment, isHeader: Bool
     ) -> some View {
-        Text(text)
+        // Read as inline markdown like every other line of the answer, so a chronology's
+        // authority column carries the same citation badges as the prose above it — and bold
+        // in a cell is bold, as it already is in the exported file.
+        CitedText(text: text, citations: citations)
             .font(isHeader ? .caption.weight(.semibold) : .caption)
             .multilineTextAlignment(alignment == .trailing ? .trailing : .leading)
-            .textSelection(.enabled)
             // Wide enough to read a date or a short phrase; capped so one long cell cannot
             // push every other column off the screen.
             .frame(minWidth: 72, maxWidth: 240, alignment: frameAlignment(alignment))

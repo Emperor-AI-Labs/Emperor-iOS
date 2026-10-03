@@ -565,8 +565,13 @@ private struct MessageBubble: View {
     ///
     /// Built on demand rather than up front: laying out a page per bubble on every scroll would
     /// cost more than the feature is worth, and most answers are never exported.
+    ///
+    /// Bridged as markdown, which the answer is. Handed to the HTML engine raw, its line breaks
+    /// collapsed — a References list came out as one run-on line, and every `##` and `**` as
+    /// the characters themselves.
     private func exportedPDF() -> URL? {
-        let data = AnswerPDF.render(html: StreamContent.parse(message.content).prose)
+        let prose = StreamContent.parse(message.content).prose
+        let data = AnswerPDF.render(html: MarkdownHTML.answerFragment(prose))
         return ShareableFile.url(for: data, named: AnswerPDF.fileName())
     }
 
@@ -640,7 +645,7 @@ private struct AnswerView: View {
                 // Markdown component and says so (`ToolWorkspace.jsx:503`); drawn with a bare
                 // `Text`, every heading, list and table in an answer arrived as the characters
                 // that were meant to produce them.
-                MarkdownContentView(markdown: content.prose)
+                MarkdownContentView(markdown: content.prose, isStreaming: isStreaming)
             }
 
             if !content.mentions.isEmpty {

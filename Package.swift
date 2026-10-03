@@ -32,6 +32,9 @@ let package = Package(
                 // The Document Utilities' rules — page order, the size searches, the layouts —
                 // generated from the platform by `scripts/generate-file-tool-fixtures.mjs`.
                 .copy("Resources/file-tools"),
+                // Answers run through the platform's `citations.js` under Node; see
+                // `scripts/generate-citation-fixtures.mjs`.
+                .copy("Resources/citations.json"),
             ]),
     ]
 )
