@@ -4,7 +4,7 @@ import UIKit
 
 /// Questions only a build that actually ran can answer.
 ///
-/// `swift test` on Linux covers 619 cases and none of them can see any of this: there is no
+/// `swift test` on Linux covers well over a thousand cases and none of them can see any of this: there is no
 /// bundle, no UIKit, and `@Observable` is not even applied. Every failure mode checked here is
 /// silent — the app renders perfectly and is simply wrong.
 final class BundleResourceTests: XCTestCase {
@@ -65,6 +65,18 @@ final class BundleResourceTests: XCTestCase {
         XCTAssertNotNil(
             Bundle.main.object(forInfoDictionaryKey: "NSCameraUsageDescription"),
             "without a camera purpose string iOS terminates the app when the scanner opens")
+    }
+
+    /// The brand mark the sign-in screen draws. A missing asset renders as nothing at all — an
+    /// empty space where the logo should be — with no error anywhere.
+    func testTheBrandMarkShips() {
+        let mark = UIImage(named: "EmperorMark")
+        XCTAssertNotNil(mark, "EmperorMark is missing from the asset catalogue")
+        // The artwork is wider than tall (the platform's EmperorLogoFinal2, cropped to its
+        // bounds). A square here would mean the uncropped 500×500 canvas, padding and all.
+        if let size = mark?.size {
+            XCTAssertGreaterThan(size.width, size.height)
+        }
     }
 
     /// The version in Settings has to be the version that was built, or a bug report names the
