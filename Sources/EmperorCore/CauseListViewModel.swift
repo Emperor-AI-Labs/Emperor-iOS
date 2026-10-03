@@ -7,11 +7,14 @@ import Observation
 ///
 /// ## What this is NOT
 ///
-/// **It is not the court's published cause list.** There is no upstream feed for that anywhere
-/// in this product — the server derives every row from hearing dates on cases the user has
-/// added (`sync-server.js:9697-9782`). A screen titled "cause list" that silently showed only a
-/// subset of the real one would be worse than no screen: a litigator who reads it as the
-/// court's list and finds nothing has been told their day is clear when it may not be.
+/// **It is not the court's published cause list.** Every row is one of the user's own matters:
+/// the server derives the list from hearing dates on cases the user has added (`sync-server.js`,
+/// `/cause-list`). Where a court publishes its list, the platform now reads each matter's room
+/// and item number off it (`court-scraper/cause-list/`) — but only for matters already on the
+/// user's docket, so the list is still a subset of the court's. A screen titled "cause list"
+/// that silently showed only a subset of the real one would be worse than no screen: a
+/// litigator who reads it as the court's list and finds nothing has been told their day is
+/// clear when it may not be.
 ///
 /// That is why `Copy.subtitle` appears on every state including the empty one, and why the
 /// empty state ends with "Always confirm against the court's official cause list."
@@ -91,10 +94,14 @@ final class CauseListViewModel {
     var listingsForSelectedDay: [CauseListing] {
         listings
             .filter { $0.date == selectedDay }
-            .sorted { Self.sortKey($0) < Self.sortKey($1) }
+            .map { ($0, Self.sortKey($0)) }
+            .sorted { $0.1 < $1.1 }
+            .map(\.0)
     }
 
-    /// A **total** order over a listing.
+    /// A **total** order over a listing, in the order a litigator walks a court day: forum by
+    /// forum, room by room, and within a room by item number — the order the matters will
+    /// actually be called.
     ///
     /// The obvious hand-written comparator is not one. Mixing numeric item numbers with
     /// alphanumeric ones ("12A", "7/3" — both routine in Indian cause lists) and falling through
@@ -102,14 +109,27 @@ final class CauseListViewModel {
     /// of `20 < x`, `x < 3` and `3 < 20` hold. `sort` is undefined on an invalid comparator and
     /// can trap. A tuple key cannot have that shape.
     ///
-    /// Ordering: leading number first (so item 2 precedes item 10), then the item string (so
-    /// "12A" follows "12"), then the title. Unnumbered rows sort last rather than first — an
-    /// item without a number is not item zero.
-    private static func sortKey(_ listing: CauseListing) -> (Int, String, String) {
-        let item = listing.itemNo?.trimmingCharacters(in: .whitespaces) ?? ""
-        let leadingDigits = item.prefix { $0.isNumber }
+    /// Ordering: forum (a listing without one last), then room — numbered rooms by number, so
+    /// Court 4 precedes Court 12, then any other kind of room, then none — then the item's
+    /// leading number (so item 2 precedes item 10), then the item string (so "12A" follows
+    /// "12"), then the title. Unnumbered rows sort last rather than first — an item without a
+    /// number is not item zero.
+    ///
+    /// The room and item are the ones the row prints (`CauseListingDisplay`), so the order on
+    /// screen can never disagree with the numbers on screen. Computed once per row, before
+    /// sorting: they come from a dozen regular expressions each.
+    private static func sortKey(_ listing: CauseListing) -> (String, Int, String, Int, String, String) {
+        let display = listing.display
+        let forum = listing.courtName?.trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? ""
+        let room = display.roomSortKey
+        let item = display.item ?? ""
+        let leadingDigits = item.prefix { $0.isASCII && $0.isNumber }
         let number = Int(leadingDigits) ?? Int.max
-        return (number, item, listing.displayTitle.lowercased())
+        return (
+            forum.isEmpty ? "\u{10FFFF}" : forum, room.0, room.1, number, item,
+            listing.displayTitle.lowercased()
+        )
     }
 
     /// Every day that actually has a listing, ascending.
@@ -189,14 +209,16 @@ final class CauseListViewModel {
             return "\(heading)\n\n\(emptyTitle) \(Copy.confirmWithCourt)"
         }
         let rows = listingsForSelectedDay.map { listing -> String in
-            var line = listing.displayTitle
-            if let reference = [listing.caseNumber, listing.caseYear]
-                .compactMap({ $0 }).joined(separator: "/").nilIfEmpty {
-                line += " (\(reference))"
-            }
-            if let court = listing.courtName { line += "\n  \(court)" }
-            if let purpose = listing.purpose { line += "\n  \(purpose)" }
-            if let bench = listing.bench { line += "\n  \(bench)" }
+            let display = listing.display
+            // Where first, as it is read in a corridor: "Item 12 · Court 4".
+            let location = [display.item.map { "Item \($0)" }, display.room]
+                .compactMap { $0 }.joined(separator: " · ")
+            var line = location.isEmpty
+                ? listing.displayTitle : "\(location) — \(listing.displayTitle)"
+            if let reference = display.reference { line += " (\(reference))" }
+            if let forum = display.forum(courtName: listing.courtName) { line += "\n  \(forum)" }
+            if let time = display.time { line += "\n  \(time)" }
+            if let note = display.note { line += "\n  \(note)" }
             return line
         }
         return heading + "\n\n" + rows.joined(separator: "\n\n")

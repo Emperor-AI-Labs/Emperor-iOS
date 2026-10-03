@@ -96,10 +96,18 @@ enum UITestSupport {
                 return #"{"success":true,"cases":[{"id":"case1","title":"Bakshi v. State of Maharashtra","court_name":"Bombay High Court","next_hearing_date":"2026-09-20"}]}"#
             case "/case":
                 return #"{"success":true,"case":{"id":"case1","title":"Bakshi v. State of Maharashtra","court_name":"Bombay High Court"},"events":[],"items":[]}"#
-            // `listings`, not `cases`, and `CauseListing` requires both `date` and `caseID` —
-            // left empty rather than guessing their wire names.
+            // `listings`, not `cases`; `date` and `caseId` are the two keys `CauseListing`
+            // requires. Dated today, in India, so Home has a row to draw — with the court, item,
+            // coram and time a published list supplies, which is what the row is built around.
             case "/cause-list":
-                return #"{"success":true,"listings":[]}"#
+                return causeListBody()
+            // A **bare array** — this route has no envelope. One dated row and one that needs
+            // company context, which the screen drops and counts.
+            case "/compliance-calendar":
+                return complianceCalendarBody()
+            // `path` is resolved against the API base's origin and must carry a full secret.
+            case "/calendar/feed-url":
+                return #"{"success":true,"path":"/api/calendar/my.ics?feed=0123456789abcdef0123456789abcdef","rotated":false}"#
             case "/compliance":
                 return #"{"success":true,"events":[{"id":"e1","title":"File written statement"}]}"#
             case "/notifications":
@@ -134,11 +142,48 @@ enum UITestSupport {
             }
         }
 
+        /// Today and `days` from now, as the `YYYY-MM-DD` keys the server sends — in India.
+        private static func dayKey(_ days: Int) -> String {
+            WireDate.dayKey(Date().addingTimeInterval(TimeInterval(days) * 86_400))
+        }
+
+        private static func causeListBody() -> String {
+            let today = dayKey(0)
+            return """
+                {"success":true,"listings":[{"date":"\(today)","caseId":"case1","teamId":"team1",\
+                "title":"Bakshi v. State of Maharashtra","courtName":"Bombay High Court",\
+                "courtType":"hc","caseNumber":"1234","caseYear":"2025",\
+                "coram":"Hon'ble Mr. Justice A. S. Gadkari","purpose":"For admission",\
+                "courtNo":"Court No. 12","itemNo":"7","time":"10:30 AM","scraped":true,\
+                "source":"causelist"}]}
+                """
+        }
+
+        private static func complianceCalendarBody() -> String {
+            let soon = dayKey(3)
+            return """
+                [{"id":"stat:GSTR1:\(soon)","compliance_id":"GSTR1","statutory":true,\
+                "status":"open","name":"GSTR-1","title":"GSTR-1","category":"universal",\
+                "ui_category":"gst","government_body":"CBIC","authority":"CBIC",\
+                "frequency":"monthly","notes":null,"description":null,\
+                "next_due_date":"\(soon)","date":"\(soon)","dateKey":"\(soon)",\
+                "deadline_type":null,"deadline_value":null,"last_verified_date":"2026-07-29"},\
+                {"id":"stat:AOC4:na","compliance_id":"AOC4","statutory":true,"status":"open",\
+                "name":"AOC-4","title":"AOC-4","category":"universal","ui_category":"mca",\
+                "government_body":"MCA","authority":"MCA","frequency":"annual","notes":null,\
+                "description":null,"next_due_date":"N/A - no company context","date":null,\
+                "dateKey":null,"deadline_type":"days_after_agm","deadline_value":"30",\
+                "last_verified_date":"2026-07-29"}]
+                """
+        }
+
         /// `nil` means "this route has no distinct empty shape", so the normal body is used.
         private static func emptyBody(for path: String) -> String? {
             switch path {
             case "/chats": return #"{"success":true,"chats":[]}"#
             case "/cases": return #"{"success":true,"cases":[]}"#
+            case "/cause-list": return #"{"success":true,"listings":[]}"#
+            case "/compliance-calendar": return "[]"
             case "/compliance": return #"{"success":true,"events":[]}"#
             case "/notifications": return #"{"success":true,"notifications":[]}"#
             case "/notifications/unread-count": return #"{"success":true,"count":0}"#

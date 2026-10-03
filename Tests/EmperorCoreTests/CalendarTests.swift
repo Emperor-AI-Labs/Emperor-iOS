@@ -35,10 +35,17 @@ final class CalendarTests: XCTestCase {
         XCTAssertEqual(event.remindDays, 3)
     }
 
-    /// A subscription URL is a standing credential for a whole calendar, so it is not offered
-    /// to a share sheet until it can be issued as a rotatable token.
-    func testTheICSFeedIsNotOfferedForSharing() {
-        XCTAssertTrue(CalendarService.icsFeedIsUnsafeToShare)
+    /// A subscription URL is a standing credential for a whole calendar. It was withheld until it
+    /// could be issued as a resettable secret; it is offered now that it is one, and only in
+    /// that form — a link without the full secret is refused rather than handed to Calendar.
+    /// The rest of the rules are `CalendarFeedTests`.
+    func testTheICSFeedIsOfferedOnlyAsAResettableSecret() {
+        let base = URL(string: "https://example.test/api")!
+        XCTAssertThrowsError(
+            try CalendarFeedURL.feedURL(fromPath: "/api/calendar/my.ics", base: base))
+        XCTAssertNoThrow(try CalendarFeedURL.feedURL(
+            fromPath: "/api/calendar/my.ics?feed=\(String(repeating: "a", count: 32))",
+            base: base))
     }
 
     // MARK: - Statutory markers

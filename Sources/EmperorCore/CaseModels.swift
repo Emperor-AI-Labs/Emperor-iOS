@@ -207,10 +207,16 @@ enum CaseSection: String, CaseIterable, Sendable {
 
 /// One entry in the personalised cause list.
 ///
-/// - Important: `bench`, `itemNo` and `remarks` are **absent keys** — not nulls — on entries
-///   whose `source` is `"next"`, because the server spreads a smaller object for that branch
-///   (`sync-server.js:9771` vs `:9760-9764`). Declaring any of them non-optional makes the
-///   whole array fail to decode for any user who has a case with a next hearing date.
+/// - Important: the two kinds of entry carry different keys. A `"next"` entry is spread from a
+///   smaller object than a hearing entry, so `bench`, `remarks`, `listType`, `time` and
+///   `scraped` are **absent keys** — not nulls — on it (`sync-server.js`, the two `pushEntry`
+///   calls in `/cause-list`). Every field but `date` and `caseId` is therefore optional:
+///   declaring any of them non-optional makes the whole array fail to decode for any user who
+///   has a case with a next hearing date.
+///
+/// The court/item fields (`courtNo`, `itemNo`, `coram`, `time`, `scraped`) arrived with the
+/// platform reading published cause lists. Older servers and older cached copies have none of
+/// them, which decodes as "nothing to show" — the row simply looks as it did before.
 struct CauseListing: Codable, Equatable, Identifiable, Sendable {
     /// `YYYY-MM-DD`, already bucketed by the server. Kept as a string on purpose: it is the
     /// grouping key, and converting it to a `Date` introduces a timezone question that has
@@ -234,6 +240,30 @@ struct CauseListing: Codable, Equatable, Identifiable, Sendable {
     var remarks: String?
     /// `"causelist"`, `"hearing"` or `"next"`. Unrelated to `CaseItem.source`.
     var source: String?
+    /// The courtroom as that day's list printed it — `"Court No. 4"`, `"COURT NO.270"`,
+    /// `"Registrar Court 1"` — already tidied by the server where it could be. Shaped for
+    /// display by `courtRoom`, never shown raw.
+    var courtNo: String?
+    /// The bench, without a courtroom in it. The server strips "Court 14 - " prefixes and drops
+    /// values that are only a room, but the client re-checks — see `coramLine`.
+    var coram: String?
+    /// The bench's sitting time ("10:30 AM"), only where the published list printed one. Never
+    /// inferred.
+    var time: String?
+    /// True when the row was read from a court's own site or published list. Such a row states
+    /// its own room and item number, or has none: nothing is read out of its other text. Absent
+    /// on `"next"` entries, which are read off the case.
+    var scraped: Bool?
+    /// Which list it appeared on — "Supplementary List", "Advance List".
+    var listType: String?
+    /// "P: A | R: B", from the parties the scraper recorded. Hearing entries only.
+    var advocates: String?
+    var parties: String?
+    var caseType: String?
+    var category: String?
+    var diaryNumber: String?
+    /// The case's next date of hearing, as a `YYYY-MM-DD`.
+    var ndoh: String?
 
     var id: String { "\(caseID)|\(date)|\(source ?? "")" }
 
@@ -249,6 +279,65 @@ struct CauseListing: Codable, Equatable, Identifiable, Sendable {
         case caseID = "caseId"
         case teamID = "teamId"
         case courtName, courtType, caseNumber, caseYear
+        case courtNo, coram, time, scraped, listType, advocates, parties, caseType, category
+        case diaryNumber, ndoh
+    }
+}
+
+extension CauseListing {
+    /// Decodes every optional text field leniently: a string, or a number written out as one.
+    ///
+    /// Most of a hearing entry is copied verbatim out of a JSON blob a scraper or a form wrote
+    /// (`purpose: d.purpose`, `bench: d.bench || r.subtitle || rawCourt`, `time: d.time`), and
+    /// the route never coerces it — so a blob holding `"courtNo": 4` can reach the wire as the
+    /// number 4. A strict `String?` would throw on that one value and take the **entire** cause
+    /// list down with it, for every day. One row printing "4" is the right failure; a Home
+    /// screen showing "Could not load" is not.
+    ///
+    /// `date` and `caseId` stay strict: a row without them cannot be placed or opened.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        func text(_ key: CodingKeys) -> String? {
+            if let value = try? container.decodeIfPresent(String.self, forKey: key) { return value }
+            if let value = try? container.decodeIfPresent(Int.self, forKey: key) { return String(value) }
+            if let value = try? container.decodeIfPresent(Double.self, forKey: key) {
+                return value.rounded() == value && abs(value) < 1e15 ? String(Int(value)) : String(value)
+            }
+            return nil
+        }
+        date = try container.decode(String.self, forKey: .date)
+        caseID = try container.decode(String.self, forKey: .caseID)
+        teamID = text(.teamID)
+        title = text(.title)
+        courtName = text(.courtName)
+        courtType = text(.courtType)
+        caseNumber = text(.caseNumber)
+        caseYear = text(.caseYear)
+        cnr = text(.cnr)
+        judge = text(.judge)
+        purpose = text(.purpose)
+        bench = text(.bench)
+        stage = text(.stage)
+        itemNo = text(.itemNo)
+        remarks = text(.remarks)
+        source = text(.source)
+        courtNo = text(.courtNo)
+        coram = text(.coram)
+        time = text(.time)
+        if let flag = try? container.decodeIfPresent(Bool.self, forKey: .scraped) {
+            scraped = flag
+        } else if let number = try? container.decodeIfPresent(Int.self, forKey: .scraped) {
+            scraped = number != 0
+        } else {
+            scraped = nil
+        }
+        listType = text(.listType)
+        advocates = text(.advocates)
+        parties = text(.parties)
+        caseType = text(.caseType)
+        category = text(.category)
+        diaryNumber = text(.diaryNumber)
+        ndoh = text(.ndoh)
     }
 }
 

@@ -200,6 +200,63 @@ final class CauseListViewModelTests: XCTestCase {
         }
     }
 
+    /// A court day is walked forum by forum and room by room, and within a room the matters
+    /// are called in item order — so that is the order on screen. Court 4 before Court 12,
+    /// which a string sort would get backwards.
+    func testListingsSortByForumThenRoomThenItem() async {
+        await withCauseList { service, model in
+            var nclt = Self.listing("2026-09-14", caseID: "n1", itemNo: "1", title: "N")
+            nclt.courtName = "NCLT Mumbai"
+            var room12 = Self.listing("2026-09-14", caseID: "r12", itemNo: "2", title: "B")
+            room12.courtNo = "Court No. 12"
+            room12.scraped = true
+            var room4late = Self.listing("2026-09-14", caseID: "r4b", itemNo: "30", title: "C")
+            room4late.courtNo = "Court 4"
+            room4late.scraped = true
+            var room4early = Self.listing("2026-09-14", caseID: "r4a", itemNo: "5", title: "D")
+            room4early.courtNo = "COURT NO.4"
+            room4early.scraped = true
+            let noRoom = Self.listing("2026-09-14", caseID: "x", itemNo: "1", title: "E")
+            service.listings = [nclt, noRoom, room12, room4late, room4early]
+            await model.load()
+
+            XCTAssertEqual(
+                model.listingsForSelectedDay.map(\.caseID), ["r4a", "r4b", "r12", "x", "n1"])
+        }
+    }
+
+    /// The order uses the item the row prints, so a hand-entered "item 15" in the purpose sorts
+    /// as 15 rather than as unnumbered.
+    func testTheSortUsesTheItemTheRowPrints() async {
+        await withCauseList { service, model in
+            var fromPurpose = Self.listing("2026-09-14", caseID: "p15", itemNo: nil, title: "A")
+            fromPurpose.purpose = "Listed at item 15"
+            let explicit = Self.listing("2026-09-14", caseID: "e3", itemNo: "3", title: "Z")
+            let none = Self.listing("2026-09-14", caseID: "none", itemNo: nil, title: "B")
+            service.listings = [none, fromPurpose, explicit]
+            await model.load()
+
+            XCTAssertEqual(model.listingsForSelectedDay.map(\.caseID), ["e3", "p15", "none"])
+        }
+    }
+
+    func testShareTextLeadsWithItemAndCourt() async {
+        await withCauseList { service, model in
+            var listing = Self.listing("2026-09-14", itemNo: "12")
+            listing.courtNo = "Court No. 4"
+            listing.scraped = true
+            listing.time = "10:30 AM"
+            listing.coram = "Justice Navin Chawla"
+            service.listings = [listing]
+            await model.load()
+
+            let text = model.shareText()
+            XCTAssertTrue(text.contains("Item 12 · Court 4 — Menon vs. Union of India"), text)
+            XCTAssertTrue(text.contains("Delhi High Court · Justice Navin Chawla"), text)
+            XCTAssertTrue(text.contains("10:30 AM"), text)
+        }
+    }
+
     // MARK: - Loading
 
     /// A failed load must never render as "nothing listed" — that is the web bug, and on this

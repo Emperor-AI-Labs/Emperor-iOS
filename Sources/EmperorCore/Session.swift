@@ -53,6 +53,11 @@ final class Session {
     let projects: ProjectService
     /// The in-app report channel for a generated answer. Both stores require one.
     let feedback: FeedbackService
+    /// The statutory deadlines behind the Corporate tab.
+    let complianceCalendar: ComplianceCalendarService
+    /// The private calendar-subscription link. Takes the base URL because the route answers a
+    /// path that has to be resolved against it.
+    let calendarFeed: CalendarFeedService
 
     let cache: ResponseCache
 
@@ -98,6 +103,8 @@ final class Session {
         self.duplicates = DuplicateCheckService(client: client)
         self.preferredModel = PreferredModelService(client: client)
         self.officePreview = OfficePreviewService(client: client)
+        self.complianceCalendar = ComplianceCalendarService(client: client)
+        self.calendarFeed = CalendarFeedService(client: client, baseURL: config.baseURL)
         self.store = store
         self.cache = cache
 

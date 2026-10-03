@@ -16,6 +16,9 @@ struct CauseListView: View {
     @State private var isDigitising = false
     @State private var isShowingUpdates = false
     @State private var unread = 0
+    /// The badge's width, scaled with Dynamic Type so a three-digit item still fits at the
+    /// largest sizes rather than truncating to "1…".
+    @ScaledMetric(relativeTo: .title3) private var badgeWidth: CGFloat = 58
 
     var body: some View {
         NavigationStack {
@@ -176,43 +179,102 @@ struct CauseListView: View {
         }
     }
 
+    /// One listing, read the way a litigator reads a list in a corridor: where first — item and
+    /// courtroom in the badge — then which matter, then the bench, then the rest.
+    ///
+    /// The web's Home card puts the courtroom in the same left-hand gutter
+    /// (`TodayCauseList.jsx`, `Row`); this adds the item number above it, which is the number
+    /// that decides when to be in the room. Neither is ever made up: an unnumbered listing
+    /// shows the scales instead, because a plausible "3" is read as where the matter is listed.
+    /// See `CauseListingDisplay` for the rules.
     private func row(_ listing: CauseListing) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if let itemNo = listing.itemNo {
-                    Text(itemNo)
-                        .font(.brand(.caption, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(theme.textSecondary)
-                        .frame(minWidth: 22, alignment: .trailing)
+        let display = listing.display
+        return HStack(alignment: .center, spacing: 12) {
+            locationBadge(display)
+
+            VStack(alignment: .leading, spacing: 3) {
+                if let forum = display.forum(courtName: listing.courtName) {
+                    Text(forum)
+                        .font(.brand(.caption2, weight: .semibold))
+                        .foregroundStyle(theme.accentText)
+                        .lineLimit(2)
                 }
+
                 Text(listing.displayTitle)
                     .font(.brand(.headline))
+                    .foregroundStyle(theme.textPrimary)
                     .lineLimit(2)
-            }
 
-            if let court = listing.courtName {
-                Text(court).font(.brand(.subheadline)).foregroundStyle(theme.textSecondary)
-            }
-
-            HStack(spacing: 6) {
-                if let purpose = listing.purpose {
-                    Text(purpose).lineLimit(1)
+                // Number, sitting time and counsel. The time appears only where the published
+                // list printed one; nothing here is ever inferred, because a plausible "10:30"
+                // for a hearing a lawyer has to attend is exactly the helpful guess that gets a
+                // matter dismissed.
+                if let detail = display.detailLine {
+                    Text(detail)
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textSecondary)
+                        .lineLimit(2)
                 }
-                if let bench = listing.bench {
-                    Text("·")
-                    Text(bench).lineLimit(1)
-                }
-            }
-            .font(.brand(.caption))
-            .foregroundStyle(theme.textTertiary)
 
-            // No hearing time is shown because the feed has none. The marketing dashboard
-            // shows times; the API has no time field on a listing, and inventing one would be
-            // worse than the gap it fills.
-            if let remarks = listing.remarks {
-                StatusPill(text: remarks, tone: .warning)
+                if let note = display.note {
+                    Text(note)
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textTertiary)
+                        .lineLimit(2)
+                }
+
+                if let remarks = listing.remarks {
+                    StatusPill(text: remarks, tone: .warning)
+                }
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(display.spoken(listing))
+    }
+
+    /// Item over courtroom, or whichever of the two the list gave.
+    private func locationBadge(_ display: CauseListingDisplay) -> some View {
+        VStack(spacing: 1) {
+            if let item = display.item {
+                badgeCaption("Item")
+                badgeValue(item)
+                if let room = display.roomNumber {
+                    Text("Court \(room)")
+                        .font(.brand(.caption2, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(theme.accentText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+            } else if let room = display.roomNumber {
+                badgeCaption("Court")
+                badgeValue(room)
+            } else {
+                Image(systemName: "scalemass")
+                    .font(.brand(.title3))
+                    .foregroundStyle(theme.accentText)
+                    .padding(.vertical, 6)
+            }
+        }
+        .frame(width: badgeWidth)
+        .padding(.vertical, 6)
+        .background(
+            theme.surfaceElevated,
+            in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private func badgeCaption(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.brand(.caption2, weight: .semibold))
+            .foregroundStyle(theme.textTertiary)
+            .lineLimit(1)
+    }
+
+    private func badgeValue(_ text: String) -> some View {
+        Text(text)
+            .font(.brand(.title3, weight: .bold).monospacedDigit())
+            .foregroundStyle(theme.textPrimary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
     }
 }

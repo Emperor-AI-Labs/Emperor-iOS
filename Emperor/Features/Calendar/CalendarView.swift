@@ -2,24 +2,36 @@ import SwiftUI
 
 /// Hearings and obligations together.
 ///
-/// ## Two things this screen deliberately does not offer
+/// ## Subscribing from the Calendar app
+///
+/// **Subscribe** opens `CalendarSubscriptionSheet`: the user's private feed link, handed to the
+/// iOS Calendar app as `webcal://`, copyable for Google or Outlook, and resettable. It was
+/// withheld while the feed could not be issued as a secret the user can revoke; the platform
+/// now issues one (`/calendar/feed-url`), with a reset that kills the old link.
+///
+/// ## What this screen deliberately does not offer
 ///
 /// **No reminder picker.** `remind_days` is written, returned and rendered by the web client —
 /// and read by nothing. There is no scheduler, the `reminder` notification type has no
-/// producer, and the ICS feed emits no `VALARM`. On the one screen whose purpose is not missing
-/// a limitation date, a reminder control would be the worst possible place to make a promise
-/// the product cannot keep.
+/// producer, and the ICS feed emits no `VALARM` — so a subscribed calendar does not alert
+/// either. On the one screen whose purpose is not missing a limitation date, a reminder control
+/// would be the worst possible place to make a promise the product cannot keep.
 ///
-/// **No calendar-subscription link.** A subscription URL is a standing credential for every
-/// hearing the user has, so it is withheld until it can be issued as a rotatable token.
+/// ## Corporate Calendar
+///
+/// For roles without the Corporate tab, the statutory calendar is one row away here — the web's
+/// calendar tabs offer it to every role (`CalendarTabs.jsx`), and only the bottom bar is
+/// gated. Roles with the tab are not shown the row twice.
 struct CalendarView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
+    @Environment(\.practice) private var practice
 
     @Environment(\.dismiss) private var dismiss
 
     @State private var model: CalendarViewModel?
     @State private var isAddingEvent = false
+    @State private var isSubscribing = false
     @State private var path: [String] = []
 
     var body: some View {
@@ -40,6 +52,15 @@ struct CalendarView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
+                // On the root too, so subscribing does not wait on — or depend on — the
+                // calendar having loaded: the link is a separate request.
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Subscribe") { isSubscribing = true }
+                        .accessibilityHint("Adds your hearings and diary to the Calendar app")
+                }
+            }
+            .sheet(isPresented: $isSubscribing) {
+                CalendarSubscriptionSheet()
             }
             .navigationDestination(for: String.self) { caseID in
                 CaseDetailView(caseID: caseID)
@@ -60,6 +81,9 @@ struct CalendarView: View {
     private func content(_ model: CalendarViewModel) -> some View {
         ListStateView(presentation: model.presentation, retry: { await model.load() }) {
             List {
+                if !practice.role.hasCorporateTab {
+                    corporateCalendarLink
+                }
                 monthSection(model)
                 selectedDaySection(model)
 
@@ -125,6 +149,33 @@ struct CalendarView: View {
         } message: {
             Text(model.writeError ?? "")
         }
+    }
+
+    // MARK: - Corporate Calendar
+
+    /// The statutory calendar, pushed into this stack — the web's "Corporate Calendar" tab
+    /// beside "My Calendar".
+    private var corporateCalendarLink: some View {
+        Section {
+            NavigationLink {
+                ComplianceCalendarView()
+            } label: {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Corporate Calendar")
+                            .font(.brand(.subheadline, weight: .semibold))
+                            .foregroundStyle(theme.textPrimary)
+                        Text("Statutory deadlines — ROC, tax, GST, PF and more")
+                            .font(.brand(.caption))
+                            .foregroundStyle(theme.textSecondary)
+                    }
+                } icon: {
+                    Image(systemName: "calendar.badge.checkmark")
+                        .foregroundStyle(theme.accentText)
+                }
+            }
+        }
+        .listRowBackground(theme.surface)
     }
 
     // MARK: - The month

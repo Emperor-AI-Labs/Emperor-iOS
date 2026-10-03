@@ -91,6 +91,10 @@ struct ResponseCache: Sendable {
         case causeList = "cause-list"
         case notifications = "notifications"
         case calendarEvents = "calendar-events"
+        /// The statutory calendar. The same for every account, but cached with the rest so it
+        /// goes on sign-out like everything else here — it also carries what the team marked
+        /// done.
+        case complianceCalendar = "compliance-calendar"
     }
 
     let store: any CacheStore

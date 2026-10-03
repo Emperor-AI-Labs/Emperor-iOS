@@ -63,10 +63,12 @@ final class EmperorUITests: XCTestCase {
 
     // MARK: - The tab bar
 
-    /// The four destinations the platform's own mobile nav declares.
-    func testSigningInRevealsTheFourTabs() {
+    /// The destinations the platform's own mobile nav declares. Corporate is role-gated, and the
+    /// default role — Litigator, which this suite never changes — is one of the three that
+    /// carry it (`MobileNav.jsx`, `canCompliance`).
+    func testSigningInRevealsTheTabs() {
         let app = signIn(launch())
-        for tab in ["Home", "Cases", "Chat", "More"] {
+        for tab in ["Home", "Cases", "Chat", "Corporate", "More"] {
             XCTAssertTrue(
                 app.tabBars.buttons[tab].waitForExistence(timeout: 10),
                 "the \(tab) tab is missing")
@@ -79,13 +81,77 @@ final class EmperorUITests: XCTestCase {
         let app = signIn(launch())
         XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
 
-        for (tab, title) in [("Home", "Home"), ("Cases", "Cases"), ("Chat", "Emperor"), ("More", "More")] {
+        for (tab, title) in [
+            ("Home", "Home"), ("Cases", "Cases"), ("Chat", "Emperor"),
+            ("Corporate", "Corporate Calendar"), ("More", "More"),
+        ] {
             app.tabBars.buttons[tab].tap()
             XCTAssertTrue(
                 app.navigationBars[title].waitForExistence(timeout: 10),
                 "tapping \(tab) did not show a screen titled \(title)")
             XCTAssertEqual(app.state, .runningForeground, "the app died on the \(tab) tab")
         }
+    }
+
+    // MARK: - Home
+
+    /// A listing leads with where it is heard — item and courtroom — because that is what a
+    /// litigator scans a list for. The row is one accessibility element saying so, in order.
+    func testAHomeListingLeadsWithItsItemAndCourt() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
+        let row = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Item 7, Court 12")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "the listing does not lead with item and court")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    // MARK: - Corporate
+
+    /// The tab lists a statutory deadline and opens it, and the way back is the back button.
+    func testTheCorporateTabOpensADeadline() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tabBars.buttons["Corporate"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Corporate"].tap()
+
+        let deadline = app.staticTexts["GSTR-1"]
+        XCTAssertTrue(deadline.waitForExistence(timeout: 10), "the deadline is not listed")
+        deadline.tap()
+
+        // The detail is titled by the obligation's own reference.
+        XCTAssertTrue(
+            app.navigationBars["GSTR1"].waitForExistence(timeout: 10),
+            "the deadline did not open")
+        XCTAssertTrue(
+            app.navigationBars["GSTR1"].buttons["Share"].waitForExistence(timeout: 5),
+            "the deadline cannot be shared")
+        app.navigationBars["GSTR1"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Corporate Calendar"].waitForExistence(timeout: 10))
+    }
+
+    // MARK: - Calendar subscription
+
+    /// Subscribing is offered from Calendar, the link can be copied, and the sheet closes from a
+    /// control on screen. "Subscribe in Calendar" itself is not tapped: it leaves the app for
+    /// the Calendar app, which is the point of it and the end of any test.
+    func testCalendarOffersAPrivateLinkThatCanBeCopied() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["More"].tap()
+        app.buttons["Calendar"].tap()
+        XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
+
+        app.navigationBars["Calendar"].buttons["Subscribe"].tap()
+        XCTAssertTrue(app.navigationBars["Subscribe"].waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            app.buttons["Subscribe in Calendar"].waitForExistence(timeout: 10),
+            "the link never loaded")
+
+        app.buttons["Copy link"].tap()
+        XCTAssertTrue(app.buttons["Copied"].waitForExistence(timeout: 5), "copying said nothing")
+
+        app.navigationBars["Subscribe"].buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
     }
 
     // MARK: - More
@@ -308,7 +374,7 @@ final class EmperorUITests: XCTestCase {
         let app = signIn(launch("-UITestEmpty"))
         XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
 
-        for tab in ["Home", "Cases", "Chat"] {
+        for tab in ["Home", "Cases", "Chat", "Corporate"] {
             app.tabBars.buttons[tab].tap()
             // `ContentUnavailableView` renders as static text; any of it is enough to prove the
             // empty branch drew something.
