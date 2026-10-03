@@ -2,12 +2,11 @@ import Foundation
 import PDFKit
 import UIKit
 
-/// Splitting and merging, entirely on the device.
+/// Splitting and merging, entirely on the device — `SplitPDFView` and `MergePDFView`.
 ///
-/// Image compression lives here too (`compress(image:targetBytes:)`) and matches the platform's
-/// `/tools/compress-image`, but **no screen reaches it** — `PDFToolsView` offers Split and Merge
-/// only. It is listed in `README.md` under what is built but not yet reachable, so it is findable
-/// rather than a surprise.
+/// The newer tools (rearrange, compress, image to PDF) do their work in `OnDeviceToolEngine`,
+/// behind the core's `DocumentToolEngine` so their view models are tested without PDFKit. These
+/// two predate that and stay as they were; the rule below governs all of them.
 ///
 /// **Nothing here is uploaded.** These are the operations an advocate does to a paperbook before
 /// filing it, and the documents are privileged — sending a client's brief to a server to cut
@@ -164,44 +163,6 @@ enum PDFTools {
         }
         guard position > 0 else { throw Failure.empty }
         return try write(output, named: name.hasSuffix(".pdf") ? name : "\(name).pdf")
-    }
-
-    // MARK: - Compress an image
-
-    /// Trades quality before resolution, the way the platform's own `CompressImage` does.
-    ///
-    /// A scan that has been downscaled is a scan whose small print has stopped being legible,
-    /// which for an exhibit is worse than a larger file. So quality is spent first, and the
-    /// image is only made smaller once the lowest useful quality still overshoots.
-    ///
-    /// Returns the smallest result it achieved even when that is still over target — with the
-    /// caller expected to say so, because refusing to produce anything is not more helpful than
-    /// producing something honest about its size.
-    ///
-    /// - Note: **no caller.** `PDFToolsView` offers Split and Merge only, so the "caller expected
-    ///   to say so" above is currently nobody. Kept rather than deleted because the platform
-    ///   ships the same tool at `/tools/compress-image` and this is the whole of the work; what
-    ///   is missing is a third `Mode` case and a picker that takes an image instead of a PDF.
-    static func compress(image: UIImage, targetBytes: Int) -> Data? {
-        for quality in stride(from: 0.9, through: 0.3, by: -0.1) {
-            guard let data = image.jpegData(compressionQuality: quality) else { continue }
-            if data.count <= targetBytes { return data }
-        }
-
-        var working = image
-        var smallest = image.jpegData(compressionQuality: 0.3)
-        // Six halvings floors a 12 MP photo at roughly 50 KP, past which an exhibit is not worth
-        // keeping. Bounded so a target of 1 byte cannot loop forever.
-        for _ in 0..<6 {
-            let size = CGSize(width: working.size.width * 0.75, height: working.size.height * 0.75)
-            guard size.width >= 200, size.height >= 200 else { break }
-            let renderer = UIGraphicsImageRenderer(size: size)
-            working = renderer.image { _ in working.draw(in: CGRect(origin: .zero, size: size)) }
-            guard let data = working.jpegData(compressionQuality: 0.6) else { break }
-            smallest = data
-            if data.count <= targetBytes { return data }
-        }
-        return smallest
     }
 
     // MARK: - Plumbing

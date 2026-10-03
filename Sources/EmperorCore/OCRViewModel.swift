@@ -3,7 +3,11 @@ import Foundation
 import Observation
 #endif
 
-/// Digitising a document, and watching it happen.
+/// Digitising a document, watching it happen, and reopening what was done before.
+///
+/// One model serves two screens, as one page serves both on the web: Translate, and PDF to Word —
+/// which the platform implements as the same page with its mode locked to a digitise-only DOCX
+/// conversion (`src/pages/tools/PdfToDocx.jsx`, `OCRTranslate.jsx:257-262`).
 ///
 /// See `ChatViewModel` for why `@Observable` is Apple-only.
 #if canImport(Darwin)
@@ -12,13 +16,36 @@ import Observation
 @MainActor
 final class OCRViewModel {
 
+    enum Mode: Equatable, Sendable {
+        /// Read a document, optionally translating it.
+        case translate
+        /// Convert a PDF to Word: digitise only, PDFs only.
+        case pdfToWord
+    }
+
+    let mode: Mode
+
     private(set) var job: OCRJob?
     private(set) var jobID: String?
     private(set) var isSubmitting = false
     private(set) var isDownloading = false
     var errorMessage: String?
+    /// The target language. Ignored in `.pdfToWord`, which always sends `Original`.
     var language: OCRLanguage = .original
     var result: OCRResult?
+
+    // MARK: History
+
+    /// This account's earlier jobs, newest first.
+    private(set) var history: [OCRJob] = []
+    private(set) var historyState: LoadState = .idle
+    /// False whenever the listing covered anything not shown — see `OCRHistory.listedOtherJobs`.
+    private(set) var historyIsClearable = false
+    private(set) var isClearingHistory = false
+    /// The history job being fetched for opening, so its row can show it.
+    private(set) var openingJobID: String?
+    /// A history document fetched for viewing. Set, the screen opens it.
+    var opened: OCRResult?
 
     struct OCRResult: Identifiable, Sendable {
         let id = UUID()
@@ -62,17 +89,31 @@ final class OCRViewModel {
     #endif
     private var lastChangeAt = Date()
     private var lastSignature = ""
+    /// Submitted, and no status has come back yet. Without it the two seconds before the first
+    /// poll read as "nothing running", and the screen flashed back to its pickers.
+    private var awaitingFirstStatus = false
+    /// Polling gave up on a stalled job. The job's last known state is still "running", so
+    /// without this the screen stayed on a progress bar with no way to start again.
+    private var gaveUp = false
 
-    init(service: any OCRProviding, now: @escaping @Sendable () -> Date = { Date() }) {
+    init(
+        service: any OCRProviding, mode: Mode = .translate,
+        now: @escaping @Sendable () -> Date = { Date() }
+    ) {
         self.service = service
+        self.mode = mode
         self.now = now
         self.lastChangeAt = now()
     }
 
+    /// What is actually sent. PDF to Word never translates (`OCRTranslate.jsx:511-513`).
+    var effectiveLanguage: OCRLanguage { mode == .pdfToWord ? .original : language }
+
     deinit { pollTask?.cancel() }
 
     var isRunning: Bool {
-        guard let job else { return isSubmitting }
+        if gaveUp { return false }
+        guard let job else { return isSubmitting || awaitingFirstStatus }
         return !job.state.isTerminal
     }
 
@@ -98,20 +139,37 @@ final class OCRViewModel {
 
     // MARK: - Submitting
 
+    /// The upload goes through the edge proxy in one request, which refuses a body over 100 MB
+    /// with an HTML page rather than the server's JSON. The web checks first and says so in
+    /// words (`OCRTranslate.jsx:307-308`, `:500`); so does this, and points at the two tools on
+    /// this phone that fix it.
+    static let maxUploadBytes = 99 * 1024 * 1024
+
+    static let tooLargeMessage = """
+        This file is larger than 100 MB, the most the upload can take. Compress it or split it \
+        into parts with File tools, then try again.
+        """
+
     func submit(data: Data, fileName: String) async {
         guard !isSubmitting else { return }
+        guard data.count <= Self.maxUploadBytes else {
+            errorMessage = Self.tooLargeMessage
+            return
+        }
         isSubmitting = true
         errorMessage = nil
         job = nil
         result = nil
+        gaveUp = false
         defer { isSubmitting = false }
 
         do {
             let id = try await service.submit(
-                data: data, fileName: fileName, language: language)
+                data: data, fileName: fileName, language: effectiveLanguage)
             jobID = id
             lastChangeAt = now()
             lastSignature = ""
+            awaitingFirstStatus = true
             startPolling(id)
         } catch {
             errorMessage = DisplayText.message(for: error)
@@ -144,17 +202,18 @@ final class OCRViewModel {
         guard let id = jobID else { return true }
 
         guard let fetched = try? await service.status(jobID: id) else {
-            // The deadline has to apply here too. A job wiped by a global clear 404s on every
-            // later poll, so checking the clock only on the *success* path made the timeout
-            // unreachable in precisely the case it exists for, and the loop ran until the
-            // battery died.
+            // The deadline has to apply here too. A job removed from the history — cleared from
+            // another device while it ran — 404s on every later poll, so checking the clock only
+            // on the *success* path made the timeout unreachable in precisely the case it exists
+            // for, and the loop ran until the battery died.
             if now().timeIntervalSince(lastChangeAt) > Self.stallTimeout {
-                errorMessage = Self.stalledMessage
+                giveUp()
                 return true
             }
             return false
         }
         job = fetched
+        awaitingFirstStatus = false
 
         // Anything the server could plausibly change. If none of it moves for `stallTimeout`,
         // the job is treated as dead rather than polled forever.
@@ -163,13 +222,27 @@ final class OCRViewModel {
             lastSignature = signature
             lastChangeAt = now()
         } else if now().timeIntervalSince(lastChangeAt) > Self.stallTimeout {
-            errorMessage = Self.stalledMessage
+            giveUp()
             return true
         }
 
         guard fetched.state.isTerminal else { return false }
         if fetched.state == .completed { await downloadResult(fetched) }
+        if fetched.state == .failed {
+            // The server's own sentence — a password-protected file, an unreadable scan. Once
+            // the job is terminal the progress section is gone, so this is the only place left
+            // to say it.
+            errorMessage = fetched.error ?? "That document could not be read."
+        }
+        // The finished job now belongs in the history list, where it can be reopened later.
+        await loadHistory()
         return true
+    }
+
+    private func giveUp() {
+        errorMessage = Self.stalledMessage
+        awaitingFirstStatus = false
+        gaveUp = true
     }
 
     /// Clears a finished job so another document can be started.
@@ -181,6 +254,8 @@ final class OCRViewModel {
         errorMessage = nil
         lastSignature = ""
         lastChangeAt = now()
+        awaitingFirstStatus = false
+        gaveUp = false
     }
 
     func cancelPolling() {
@@ -198,7 +273,7 @@ final class OCRViewModel {
             let data = try await service.download(outputFile: outputFile)
             result = OCRResult(
                 data: data,
-                fileName: outputFile,
+                fileName: finished.downloadName ?? outputFile,
                 translationMayBeIncomplete: finished.translationMayBeIncomplete)
         } catch {
             errorMessage = DisplayText.message(for: error)
@@ -216,5 +291,88 @@ final class OCRViewModel {
             The translation step reported a problem, so part or all of this document may still \
             be in its original language. Check it before relying on it.
             """
+    }
+
+    // MARK: - History
+
+    var historyPresentation: ListPresentation {
+        ListPresentation(state: historyState, isEmpty: visibleHistory.isEmpty)
+    }
+
+    /// The history, less the job this screen is already showing live — the same document in
+    /// two places, one of them a progress bar, reads as two documents.
+    var visibleHistory: [OCRJob] {
+        guard let jobID, isRunning else { return history }
+        return history.filter { $0.id != jobID }
+    }
+
+    func loadHistory() async {
+        historyState = .loading
+        do {
+            let fetched = try await service.history()
+            history = fetched.jobs
+            historyIsClearable = !fetched.listedOtherJobs
+            historyState = .loaded
+        } catch {
+            historyState = .failed(LoadFailure(error))
+        }
+    }
+
+    /// Whether "Clear history" is on offer at all.
+    ///
+    /// Withheld while this screen's own document is being read — clearing would remove the job
+    /// it is waiting on — and whenever the listing covered anything not shown here.
+    var canClearHistory: Bool {
+        historyState == .loaded && historyIsClearable && !history.isEmpty
+            && !isRunning && !isClearingHistory
+    }
+
+    /// Jobs in the list that have not finished.
+    var historyInProgressCount: Int {
+        history.filter { !$0.state.isTerminal }.count
+    }
+
+    /// The question the confirmation asks. Clearing is server-side, so it is every device's
+    /// history, and a job still running elsewhere goes with it.
+    var clearHistoryConfirmation: String {
+        let count = history.count
+        var text = "This removes \(count) document\(count == 1 ? "" : "s") from your history on every device, including the web. Their results can no longer be downloaded."
+        let running = historyInProgressCount
+        if running > 0 {
+            text += " \(running) still being read will be removed too, and \(running == 1 ? "its result" : "their results") will not appear here when finished."
+        }
+        return text
+    }
+
+    func clearHistory() async {
+        guard canClearHistory else { return }
+        isClearingHistory = true
+        defer { isClearingHistory = false }
+        do {
+            try await service.clearHistory()
+            history = []
+            historyState = .loaded
+        } catch {
+            errorMessage = DisplayText.message(for: error)
+        }
+        await loadHistory()
+    }
+
+    /// Fetches a finished history document for viewing.
+    func open(_ historyJob: OCRJob) async {
+        guard historyJob.state == .completed, let outputFile = historyJob.outputFile,
+              openingJobID == nil
+        else { return }
+        openingJobID = historyJob.id ?? outputFile
+        defer { openingJobID = nil }
+        do {
+            let data = try await service.download(outputFile: outputFile)
+            opened = OCRResult(
+                data: data,
+                fileName: historyJob.downloadName ?? outputFile,
+                translationMayBeIncomplete: historyJob.translationMayBeIncomplete)
+        } catch {
+            errorMessage = DisplayText.message(for: error)
+        }
     }
 }

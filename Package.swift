@@ -29,6 +29,9 @@ let package = Package(
                 .copy("Resources/tools"),
                 .copy("Resources/cards"),
                 .copy("Resources/tool-cases.json"),
+                // The Document Utilities' rules — page order, the size searches, the layouts —
+                // generated from the platform by `scripts/generate-file-tool-fixtures.mjs`.
+                .copy("Resources/file-tools"),
             ]),
     ]
 )

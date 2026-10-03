@@ -9,7 +9,7 @@ final class OCRTests: XCTestCase {
 
     // MARK: - Language
 
-    /// **Omitting `lang` silently translates to Hindi** (`sync-server.js:12118`). So the
+    /// **Omitting `lang` silently translates to Hindi** (`sync-server.js:15384`). So the
     /// digitise-only case needs an explicit value, and `Original` is it.
     func testDigitiseOnlyIsAnExplicitValueNotAnOmission() {
         XCTAssertEqual(OCRLanguage.original.rawValue, "Original")
@@ -17,15 +17,18 @@ final class OCRTests: XCTestCase {
         XCTAssertTrue(OCRLanguage.hindi.translates)
     }
 
-    /// The server skips translation for `none|original|english|en` — so "English" means "leave
-    /// it as it is", not "translate to English". Offering it as a target would mislead.
-    func testEnglishIsNotOfferedAsATargetBecauseItIsANoOp() {
-        XCTAssertFalse(OCRLanguage.translates("English"))
-        XCTAssertFalse(OCRLanguage.translates("en"))
+    /// The server skips translation for `none|original` and nothing else
+    /// (`sync-server.js:15471`, `:15572`). English used to be a silent no-op there — a Punjabi
+    /// order came back in Punjabi as a "completed" translation into English. It is a real target
+    /// now, and the web lists it first, so it is offered here too.
+    func testEnglishIsARealTargetNow() {
+        XCTAssertTrue(OCRLanguage.translates("English"))
+        XCTAssertTrue(OCRLanguage.english.translates)
         XCTAssertFalse(OCRLanguage.translates("none"))
-        XCTAssertFalse(
-            OCRLanguage.allCases.contains { $0.rawValue.lowercased() == "english" },
-            "an 'English' option would silently do nothing")
+        XCTAssertFalse(OCRLanguage.translates("ORIGINAL"))
+        XCTAssertEqual(
+            Array(OCRLanguage.allCases.prefix(3)), [.original, .english, .hindi],
+            "the web's order: English, Hindi, then alphabetical")
     }
 
     func testTheLanguageListIsNonTrivial() {

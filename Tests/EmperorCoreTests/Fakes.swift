@@ -194,7 +194,81 @@ final class FakeOCR: OCRProviding, @unchecked Sendable {
     }
 
     func download(outputFile: String) async throws -> Data {
-        downloadData
+        if let downloadError { throw downloadError }
+        downloaded.append(outputFile)
+        return downloadData
+    }
+
+    var historyJobs: [OCRJob] = []
+    var historyListedOthers = false
+    var historyError: Error?
+    var clearError: Error?
+    var downloadError: Error?
+    private(set) var downloaded: [String] = []
+    private(set) var historyCalls = 0
+    private(set) var clearCalls = 0
+
+    func history() async throws -> OCRHistory {
+        historyCalls += 1
+        if let historyError { throw historyError }
+        return OCRHistory(jobs: historyJobs, listedOtherJobs: historyListedOthers)
+    }
+
+    func clearHistory() async throws {
+        clearCalls += 1
+        if let clearError { throw clearError }
+        historyJobs = []
+    }
+}
+
+/// The on-device tools, without PDFKit. Records what each tool was asked to do.
+final class FakeDocumentToolEngine: DocumentToolEngine, @unchecked Sendable {
+    var error: Error?
+    var output = Data("%PDF-1.7 fake".utf8)
+    var compressResult = PDFCompression.Result(
+        outcome: PDFCompression.Outcome(
+            originalBytes: 0, compressedBytes: 0, pageCount: 1, pagesReencoded: 1),
+        data: Data(count: 600))
+    var imageReport = ImageCompression.Report(
+        originalWidth: 4032, originalHeight: 3024,
+        result: ImageCompression.Result(
+            data: Data(count: 90_000), width: 1579, height: 1184, quality: 0.5, hitTarget: true))
+    /// Fractions reported through `progress` before `compressPDF` returns.
+    var progressSteps: [Double] = []
+
+    private(set) var rearranged: [(url: URL, pages: [Int], name: String)] = []
+    private(set) var compressedLevels: [PDFCompression.Level] = []
+    private(set) var imageTargets: [Int] = []
+    private(set) var imageBatches: [(urls: [URL], size: ImagePDFLayout.PageSize, name: String)] = []
+
+    func rearrange(_ source: URL, pages: [Int], outputName: String) async throws -> ToolFile {
+        if let error { throw error }
+        rearranged.append((source, pages, outputName))
+        return ToolFile(name: outputName, data: output)
+    }
+
+    func compressPDF(
+        _ source: URL, level: PDFCompression.Level,
+        progress: @escaping @Sendable (Double) -> Void
+    ) async throws -> PDFCompression.Result {
+        if let error { throw error }
+        compressedLevels.append(level)
+        for step in progressSteps { progress(step) }
+        return compressResult
+    }
+
+    func compressImage(_ source: URL, targetBytes: Int) async throws -> ImageCompression.Report {
+        if let error { throw error }
+        imageTargets.append(targetBytes)
+        return imageReport
+    }
+
+    func imagesToPDF(
+        _ images: [URL], pageSize: ImagePDFLayout.PageSize, outputName: String
+    ) async throws -> ToolFile {
+        if let error { throw error }
+        imageBatches.append((images, pageSize, outputName))
+        return ToolFile(name: outputName, data: output)
     }
 }
 

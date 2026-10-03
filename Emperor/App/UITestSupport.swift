@@ -131,6 +131,11 @@ enum UITestSupport {
                 return #"{"success":true,"types":[],"platforms":[]}"#
             case "/documents", "/tables":
                 return #"{"success":true,"documents":[],"tables":[]}"#
+            // A bare array, as `/ocr-history` answers — not an envelope. `userId` matches the
+            // signed-in fixture user, or the client narrows the row away as someone else's.
+            // `pageSetup` is an object, as the server stores it.
+            case "/ocr-history":
+                return #"[{"id":"1790000000000","status":"completed","step":5,"progress":100,"fileName":"Bakshi_Order.pdf","targetLang":"Hindi","pageSetup":{"size":"A4"},"logs":[],"userId":"1","outputFile":"1790000000000_Bakshi_Order_Hindi.docx"}]"#
             // Both modes of the court lookup. A CNR is included so the card does not carry the
             // collision warning, which would otherwise be the thing a test sees first.
             case "/court/sc/auto", "/court/sc/diary", "/court/hc/search", "/court/hc/diary",
@@ -188,6 +193,7 @@ enum UITestSupport {
             case "/notifications": return #"{"success":true,"notifications":[]}"#
             case "/notifications/unread-count": return #"{"success":true,"count":0}"#
             case "/user-files": return #"{"success":true,"folders":[]}"#
+            case "/ocr-history": return "[]"
             default: return nil
             }
         }

@@ -463,4 +463,69 @@ final class EmperorUITests: XCTestCase {
             app.navigationBars["More"].waitForExistence(timeout: 10),
             "the tool sheet could not be closed after running a tool")
     }
+
+    // MARK: - File tools
+
+    /// Every card in the hub opens its own screen and comes back. Each tool is a separate push
+    /// from one grid, so a card wired to the wrong destination — or a screen that dies on
+    /// appear — shows up here rather than in a user's hands.
+    func testEveryFileToolOpensFromTheHubAndComesBack() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["More"].tap()
+        app.buttons["File tools"].tap()
+        XCTAssertTrue(app.navigationBars["File tools"].waitForExistence(timeout: 10))
+
+        for (id, title) in [
+            ("split", "Split PDF"),
+            ("merge", "Merge PDF"),
+            ("rearrange", "Rearrange PDF"),
+            ("compressPDF", "Compress PDF"),
+            ("imageToPDF", "Image to PDF"),
+            ("pdfToWord", "PDF to Word"),
+            ("compressImage", "Compress image"),
+        ] {
+            let card = app.buttons["tool-\(id)"]
+            // The grid is lazy: a card below the fold does not exist until it is scrolled to.
+            var swipes = 0
+            while !(card.exists && card.isHittable), swipes < 4 {
+                app.swipeUp()
+                swipes += 1
+            }
+            XCTAssertTrue(card.waitForExistence(timeout: 5), "the \(title) card is missing")
+            card.tap()
+            XCTAssertTrue(
+                app.navigationBars[title].waitForExistence(timeout: 10), "\(title) did not open")
+            XCTAssertEqual(app.state, .runningForeground, "the app died opening \(title)")
+
+            app.navigationBars[title].buttons.element(boundBy: 0).tap()
+            XCTAssertTrue(
+                app.navigationBars["File tools"].waitForExistence(timeout: 10),
+                "could not come back from \(title)")
+        }
+
+        app.navigationBars["File tools"].buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
+    }
+
+    /// The account's own history, decoded from the shape `/ocr-history` really sends — a bare
+    /// array whose jobs carry their page setup as an object. A decoder that cannot read it
+    /// shows "Could not load" here instead of the row.
+    func testTranslateListsTheAccountsHistory() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["More"].tap()
+        app.buttons["Translate"].tap()
+        XCTAssertTrue(app.navigationBars["Translate"].waitForExistence(timeout: 10))
+
+        let row = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "Bakshi Order"))
+            .firstMatch
+        var swipes = 0
+        while !row.exists, swipes < 4 {
+            app.swipeUp()
+            swipes += 1
+        }
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "the history row did not render")
+    }
 }

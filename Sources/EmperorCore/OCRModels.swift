@@ -2,10 +2,15 @@ import Foundation
 
 /// An OCR/translate job.
 ///
-/// - Important: **every field except `status` is optional, deliberately.** The server's job map
-///   can be cleared wholesale while a job is still running, and the completion path then
-///   re-inserts that job by spreading an `undefined` — yielding an entry with no `fileName`, no
-///   `targetLang` and no `logs`. A model that declares those non-optional crashes on it.
+/// - Important: **every field except `status` is optional, deliberately.** A job's entry can be
+///   removed while it is still running (clearing history takes running jobs with it), and the
+///   completion path then re-inserts it by spreading an `undefined` — yielding an entry with no
+///   `fileName`, no `targetLang` and no `logs`. A model that declares those non-optional crashes
+///   on it.
+///
+/// The same shape arrives from two routes: `GET /ocr-status` returns one job as the whole body,
+/// and `GET /ocr-history` returns an array of them, each with its `id` spread in
+/// (`sync-server.js:15631-15680`).
 struct OCRJob: Codable, Equatable, Identifiable, Sendable {
     var id: String?
     var status: String
@@ -13,19 +18,26 @@ struct OCRJob: Codable, Equatable, Identifiable, Sendable {
     var progress: Int?
     var fileName: String?
     var targetLang: String?
-    var pageSetup: String?
+    /// The page setup the upload asked for. The server stores what `JSON.parse` made of the
+    /// field — an object — so a `String` here failed to decode every job that carried one, and a
+    /// history listing with one such job failed whole. Kept as raw JSON: nothing reads it.
+    var pageSetup: JSONValue?
     var logs: [OCRLogLine]?
     var error: String?
     var outputFile: String?
+    /// The account the job was recorded against. Sent as a string, read leniently because the
+    /// record round-trips through a JSON file on the server and an older writer stored numbers.
+    var ownerID: String? = nil
 
     var state: OCRJobState { OCRJobState(wire: status) }
 
     /// Whether the translation step reported a problem.
     ///
-    /// `status == "completed"` does **not** mean "translated". The translate block has its own
-    /// try/catch: a failure becomes a `WARN` log line and the job completes with the *original*
-    /// untranslated text (`sync-server.js:12227-12254`). There is no field on the wire for
-    /// this — scanning the log is the only signal there is.
+    /// `status == "completed"` did **not** always mean "translated": an earlier translate block
+    /// turned a failure into a `WARN` log line and completed with the *original* text. The
+    /// current pipeline fails the job instead and names the page (`sync-server.js:15566-15571`),
+    /// but a job finished before that change still carries the old signal in its log — and the
+    /// history list now reaches those jobs — so the check stays.
     var translationMayBeIncomplete: Bool {
         guard state == .completed, targetLang.map(OCRLanguage.translates) == true else {
             return false
@@ -33,10 +45,89 @@ struct OCRJob: Codable, Equatable, Identifiable, Sendable {
         return logs?.contains { $0.message?.hasPrefix("WARN: translation") == true } ?? false
     }
 
-    /// The source is truncated to 60,000 characters before translation
-    /// (`sync-server.js:12228`), recorded only on an internal usage row and never surfaced.
-    /// This is the client's own estimate so a long document can at least carry a caveat.
-    static let translationCharacterLimit = 60_000
+    /// When the job was started. The id **is** the start time — `Date.now().toString()`
+    /// (`sync-server.js:15420`) — which is how the web dates its history rows too
+    /// (`OCRTranslate.jsx:7`).
+    var createdAt: Date? {
+        guard let id, id.count >= 10, id.allSatisfy({ $0.isASCII && $0.isNumber }),
+              let millis = Double(id)
+        else { return nil }
+        return Date(timeIntervalSince1970: millis / 1000)
+    }
+
+    /// The name to save the result under.
+    ///
+    /// Results are stored as `<jobId>_<name>` so two uploads of the same file cannot collide,
+    /// and the server strips that prefix when it serves the file (`sync-server.js:15703`). The
+    /// stored name is still what `/ocr-download` must be asked for; this is only what the user
+    /// sees and saves.
+    var downloadName: String? {
+        guard let outputFile else { return nil }
+        var digits = 0
+        for character in outputFile {
+            guard character.isASCII, character.isNumber else { break }
+            digits += 1
+        }
+        guard digits >= 10, outputFile.dropFirst(digits).first == "_" else { return outputFile }
+        return String(outputFile.dropFirst(digits + 1))
+    }
+
+    /// The source document's name as the user would recognise it. Stored names are
+    /// underscore-sanitised on upload (`sync-server.js:15423`), which `DisplayText.fileName`
+    /// undoes for display.
+    var displayName: String {
+        guard let fileName, !fileName.isEmpty else { return "Untitled document" }
+        return DisplayText.fileName(fileName)
+    }
+
+    /// The language the result is in, for a history row: the target, or "Original language"
+    /// for a job that only digitised. `nil` when the entry lost its language.
+    var languageLabel: String? {
+        guard let targetLang, !targetLang.isEmpty else { return nil }
+        return OCRLanguage.translates(targetLang) ? targetLang : "Original language"
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, status, step, progress, fileName, targetLang, pageSetup, logs, error, outputFile
+        case ownerID = "userId"
+    }
+}
+
+extension OCRJob {
+    /// Lenient where the server's own writers have disagreed, strict only on `status`.
+    ///
+    /// One malformed field must not cost the user the job, and in a history listing one
+    /// malformed job must not cost them the list — `OCRHistoryResponse` handles the second.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        status = try container.decode(String.self, forKey: .status)
+        id = Self.text(container, .id)
+        step = Self.whole(container, .step)
+        progress = Self.whole(container, .progress)
+        fileName = try? container.decodeIfPresent(String.self, forKey: .fileName)
+        targetLang = try? container.decodeIfPresent(String.self, forKey: .targetLang)
+        pageSetup = try? container.decodeIfPresent(JSONValue.self, forKey: .pageSetup)
+        logs = try? container.decodeIfPresent([OCRLogLine].self, forKey: .logs)
+        error = try? container.decodeIfPresent(String.self, forKey: .error)
+        outputFile = try? container.decodeIfPresent(String.self, forKey: .outputFile)
+        ownerID = Self.text(container, .ownerID)
+    }
+
+    /// A string, or a whole number written as one.
+    private static func text(_ container: KeyedDecodingContainer<CodingKeys>, _ key: CodingKeys) -> String? {
+        if let value = try? container.decodeIfPresent(String.self, forKey: key) { return value }
+        if let value = try? container.decodeIfPresent(Int.self, forKey: key) { return String(value) }
+        return nil
+    }
+
+    /// An integer, accepting one written with a fraction.
+    private static func whole(_ container: KeyedDecodingContainer<CodingKeys>, _ key: CodingKeys) -> Int? {
+        if let value = try? container.decodeIfPresent(Int.self, forKey: key) { return value }
+        if let value = try? container.decodeIfPresent(Double.self, forKey: key), value.isFinite {
+            return Int(value)
+        }
+        return nil
+    }
 }
 
 /// One log line.
@@ -107,37 +198,44 @@ enum OCRJobState: Equatable, Sendable {
 /// The target language for a job.
 ///
 /// - Important: **`lang` must always be sent.** Omitting it silently defaults to *Hindi*
-///   (`sync-server.js:12118`) — so a "just digitise this" request comes back translated, and
-///   billed. `Original` is the digitise-only value; the server skips translation for
-///   `none|original|english|en` (`sync-server.js:12224`), which is why "English" here means
-///   "leave it as it is" rather than "translate to English".
+///   (`sync-server.js:15384`) — so a "just digitise this" request comes back translated, and
+///   counted against the account. `Original` is the digitise-only value: the server skips
+///   translation for `none|original` and nothing else (`sync-server.js:15471`, `:15572`).
 ///
-///   The server never validates this string — it is interpolated straight into the prompt
-///   (`:12228`) — so a typo produces a job that "succeeds" and yields nonsense.
+///   English is a real target. It used to be treated as "leave it as it is", which handed a
+///   Punjabi order back in Punjabi as a completed translation into English; the platform now
+///   translates into it (`sync-server.js:15566-15571`) and lists it first, as the web does
+///   (`OCRTranslate.jsx:10-15`).
+///
+///   The server never validates this string — it is interpolated into the prompt — so a typo
+///   produces a job that "succeeds" and yields nonsense. This enum is the whole allowed set.
 enum OCRLanguage: String, CaseIterable, Sendable, Codable {
     case original = "Original"
+    // English plus the 22 scheduled languages, in the web's order: English, Hindi, then
+    // alphabetical.
+    case english = "English"
     case hindi = "Hindi"
-    case bengali = "Bengali"
-    case marathi = "Marathi"
-    case telugu = "Telugu"
-    case tamil = "Tamil"
-    case gujarati = "Gujarati"
-    case urdu = "Urdu"
-    case kannada = "Kannada"
-    case odia = "Odia"
-    case malayalam = "Malayalam"
-    case punjabi = "Punjabi"
     case assamese = "Assamese"
-    case maithili = "Maithili"
-    case sanskrit = "Sanskrit"
-    case nepali = "Nepali"
-    case konkani = "Konkani"
-    case sindhi = "Sindhi"
-    case dogri = "Dogri"
-    case manipuri = "Manipuri"
+    case bengali = "Bengali"
     case bodo = "Bodo"
-    case santali = "Santali"
+    case dogri = "Dogri"
+    case gujarati = "Gujarati"
+    case kannada = "Kannada"
     case kashmiri = "Kashmiri"
+    case konkani = "Konkani"
+    case maithili = "Maithili"
+    case malayalam = "Malayalam"
+    case manipuri = "Manipuri"
+    case marathi = "Marathi"
+    case nepali = "Nepali"
+    case odia = "Odia"
+    case punjabi = "Punjabi"
+    case sanskrit = "Sanskrit"
+    case santali = "Santali"
+    case sindhi = "Sindhi"
+    case tamil = "Tamil"
+    case telugu = "Telugu"
+    case urdu = "Urdu"
 
     var label: String {
         self == .original ? "Keep the original language" : rawValue
@@ -145,7 +243,7 @@ enum OCRLanguage: String, CaseIterable, Sendable, Codable {
 
     /// Whether asking for this language actually triggers a translation pass.
     static func translates(_ wire: String) -> Bool {
-        !["none", "original", "english", "en"].contains(wire.lowercased())
+        !["none", "original"].contains(wire.lowercased())
     }
 
     var translates: Bool { Self.translates(rawValue) }
@@ -159,26 +257,77 @@ struct OCRSubmitResponse: Codable, Sendable {
     var error: String?
 }
 
-struct OCRStatusResponse: Codable, Sendable {
+/// `GET /ocr-status`.
+///
+/// The route answers with the job itself as the whole body (`sync-server.js:15639`); an earlier
+/// shape nested it under `job`. Both are read, and the top-level form goes through `OCRJob`'s own
+/// lenient decoding rather than a second, stricter copy of its fields.
+struct OCRStatusResponse: Decodable, Sendable {
     var success: Bool?
     var job: OCRJob?
     var error: String?
-    /// Some shapes return the job's fields at the top level rather than nested.
-    var status: String?
-    var step: Int?
-    var progress: Int?
-    var fileName: String?
-    var targetLang: String?
-    var logs: [OCRLogLine]?
-    var outputFile: String?
+
+    private enum CodingKeys: String, CodingKey { case success, job, error, status }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        success = try? container.decodeIfPresent(Bool.self, forKey: .success)
+        error = try? container.decodeIfPresent(String.self, forKey: .error)
+        if let nested = try? container.decodeIfPresent(OCRJob.self, forKey: .job) {
+            job = nested
+        } else if container.contains(.status) {
+            job = try OCRJob(from: decoder)
+        } else {
+            job = nil
+        }
+    }
 
     /// The job, however the server chose to shape this particular response.
-    var resolvedJob: OCRJob? {
-        if let job { return job }
-        guard let status else { return nil }
-        return OCRJob(
-            id: nil, status: status, step: step, progress: progress, fileName: fileName,
-            targetLang: targetLang, pageSetup: nil, logs: logs, error: error,
-            outputFile: outputFile)
+    var resolvedJob: OCRJob? { job }
+}
+
+/// `GET /ocr-history`: a bare array of jobs, newest first (`sync-server.js:15672-15679`).
+///
+/// Decoded one element at a time. A job the decoder cannot read is skipped and counted rather
+/// than failing the listing, so one odd entry — a record from an older writer — cannot turn the
+/// whole history into "could not load".
+struct OCRHistoryResponse: Decodable, Sendable {
+    var jobs: [OCRJob] = []
+    var unreadable = 0
+
+    init(jobs: [OCRJob], unreadable: Int = 0) {
+        self.jobs = jobs
+        self.unreadable = unreadable
     }
+
+    init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        while !container.isAtEnd {
+            if let job = try? container.decode(OCRJob.self) {
+                jobs.append(job)
+            } else if (try? container.decode(JSONValue.self)) != nil {
+                // Consumed as raw JSON so the container moves past it.
+                unreadable += 1
+            } else {
+                break
+            }
+        }
+    }
+}
+
+/// The signed-in account's translation history.
+struct OCRHistory: Equatable, Sendable {
+    /// This account's jobs, newest first.
+    var jobs: [OCRJob]
+    /// Whether the server listed jobs recorded against another account, or against none.
+    ///
+    /// An administrator's listing is wider than their own work. Those entries are not shown
+    /// here — this screen is the user's own history — and Clear is withheld whenever they were
+    /// listed, because clearing removes everything the listing covers, not only what is shown.
+    var listedOtherJobs: Bool
+}
+
+struct OCRClearResponse: Decodable, Sendable {
+    var success: Bool?
+    var error: String?
 }
