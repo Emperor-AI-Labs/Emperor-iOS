@@ -53,13 +53,31 @@ final class ChatStreamParser {
     private static let reasoningRegex = try! NSRegularExpression(
         pattern: "<think>[\\s\\S]*?</think>", options: [])
 
-    /// The literal the server sends when a run is already in flight for this chat
-    /// (sync-server.js:7273). It arrives as a `<status>` tag, ahead of its own explanation.
+    /// The machine token that leads the `<status>` of a refused duplicate run, as in
+    /// `<status>[busy] Still drafting your earlier request</status>`.
     ///
-    /// Detect the busy case by this text, never by status code — the server deliberately
-    /// answers 200 so that the explanation streams into the transcript position rather than
-    /// being discarded as an error body.
-    private static let busyMarker = "Still drafting your earlier request"
+    /// The platform added it so clients stop matching on the sentence after it: that sentence is
+    /// written for a worried human and has already been reworded once, and every check keyed on
+    /// the old wording silently stopped firing. The token is the contract; the prose is not.
+    ///
+    /// Detected here rather than by status code — the server deliberately answers 200 so that the
+    /// explanation streams into the transcript position rather than being discarded as an error.
+    static let busyTag = "[busy]"
+
+    /// The sentence that carried the refusal before the token existed, kept as a fallback for a
+    /// server that has not been redeployed since. Recognised only at the start of the status, so
+    /// a tool step that happens to quote it is not mistaken for a refusal.
+    private static let legacyBusySentences = [
+        "still drafting your earlier request",
+        "already working on this chat",
+    ]
+
+    /// Whether a `<status>` line is the busy refusal.
+    static func isBusyStatus(_ status: String) -> Bool {
+        let trimmed = status.trimmingCharacters(in: .whitespaces).lowercased()
+        if trimmed.hasPrefix(busyTag) { return true }
+        return legacyBusySentences.contains { trimmed.hasPrefix($0) }
+    }
 
     // MARK: - Input
 
@@ -74,7 +92,7 @@ final class ChatStreamParser {
 
         // Layer 1: lift every complete <status> tag out of the byte stream.
         for status in extractStatuses() {
-            if status.contains(Self.busyMarker) {
+            if Self.isBusyStatus(status) {
                 isBusy = true
                 events.append(.busy)
             } else {

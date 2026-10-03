@@ -154,6 +154,32 @@ final class ChatStreamParserTests: XCTestCase {
         XCTAssertTrue(parser.busyNotice.contains("still being generated"))
     }
 
+    /// The server now leads the refusal with a machine token, and says outright that the
+    /// sentence after it will be reworded. Recognising the token is what keeps the refusal out of
+    /// the answer the day the wording changes.
+    func testTheBusyTokenIsRecognisedWhateverTheSentenceSays() {
+        let parser = ChatStreamParser()
+        let events = feed(parser, [
+            "<status>[busy] Your earlier draft is still on its way</status>",
+            "It will appear here by itself the moment it is finished.",
+        ])
+
+        XCTAssertTrue(events.contains(.busy))
+        XCTAssertEqual(parser.raw, "", "the explanation must never become the answer")
+        XCTAssertTrue(parser.busyNotice.contains("appear here by itself"))
+    }
+
+    /// A tool step that merely mentions the phrase mid-sentence is still a step. Matching
+    /// anywhere in the line would turn a genuine status into a refusal and swallow the answer.
+    func testOnlyALeadingMarkerMeansBusy() {
+        XCTAssertTrue(ChatStreamParser.isBusyStatus("[busy] Still drafting your earlier request"))
+        XCTAssertTrue(ChatStreamParser.isBusyStatus("  [BUSY] anything"))
+        XCTAssertTrue(ChatStreamParser.isBusyStatus("Still drafting your earlier request"))
+        XCTAssertFalse(ChatStreamParser.isBusyStatus(
+            "Reading: note on why counsel was still drafting your earlier request.pdf"))
+        XCTAssertFalse(ChatStreamParser.isBusyStatus("Searching the record"))
+    }
+
     // MARK: - Usage
 
     /// Written once, last, immediately before the response ends.
