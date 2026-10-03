@@ -50,6 +50,8 @@ final class Session {
     let chatMetadata: ChatMetadataService
     let duplicates: DuplicateCheckService
     let preferredModel: PreferredModelService
+    /// Writes the account's role — see `Practice`.
+    let practiceRoles: PracticeRoleService
     let officePreview: OfficePreviewService
     /// Hand-made matters. Read-only — see `ProjectService` for why the writes are held back.
     let projects: ProjectService
@@ -107,6 +109,7 @@ final class Session {
         self.chatMetadata = ChatMetadataService(client: client)
         self.duplicates = DuplicateCheckService(client: client)
         self.preferredModel = PreferredModelService(client: client)
+        self.practiceRoles = PracticeRoleService(client: client)
         self.officePreview = OfficePreviewService(client: client)
         self.complianceCalendar = ComplianceCalendarService(client: client)
         self.calendarFeed = CalendarFeedService(client: client, baseURL: config.baseURL)
@@ -266,6 +269,15 @@ final class Session {
         } catch {
             await refreshPreferredModel()
         }
+    }
+
+    /// The account learned that a choice of role made on this device has reached it, so the
+    /// copy held here says so too — see `Practice`.
+    func noteAccountRole(_ webID: String) {
+        guard case .signedIn(var user) = state, user.practiceRole != webID else { return }
+        user.practiceRole = webID
+        persist(user)
+        state = .signedIn(user)
     }
 
     /// When the account was last re-read, so coming back to the app does not do it every time.

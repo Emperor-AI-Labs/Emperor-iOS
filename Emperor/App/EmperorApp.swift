@@ -162,11 +162,30 @@ struct RootView: View {
         // is whatever it last was. This asks the question again at the one moment the answer
         // starts to matter.
         .onChange(of: theme.preference) { _, _ in recordDeviceAppearance(systemColorScheme) }
+        // The role lives on the account, so every reading of the account — sign-in, launch, a
+        // return to the app — brings this device into line with it, and a role switched here is
+        // written back. See `Practice`.
+        .onChange(of: accountRoleReading, initial: true) { _, reading in
+            guard let reading else { return }
+            practice.link(to: session)
+            practice.reconcile(withAccountRole: reading.role)
+        }
         .task {
             if hasAcknowledgedDisclaimer == nil {
                 hasAcknowledgedDisclaimer = Disclaimer.hasAcknowledged(preferences)
             }
         }
+    }
+
+    /// Who is signed in and the role their account holds, as one value to watch: a different
+    /// account with the same role is still a new reading.
+    private struct AccountRoleReading: Equatable {
+        let userID: Int
+        let role: String?
+    }
+
+    private var accountRoleReading: AccountRoleReading? {
+        session.currentUser.map { AccountRoleReading(userID: $0.id, role: $0.practiceRole) }
     }
 
     /// Record what the *device* asks for, which is not always what this environment reports.
@@ -199,7 +218,11 @@ struct RootView: View {
         case .signedIn(let user):
             // Read from the store as the state changes rather than in an `onChange`, so the tab
             // bar never draws for a frame in front of the question.
-            if !hasAnsweredRoleWelcome && RoleWelcome.shouldShow(preferences, isSignedIn: true) {
+            // An account that already holds a role — chosen on the web, or on another phone —
+            // is not asked again.
+            if !hasAnsweredRoleWelcome
+                && RoleWelcome.shouldShow(
+                    preferences, isSignedIn: true, accountRole: user.practiceRole) {
                 RoleWelcomeView(name: user.name) { chosen in
                     if let chosen { practice.select(chosen) }
                     RoleWelcome.finish(choosing: chosen, in: preferences)

@@ -139,6 +139,15 @@ final class ScreenshotTour: XCTestCase {
             button.tap()
             snap(row.lowercased().replacingOccurrences(of: " ", with: "-"))
             if row == "Settings" {
+                // The role selector, opened from the head of Settings.
+                let selector = app.buttons["Role selector"].firstMatch
+                if selector.waitForExistence(timeout: 5) {
+                    selector.tap()
+                    if app.navigationBars["Switch role"].waitForExistence(timeout: 5) {
+                        snap("settings-role-selector")
+                        backOut(app)
+                    }
+                }
                 app.swipeUp()
                 snap("settings-plan-and-usage")
             }

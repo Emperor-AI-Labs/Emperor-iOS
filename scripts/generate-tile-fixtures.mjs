@@ -18,6 +18,8 @@
 //     over, and one outside ASCII, so the port is held to the arithmetic and to UTF-16 rather
 //     than merely to thirty short strings.
 //   - `roles` — each role's colour, keyed by its label.
+//   - `roleIds` — each role's id, keyed by its label: the value the account stores as its role
+//     (`practice_role`), so a role chosen on the phone is the same role on the web.
 //
 // The modules are imported for real, under Node, with the stand-in `generate-tool-fixtures.mjs`
 // uses: `lucide-react` resolves each icon name the platform imports to a string of that name,
@@ -123,9 +125,13 @@ for (const id of [
 }
 
 const roles = {}
-for (const role of ROLES) roles[role.label] = role.color
+const roleIds = {}
+for (const role of ROLES) {
+  roles[role.label] = role.color
+  roleIds[role.label] = role.id
+}
 
-const fixture = JSON.stringify({ palette: ordered, tools: sortKeys(tools), hashes, roles }, null, 2) + '\n'
+const fixture = JSON.stringify({ palette: ordered, tools: sortKeys(tools), hashes, roles, roleIds }, null, 2) + '\n'
 const before = fs.existsSync(out) ? fs.readFileSync(out, 'utf8') : null
 if (before === fixture) {
   console.log(`tool-tiles.json is current — ${Object.keys(tools).length} tools, ${ordered.length} colours`)

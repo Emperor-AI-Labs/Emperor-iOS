@@ -20,9 +20,12 @@ import Foundation
 /// scoped one. What a role does is answer "which six of these twenty-nine are mine", which on a
 /// phone is the difference between a usable screen and a wall.
 ///
-/// Not stored on the server. `users` carries `avatar`, `title`, `organization`, `preferred_model`
-/// and `plan` and no role column, so the web keeps this client-side too. It is a device
-/// preference here for the same reason.
+/// ## Where it is kept
+///
+/// On the account, as `practice_role`, holding the web's own id for the role (`webID`) — so a
+/// role chosen here is the role the web opens in, and the other way round. A copy is kept on the
+/// device too, which is what the app reads: it has to know the toolkit before the account has
+/// been read, and with no connection at all. `Practice` keeps the two in step.
 enum PractitionerRole: String, CaseIterable, Identifiable, Codable, Sendable {
     case litigator
     case seniorCounsel
@@ -35,6 +38,31 @@ enum PractitionerRole: String, CaseIterable, Identifiable, Codable, Sendable {
     var id: String { rawValue }
 
     static let `default` = PractitionerRole.litigator
+
+    /// The web's id for this role — `id` in `roleConfig.js`, and the value the account stores.
+    ///
+    /// Not `rawValue`: that is this app's own name, already written to every device that has
+    /// chosen a role, and renaming it would forget each of those choices.
+    var webID: String {
+        switch self {
+        case .litigator: return "litigator"
+        case .seniorCounsel: return "counsel"
+        case .corporateCounsel: return "corporate"
+        case .adjudicator: return "judge"
+        case .student: return "student"
+        case .paralegal: return "paralegal"
+        case .legalAid: return "ngo"
+        }
+    }
+
+    /// The role the web calls `webID`, or `nil` for one this app does not carry — the web's
+    /// Devil's Advocate (`devil`), or a role added there after this build.
+    init?(webID: String?) {
+        guard let webID, let role = Self.allCases.first(where: { $0.webID == webID }) else {
+            return nil
+        }
+        self = role
+    }
 
     var label: String {
         switch self {

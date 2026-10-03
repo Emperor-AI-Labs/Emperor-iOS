@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// Account, usage, reference and sign-out.
+/// Role, appearance, account, usage, reference and sign-out.
 ///
-/// There is no pricing or upgrade surface anywhere in this app: the product takes no money
-/// in-app, and the moment an in-app path to a paid plan exists, StoreKit obligations attach.
-/// The plan and its allowances are *shown* (`PlanUsageSection`) — that is information, not a
-/// sale — but nothing here offers to change them or says where they could be changed.
+/// The role selector leads, because it is the setting that changes the most about the app — the
+/// toolkit, the home screen, what the model is told — and it is the one people switch.
+///
+/// The app takes no money. The plan and its allowances are shown (`PlanUsageSection`), and where
+/// the build allows it a "View plans" button opens the web app in the browser to buy one there —
+/// see `WebPlans`.
 struct SettingsView: View {
     @Environment(Session.self) private var session
     @Environment(\.theme) private var theme
@@ -17,6 +19,20 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    NavigationLink {
+                        RolePickerView()
+                    } label: {
+                        RoleSelectorLabel(role: practice.role)
+                    }
+                    .accessibilityIdentifier("Role selector")
+                } header: {
+                    SectionHeader(title: "Role")
+                } footer: {
+                    footnote("\(practice.role.detail) Saved to your account, so the web app opens in the same role.")
+                }
+                .listRowBackground(theme.surface)
+
                 Section {
                     Picker("Appearance", selection: Binding(
                         get: { theme.preference },
@@ -31,24 +47,6 @@ struct SettingsView: View {
                     SectionHeader(title: "Appearance")
                 } footer: {
                     footnote("Emperor opens dark by default, matching the web dashboard.")
-                }
-                .listRowBackground(theme.surface)
-
-                Section {
-                    NavigationLink {
-                        RolePickerView()
-                    } label: {
-                        // The role's own mark and colour, as the role choice draws it.
-                        IconRowLabel(
-                            title: "Practising as",
-                            systemImage: practice.role.systemImage,
-                            hue: practice.role.tileHue,
-                            value: practice.role.label)
-                    }
-                } header: {
-                    SectionHeader(title: "Your work")
-                } footer: {
-                    footnote(practice.role.detail)
                 }
                 .listRowBackground(theme.surface)
 

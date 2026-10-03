@@ -154,5 +154,15 @@
     "Paralegal": "#9b83c0",
     "Legal Aid / NGO": "#c0808f",
     "Devil's Advocate": "#b05a4e"
+  },
+  "roleIds": {
+    "Litigator": "litigator",
+    "Senior Counsel": "counsel",
+    "Corporate Counsel": "corporate",
+    "Arbitrators & Judges": "judge",
+    "Student / Academic": "student",
+    "Paralegal": "paralegal",
+    "Legal Aid / NGO": "ngo",
+    "Devil's Advocate": "devil"
   }
 }

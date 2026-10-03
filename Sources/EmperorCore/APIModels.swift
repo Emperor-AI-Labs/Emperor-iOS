@@ -115,10 +115,14 @@ struct User: Codable, Equatable, Identifiable, Sendable {
     var suspended: Bool?
     /// The mobile number given at sign-up, as the platform stores it: `+91XXXXXXXXXX`.
     var phone: String?
+    /// The role the account practises as, by the web's id for it (`PractitionerRole.webID`).
+    /// `nil` until one is chosen, on either client — and on a server that does not keep it.
+    var practiceRole: String?
 
     enum CodingKeys: String, CodingKey {
         case id, email, name, avatar, title, organization, plan, phone
         case preferredModel = "preferred_model"
+        case practiceRole = "practice_role"
         case planLabel, needsPlan, suspended
     }
 }

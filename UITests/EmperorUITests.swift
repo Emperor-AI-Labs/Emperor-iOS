@@ -609,6 +609,45 @@ final class EmperorUITests: XCTestCase {
             "the tool sheet could not be closed after running a tool")
     }
 
+    // MARK: - Role selector
+
+    /// The role is switched from the head of Settings, at once, as the web's selector does — and
+    /// the workspace follows it.
+    func testTheRoleIsSwitchedFromSettings() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["More"].tap()
+        app.buttons["Settings"].tap()
+
+        let selector = app.buttons["Role selector"].firstMatch
+        XCTAssertTrue(selector.waitForExistence(timeout: 10), "Settings has no role selector")
+        selector.tap()
+        let corporate = app.buttons["role-corporateCounsel"].firstMatch
+        XCTAssertTrue(corporate.waitForExistence(timeout: 10), "the roles were not listed")
+        corporate.tap()
+
+        // Back on Settings, which now says the new role.
+        XCTAssertTrue(selector.waitForExistence(timeout: 10))
+        let says = NSPredicate(format: "label CONTAINS %@", "Corporate Counsel")
+        expectation(for: says, evaluatedWith: selector)
+        waitForExpectations(timeout: 10)
+
+        // And the workspace is the new role's.
+        app.navigationBars["Settings"].buttons["Done"].tap()
+        let workspace = app.buttons["Your workspace"].firstMatch
+        XCTAssertTrue(workspace.waitForExistence(timeout: 10))
+        workspace.tap()
+        XCTAssertTrue(
+            app.navigationBars["Corporate Counsel"].waitForExistence(timeout: 10),
+            "the workspace did not follow the role")
+        app.buttons["Done"].firstMatch.tap()
+
+        // Left as the other tests expect to find it.
+        app.buttons["Settings"].firstMatch.tap()
+        selector.tap()
+        app.buttons["role-litigator"].firstMatch.tap()
+    }
+
     // MARK: - Your workspace
 
     /// Litigator's workspace is the drafting taxonomy, and it opens a document's form. It was an

@@ -18,6 +18,7 @@ final class TileTests: XCTestCase {
         let tools: [String: Tool]
         let hashes: [String: String]
         let roles: [String: String]
+        let roleIds: [String: String]
     }
 
     private func fixture() throws -> Fixture {
@@ -63,6 +64,24 @@ final class TileTests: XCTestCase {
             let web = try XCTUnwrap(roles[role.label], "\(role.label) is not a web role")
             XCTAssertEqual(hex(role.tileHue.webHex), web, role.label)
         }
+    }
+
+    /// Each role is stored on the account under the web's own id for it, so the role chosen on
+    /// one client is the role the other opens in.
+    func testEveryRoleIsStoredUnderTheWebsId() throws {
+        let ids = try fixture().roleIds
+        for role in PractitionerRole.allCases {
+            XCTAssertEqual(ids[role.label], role.webID, role.label)
+            XCTAssertEqual(PractitionerRole(webID: role.webID), role)
+        }
+        // The web's eighth role is not one this app carries, and reading it must say so rather
+        // than guess.
+        let carried = Set(PractitionerRole.allCases.map(\.webID))
+        for (label, id) in ids where !carried.contains(id) {
+            XCTAssertNil(PractitionerRole(webID: id), label)
+        }
+        XCTAssertNil(PractitionerRole(webID: nil))
+        XCTAssertNil(PractitionerRole(webID: ""))
     }
 
     /// The picture on each tool is the one the web draws, read through `forLucide`.
