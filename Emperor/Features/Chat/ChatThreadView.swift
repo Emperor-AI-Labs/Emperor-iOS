@@ -165,6 +165,13 @@ struct ChatThreadView: View {
                                 text: error,
                                 tint: .red)
                         }
+
+                        // Declined on purpose — no plan, this month's questions used. Its own
+                        // card rather than the red error above: nothing failed, and the question
+                        // has been handed back to the composer.
+                        if let refusal = model.refusal {
+                            RefusalCard(refusal: refusal)
+                        }
                     }
                     .padding()
                 }
@@ -383,6 +390,12 @@ struct ChatThreadView: View {
         @Bindable var composer = composer
 
         return VStack(spacing: 8) {
+            // Said before the question is typed, not after it is refused.
+            if let standing = session.standing, model.refusal == nil {
+                AccountStandingBanner(standing: standing)
+                    .padding(.horizontal)
+            }
+
             if let notice = composer.failureNotice {
                 // The server answers 200 with an empty body on every one of its own error
                 // paths, so without saying so a failed rewrite is a button that did nothing.

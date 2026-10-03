@@ -137,13 +137,14 @@ final class GapFixTests: XCTestCase {
     /// The route answers 200 for an unknown address on purpose, so it never leaks which emails
     /// exist. The confirmation therefore cannot claim an account was found.
     func testTheConfirmationNeverClaimsTheAccountExists() {
-        let notice = Session.passwordResetNotice.lowercased()
+        let notice = SignInFlow.passwordResetNotice.lowercased()
         XCTAssertTrue(notice.contains("if an account exists"))
         XCTAssertFalse(notice.contains("we found"))
-        XCTAssertFalse(notice.contains("check your inbox"), "SMTP may not be configured at all")
-        XCTAssertTrue(
-            notice.contains("administrator"),
-            "accounts are created for you — there is no self-signup to fall back on")
+        XCTAssertFalse(notice.contains("check your inbox"), "it may not have been sent at all")
+        // Accounts can be created from the app now, so "ask your administrator" is no longer
+        // the way back in — and a Google account has no password to reset.
+        XCTAssertFalse(notice.contains("administrator"))
+        XCTAssertTrue(notice.contains("one-time code"))
         XCTAssertTrue(notice.contains("browser"), "the reset link is a web URL")
     }
 

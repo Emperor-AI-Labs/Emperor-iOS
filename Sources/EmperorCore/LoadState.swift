@@ -14,15 +14,27 @@ struct LoadFailure: Equatable, Sendable {
         case maintenance
         /// The server answered, unhappily.
         case server
+        /// The server declined on purpose and said why — a plan limit, a suspended account.
+        case refused
     }
 
     var kind: Kind
     var message: String
+    /// The refusal behind a `.refused` failure, for screens that present one specially.
+    var refusal: Refusal?
 
     /// Whether offering "Try again" makes sense. It does not for an expired session — the only
     /// useful action there is to sign in again. It does for maintenance: the outage is finite,
-    /// and the server sends `Retry-After`.
-    var isRetryable: Bool { kind != .unauthenticated }
+    /// and the server sends `Retry-After`. It does not for a refusal, which will come back the
+    /// same until something about the account changes — except the hourly ceiling, which lifts
+    /// by itself.
+    var isRetryable: Bool {
+        switch kind {
+        case .unauthenticated: return false
+        case .refused: return refusal?.clearsByItself ?? false
+        default: return true
+        }
+    }
 
     init(_ error: Error) {
         message = DisplayText.message(for: error)
@@ -36,6 +48,9 @@ struct LoadFailure: Equatable, Sendable {
                 kind = DisplayText.isOffline(error) ? .offline : .server
             case .server, .decoding:
                 kind = .server
+            case .refused(let refused):
+                kind = .refused
+                refusal = refused
             }
         } else {
             kind = DisplayText.isOffline(error) ? .offline : .server

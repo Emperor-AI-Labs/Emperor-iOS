@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Account, reference and sign-out.
+/// Account, usage, reference and sign-out.
 ///
-/// Deliberately thin. There is no pricing or upgrade surface anywhere in this app: the product
-/// takes no money in-app today, and the moment an in-app path to a paid plan exists, StoreKit
-/// obligations attach. Keeping that surface absent is what keeps the submission simple.
+/// There is no pricing or upgrade surface anywhere in this app: the product takes no money
+/// in-app, and the moment an in-app path to a paid plan exists, StoreKit obligations attach.
+/// The plan and its allowances are *shown* (`PlanUsageSection`) — that is information, not a
+/// sale — but nothing here offers to change them or says where they could be changed.
 struct SettingsView: View {
     @Environment(Session.self) private var session
     @Environment(\.theme) private var theme
@@ -60,6 +61,8 @@ struct SettingsView: View {
                         SectionHeader(title: "Account")
                     }
                     .listRowBackground(theme.surface)
+
+                    PlanUsageSection()
                 }
 
                 Section {
@@ -83,9 +86,8 @@ struct SettingsView: View {
                         Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
                     }
                 } footer: {
-                    // Honest about what signing out does and does not do. The token cannot be
-                    // revoked server-side — there is no logout route — so the only protection
-                    // is that the device forgets it, along with everything cached.
+                    // What signing out actually does on this device, which is the part a person
+                    // handing the phone to someone else needs to know.
                     footnote(
                         "Signing out removes your credentials and every matter cached on this device.")
                 }

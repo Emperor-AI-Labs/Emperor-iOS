@@ -259,6 +259,9 @@ struct ChatService: ChatProviding, ChatListProviding {
                     continuation.yield(.progress(snapshot(of: tracker)))
                     continuation.finish()
                 } catch {
+                    if let refusal = (error as? APIError)?.refusal {
+                        await client.noteRefusal(refusal)
+                    }
                     // Cancelled or failed: we genuinely do not know whether in-flight calls
                     // returned, so they are reported unfinished rather than ticked off.
                     tracker.finish(ended: .stopped)
@@ -320,6 +323,7 @@ enum ByteStream {
             let config = URLSessionConfiguration.default
             config.timeoutIntervalForRequest = request.timeoutInterval
             config.timeoutIntervalForResource = request.timeoutInterval
+            APIClient.refuseCookies(config)
             let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
             let task = session.dataTask(with: request)
             continuation.onTermination = { _ in
@@ -366,13 +370,10 @@ enum ByteStream {
                 return
             }
             if isErrorResponse {
+                // Plan refusals arrive here: the server checks the allowance before writing a
+                // byte, so a spent month is a clean JSON 402 rather than a half-started stream.
                 let status = (task.response as? HTTPURLResponse)?.statusCode ?? 0
-                let decoded = try? JSONDecoder().decode(APIErrorBody.self, from: errorBody)
-                let message = decoded?.error ?? "The server returned status \(status)."
-                continuation.finish(
-                    throwing: status == 401
-                        ? APIError.invalidCredentials
-                        : APIError.server(status: status, message: message))
+                continuation.finish(throwing: APIError.classify(status: status, body: errorBody))
                 return
             }
             // No sentinel and no terminator: end-of-body is the only completion signal.

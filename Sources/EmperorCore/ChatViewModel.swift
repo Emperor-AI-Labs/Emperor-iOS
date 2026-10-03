@@ -28,6 +28,11 @@ final class ChatViewModel {
     private(set) var isStreaming = false
     private(set) var isLoading = false
     var errorMessage: String?
+    /// Set when the server declined the question on purpose — no plan, this month's questions
+    /// used, a paused account. Kept apart from `errorMessage` because it is not a failure to
+    /// retry: it gets its own card, worded by `DisplayText`, and sending the same question again
+    /// would only be refused again.
+    private(set) var refusal: Refusal?
 
     /// Set when a run finished but the server says the answer was cut short.
     private(set) var wasInterrupted = false
@@ -335,6 +340,7 @@ final class ChatViewModel {
         busyNotice = nil
         wasInterrupted = false
         errorMessage = nil
+        refusal = nil
         progress = ReasoningSnapshot()
         var turn = ChatMessage(role: .user, content: trimmed, id: UUID().uuidString)
         // Also on the message, not just the top-level array — the scanned-document check
@@ -384,6 +390,17 @@ final class ChatViewModel {
                 }
                 await self.confirmCompletion()
             } catch is CancellationError {
+                await self.finishStreaming()
+            } catch let apiError as APIError where apiError.refusal != nil {
+                // Refused before a byte was written — the allowance is checked first, so
+                // nothing was stored. As with the busy refusal, the optimistic bubble is a turn
+                // that exists nowhere, and the typing is handed back rather than lost.
+                self.refusal = apiError.refusal
+                self.live = nil
+                if let last = self.messages.last, last.role == .user {
+                    self.restoredDraft = last.content
+                    self.messages.removeLast()
+                }
                 await self.finishStreaming()
             } catch {
                 self.errorMessage = (error as? APIError)?.errorDescription

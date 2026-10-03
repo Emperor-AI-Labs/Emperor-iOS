@@ -155,10 +155,43 @@ struct UploadsInFlightBanner: View {
     var foregroundProgress: Double?
 
     private var inFlight: [UploadManifest] { BackgroundUploader.shared.inFlight }
+    /// Uploads the server declined and that were stopped, until the person dismisses them.
+    private var refused: [BackgroundUploader.Refused] { BackgroundUploader.shared.refused }
 
     var body: some View {
-        if !inFlight.isEmpty || foregroundProgress != nil {
+        if !inFlight.isEmpty || !refused.isEmpty || foregroundProgress != nil {
             VStack(alignment: .leading, spacing: 8) {
+                // Said here, where the upload was being watched, rather than not at all — which
+                // is what a declined background upload used to amount to.
+                ForEach(refused) { notice in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .foregroundStyle(theme.warning)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(DisplayText.fileName(notice.fileName)) wasn't uploaded")
+                                .font(.brand(.caption, weight: .semibold))
+                                .foregroundStyle(theme.textPrimary)
+                                .lineLimit(1)
+                            Text(notice.message)
+                                .font(.brand(.caption))
+                                .foregroundStyle(theme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                        Button {
+                            BackgroundUploader.shared.dismissRefusal(notice.id)
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.brand(.caption, weight: .semibold))
+                                .foregroundStyle(theme.textTertiary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Dismiss")
+                    }
+                    .accessibilityElement(children: .contain)
+                }
+
                 ForEach(inFlight) { upload in
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Uploading \(upload.fileName)")

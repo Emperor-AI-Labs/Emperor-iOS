@@ -86,12 +86,25 @@ enum UITestSupport {
             switch path {
             // `success` is **not** optional on `AuthResponse`. Omitting it fails the decode and
             // sign-in never happens.
-            case "/login", "/register":
+            case "/login", "/auth/otp/verify", "/auth/session":
                 return #"{"success":true,"token":"ui-test-token","user":{"id":1,"name":"Test Advocate","email":"test@example.com"}}"#
+            // What the platform answers now: the account exists, a confirmation link is on its
+            // way, and nobody is signed in (`sync-server.js`, "Deliberately NO token").
+            case "/register":
+                return #"{"success":true,"verificationRequired":true,"email":"new@example.com","user":{"id":2,"name":"New Advocate","email":"new@example.com"}}"#
+            case "/auth/otp/request":
+                return #"{"success":true,"sent":true,"expiresInMinutes":10}"#
+            // A metered account part-way through a month, so the usage meters have something
+            // to draw — including one running low and one used up.
+            case "/billing/entitlements":
+                return #"{"success":true,"signedIn":true,"planLabel":"Essential","expired":false,"metered":true,"limits":{"matters":-1,"storageGb":10,"documents":-1,"scannedPages":6000,"chatQueries":1000,"deepThinkingQueries":150},"usage":{"resetsAt":"2026-10-31T18:30:00.000Z","chatQueries":812,"deepThinkingQueries":150,"scannedPages":120,"documents":44,"matters":7,"storageUsedBytes":2400000000,"storageAllowanceBytes":10000000000}}"#
             case "/chats":
                 return #"{"success":true,"chats":[{"id":"c1","title":"Bakshi v. State"}]}"#
+            // One stored exchange shaped like a real answer — headings, a numbered list, a
+            // table, a quotation, numbered citations and a References section — so the
+            // screenshot tour shows the answer renderer and the citation badges doing their job.
             case "/messages":
-                return #"{"success":true,"messages":[]}"#
+                return ###"{"success":true,"messages":[{"id":"m1","role":"user","content":"What is the limitation period for a petition under Section 34 of the Arbitration Act?"},{"id":"m2","role":"assistant","content":"## Short answer\n\nA petition under **Section 34** must be filed within **three months** of receiving the award [1], extendable by a further thirty days on sufficient cause — and no further [2].\n\n## How the period runs\n\n1. Time starts when the party *receives* a signed copy of the award [1].\n2. Where a request under Section 33 was made, time runs from its disposal.\n3. Section 5 of the Limitation Act, 1963 does not apply to the outer limit [2].\n\n| Step | Period |\n|---|---|\n| Ordinary limit | 3 months |\n| Condonable extension | 30 days |\n\n> The thirty days are an outer limit, not a starting point for condonation.\n\n## References\n\n[1] Arbitration and Conciliation Act, 1996 — Section 34(3).\n[2] Union of India v. Popular Construction Co., (2001) 8 SCC 470."}]}"###
             case "/cases":
                 return #"{"success":true,"cases":[{"id":"case1","title":"Bakshi v. State of Maharashtra","court_name":"Bombay High Court","next_hearing_date":"2026-09-20"}]}"#
             case "/case":

@@ -23,8 +23,10 @@ final class Session {
     }
 
     private(set) var state: State = .loading
-    var signInError: String?
-    var isWorking = false
+
+    /// The sign-in screen's state. Owned here so it survives the screen being rebuilt, and is
+    /// wiped by `signOut` so the next person to hold the phone starts clean.
+    let signInFlow: SignInFlow
 
     let client: APIClient
     let auth: AuthService
@@ -53,6 +55,8 @@ final class Session {
     let projects: ProjectService
     /// The in-app report channel for a generated answer. Both stores require one.
     let feedback: FeedbackService
+    /// This month's allowances and usage, for Settings. Read only.
+    let usage: UsageService
     /// The statutory deadlines behind the Corporate tab.
     let complianceCalendar: ComplianceCalendarService
     /// The private calendar-subscription link. Takes the base URL because the route answers a
@@ -93,6 +97,7 @@ final class Session {
         self.library = LibraryService(client: client)
         self.enhancer = EnhancerService(client: client)
         self.feedback = FeedbackService(client: client)
+        self.usage = UsageService(client: client)
         self.courtSearch = CourtSearchService(client: client)
         self.courtMetadata = CourtMetadataService(client: client)
         self.fileManagement = FileManagementService(client: client)
@@ -107,6 +112,7 @@ final class Session {
         self.calendarFeed = CalendarFeedService(client: client, baseURL: config.baseURL)
         self.store = store
         self.cache = cache
+        self.signInFlow = SignInFlow(auth: auth)
 
         // Acted on, not merely classified. Without this an expired 30-day token leaves every
         // screen showing "Session expired" with no retry and no way back — the only escape
@@ -121,6 +127,12 @@ final class Session {
             await client.setAuthenticationLostHandler {
                 Task { @MainActor in box.session?.handleAuthenticationLost() }
             }
+            await client.setRefusalObserver { refusal in
+                Task { @MainActor in box.session?.note(refusal) }
+            }
+        }
+        signInFlow.onSignedIn = { [weak self] response in
+            await self?.completeSignIn(response)
         }
     }
 
@@ -182,93 +194,125 @@ final class Session {
         if let plan = response.plan { user.plan = plan }
         if let label = response.planLabel { user.planLabel = label }
 
-        if let encoded = try? JSONEncoder().encode(user),
-           let json = String(data: encoded, encoding: .utf8) {
-            store.set(json, for: Self.userKey)
-        }
+        persist(user)
         state = .signedIn(user)
     }
 
-    func signIn(email: String, password: String) async {
-        isWorking = true
-        signInError = nil
-        defer { isWorking = false }
-        do {
-            let response = try await auth.login(
-                email: email.trimmingCharacters(in: .whitespacesAndNewlines),
-                password: password)
-            await adopt(response)
-        } catch {
-            signInError = DisplayText.message(for: error)
-        }
+    // MARK: - Account standing
+
+    /// Why new work would be refused, if it would be — shown as a banner rather than discovered
+    /// one failed question at a time.
+    enum Standing: Equatable, Sendable {
+        /// The account has no active plan: new AI work and uploads are refused.
+        case noPlan
+        /// An administrator has paused the account. Reading still works.
+        case suspended
     }
 
-    /// The confirmation shown after asking for a reset link.
+    /// From the account as last read: at sign-in, at launch (`refreshAccount`), and whenever the
+    /// server refuses something for one of these two reasons.
+    var standing: Standing? {
+        guard let user = currentUser else { return nil }
+        if user.suspended == true { return .suspended }
+        if user.needsPlan == true { return .noPlan }
+        return nil
+    }
+
+    /// Learns from a refusal the server just gave. A plan bought on the web, or a pause lifted,
+    /// is learned the same way in reverse: from `refreshAccount` at the next launch.
+    func note(_ refusal: Refusal) {
+        guard case .signedIn(var user) = state else { return }
+        switch refusal.code {
+        case .planRequired: user.needsPlan = true
+        case .accountSuspended: user.suspended = true
+        default: return
+        }
+        persist(user)
+        state = .signedIn(user)
+    }
+
+    /// Re-reads the account from the server and renews the token.
     ///
-    /// Deliberately unconditional and slightly hedged. The route answers 200 for an unknown
-    /// address on purpose, mail delivery depends on SMTP that may not be configured, and
-    /// accounts on this platform are created by an administrator rather than self-signup — so
-    /// promising "check your inbox" would be three separate over-claims.
-    nonisolated static let passwordResetNotice = """
-        If an account exists for that address, a reset link is on its way. The link opens in \
-        your browser.
-
-        If nothing arrives, contact your administrator — Emperor accounts are created for you \
-        rather than signed up for.
-        """
-
-    private(set) var passwordResetSent = false
-
-    func requestPasswordReset(email: String) async {
-        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !isWorking else { return }
-        isWorking = true
-        signInError = nil
-        defer { isWorking = false }
+    /// Prefers `/auth/session`, which returns the whole account and a fresh token. Falls back to
+    /// `/preferred-model` against a server without it — older deployments still answer that, and
+    /// the starting model is the part of the account that most visibly goes stale.
+    ///
+    /// Silent on failure for the same reason as `refreshPreferredModel`: it runs at launch,
+    /// unasked, and the stored account is a perfectly good answer. The one failure that does
+    /// act is a 401, which ends the session through the client's usual path.
+    func refreshAccount() async {
+        guard case .signedIn(let current) = state else { return }
+        lastAccountRefresh = Date()
         do {
-            try await auth.requestPasswordReset(email: trimmed)
-            passwordResetSent = true
+            let response = try await auth.currentSession()
+            // A different account behind the same token would be a server fault; refusing to
+            // adopt it keeps one user's data from appearing under another's name.
+            guard response.user.id == current.id, case .signedIn = state else { return }
+            var refreshed = response.user
+            // A model this build does not know keeps the stored one, as `refreshPreferredModel`
+            // does — the app must stay on a mode it can render.
+            if refreshed.preferredModel.flatMap(ChatModel.init(rawValue:)) == nil {
+                refreshed.preferredModel = current.preferredModel
+            }
+            if !response.token.isEmpty {
+                store.set(response.token, for: Self.tokenKey)
+                await client.setCredentials(Credentials(token: response.token, userID: refreshed.id))
+            }
+            persist(refreshed)
+            state = .signedIn(refreshed)
+        } catch let error as APIError where error == .invalidCredentials {
+            // Already handled: the client's authentication-lost handler is signing out.
+            return
         } catch {
-            signInError = DisplayText.message(for: error)
+            await refreshPreferredModel()
         }
     }
 
-    func clearPasswordResetNotice() { passwordResetSent = false }
+    /// When the account was last re-read, so coming back to the app does not do it every time.
+    private(set) var lastAccountRefresh: Date?
 
-    func register(name: String, email: String, password: String) async {
-        isWorking = true
-        signInError = nil
-        defer { isWorking = false }
-        do {
-            let response = try await auth.register(
-                name: name,
-                email: email.trimmingCharacters(in: .whitespacesAndNewlines),
-                password: password)
-            await adopt(response)
-        } catch {
-            signInError = DisplayText.message(for: error)
+    /// How long an account reading stays good enough. Half an hour: a plan bought on the web
+    /// shows up the next time the phone is picked up, without a request on every glance.
+    nonisolated static let accountRefreshInterval: TimeInterval = 30 * 60
+
+    /// `refreshAccount`, unless it ran recently. For the app becoming active again.
+    func refreshAccountIfDue(now: Date = Date()) async {
+        if let last = lastAccountRefresh, now.timeIntervalSince(last) < Self.accountRefreshInterval {
+            return
         }
+        await refreshAccount()
     }
 
-    private func adopt(_ response: AuthResponse) async {
+    /// Stores a successful sign-in and moves the app to signed-in.
+    func completeSignIn(_ response: AuthResponse) async {
+        // A sign-in is as fresh a reading of the account as there is.
+        lastAccountRefresh = Date()
         store.set(response.token, for: Self.tokenKey)
-        if let encoded = try? JSONEncoder().encode(response.user),
-           let json = String(data: encoded, encoding: .utf8) {
-            store.set(json, for: Self.userKey)
-        }
+        persist(response.user)
         await client.setCredentials(
             Credentials(token: response.token, userID: response.user.id))
         state = .signedIn(response.user)
     }
 
-    /// Signing out is purely local, so clearing everything here is the *only* protection the
-    /// next person to hold the phone gets — the cached matters go with the token, not just the
-    /// token.
+    private func persist(_ user: User) {
+        if let encoded = try? JSONEncoder().encode(user),
+           let json = String(data: encoded, encoding: .utf8) {
+            store.set(json, for: Self.userKey)
+        }
+    }
+
+    /// Signs out.
+    ///
+    /// The server is told (`POST /logout`, best-effort — see `AuthService.signOut`), but it keeps
+    /// no list of revoked tokens a client can add to, so clearing everything here is still the
+    /// protection the next person to hold the phone gets: the cached matters go with the token,
+    /// and the sign-in screen forgets the address that was typed into it.
     func signOut() async {
         store.remove(Self.tokenKey)
         store.remove(Self.userKey)
         cache.clear()
         await auth.signOut()
+        signInFlow.reset()
         state = .signedOut
     }
 }

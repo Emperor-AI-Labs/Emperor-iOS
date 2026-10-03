@@ -61,6 +61,57 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 10))
     }
 
+    // MARK: - Other ways in
+
+    /// Every account can sign in with an emailed code, and it is the only way in for one made
+    /// with Google. A full code goes on without a tap, as code fields do elsewhere on the phone.
+    func testSigningInWithAnEmailCode() {
+        let app = launch()
+        let email = app.textFields["Email"]
+        XCTAssertTrue(email.waitForExistence(timeout: 10))
+        email.tap()
+        email.typeText("test@example.com")
+
+        app.buttons["Sign in with an email code"].tap()
+
+        let code = app.textFields["Sign-in code"]
+        XCTAssertTrue(code.waitForExistence(timeout: 10), "the code step never appeared")
+        code.tap()
+        code.typeText("123456")
+
+        XCTAssertTrue(
+            app.tabBars.buttons["Home"].waitForExistence(timeout: 10),
+            "a complete code did not sign in")
+    }
+
+    /// Creating an account no longer signs anyone in: the server emails a confirmation link. The
+    /// screen must say so — the old flow reported "unexpected response" about an account it had
+    /// just made.
+    func testCreatingAnAccountAsksForConfirmation() {
+        let app = launch()
+        XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 10))
+        app.buttons["Create an account"].tap()
+
+        let name = app.textFields["Full name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("New Advocate")
+        let email = app.textFields["Email"]
+        email.tap()
+        email.typeText("new@example.com")
+        let password = app.secureTextFields["Password"]
+        password.tap()
+        password.typeText("long-enough-password")
+
+        app.buttons["Create account"].tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Confirm your email"].waitForExistence(timeout: 10),
+            "the confirmation step never appeared")
+        XCTAssertTrue(app.buttons["Use a code instead"].exists)
+        XCTAssertFalse(app.tabBars.buttons["Home"].exists, "nobody is signed in yet")
+    }
+
     // MARK: - The tab bar
 
     /// The destinations the platform's own mobile nav declares. Corporate is role-gated, and the

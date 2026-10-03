@@ -54,6 +54,21 @@ final class BackgroundUploader {
     /// Uploads still going, newest first. Read by the library screen.
     private(set) var inFlight: [UploadManifest] = []
 
+    /// An upload the server declined and that has been stopped, with the reason — held until
+    /// the person has seen it. See `ChunkOutcome` for why these are no longer retried.
+    struct Refused: Identifiable, Equatable {
+        let id: String
+        let fileName: String
+        let message: String
+    }
+
+    /// Declined uploads, newest first. Read by the library screen.
+    private(set) var refused: [Refused] = []
+
+    func dismissRefusal(_ id: String) {
+        refused.removeAll { $0.id == id }
+    }
+
     /// Set by the app delegate when the system relaunches us to deliver events, and called once
     /// the session says it has finished delivering them. Not calling it makes the system
     /// consider the app unresponsive and stop relaunching it.
@@ -262,14 +277,20 @@ final class BackgroundUploader {
 
     // MARK: - Delegate callbacks
 
-    fileprivate func chunkFinished(id: String, index: Int, error: Error?, statusCode: Int?) async {
-        let succeeded = error == nil && (statusCode.map { (200..<300).contains($0) } ?? false)
-
-        guard succeeded else {
+    fileprivate func chunkFinished(
+        id: String, index: Int, error: Error?, statusCode: Int?, body: Data
+    ) async {
+        switch ChunkOutcome.classify(transportFailed: error != nil, status: statusCode, body: body) {
+        case .delivered:
+            break
+        case .retryLater:
             // Left pending deliberately. The system retries transport failures on its own, and
             // anything it gives up on is re-enqueued by `resume()` next time the app opens —
             // which is the right moment to try again anyway, since the user is present and
             // probably back on a usable connection.
+            return
+        case .refused(let message):
+            await abandon(id: id, because: message)
             return
         }
 
@@ -311,6 +332,23 @@ final class BackgroundUploader {
         NotificationCenter.default.post(name: .emperorUploadDidFinish, object: manifest.id)
     }
 
+    /// Stops an upload the server has declined: cancels its other chunks, discards the copy of
+    /// the document, and keeps the reason for the library screen to show.
+    private func abandon(id: String, because message: String) async {
+        let fileName = inFlight.first { $0.id == id }?.fileName
+            ?? store.all().first { $0.id == id }?.fileName
+        for task in await session.allTasks
+        where UploadManifest.parseTaskDescription(task.taskDescription)?.id == id {
+            task.cancel()
+        }
+        store.discard(id: id)
+        inFlight.removeAll { $0.id == id }
+        // One notice per upload, however many of its chunks came back refused.
+        guard !refused.contains(where: { $0.id == id }), let fileName else { return }
+        refused.insert(Refused(id: id, fileName: fileName, message: message), at: 0)
+        NotificationCenter.default.post(name: .emperorUploadWasRefused, object: id)
+    }
+
     fileprivate func finishedDeliveringEvents() {
         // The system gives roughly thirty seconds after this before it stops being patient.
         backgroundCompletionHandler?()
@@ -331,16 +369,28 @@ final class BackgroundUploader {
     ///
     /// Touching `shared` here cannot recurse into `init`: a callback requires a task, and a
     /// task requires the session, which requires `init` to have finished.
-    private final class Delegate: NSObject, URLSessionDataDelegate {
+    private final class Delegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+
+        /// Each task's response body, which is the only place a refusal says *why*. Collected
+        /// here because the delegate is called on the session's own queue; the lock is what
+        /// makes `@unchecked Sendable` true.
+        private let lock = NSLock()
+        private var bodies: [Int: Data] = [:]
+
+        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+            lock.withLock { bodies[dataTask.taskIdentifier, default: Data()].append(data) }
+        }
 
         func urlSession(
             _ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?
         ) {
+            let body = lock.withLock { bodies.removeValue(forKey: task.taskIdentifier) } ?? Data()
             guard let parsed = UploadManifest.parseTaskDescription(task.taskDescription) else { return }
             let status = (task.response as? HTTPURLResponse)?.statusCode
             Task { @MainActor in
                 await BackgroundUploader.shared.chunkFinished(
-                    id: parsed.id, index: parsed.index, error: error, statusCode: status)
+                    id: parsed.id, index: parsed.index, error: error, statusCode: status,
+                    body: body)
             }
         }
 
@@ -354,4 +404,7 @@ extension Notification.Name {
     /// Posted when a background upload has been ingested, so a library already on screen can
     /// re-read itself rather than showing a document that is not there yet.
     static let emperorUploadDidFinish = Notification.Name("EmperorUploadDidFinish")
+    /// Posted when the server declined a background upload and it was stopped. The reason is
+    /// in `BackgroundUploader.shared.refused`.
+    static let emperorUploadWasRefused = Notification.Name("EmperorUploadWasRefused")
 }

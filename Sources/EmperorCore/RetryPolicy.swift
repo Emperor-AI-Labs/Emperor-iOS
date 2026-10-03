@@ -76,7 +76,9 @@ struct RetryPolicy: Equatable, Sendable {
             return true
         case .server(let status, _):
             return (500..<600).contains(status)
-        case .notAuthenticated, .invalidCredentials, .maintenance, .decoding:
+        // A refusal is a decision, not a fault: asking again within a second gets the same answer
+        // and, for the hourly ceiling, counts against it.
+        case .notAuthenticated, .invalidCredentials, .maintenance, .decoding, .refused:
             return false
         }
     }

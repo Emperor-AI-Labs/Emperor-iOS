@@ -7,9 +7,8 @@ import SwiftUI
 /// 1. The route answers 200 whether or not the address has an account — deliberately, so it
 ///    never leaks which emails exist. So the confirmation cannot be conditional.
 /// 2. The link is a **web** URL, so the reset finishes in a browser rather than here.
-/// 3. Delivery depends on SMTP, which the platform ships **disabled**. If mail is not
-///    configured nothing arrives and no error is raised anywhere — which is why the copy
-///    points at the administrator rather than promising an inbox.
+/// 3. An account made with Google has no password to reset — the notice points it at a
+///    one-time code instead.
 struct PasswordResetSheet: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
@@ -23,12 +22,13 @@ struct PasswordResetSheet: View {
     }
 
     var body: some View {
+        let flow = session.signInFlow
         NavigationStack {
             Form {
-                if session.passwordResetSent {
+                if flow.passwordResetSent {
                     Section {
                         Label {
-                            Text(Session.passwordResetNotice)
+                            Text(SignInFlow.passwordResetNotice)
                                 .font(.brand(.callout))
                         } icon: {
                             Image(systemName: "envelope")
@@ -46,11 +46,11 @@ struct PasswordResetSheet: View {
                             .submitLabel(.send)
                             .onSubmit(send)
                     } footer: {
-                        Text("We will email a link to reset your password.")
+                        Text("We'll email a link to reset your password. It opens in your browser.")
                     }
                 }
 
-                if let error = session.signInError {
+                if let error = flow.error {
                     Section {
                         Text(error)
                             .font(.brand(.footnote))
@@ -64,17 +64,15 @@ struct PasswordResetSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(session.passwordResetSent ? "Done" : "Cancel") {
-                        session.clearPasswordResetNotice()
+                    Button(flow.passwordResetSent ? "Done" : "Cancel") {
+                        session.signInFlow.clearPasswordReset()
                         dismiss()
                     }
                 }
-                if !session.passwordResetSent {
+                if !flow.passwordResetSent {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Send", action: send)
-                            .disabled(
-                                email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                || session.isWorking)
+                            .disabled(!SignInFlow.isPlausibleEmail(email) || flow.isWorking)
                     }
                 }
             }
@@ -83,6 +81,8 @@ struct PasswordResetSheet: View {
     }
 
     private func send() {
-        Task { await session.requestPasswordReset(email: email) }
+        let flow = session.signInFlow
+        let address = email
+        Task { await flow.requestPasswordReset(email: address) }
     }
 }

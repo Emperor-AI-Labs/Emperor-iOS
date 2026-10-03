@@ -282,15 +282,17 @@ final class ServiceWireTests: XCTestCase {
         XCTAssertEqual(HTTPStub.lastRequest?.bodyJSON["name"] as? String, "R. Iyer")
     }
 
-    /// Signing out is local — there is no logout route — so it must not hit the network, and
-    /// must leave the client unable to make an authenticated request.
-    func testSignOutIsPurelyLocal() async throws {
+    /// Signing out tells the server once — `POST /logout`, while the request can still carry
+    /// the token — and leaves the client unable to make an authenticated request.
+    func testSignOutTellsTheServerThenForgetsTheCredential() async throws {
         let client = await makeClient()
         let auth = AuthService(client: client)
+        HTTPStub.always(.json(#"{"success":true}"#))
 
         await auth.signOut()
 
-        XCTAssertTrue(HTTPStub.seen.isEmpty, "there is no logout endpoint to call")
+        XCTAssertEqual(HTTPStub.seen.map { $0.url?.path ?? "" }, ["/api/logout"])
+        XCTAssertNotNil(HTTPStub.lastRequest?.value(forHTTPHeaderField: "Authorization"))
         let credentials = await client.currentCredentials()
         XCTAssertNil(credentials)
     }

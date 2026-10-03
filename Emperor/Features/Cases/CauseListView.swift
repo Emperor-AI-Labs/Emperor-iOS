@@ -46,6 +46,13 @@ struct CauseListView: View {
     @ViewBuilder
     private func content(_ model: CauseListViewModel) -> some View {
         VStack(spacing: 0) {
+            // First thing on the first screen: if new work will be refused, say so before it is
+            // tried rather than one failed question at a time.
+            if let standing = session.standing {
+                AccountStandingBanner(standing: standing)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+            }
             header(model)
             Divider()
 

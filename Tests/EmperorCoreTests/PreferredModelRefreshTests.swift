@@ -80,7 +80,7 @@ final class PreferredModelRefreshTests: XCTestCase {
         await session.refreshPreferredModel()
 
         XCTAssertEqual(session.currentUser?.preferredModel, "fast")
-        XCTAssertNil(session.signInError)
+        XCTAssertNil(session.signInFlow.error)
         XCTAssertEqual(session.state, .signedIn(Self.user))
     }
 
@@ -91,7 +91,7 @@ final class PreferredModelRefreshTests: XCTestCase {
         await session.refreshPreferredModel()
 
         XCTAssertEqual(session.currentUser?.preferredModel, "fast")
-        XCTAssertNil(session.signInError)
+        XCTAssertNil(session.signInFlow.error)
     }
 
     /// A future plan introducing a third mode must leave the phone on something it can render

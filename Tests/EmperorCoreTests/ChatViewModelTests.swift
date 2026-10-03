@@ -221,6 +221,31 @@ final class ChatViewModelTests: XCTestCase {
         }
     }
 
+    /// A month's questions spent, or no plan at all: refused before anything is stored. The
+    /// question goes back to the composer and the refusal gets its own card — not a red error
+    /// inviting a retry that would only be refused again.
+    func testAPlanRefusalGivesTheQuestionBackAndExplainsItself() async {
+        await withModel { fake, model in
+            fake.sendError = APIError.classify(status: 402, body: Data(#"""
+                {"error":"You've used all 30 chat queries on your Free plan this month. Upgrade to keep going.","code":"QUERY_LIMIT","limit":30,"used":30,"resetsAt":"2026-10-31T18:30:00.000Z"}
+                """#.utf8))
+            model.send("What is the limitation for a s.34 petition?")
+            await settle(model)
+
+            XCTAssertEqual(model.refusal?.code, .queryLimit)
+            XCTAssertNil(model.errorMessage, "a refusal is not shown twice")
+            XCTAssertTrue(model.messages.isEmpty)
+            XCTAssertEqual(model.restoredDraft, "What is the limitation for a s.34 petition?")
+            XCTAssertFalse(model.isStreaming)
+
+            // The next send starts clean.
+            fake.sendError = nil
+            model.send("Again")
+            await settle(model)
+            XCTAssertNil(model.refusal)
+        }
+    }
+
     /// The server refuses a second run on a chat already generating and answers 200 with an
     /// explanation. That explanation is not an answer and must stay out of the transcript.
     ///

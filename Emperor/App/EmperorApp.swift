@@ -26,6 +26,12 @@ struct EmperorApp: App {
             // and `-UITestDisclaimer` actively clears it to test the gate itself.
             let wantsGate = ProcessInfo.processInfo.arguments.contains("-UITestDisclaimer")
             Preferences().setBool(!wantsGate, for: Disclaimer.key)
+            // The same rule for appearance: set it every launch, or the screenshot tour's light
+            // pass would leave every later run light. Dark is the app's own default.
+            let light = ProcessInfo.processInfo.arguments.contains("-UITestLight")
+            Preferences().setString(
+                (light ? ThemePreference.light : ThemePreference.dark).rawValue,
+                for: ThemePreference.storageKey)
 
             // The first-sign-in role choice, on the same terms: every test signs in through the
             // real login screen, so it would appear in front of all of them. Answered by
@@ -65,8 +71,9 @@ struct EmperorApp: App {
                 .environment(session)
                 .task {
                     await session.restore()
-                    // The stored user can be weeks old — see `refreshPreferredModel`.
-                    await session.refreshPreferredModel()
+                    // The stored account can be weeks old, and the token is renewed by reading
+                    // it — see `Session.refreshAccount`.
+                    await session.refreshAccount()
                     #if DEBUG
                     // A background `URLSession` does not consult `URLProtocol`, so the UI
                     // tests' stub transport cannot reach it — touching the uploader here would
@@ -85,6 +92,9 @@ struct EmperorApp: App {
                 // connection, which is the right time to retry.
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
+                    // A plan bought on the web, or a pause lifted, reaches a phone that was
+                    // left open — at most every half hour.
+                    Task { await session.refreshAccountIfDue() }
                     #if DEBUG
                     if UITestSupport.isActive { return }
                     #endif

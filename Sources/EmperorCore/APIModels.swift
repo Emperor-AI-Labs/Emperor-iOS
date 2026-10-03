@@ -107,18 +107,24 @@ struct User: Codable, Equatable, Identifiable, Sendable {
     var preferredModel: String?
     var plan: String?
     var planLabel: String?
+    /// Set by `/login` when the account has no active plan, so new AI work and uploads will be
+    /// refused until it has one. A snapshot from sign-in: a plan bought later on the web is
+    /// learned from the next successful request, not from this.
+    var needsPlan: Bool?
+    /// Set by `/login` when an administrator has paused the account. Reading still works.
+    var suspended: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id, email, name, avatar, title, organization, plan
         case preferredModel = "preferred_model"
-        case planLabel
+        case planLabel, needsPlan, suspended
     }
 }
 
-/// `/login` and `/register` share this envelope but not their `user` shape: register builds
-/// its object by hand and returns only `id`, `name`, `email`. Every other field on `User` is
-/// therefore optional.
-struct AuthResponse: Codable {
+/// `/login` and `/auth/otp/verify` answer with this envelope. A `/register` from a server that
+/// predates email confirmation did too, with a hand-built `user` carrying only `id`, `name` and
+/// `email` — which is why every other field on `User` is optional.
+struct AuthResponse: Codable, Equatable, Sendable {
     let success: Bool
     let user: User
     let token: String
