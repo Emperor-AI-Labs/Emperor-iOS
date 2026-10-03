@@ -101,6 +101,20 @@ final class PresentationTests: XCTestCase {
         XCTAssertTrue(html.contains("class=\"scroll\""))
     }
 
+    /// The List of Dates names two classes the model is told to emit (`listOfDates.js`), and the
+    /// platform's stylesheet is what gives them meaning. Without the rules here the notes under
+    /// the table print at full size and read as the substance of the filing.
+    func testTheWrapperStylesTheListOfDatesClassesThePromptAsksFor() {
+        let html = ArtifactDocument.html(wrapping: "<table class=\"ex-loe\"></table>")
+        XCTAssertTrue(html.contains("table.ex-loe th:first-child"))
+        XCTAssertTrue(html.contains(".ex-loe-notes {"))
+        XCTAssertTrue(html.contains("h1 { text-align: center; }"))
+        // The prompt and the stylesheet must agree on the names, or the rules style nothing.
+        let prompt = ListOfDatesTool.prompt(.empty, today: Date())
+        XCTAssertTrue(prompt.contains("<table class=\"ex-loe\">"))
+        XCTAssertTrue(prompt.contains("<div class=\"ex-loe-notes\">"))
+    }
+
     /// The reader's text size reaches the page. A web view honours none of Dynamic Type by
     /// itself, so a document set at a fixed pixel size stays that size however large the reader
     /// has asked for their text — which on this app's content is the difference between a

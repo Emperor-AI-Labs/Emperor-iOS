@@ -59,8 +59,29 @@ enum ArtifactDocument {
             word-wrap: break-word;
           }
           h1, h2, h3, h4, h5, h6 { line-height: 1.3; }
+          /* One title over one document — where a court's own heading sits. */
+          h1 { text-align: center; }
           table { width: 100%; border-collapse: collapse; margin: 1em 0; }
-          th, td { border: 1px solid currentColor; padding: 0.5em; }
+          th, td { border: 1px solid currentColor; padding: 0.5em; vertical-align: top; }
+          /* A List of Dates: the platform asks the model for these two classes by name
+             (listOfDates.js), and its own stylesheet is what gives them meaning. A date sits on
+             the optical centre of the event it belongs to, and the notes under the table read
+             as apparatus to it rather than as a second section of equal weight. */
+          table.ex-loe { font-size: 0.85em; line-height: 1.4; }
+          table.ex-loe th, table.ex-loe td { vertical-align: middle; padding: 0.35em 0.6em; }
+          table.ex-loe th:first-child, table.ex-loe td:first-child {
+            text-align: center; white-space: nowrap;
+          }
+          .ex-loe-notes {
+            margin-top: 0.9em; padding-top: 0.5em;
+            border-top: 0.5px solid currentColor;
+            font-size: 0.68em; line-height: 1.35; opacity: 0.78;
+          }
+          .ex-loe-notes h2, .ex-loe-notes h3 {
+            font-size: 1em; font-weight: 600; letter-spacing: 0.06em;
+            text-transform: uppercase; margin: 0 0 0.35em;
+          }
+          .ex-loe-notes p { margin: 0 0 0.3em; text-align: left; }
           /* Wide tables of contents must scroll rather than force the page sideways. */
           .scroll { overflow-x: auto; }
           @media (min-width: \(tabletBreakpointPx)px) {
