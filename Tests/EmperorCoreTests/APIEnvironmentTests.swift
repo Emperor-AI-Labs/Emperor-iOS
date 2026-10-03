@@ -31,7 +31,8 @@ final class APIEnvironmentTests: XCTestCase {
     func testTheTwoHostsAreDistinctAndCorrect() {
         XCTAssertEqual(
             APIEnvironment.production.baseURL.absoluteString,
-            "https://backend.emperorailabs.com/api")
+            "https://app.emperorailabs.com/api",
+            "production is the web app's own host — the one a person's account actually lives on")
         XCTAssertEqual(
             APIEnvironment.development.baseURL.absoluteString,
             "https://dev.emperorailabs.com/api")

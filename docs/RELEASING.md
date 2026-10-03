@@ -35,21 +35,10 @@ The `unsigned-ipa` job runs on every push and attaches `Emperor-unsigned.ipa` to
 
 > ### Read this before sending it to anyone
 >
-> **This build talks to the development server, and that is deliberate.** It is archived from
-> the *Debug* configuration, because `APIConfig.resolveEnvironment` forces a Release build to
-> the production host, which **is not yet stood up**. A Release `.ipa` would install, launch,
-> and then fail every request at DNS, which is indistinguishable from a broken app.
->
-> Two consequences, both real:
->
-> 1. **This build talks to the development deployment.** Only send it to someone already
->    entitled to access that server.
-> 2. **A debug build is debuggable.** Anyone with USB access to the phone can read the app's
->    data. Fine for an internal test; not a build to leave on a device long-term.
->
-> **The day production exists, change `-configuration Debug` back to `Release`** in the
-> `unsigned-ipa` job and this note stops applying. The Android client ships its internal APK
-> the same way, for the same reason.
+> **This build talks to production** — `app.emperorailabs.com`, the web app's own host. It is a
+> Release build: whoever signs in sees their real account, the same matters, files and
+> conversations as on the web, and anything they do is done for real. Only send it to someone
+> who should have an account on the live platform.
 
 1. Actions → the run → **Artifacts** → download `Emperor-unsigned-ipa`.
 2. Sign it with your own free Apple ID:

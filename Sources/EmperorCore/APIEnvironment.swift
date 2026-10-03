@@ -11,13 +11,15 @@ enum APIEnvironment: String, CaseIterable, Sendable {
     ///   machine. `isDistributable` is `false` for exactly this reason.
     case development
 
-    /// The real deployment: nginx in front of the API, per `sync-server.js:3899-3903`.
+    /// The live deployment — the same host the web app runs on. nginx serves the web build and
+    /// sends every `/api` request straight to the API server, so this client and the browser
+    /// read and write the same accounts, matters, files and conversations.
     case production
 
     var baseURL: URL {
         switch self {
         case .development: return URL(string: "https://dev.emperorailabs.com/api")!
-        case .production: return URL(string: "https://backend.emperorailabs.com/api")!
+        case .production: return URL(string: "https://app.emperorailabs.com/api")!
         }
     }
 

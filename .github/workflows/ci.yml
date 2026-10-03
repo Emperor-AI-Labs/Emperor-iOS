@@ -238,31 +238,22 @@ jobs:
       - name: Generate the project
         run: xcodegen generate
 
-      # **Debug, not Release, and that is load-bearing.**
+      # **Release, talking to production** — `app.emperorailabs.com`, the web app's own host, so
+      # the phone signs into the same account and sees the same matters, files and conversations
+      # as the browser.
       #
-      # `APIConfig.resolveEnvironment` forces any non-debug build to `PRODUCTION`, deliberately,
-      # so the development host cannot be shipped by accident. But the production host is not
-      # yet stood up, so a Release archive would install and then fail every request at DNS,
-      # which looks exactly like a broken app.
-      #
-      # So this build is Debug on purpose, which resolves to `dev.emperorailabs.com` and
-      # actually works. The safety guard is untouched: Debug is *allowed* to reach dev, and a
-      # Release build still cannot. The Android client shipped its internal APK the same way and
-      # for the same reason.
-      #
-      # Two consequences, both real, and both in docs/RELEASING.md: this build talks to the
-      # development deployment, so only send it to someone already entitled to access that
-      # server; and a debug build is debuggable, so it is not one to leave on a device
-      # long-term.
-      #
-      # **Switch this to Release the day production exists.**
+      # This was Debug, pointed at the development tunnel, while production was not stood up: a
+      # Release archive resolved to a host with no DNS record and failed every request. That is
+      # no longer true, so the internal build is now the build a person would actually use — no
+      # debugger attached, and no development server in reach (`APIConfig.resolveEnvironment`
+      # forces a Release build to production whatever it asks for).
       - name: Archive for a device, unsigned
         run: |
           set -o pipefail
           xcodebuild archive \
             -project Emperor.xcodeproj \
             -scheme Emperor \
-            -configuration Debug \
+            -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath build/Emperor.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
