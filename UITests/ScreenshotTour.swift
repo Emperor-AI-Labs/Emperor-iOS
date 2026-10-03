@@ -23,7 +23,9 @@ final class ScreenshotTour: XCTestCase {
 
     private func tour(light: Bool) {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITestMode"] + (light ? ["-UITestLight"] : [])
+        // The first-sign-in role question is asked, so the tour can answer it: the role persists
+        // between launches, and the workspace photographed below is Litigator's.
+        app.launchArguments = ["-UITestMode", "-UITestRoleWelcome"] + (light ? ["-UITestLight"] : [])
         app.launch()
         let theme = light ? "light" : "dark"
         var step = 0
@@ -60,6 +62,13 @@ final class ScreenshotTour: XCTestCase {
             code.typeText("123456")
         }
 
+        let litigator = app.buttons["role-litigator"]
+        if litigator.waitForExistence(timeout: 10) {
+            snap("role-welcome")
+            litigator.tap()
+            tapIfPresent(app.buttons["Continue"])
+        }
+
         guard app.tabBars.buttons["Home"].waitForExistence(timeout: 15) else {
             snap("sign-in-failed"); return
         }
@@ -94,6 +103,20 @@ final class ScreenshotTour: XCTestCase {
             if row == "Settings" {
                 app.swipeUp()
                 snap("settings-plan-and-usage")
+            }
+            if row == "Your workspace" {
+                // Litigator's workspace is the drafting taxonomy; one of its documents, opened.
+                tapIfPresent(app.buttons["matter-civil"])
+                let plaint = app.descendants(matching: .any)
+                    .matching(identifier: "ldoc-civil-plaint").firstMatch
+                if plaint.waitForExistence(timeout: 5) {
+                    plaint.tap()
+                    snap("litigator-document")
+                    // Scoped to the form's own bar: the sheet sits over More, and an unscoped
+                    // query could reach for a bar behind it.
+                    let back = app.navigationBars["Plaint"].buttons.element(boundBy: 0)
+                    if back.waitForExistence(timeout: 5) { back.tap() } else { backOut(app) }
+                }
             }
             let done = app.buttons["Done"].firstMatch
             if done.waitForExistence(timeout: 5) { done.tap() } else { app.swipeDown() }

@@ -5,8 +5,9 @@ import Foundation
 /// The platform's Home is a deck of these, and each one resolves to a **synthetic tool** —
 /// `registry.js` builds a form and a prompt from the card rather than holding a config per card.
 /// So a card is data and the framing around it is a function of the role, which is exactly the
-/// split kept here: `ROLE_CARDS` is generated from the platform's modules, and the six
-/// `toolSpec` branches below are the ported resolvers.
+/// split kept here: `ROLE_CARDS` is generated from the platform's modules, and the six card
+/// branches of `toolSpec` below are the ported resolvers. Litigator's branch hands over to the
+/// drafting taxonomy (`LitigatorDrafting`), which is that role's Home instead of a deck.
 ///
 /// The prompts are the feature. Every one of them is pinned by a golden fixture generated from
 /// the platform's own JavaScript — see `RoleCardGoldenTests`.
@@ -73,7 +74,7 @@ extension RoleCard {
         case .student: return studentSpec
         case .paralegal: return paralegalSpec
         case .legalAid: return legalAidSpec
-        case .litigator: return counselSpec
+        case .litigator: return litigatorSpec
         }
     }
 
@@ -109,6 +110,25 @@ extension RoleCard {
                 \(v.text("material", "(none typed — work from the attached brief, or state what is needed)"))
                 """
             })
+    }
+
+    // MARK: - Litigator
+
+    /// Litigator has no deck — its documents are the drafting taxonomy — but its prefix is
+    /// `ldoc-`, and `getTool` sends every `ldoc-` id to `resolveDraftTool`. So a card carrying it
+    /// resolves exactly as that id does on the web, through `LitigatorDrafting`.
+    ///
+    /// One the taxonomy does not hold gets the shape every Litigator document is sent in —
+    /// `buildSectionPrompt`, with the generic fields, the civil code note and the default drafting
+    /// instruction — because that, and not Senior Counsel's chambers voice, is what the web sends
+    /// for a Litigator. No such card exists today; `LitigatorWorkspaceTests` pins both paths.
+    private var litigatorSpec: ToolSpec {
+        if let resolved = LitigatorDrafting.documentTool(toolID) { return resolved }
+        return LitigatorDrafting.documentTool(
+            id: toolID, matter: "civil",
+            item: LitigatorItem(id: id, label: title, note: subtitle),
+            section: LitigatorSection(key: "", title: section ?? title, items: []),
+            area: nil)
     }
 
     // MARK: - Arbitrators and Judges
@@ -290,8 +310,15 @@ extension RoleCard {
 // MARK: - Looking cards up
 
 extension PractitionerRole {
-    /// This role's cards, in the platform's order.
+    /// This role's cards, in the platform's order. Empty for Litigator, whose workspace is the
+    /// drafting taxonomy instead — see `usesDraftingTaxonomy`.
     var cards: [RoleCard] { ROLE_CARDS.filter { $0.role == self } }
+
+    /// Whether "Your workspace" is the drafting taxonomy rather than a card deck.
+    ///
+    /// Litigator alone: on the web it is the one role with `matters` and no `cardSet`
+    /// (`roleConfig.js`), and its Home is a matter chooser over `litigatorDrafting.js`.
+    var usesDraftingTaxonomy: Bool { self == .litigator }
 
     /// The filter this role's grid offers — modes, tags, levels or contexts. Empty where the
     /// grid is flat, which is Senior Counsel alone.
@@ -315,4 +342,14 @@ extension PractitionerRole {
 /// A card by the id a route carries, which is the prefixed form.
 func roleCard(_ toolID: String) -> RoleCard? {
     ROLE_CARDS.first { $0.toolID == toolID }
+}
+
+/// The tool a workspace route names — a role card's, or a Litigator document's or heading form's.
+///
+/// One lookup for every role's workspace, dispatching on the prefix the way `getTool` does
+/// (`registry.js:853`): `ldoc-` and `lsec-` go to the drafting taxonomy, and everything else is
+/// a card.
+func roleTool(_ toolID: String) -> ToolSpec? {
+    if let drafting = LitigatorDrafting.tool(toolID) { return drafting }
+    return roleCard(toolID)?.toolSpec
 }

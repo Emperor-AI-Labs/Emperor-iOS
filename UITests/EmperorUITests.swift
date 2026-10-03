@@ -532,6 +532,65 @@ final class EmperorUITests: XCTestCase {
             "the tool sheet could not be closed after running a tool")
     }
 
+    // MARK: - Your workspace
+
+    /// Litigator's workspace is the drafting taxonomy, and it opens a document's form. It was an
+    /// empty screen — "Nothing in this part of the deck" — for the role most people hold, because
+    /// the deck it showed has no Litigator cards on the platform either.
+    ///
+    /// The role is chosen through the first-sign-in question rather than assumed: a role persists
+    /// between launches, and `testAFirstSignInIsAskedForARoleAndCanChooseOne` leaves the simulator
+    /// on Corporate Counsel. Civil is tapped for the same reason — the matter is remembered too.
+    func testTheLitigatorWorkspaceListsCivilDocumentsAndOpensOne() {
+        let app = signIn(launch("-UITestRoleWelcome"))
+        let litigator = app.buttons["role-litigator"]
+        XCTAssertTrue(litigator.waitForExistence(timeout: 10), "the role choice did not appear")
+        litigator.tap()
+        app.buttons["Continue"].tap()
+
+        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["More"].tap()
+        app.buttons["Your workspace"].tap()
+        XCTAssertTrue(
+            app.navigationBars["Litigator"].waitForExistence(timeout: 10),
+            "Your workspace did not open as Litigator's")
+
+        let civil = app.buttons["matter-civil"]
+        XCTAssertTrue(civil.waitForExistence(timeout: 5), "the matter chips are missing")
+        civil.tap()
+
+        // A section of Civil documents: its heading, and the documents under it.
+        let heading = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Pleadings & Petitions"))
+            .firstMatch
+        XCTAssertTrue(heading.waitForExistence(timeout: 5), "the first Civil section is missing")
+        let plaint = app.descendants(matching: .any)
+            .matching(identifier: "ldoc-civil-plaint").firstMatch
+        XCTAssertTrue(plaint.waitForExistence(timeout: 5), "the plaint is not listed")
+        XCTAssertTrue(
+            app.descendants(matching: .any).matching(identifier: "ldoc-civil-writ").firstMatch.exists,
+            "the writ petition is not listed")
+        XCTAssertFalse(
+            app.staticTexts["Nothing in this part of the deck."].exists,
+            "the empty deck is back")
+
+        // It opens in the tool form, titled and described as the platform resolves it.
+        plaint.tap()
+        XCTAssertTrue(
+            app.navigationBars["Plaint"].waitForExistence(timeout: 10), "the document did not open")
+        XCTAssertTrue(
+            app.staticTexts["Civil · Pleadings & Petitions"].waitForExistence(timeout: 5),
+            "the form is not the plaint's")
+        XCTAssertTrue(app.buttons["Run"].exists, "the form cannot be run")
+        XCTAssertEqual(app.state, .runningForeground)
+
+        // And back out the whole way, from controls on screen.
+        app.navigationBars["Plaint"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Litigator"].waitForExistence(timeout: 10))
+        app.navigationBars["Litigator"].buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
+    }
+
     // MARK: - File tools
 
     /// Every card in the hub opens its own screen and comes back. Each tool is a separate push

@@ -143,6 +143,8 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   Each script takes the path to a platform checkout and supports `--check`:
   `generate-tool-fixtures.mjs` (tool prompts), `generate-citation-fixtures.mjs`,
   `generate-file-tool-fixtures.mjs` (page order, compression, image layout),
+  `generate-litigator-fixtures.mjs` (Litigator's drafting taxonomy — data and fixtures),
+  `generate-phone-fixtures.mjs`,
   `generate-cause-list-fixtures.mjs`, `generate-compliance-feed-fixture.mjs` and
   `generate-file-date-fixtures.mjs`. When a golden test fails after a platform change,
   regenerate; do not edit the fixture to match.

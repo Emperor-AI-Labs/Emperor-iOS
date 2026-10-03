@@ -6,6 +6,9 @@ import SwiftUI
 /// its own, built from the card and the role's framing, and that framing carries the guardrail:
 /// a paralegal's output is labelled a draft for advocate review, a student's teaches rather than
 /// ghostwrites, an arbitral scaffold leaves the findings to the arbitrator. See `RoleCard`.
+///
+/// Litigator has no deck. Its Home on the web is the drafting taxonomy, so that is what it is
+/// shown here — `LitigatorWorkspaceView`, which owns its own stack and its own Done.
 struct RoleHomeView: View {
     @Environment(\.theme) private var theme
     @Environment(\.practice) private var practice
@@ -16,6 +19,14 @@ struct RoleHomeView: View {
     @State private var filterID: String?
 
     var body: some View {
+        if practice.role.usesDraftingTaxonomy {
+            LitigatorWorkspaceView()
+        } else {
+            deck
+        }
+    }
+
+    private var deck: some View {
         NavigationStack {
             List {
                 if !practice.role.cardFilters.isEmpty {
@@ -57,8 +68,8 @@ struct RoleHomeView: View {
                 }
             }
             .navigationDestination(for: String.self) { toolID in
-                if let card = roleCard(toolID) {
-                    ToolFormView(tool: card.toolSpec)
+                if let tool = roleTool(toolID) {
+                    ToolFormView(tool: tool)
                 } else {
                     ContentUnavailableView(
                         "Card unavailable", systemImage: "rectangle.on.rectangle.slash")
