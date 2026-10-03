@@ -446,7 +446,15 @@ final class EmperorUITests: XCTestCase {
         app.buttons["Settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
 
-        app.buttons["Sign out"].firstMatch.tap()
+        // Sign out is the last row, below Plan & usage, so on a phone it starts off screen — and
+        // a list only builds the rows it is showing. Scroll to it rather than assume it is there.
+        let signOut = app.buttons["Sign out"].firstMatch
+        var swipes = 0
+        while !(signOut.exists && signOut.isHittable) && swipes < 8 {
+            app.swipeUp()
+            swipes += 1
+        }
+        signOut.tap()
 
         // A confirmation stands between the tap and the act, and its button carries the same
         // label — so it has to be found inside the dialog rather than by `firstMatch`, which

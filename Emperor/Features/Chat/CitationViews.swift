@@ -57,6 +57,10 @@ struct CitedInline {
 
     /// The number as a badge: brand face, bold, a size below the text, in the accent on a wash
     /// of it — the web's pill (`src/ui/theme.css:1479`) as far as a run of text can carry one.
+    ///
+    /// Footnote rather than caption: at caption size beside body text the screenshot tour showed
+    /// a mark too small to notice as a link and too small to tap reliably. It still scales with
+    /// Dynamic Type, and its contrast is held to the same 4.5:1 (`CitationTests`).
     private static func badge(
         _ number: Int, url: URL, text: Color, fill: Color
     ) -> AttributedString {
@@ -64,7 +68,7 @@ struct CitedInline {
         // a badge from ever being split across two lines.
         var badge = AttributedString("\u{202F}\(number)\u{202F}")
         badge.link = url
-        badge.font = Font.brand(.caption2, weight: .bold)
+        badge.font = Font.brand(.footnote, weight: .bold)
         badge.foregroundColor = text
         badge.backgroundColor = fill
         return badge
