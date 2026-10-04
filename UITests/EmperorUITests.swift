@@ -569,10 +569,14 @@ final class EmperorUITests: XCTestCase {
 
         // A confirmation stands between the tap and the act, and its button carries the same
         // label — so it has to be found inside the dialog rather than by `firstMatch`, which
-        // would just hit the row again. `.confirmationDialog` surfaces as a sheet on iPhone.
+        // would just hit the row again. `.confirmationDialog` surfaces as a sheet on iPhone and
+        // as a popover beside the row on iPad.
         let dialog = app.sheets.buttons["Sign out"]
+        let popover = app.popovers.buttons["Sign out"]
         if dialog.waitForExistence(timeout: 5) {
             dialog.tap()
+        } else if popover.waitForExistence(timeout: 2) {
+            popover.tap()
         } else if app.alerts.buttons["Sign out"].waitForExistence(timeout: 2) {
             app.alerts.buttons["Sign out"].tap()
         }

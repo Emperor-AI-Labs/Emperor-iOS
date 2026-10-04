@@ -119,8 +119,21 @@ jobs:
   # exactly what this job proves on its way to doing more, on a second cold runner, and it cost
   # **460 billable minutes** — a quarter of a month — for that duplication.
   simulator-tests:
-    name: Simulator tests
+    name: Simulator tests (${{ matrix.device }})
     runs-on: macos-15
+    # Every UI test and the screenshot tour run twice: on an iPhone and on an iPad. The app ships
+    # for both (`TARGETED_DEVICE_FAMILY: "1,2"`), and an iPad lays several things out differently
+    # — sheets become centred form sheets, a confirmation dialog becomes a popover, the tab bar
+    # moves — so a layout or a test that only holds on a phone has to fail here, not on someone's
+    # iPad. Both legs finish even when one fails, so one device's results never hide the other's.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - device: iPhone
+            artifact-suffix: ""
+          - device: iPad
+            artifact-suffix: "-ipad"
     # This ran only on demand while the repository was private, because macOS bills at 10x there
     # and every job rounds up to a whole minute — 460 minutes went to a duplicate build job
     # before that was noticed. **Public repositories get macOS runners free and unmetered**, so
@@ -148,8 +161,9 @@ jobs:
       # rolled. `xcodebuild test` will not take a generic destination the way `build` does, so
       # the only durable answer is to look the device up at run time and pass its UDID.
       #
-      # The last listed iPhone wins, and the whole list is printed — when this does fail, the
-      # first question is always what the runner actually had.
+      # The last listed device of the leg's kind wins — for the iPad, an iPad Air when there is one,
+      # the size and class most people hold — and the whole list is printed: when this does fail,
+      # the first question is always what the runner actually had.
       #
       # Deliberately shell rather than an embedded script: this step's first version inlined
       # Python, whose unindented lines silently terminated the YAML block scalar and made the
@@ -159,8 +173,20 @@ jobs:
         run: |
           set -euo pipefail
           xcrun simctl list devices available
-          udid=$(xcrun simctl list devices available | grep -oE 'iPhone[^(]*\(([0-9A-F-]{36})\)' | tail -1 | grep -oE '[0-9A-F-]{36}')
-          test -n "$udid" || { echo "no iPhone simulator on this runner"; exit 1; }
+          kind="${{ matrix.device }}"
+          list=$(xcrun simctl list devices available)
+          udid=""
+          # By line, then the UDID off the line: iPad names carry their chip in brackets —
+          # "iPad Air 11-inch (M3) (UDID)" — so a pattern that stops at the first bracket misses
+          # every one of them.
+          uuid='[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}'
+          if [ "$kind" = "iPad" ]; then
+            udid=$(echo "$list" | grep -E "^ +iPad Air" | grep -oE "$uuid" | tail -1 || true)
+          fi
+          if [ -z "$udid" ]; then
+            udid=$(echo "$list" | grep -E "^ +${kind}" | grep -oE "$uuid" | tail -1 || true)
+          fi
+          test -n "$udid" || { echo "no $kind simulator on this runner"; exit 1; }
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
           echo "using simulator $udid"
 
@@ -181,7 +207,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: simulator-test-results
+          name: simulator-test-results${{ matrix.artifact-suffix }}
           path: build/TestResults.xcresult
           retention-days: 14
 
@@ -201,7 +227,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: screenshot-tour
+          name: screenshot-tour${{ matrix.artifact-suffix }}
           path: build/screenshots
           retention-days: 14
           if-no-files-found: ignore

@@ -150,9 +150,11 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   `generate-cause-list-fixtures.mjs`, `generate-compliance-feed-fixture.mjs` and
   `generate-file-date-fixtures.mjs`. When a golden test fails after a platform change,
   regenerate; do not edit the fixture to match.
-- **The UI is seen through CI.** `UITests/ScreenshotTour.swift` photographs every main screen in
-  both themes, and the `screenshot-tour` artifact holds them as plain PNGs —
-  `gh run download <run> -n screenshot-tour`. Look at them after any visible change.
+- **The UI is seen through CI, on an iPhone and an iPad.** Every UI test and
+  `UITests/ScreenshotTour.swift` (every main screen, both themes) run on both devices. The
+  `screenshot-tour` and `screenshot-tour-ipad` artifacts hold the pictures as plain PNGs —
+  `gh run download <run> -n screenshot-tour-ipad`. Look at both after any visible change; an
+  iPad turns sheets into form sheets and confirmation dialogs into popovers.
 - The app target compiles `Sources/EmperorCore` directly, so the tested code and the shipped
   code are the same bytes.
 
