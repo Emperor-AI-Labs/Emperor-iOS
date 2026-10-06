@@ -356,7 +356,9 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["My Files"].waitForExistence(timeout: 10))
 
         app.buttons["Folders"].tap()
-        let folder = app.staticTexts["Bakshi"]
+        // A folder is a tile now — one element, a button, found by its identifier, since its
+        // label also carries what the folder holds.
+        let folder = app.buttons["folder-Bakshi"]
         XCTAssertTrue(folder.waitForExistence(timeout: 10), "the folder from /user-files is not listed")
         folder.tap()
         XCTAssertTrue(app.navigationBars["Bakshi"].waitForExistence(timeout: 10), "the folder did not open")
@@ -805,5 +807,54 @@ final class EmperorUITests: XCTestCase {
             swipes += 1
         }
         XCTAssertTrue(row.waitForExistence(timeout: 10), "the history row did not render")
+    }
+
+    // MARK: - My Files as folders
+
+    /// My Files opens on its folders, drawn as tiles, with no segment tapped. A tile opens its
+    /// folder, which shows its own sub-folder as a tile and its documents as rows; a sub-folder's
+    /// tile opens in turn; and Back returns, level by level, to the grid.
+    func testMyFilesOpensOnFolderTilesThatOpenTheirFolders() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
+        app.buttons["My Files"].tap()
+        XCTAssertTrue(app.navigationBars["My Files"].waitForExistence(timeout: 10))
+
+        let bakshi = app.buttons["folder-Bakshi"]
+        XCTAssertTrue(bakshi.waitForExistence(timeout: 10), "My Files did not open on its folder tiles")
+        XCTAssertTrue(app.buttons["folder-Arora_Holdings"].exists, "every top-level folder is a tile")
+        // One element, saying what the folder holds — counted all the way down.
+        XCTAssertEqual(bakshi.label, "Bakshi, 2 documents, 1 folder")
+
+        // A document filed in no folder stays reachable from the top, below the grid.
+        let loose = app.staticTexts["Engagement Letter.pdf"]
+        var swipes = 0
+        while !loose.exists, swipes < 3 {
+            app.swipeUp()
+            swipes += 1
+        }
+        XCTAssertTrue(loose.waitForExistence(timeout: 5), "the document in no folder is not listed")
+
+        bakshi.tap()
+        XCTAssertTrue(app.navigationBars["Bakshi"].waitForExistence(timeout: 10), "the tile did not open its folder")
+        let orders = app.buttons["folder-Bakshi/Orders"]
+        XCTAssertTrue(orders.waitForExistence(timeout: 10), "the sub-folder is not drawn as a tile")
+        XCTAssertTrue(
+            app.staticTexts["Plaint.pdf"].waitForExistence(timeout: 5),
+            "the folder's own document is not listed")
+
+        orders.tap()
+        XCTAssertTrue(app.navigationBars["Orders"].waitForExistence(timeout: 10), "the sub-folder did not open")
+        XCTAssertTrue(
+            app.staticTexts["Interim Order.pdf"].waitForExistence(timeout: 5),
+            "the sub-folder's document is not listed")
+
+        app.navigationBars["Orders"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Bakshi"].waitForExistence(timeout: 10), "Back did not return to Bakshi")
+        app.navigationBars["Bakshi"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["My Files"].waitForExistence(timeout: 10), "Back did not return to My Files")
+        XCTAssertTrue(app.buttons["folder-Bakshi"].waitForExistence(timeout: 10), "the grid is not there on return")
+        XCTAssertEqual(app.state, .runningForeground)
     }
 }

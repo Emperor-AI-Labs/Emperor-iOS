@@ -179,10 +179,68 @@ final class MyFilesViewModelTests: XCTestCase {
 
     // MARK: Loading
 
-    func testSectionsOpenOnRecentAsTheWebDoes() async {
+    /// My Files is its folders: they lead the picker, and the screen opens on them.
+    func testTheScreenOpensOnTheFolders() async {
         await withMyFiles { _, _, model in
-            XCTAssertEqual(model.section, .recent)
-            XCTAssertEqual(MyFilesViewModel.Section.allCases.map(\.title), ["Recent", "Folders", "Favorites"])
+            XCTAssertEqual(model.section, .folders)
+            XCTAssertEqual(MyFilesViewModel.openingSection, .folders)
+            XCTAssertEqual(
+                MyFilesViewModel.Section.allCases.map(\.title), ["Folders", "Recent", "Favorites"])
+        }
+    }
+
+    /// The section is not remembered: having looked at Recent once, the next visit still opens
+    /// on the folders.
+    func testLookingAtRecentDoesNotChangeWhereTheNextVisitOpens() async {
+        await withMyFiles { _, _, first in
+            first.section = .recent
+            await withMyFiles { _, _, next in
+                XCTAssertEqual(next.section, .folders)
+            }
+        }
+    }
+
+    /// The top level of the folders view: every top-level folder as a tile, and the documents
+    /// filed in no folder beneath them, so neither is out of reach.
+    func testTheFoldersViewListsTopLevelFoldersAndLooseDocuments() async {
+        let tree: [FileNode] = matter + [.file(file("Engagement_Letter.pdf"))]
+        await withMyFiles(tree: tree) { _, _, model in
+            let listing = model.listing(at: "")
+            XCTAssertEqual(listing?.folders.map(\.path).sorted(), ["Arora", "Bakshi"])
+            XCTAssertEqual(listing?.files.map(\.name), ["Engagement_Letter.pdf"])
+            XCTAssertFalse(model.presentation(for: .folders).showsEmptyState)
+        }
+    }
+
+    /// Inside a folder, its sub-folders and its own documents — not the documents of the
+    /// sub-folders, which are a tile's tap away.
+    func testAFolderListsItsSubfoldersAndItsOwnDocuments() async {
+        await withMyFiles { _, _, model in
+            let listing = model.listing(at: "Bakshi")
+            XCTAssertEqual(listing?.folders.map(\.path), ["Bakshi/2025"])
+            XCTAssertEqual(listing?.folders.first?.contentsSummary, "2 documents · 1 folder")
+            XCTAssertEqual(listing?.files.map(\.name), ["Plaint.pdf", "Reply.pdf"])
+        }
+    }
+
+    /// A search from the top finds folders and documents at any depth, with the folders' tiles
+    /// able to say where each one sits.
+    func testASearchFromTheTopFindsFoldersAndDocumentsAtAnyDepth() async {
+        await withMyFiles { _, _, model in
+            let folders = model.searchResults(under: "", matching: "writs").folders
+            XCTAssertEqual(folders.map(\.path), ["Bakshi/2025/Writs"])
+            XCTAssertEqual(folders.first.map(FileBrowser.location(of:)), "Bakshi / 2025")
+            let files = model.searchResults(under: "", matching: "order").files
+            XCTAssertEqual(files.map(\.path), ["Bakshi/2025/Order.pdf"])
+        }
+    }
+
+    /// A new folder made at the top level is in the next listing, where the grid draws it.
+    func testANewFolderIsListedOnceTheLibraryIsReread() async {
+        await withMyFiles { files, _, model in
+            files.tree = matter + [dir("Kapoor")]
+            await model.createFolder(named: "Kapoor", in: "")
+            XCTAssertTrue(model.listing(at: "")?.folders.contains { $0.path == "Kapoor" } ?? false)
         }
     }
 

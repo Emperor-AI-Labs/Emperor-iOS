@@ -139,6 +139,19 @@ final class ScreenshotTour: XCTestCase {
             guard button.waitForExistence(timeout: 5) else { continue }
             button.tap()
             snap(row.lowercased().replacingOccurrences(of: " ", with: "-"))
+            if row == "My Files" {
+                // The shot above is the grid of folder tiles; this is one of them opened — its
+                // sub-folder as a tile above its documents.
+                let folder = app.buttons["folder-Bakshi"]
+                if folder.waitForExistence(timeout: 5) {
+                    folder.tap()
+                    if app.navigationBars["Bakshi"].waitForExistence(timeout: 10) {
+                        snap("my-files-folder")
+                        let back = app.navigationBars["Bakshi"].buttons.element(boundBy: 0)
+                        if back.waitForExistence(timeout: 5) { back.tap() } else { backOut(app) }
+                    }
+                }
+            }
             if row == "Settings" {
                 // The role selector, opened from the head of Settings.
                 let selector = app.buttons["Role selector"].firstMatch

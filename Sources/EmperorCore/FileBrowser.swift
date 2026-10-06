@@ -33,10 +33,28 @@ struct FolderSummary: Equatable, Identifiable, Sendable {
 
     /// "12 documents · 3 folders", or "Empty".
     var contentsSummary: String {
-        guard documentCount > 0 || childFolderCount > 0 else { return "Empty" }
+        contentsParts.map { $0.joined(separator: " · ") } ?? "Empty"
+    }
+
+    /// What the folder's tile says aloud: its name and what it holds — "Bakshi, 12 documents,
+    /// 3 folders" — and, where a list mixes levels, where it sits.
+    ///
+    /// A tile is one element to a screen reader, so this is the whole of what it hears before
+    /// choosing to open the folder. Commas rather than the middle dot `contentsSummary` draws:
+    /// the dot is a mark for the eye, and a comma is a pause every screen reader honours.
+    func spokenLabel(location: String? = nil) -> String {
+        var parts = [displayName]
+        parts.append(contentsParts?.joined(separator: ", ") ?? "empty")
+        if let location { parts.append("in \(location)") }
+        return parts.joined(separator: ", ")
+    }
+
+    /// The counts worth stating, or `nil` when there is nothing in the folder at all.
+    private var contentsParts: [String]? {
+        guard documentCount > 0 || childFolderCount > 0 else { return nil }
         var parts = [FileBrowser.count(documentCount, "document")]
         if childFolderCount > 0 { parts.append(FileBrowser.count(childFolderCount, "folder")) }
-        return parts.joined(separator: " · ")
+        return parts
     }
 }
 
@@ -316,6 +334,18 @@ enum FileBrowser {
         guard !folder.isEmpty else { return "My Files" }
         return folder.split(separator: "/").map { DisplayText.fileName(String($0)) }
             .joined(separator: " / ")
+    }
+
+    /// Where a folder sits — the folder it is inside, or "My Files" at the top — for a search
+    /// result, which lists folders from several levels at once.
+    ///
+    /// Two matters can each hold a "2025", and a tile that carries only its own name cannot tell
+    /// them apart. Worded exactly as a document's location, so a folder and a document found by
+    /// the same search say where they are in the same way.
+    static func location(of folder: FolderSummary) -> String {
+        let parent = normalized(folder.path).split(separator: "/").dropLast()
+        guard !parent.isEmpty else { return "My Files" }
+        return parent.map { DisplayText.fileName(String($0)) }.joined(separator: " / ")
     }
 
     /// "Today", "Yesterday", or the date — in India.

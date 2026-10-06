@@ -251,6 +251,51 @@ final class FileBrowserTests: XCTestCase {
         XCTAssertEqual(writs.breadcrumb, "Bakshi / 2025 / Writs")
     }
 
+    /// A search result's folder tile says which folder it is in, in the words a document's row
+    /// uses — and a top-level folder is in My Files.
+    func testAFoldersLocationIsTheFolderItSitsIn() throws {
+        let writs = try XCTUnwrap(FileBrowser.folder(at: "Bakshi/2025/Writs", in: library))
+        XCTAssertEqual(FileBrowser.location(of: writs), "Bakshi / 2025")
+        let bakshi = try XCTUnwrap(FileBrowser.folder(at: "Bakshi", in: library))
+        XCTAssertEqual(FileBrowser.location(of: bakshi), "My Files")
+
+        let sanitised = FolderSummary(
+            name: "Interim", path: "/Bakshi_v_State/Orders/Interim/", created: nil,
+            documentCount: 0, subfolderCount: 0, childFolderCount: 0)
+        XCTAssertEqual(
+            FileBrowser.location(of: sanitised), "Bakshi v State / Orders",
+            "stray separators are not levels, and names are shown as a person wrote them")
+    }
+
+    /// A tile is one element to VoiceOver, so its label carries the name and the counts — with
+    /// commas, which a screen reader pauses on, not the middle dot drawn for the eye.
+    func testAFolderTileIsReadAloudAsItsNameAndWhatItHolds() throws {
+        let bakshi = try XCTUnwrap(FileBrowser.folder(at: "Bakshi", in: library))
+        XCTAssertEqual(bakshi.spokenLabel(), "Bakshi, 5 documents, 2 folders")
+        let writs = try XCTUnwrap(FileBrowser.folder(at: "Bakshi/2025/Writs", in: library))
+        XCTAssertEqual(writs.spokenLabel(), "Writs, 1 document")
+        XCTAssertEqual(
+            writs.spokenLabel(location: "Bakshi / 2025"), "Writs, 1 document, in Bakshi / 2025")
+        let empty = try XCTUnwrap(FileBrowser.folder(at: "Bakshi/Empty", in: library))
+        XCTAssertEqual(empty.spokenLabel(), "Empty, empty")
+    }
+
+    /// A folder holding only folders still says how many documents — none — before the folders,
+    /// as the drawn summary does.
+    func testAFolderOfFoldersCountsBoth() {
+        let tree = [dir("A", [dir("A/B"), dir("A/C")])]
+        let a = FileBrowser.folder(at: "A", in: tree)
+        XCTAssertEqual(a?.contentsSummary, "0 documents · 2 folders")
+        XCTAssertEqual(a?.spokenLabel(), "A, 0 documents, 2 folders")
+    }
+
+    func testAFolderTileUsesTheNameAsAPersonWroteIt() {
+        let tree = [dir("Bakshi_v_State", [doc("Bakshi_v_State/a.pdf")])]
+        XCTAssertEqual(
+            FileBrowser.folder(at: "Bakshi_v_State", in: tree)?.spokenLabel(),
+            "Bakshi v State, 1 document")
+    }
+
     func testCountsAreSingularForOne() {
         XCTAssertEqual(FileBrowser.count(1, "document"), "1 document")
         XCTAssertEqual(FileBrowser.count(0, "document"), "0 documents")

@@ -134,11 +134,11 @@ enum UITestSupport {
                 return #"{"success":true,"notifications":[{"id":"n1","title":"Hearing listed"}]}"#
             case "/notifications/unread-count":
                 return #"{"success":true,"count":1}"#
-            // `folders`, not `files`. One matter holding one document, so My Files has a folder
-            // to open and a row to swipe. Every node carries `type`, which `FileNode` switches on,
-            // and a file needs `status: "ready"` or it reads as still being processed.
+            // `folders`, not `files`. Every node carries `type`, which `FileNode` switches on,
+            // and a file needs `status: "ready"` or it reads as still being processed. See
+            // `userFilesBody` for what the library holds.
             case "/user-files":
-                return #"{"success":true,"folders":[{"type":"folder","name":"Bakshi","path":"Bakshi","created":"2026-09-01T10:00:00.000Z","files":[{"type":"file","name":"Plaint.pdf","path":"Bakshi/Plaint.pdf","size":2048,"modified":"2026-10-01T09:00:00.000Z","status":"ready","favorite":false}]}]}"#
+                return userFilesBody()
             case "/library/categories":
                 return #"{"success":true,"categories":[]}"#
             case "/library/subfilters":
@@ -224,6 +224,30 @@ enum UITestSupport {
                 "dateKey":null,"deadline_type":"days_after_agm","deadline_value":"30",\
                 "last_verified_date":"2026-07-29"}]
                 """
+        }
+
+        /// Two matters and a loose document, so My Files has a grid of folder tiles to draw, a
+        /// folder inside a folder to open, and a row under "Not in a folder". Bakshi still holds
+        /// `Plaint.pdf` directly — the document the deletion test swipes — beside its `Orders`
+        /// sub-folder. Files and folders mix at every level, the top included, as the server
+        /// sends them.
+        private static func userFilesBody() -> String {
+            """
+            {"success":true,"folders":[{"type":"folder","name":"Bakshi","path":"Bakshi",\
+            "created":"2026-09-01T10:00:00.000Z","files":[{"type":"file","name":"Plaint.pdf",\
+            "path":"Bakshi/Plaint.pdf","size":2048,"modified":"2026-10-01T09:00:00.000Z",\
+            "status":"ready","favorite":false},{"type":"folder","name":"Orders",\
+            "path":"Bakshi/Orders","created":"2026-09-02T10:00:00.000Z","files":[{"type":"file",\
+            "name":"Interim_Order.pdf","path":"Bakshi/Orders/Interim_Order.pdf","size":4096,\
+            "modified":"2026-09-20T09:00:00.000Z","status":"ready","favorite":true}]}]},\
+            {"type":"folder","name":"Arora_Holdings","path":"Arora_Holdings",\
+            "created":"2026-09-15T10:00:00.000Z","files":[{"type":"file",\
+            "name":"Board_Resolution.docx","path":"Arora_Holdings/Board_Resolution.docx",\
+            "size":1024,"modified":"2026-09-16T09:00:00.000Z","status":"ready",\
+            "favorite":false}]},{"type":"file","name":"Engagement_Letter.pdf",\
+            "path":"Engagement_Letter.pdf","size":3072,"modified":"2026-09-30T09:00:00.000Z",\
+            "status":"ready","favorite":false}]}
+            """
         }
 
         /// `nil` means "this route has no distinct empty shape", so the normal body is used.

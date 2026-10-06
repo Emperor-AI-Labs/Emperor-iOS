@@ -20,10 +20,11 @@ struct SharedDocument: Identifiable, Equatable, Sendable {
 /// new ones into the folder you are looking at. The attach picker (`FileLibraryViewModel`) is
 /// unchanged and still lives behind the composer's plus.
 ///
-/// Three views, the web's three live ones and in its order — Recent, the folders, Favorites
-/// (`TABS`, `src/pages/MyFilesPage.jsx:41-49`). The web also lists "Shared Files" and "Linked
-/// Accounts", both of which it marks as not built; a phone has no room for a tab that only says
-/// so, and they are left out.
+/// Three views, the web's three live ones — the folders, Recent, Favorites (`TABS`,
+/// `src/pages/MyFilesPage.jsx:41-49`). The web puts Recent first; here the folders lead, because
+/// the product owner asked for My Files to be shown as folders that open, the way a file manager
+/// shows them. The web also lists "Shared Files" and "Linked Accounts", both of which it marks as
+/// not built; a phone has no room for a tab that only says so, and they are left out.
 ///
 /// Every edit is followed by a refetch rather than a local patch, with one exception — a star,
 /// whose response states the stored value exactly. `delete-file` and `delete-folder` succeed on a
@@ -36,8 +37,9 @@ struct SharedDocument: Identifiable, Equatable, Sendable {
 @MainActor
 final class MyFilesViewModel {
 
+    /// In the order the picker shows them.
     enum Section: String, CaseIterable, Identifiable, Sendable {
-        case recent, folders, favorites
+        case folders, recent, favorites
 
         var id: String { rawValue }
 
@@ -45,12 +47,20 @@ final class MyFilesViewModel {
         /// is already called My Files, and a tab of the same name inside it reads as a mistake.
         var title: String {
             switch self {
-            case .recent: return "Recent"
             case .folders: return "Folders"
+            case .recent: return "Recent"
             case .favorites: return "Favorites"
             }
         }
     }
+
+    /// Where the screen opens, every time.
+    ///
+    /// Not the section last chosen. The owner asked for My Files to *be* its folders, and a
+    /// remembered choice would quietly undo that for anyone who once glanced at Recent — the next
+    /// visit would open on a flat list with no folders in sight, and nothing on screen would say
+    /// why. Recent and Favorites are one tap away; the folders are what the screen is.
+    nonisolated static let openingSection: Section = .folders
 
     /// What an empty list says. Separate from failure, always — see `LoadState`.
     struct EmptyCopy: Equatable, Sendable {
@@ -62,9 +72,8 @@ final class MyFilesViewModel {
     private(set) var tree: [FileNode] = []
     private(set) var state: LoadState = .idle
 
-    /// Recent first, as on the web: it answers "where is the thing I just uploaded", which is the
-    /// commonest reason to open this screen.
-    var section: Section = .recent
+    /// The folders first, always — see `openingSection`.
+    var section: Section = MyFilesViewModel.openingSection
     /// Follows the user between sections, as the web's single search box does, so "where did I
     /// put that" can be answered by switching sections rather than retyping.
     var query = ""

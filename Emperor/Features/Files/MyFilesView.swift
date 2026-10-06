@@ -9,20 +9,28 @@ import PhotosUI
 /// and this is where documents are browsed, opened, renamed, starred, shared, moved, deleted and
 /// added. Everything it decides is `MyFilesViewModel`'s; this file lays it out.
 ///
-/// Folders are pushed rather than expanded in place. A phone shows one folder at a time, and the
-/// back button is the breadcrumb.
+/// It opens on the folders, drawn as a file manager draws them — a grid of folder tiles — and a
+/// tile opens its folder. Folders are pushed rather than expanded in place: a phone shows one
+/// folder at a time, and the back button is the breadcrumb.
 struct MyFilesView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
     @Environment(\.dismiss) private var dismiss
 
     @State private var model: MyFilesViewModel?
+    /// The folders opened, deepest last.
+    ///
+    /// Bound rather than built from `NavigationLink`s, because the tiles that open folders sit
+    /// together in one row of a `List` (see `LibraryScreen.folderGrid`), and a list row holding
+    /// several links is one where a tap can fire the wrong one, or all of them. Plain buttons
+    /// that append here each answer only their own tap.
+    @State private var openFolders: [FolderRoute] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $openFolders) {
             Group {
                 if let model {
-                    LibraryScreen(model: model, path: "")
+                    LibraryScreen(model: model, path: "", openFolders: $openFolders)
                 } else {
                     ProgressView()
                 }
@@ -38,7 +46,7 @@ struct MyFilesView: View {
             }
             .navigationDestination(for: FolderRoute.self) { route in
                 if let model {
-                    LibraryScreen(model: model, path: route.path)
+                    LibraryScreen(model: model, path: route.path, openFolders: $openFolders)
                 }
             }
             .task {
@@ -65,10 +73,13 @@ struct FolderRoute: Hashable {
 private struct LibraryScreen: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let model: MyFilesViewModel
     /// `""` for the top level.
     let path: String
+    /// The navigation stack's path. A folder tile opens its folder by appending to it.
+    @Binding var openFolders: [FolderRoute]
 
     @State private var folderQuery = ""
     @State private var previewing: Previewing?
@@ -300,9 +311,9 @@ private struct LibraryScreen: View {
                 retry: { await model.load() }
             ) {
                 switch model.section {
+                case .folders: foldersList(at: "", query: model.query)
                 case .recent: recentList
                 case .favorites: favoritesList
-                case .folders: foldersList(at: "", query: model.query)
                 }
             } empty: {
                 if model.showsNoSearchResults(in: model.section) {
@@ -392,101 +403,109 @@ private struct LibraryScreen: View {
             if results.isEmpty {
                 NoResultsView(query: query)
             } else {
-                List {
-                    if !results.folders.isEmpty {
-                        Section {
-                            ForEach(results.folders) { folderRow($0) }
-                        } header: {
-                            SectionHeader(title: "Folders", detail: "\(results.folders.count)")
-                        }
-                        .listRowBackground(theme.surface)
-                    }
-                    if !results.files.isEmpty {
-                        Section {
-                            ForEach(results.files, id: \.path) { file in
-                                documentRow(file, location: FileBrowser.location(of: file))
-                            }
-                        } header: {
-                            SectionHeader(title: "Documents", detail: "\(results.files.count)")
-                        }
-                        .listRowBackground(theme.surface)
-                    }
-                }
-                .listStyle(.insetGrouped)
-                .scrollContentBackground(.hidden)
-                .background(theme.canvas)
+                // A search reaches the whole subtree, so a hit can sit at any depth: every tile
+                // and every row says where it is.
+                libraryList(
+                    folders: results.folders, files: results.files,
+                    filesTitle: "Documents", showsLocations: true)
             }
         } else if let listing = model.listing(at: path) {
-            List {
-                if !listing.folders.isEmpty {
-                    Section {
-                        ForEach(listing.folders) { folderRow($0) }
-                    } header: {
-                        SectionHeader(title: "Folders", detail: "\(listing.folders.count)")
-                    }
-                    .listRowBackground(theme.surface)
-                }
-                if !listing.files.isEmpty {
-                    Section {
-                        ForEach(listing.files, id: \.path) { file in
-                            documentRow(file)
-                        }
-                    } header: {
-                        // At the top level these are the documents filed in no folder. The web
-                        // shows them only under Recent; listing them here keeps them reachable.
-                        SectionHeader(
-                            title: path.isEmpty ? "Not in a folder" : "Documents",
-                            detail: "\(listing.files.count)")
-                    }
-                    .listRowBackground(theme.surface)
-                }
-            }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            libraryList(
+                folders: listing.folders, files: listing.files,
+                // At the top level these are the documents filed in no folder. The web shows
+                // them only under Recent; listing them here keeps them reachable.
+                filesTitle: path.isEmpty ? "Not in a folder" : "Documents",
+                showsLocations: false)
             .refreshable { await model.load() }
         }
     }
 
-    // MARK: - Rows
-
-    private func folderRow(_ folder: FolderSummary) -> some View {
-        NavigationLink(value: FolderRoute(path: folder.path)) {
-            HStack(spacing: Spacing.md) {
-                // A folder in the web's gold, the way a file manager draws one.
-                IconTile(systemImage: "folder", hue: .gold)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(folder.displayName)
-                        .font(.brand(.subheadline, weight: .medium))
-                        .lineLimit(2)
-                        .foregroundStyle(theme.textPrimary)
-                    Text(folder.contentsSummary)
-                        .font(.brand(.caption2))
-                        .foregroundStyle(theme.textTertiary)
+    /// The folders as a grid of tiles, then the documents as rows.
+    ///
+    /// One `List` holds both, with the grid as a single row of it, because a document's swipe
+    /// actions exist only inside a `List`. A `ScrollView` of cards would have drawn the grid more
+    /// naturally and dropped them — and with them the quickest way to star, share or delete, and
+    /// the actions VoiceOver lists for a row. So the grid's row gives up its background, insets
+    /// and separator, the tiles sit on the canvas as cards of their own, and the documents follow
+    /// in the same inset-grouped card as every other list in the app.
+    private func libraryList(
+        folders: [FolderSummary], files: [FileNode.StoredFile],
+        filesTitle: String, showsLocations: Bool
+    ) -> some View {
+        List {
+            if !folders.isEmpty {
+                Section {
+                    folderGrid(folders, showsLocations: showsLocations)
+                } header: {
+                    SectionHeader(title: "Folders", detail: "\(folders.count)")
                 }
-                Spacer(minLength: 0)
-                if model.isBusy(folder.path) {
-                    ProgressView().controlSize(.small)
+            }
+            if !files.isEmpty {
+                Section {
+                    ForEach(files, id: \.path) { file in
+                        documentRow(
+                            file, location: showsLocations ? FileBrowser.location(of: file) : nil)
+                    }
+                } header: {
+                    SectionHeader(title: filesTitle, detail: "\(files.count)")
                 }
+                .listRowBackground(theme.surface)
             }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(theme.canvas)
+    }
+
+    /// Two tiles across on a phone, as many as fit on an iPad; one at the accessibility text
+    /// sizes, where a half-width tile would wrap a folder's name a word to a line.
+    private var tileColumns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.adaptive(minimum: 140), spacing: Spacing.md, alignment: .top)]
+    }
+
+    private func folderGrid(_ folders: [FolderSummary], showsLocations: Bool) -> some View {
+        LazyVGrid(columns: tileColumns, alignment: .leading, spacing: Spacing.md) {
+            ForEach(folders) { folder in
+                folderTile(
+                    folder, location: showsLocations ? FileBrowser.location(of: folder) : nil)
+            }
+        }
+        // Room for the cards' shadow, which the row would otherwise cut off.
+        .padding(.vertical, Spacing.xs)
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+    }
+
+    // MARK: - Rows
+
+    /// A folder, as a tile that opens it.
+    ///
+    /// One element to VoiceOver — a button that says the folder's name and what it holds. A
+    /// long press offers Rename and Delete. A tile has no swipe actions, which VoiceOver would
+    /// have listed as the row's actions, so the same two are offered to it directly.
+    private func folderTile(_ folder: FolderSummary, location: String?) -> some View {
+        Button {
+            openFolders.append(FolderRoute(path: folder.path))
+        } label: {
+            FolderTileLabel(folder: folder, location: location, isBusy: model.isBusy(folder.path))
+        }
+        // Plain, so that each tile in the shared row answers only its own tap.
+        .buttonStyle(.plain)
+        .contentShape(
+            .contextMenuPreview,
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .accessibilityLabel(folder.spokenLabel(location: location))
         .accessibilityHint("Opens the folder")
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            // A plain button tinted as danger, not `role: .destructive`: the row must stay put
-            // until the confirmation is answered and the library has been re-read.
-            Button {
-                model.requestDeletion(of: folder)
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-            .tint(theme.danger)
-            Button {
-                renameText = folder.name
-                renamingFolder = folder
-            } label: {
-                Label("Rename", systemImage: "pencil")
-            }
-            .tint(theme.accent)
+        .accessibilityIdentifier("folder-\(folder.path)")
+        .accessibilityAction(named: "Rename") {
+            renameText = folder.name
+            renamingFolder = folder
+        }
+        .accessibilityAction(named: "Delete folder") {
+            model.requestDeletion(of: folder)
         }
         .contextMenu {
             Button {
@@ -662,6 +681,83 @@ private struct LibraryScreen: View {
                 message: "There was no room to save a copy to share. Free some space and try again.",
                 tone: .warning)
         }
+    }
+}
+
+/// A folder as a file manager draws one: a large gold folder, its name beneath, and what it
+/// holds.
+///
+/// The name is held to two lines, and two lines are reserved even for a short one, so every
+/// tile in a row of the grid is the same height and the names line up. The counts are
+/// `contentsSummary` — documents at every depth, folders directly inside — as the web's folder
+/// card counts them. In a search, where folders from several levels are listed together, the
+/// tile also says which folder it is in.
+private struct FolderTileLabel: View {
+    @Environment(\.theme) private var theme
+
+    let folder: FolderSummary
+    var location: String?
+    /// An edit — a rename, a deletion — is running against this folder.
+    var isBusy = false
+
+    var body: some View {
+        VStack(spacing: Spacing.sm + 2) {
+            FolderGlyph()
+            VStack(spacing: Spacing.xxs + 1) {
+                Text(folder.displayName)
+                    .font(.brand(.subheadline, weight: .semibold))
+                    .foregroundStyle(theme.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2, reservesSpace: true)
+                Text(folder.contentsSummary)
+                    .font(.brand(.caption))
+                    .foregroundStyle(theme.textSecondary)
+                    .lineLimit(1)
+                if let location {
+                    Label(location, systemImage: "folder")
+                        .font(.brand(.caption2))
+                        .foregroundStyle(theme.textTertiary)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .padding(.horizontal, Spacing.md)
+        .padding(.top, Spacing.lg)
+        .padding(.bottom, Spacing.md)
+        .frame(maxWidth: .infinity)
+        .panel()
+        .overlay(alignment: .topTrailing) {
+            if isBusy {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(Spacing.sm)
+            }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+    }
+}
+
+/// The folder at the head of a tile: `IconTile`'s gold square and white glyph, drawn larger than
+/// any row's icon, because on a tile the folder is the thing being pointed at.
+///
+/// The web draws its folders in the same gold (`src/pages/MyFilesPage.jsx`, `FolderCard`), as
+/// does the Move sheet below. Scaled with Dynamic Type up to a ceiling, as `IconTile` is, so a
+/// large text size grows the folder without letting it crowd out the name.
+private struct FolderGlyph: View {
+    @Environment(\.theme) private var theme
+
+    @ScaledMetric(relativeTo: .title) private var scaledSide: CGFloat = 56
+
+    var body: some View {
+        let side = min(scaledSide, 76)
+        return Image(systemName: "folder.fill")
+            .font(.system(size: side * 0.46, weight: .semibold))
+            .foregroundStyle(theme.onTile)
+            .frame(width: side, height: side)
+            .background(
+                theme.tile(.gold),
+                in: RoundedRectangle(cornerRadius: side * 0.26, style: .continuous))
+            .accessibilityHidden(true)
     }
 }
 
