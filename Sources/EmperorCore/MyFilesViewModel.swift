@@ -110,6 +110,7 @@ final class MyFilesViewModel {
         do {
             tree = try await service.tree()
             state = .loaded
+            onTreeLoaded?(tree)
         } catch {
             // The tree on screen is kept: a refresh that fails over content shows it with a
             // banner rather than blanking it (`ListPresentation.showsStaleBanner`).
@@ -122,6 +123,7 @@ final class MyFilesViewModel {
         do {
             tree = try await service.tree()
             state = .loaded
+            onTreeLoaded?(tree)
         } catch {
             // The edit itself succeeded; only the refresh failed. Overwriting the success
             // notice with a load error would say the wrong thing about what just happened.
@@ -131,6 +133,41 @@ final class MyFilesViewModel {
 
     var isLoading: Bool { state.isLoading }
     var hasLoaded: Bool { state.hasLoaded }
+
+    /// Told each time the library is read, with what was read — how the device's search learns
+    /// the documents without My Files knowing it exists (`SpotlightCoordinator`).
+    var onTreeLoaded: (@MainActor ([FileNode]) -> Void)?
+
+    // MARK: - Opening a document from elsewhere
+
+    /// A document another part of the app — a search result — asked to be shown, by path, until
+    /// the screen for its folder takes it.
+    private(set) var pendingPreview: String?
+
+    /// Asks for a document to be previewed once its folder is on screen.
+    func requestPreview(of path: String) {
+        let normalized = FileBrowser.normalized(path)
+        pendingPreview = normalized.isEmpty ? nil : normalized
+    }
+
+    /// The waiting document, if it belongs to the folder at `folderPath`.
+    ///
+    /// Taken once. A document that is no longer in the library — deleted on the web since the
+    /// search last saw it — is let go with a notice rather than opening an empty viewer, and is
+    /// only judged once the library has loaded.
+    func takePreview(in folderPath: String) -> FileNode.StoredFile? {
+        guard let path = pendingPreview, state.hasLoaded else { return nil }
+        let route = DocumentRoute(path: path)
+        guard FileBrowser.normalized(route.folderPath) == FileBrowser.normalized(folderPath) else {
+            return nil
+        }
+        pendingPreview = nil
+        guard let file = FileService.allFiles(in: tree).first(where: { $0.path == path }) else {
+            actionNotice = "That document is no longer in your library."
+            return nil
+        }
+        return file
+    }
 
     // MARK: - What is on screen
 

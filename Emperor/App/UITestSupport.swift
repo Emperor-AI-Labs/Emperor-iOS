@@ -38,6 +38,30 @@ enum UITestSupport {
         ProcessInfo.processInfo.arguments.contains("-UITestEmpty")
     }
 
+    /// A one-page PDF where iOS would put a document another app handed over, for
+    /// `-UITestIncomingDocument`. Written fresh on each launch; the app moves it into its own
+    /// store, as it does the real inbox copy.
+    static func sampleIncomingDocument() -> URL? {
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("UITestShared", isDirectory: true)
+        let url = folder.appendingPathComponent("Sample Order.pdf")
+        let pdf = """
+            %PDF-1.4
+            1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+            2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+            3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] >> endobj
+            trailer << /Root 1 0 R >>
+            %%EOF
+            """
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data(pdf.utf8).write(to: url, options: .atomic)
+            return url
+        } catch {
+            return nil
+        }
+    }
+
     static func makeSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubProtocol.self]
@@ -56,6 +80,8 @@ enum UITestSupport {
 
         override func startLoading() {
             let path = request.url?.path.replacingOccurrences(of: "/api", with: "") ?? ""
+            // The profile write answers with the account as it was sent, as the platform does.
+            if path == "/update-profile" { Fixtures.ProfileStub.shared.record(request) }
             let body = Fixtures.itemBody(for: request.url) ?? Fixtures.body(for: path)
             let response = HTTPURLResponse(
                 url: request.url!, statusCode: 200,
@@ -150,6 +176,10 @@ enum UITestSupport {
                 return #"{"success":true}"#
             case "/notif/test":
                 return #"{"success":true,"emailed":1,"pushed":0,"skipped":0,"errors":[]}"#
+            // Settings → Edit profile. The signed-in fixture user, with the four profile fields
+            // as the request carried them — see `ProfileStub`.
+            case "/update-profile":
+                return ProfileStub.shared.reply()
             // `folders`, not `files`. Every node carries `type`, which `FileNode` switches on,
             // and a file needs `status: "ready"` or it reads as still being processed. See
             // `userFilesBody` for what the library holds.
@@ -379,6 +409,55 @@ enum UITestSupport {
         /// A second conversation, short and plain — no work log, no table — so it cannot be
         /// mistaken for the first.
         private static let secondConversationBody = ###"{"success":true,"messages":[{"id":"k1","role":"user","content":"Can the Customs order in Kapoor Textiles be stayed pending the writ?"},{"id":"k2","role":"assistant","content":"## Stay pending the writ\n\nThe High Court may stay the order where a strong prima facie case, the balance of convenience and irreparable injury are shown together. Offer a deposit of part of the duty demanded; it is the usual condition of an interim stay."}]}"###
+        /// The account `/update-profile` stores, echoed back: the fixture user's id, email and
+        /// mobile, and the profile fields exactly as sent. Behind a lock for the reason
+        /// `EmailBriefingStub` gives.
+        final class ProfileStub: @unchecked Sendable {
+            static let shared = ProfileStub()
+            private let lock = NSLock()
+            private var sent: [String: Any] = [:]
+
+            func record(_ request: URLRequest) {
+                // `httpBody` is moved into a stream on its way through `URLSession`, so read both.
+                var data = request.httpBody
+                if data == nil, let stream = request.httpBodyStream {
+                    data = Self.drain(stream)
+                }
+                let object = data.flatMap {
+                    try? JSONSerialization.jsonObject(with: $0) as? [String: Any]
+                } ?? [:]
+                lock.withLock { sent = object }
+            }
+
+            func reply() -> String {
+                let sent = lock.withLock { self.sent }
+                var user: [String: Any] = [
+                    "id": 1, "email": "john.doe@firm.com", "phone": "+919876543210",
+                    "suspended": false, "needsPlan": false,
+                ]
+                for key in ["name", "avatar", "title", "organization"] {
+                    user[key] = sent[key] ?? NSNull()
+                }
+                let body: [String: Any] = ["success": true, "user": user]
+                guard let data = try? JSONSerialization.data(withJSONObject: body) else {
+                    return #"{"success":false}"#
+                }
+                return String(decoding: data, as: UTF8.self)
+            }
+
+            private static func drain(_ stream: InputStream) -> Data {
+                stream.open()
+                defer { stream.close() }
+                var data = Data()
+                var buffer = [UInt8](repeating: 0, count: 4096)
+                while stream.hasBytesAvailable {
+                    let read = stream.read(&buffer, maxLength: buffer.count)
+                    if read <= 0 { break }
+                    data.append(contentsOf: buffer[0..<read])
+                }
+                return data
+            }
+        }
 
         /// `nil` means "this route has no distinct empty shape", so the normal body is used.
         private static func emptyBody(for path: String) -> String? {

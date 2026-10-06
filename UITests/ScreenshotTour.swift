@@ -388,4 +388,91 @@ final class ScreenshotTour: XCTestCase {
         }
         snap("settings-security")
     }
+
+    // MARK: - Profile and documents shared in
+
+    /// "Save to My Files" for a document handed to the app — the form, the folder list, and the
+    /// confirmation — and Settings → Edit profile, in both themes. A launch of their own, so the
+    /// document arriving does not interrupt the main tour.
+    func testTheProfileAndSharingDark() { profileAndSharingTour(light: false) }
+    func testTheProfileAndSharingLight() { profileAndSharingTour(light: true) }
+
+    private func profileAndSharingTour(light: Bool) {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestMode", "-UITestIncomingDocument"] + (light ? ["-UITestLight"] : [])
+        app.launch()
+        let theme = light ? "light" : "dark"
+        var step = 0
+        func snap(_ name: String) {
+            step += 1
+            Thread.sleep(forTimeInterval: 0.8)
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = String(format: "share-%@-%02d-%@", theme, step, name)
+            shot.lifetime = .keepAlways
+            add(shot)
+        }
+
+        guard app.textFields["Email"].waitForExistence(timeout: 15) else { return }
+        let email = app.textFields["Email"]
+        email.tap()
+        email.typeText("john.doe@firm.com")
+        let password = app.secureTextFields["Password"]
+        if password.waitForExistence(timeout: 5) {
+            password.tap()
+            password.typeText("hunter2")
+        }
+        tapIfPresent(app.buttons["Sign in"])
+
+        let sheet = app.navigationBars["Save to My Files"]
+        if sheet.waitForExistence(timeout: 15) {
+            snap("save-to-my-files")
+            let folder = app.buttons["incoming-folder"].firstMatch
+            if folder.waitForExistence(timeout: 5) {
+                folder.tap()
+                if app.navigationBars["Choose a folder"].waitForExistence(timeout: 5) {
+                    _ = app.buttons["incoming-folder-Bakshi"].firstMatch.waitForExistence(timeout: 5)
+                    snap("save-to-my-files-folders")
+                    tapIfPresent(app.buttons["incoming-folder-Bakshi"].firstMatch)
+                }
+            }
+            let save = app.buttons["incoming-save"].firstMatch
+            if save.waitForExistence(timeout: 5) {
+                save.tap()
+                if app.staticTexts["Uploading to Bakshi"].firstMatch.waitForExistence(timeout: 10) {
+                    snap("save-to-my-files-saved")
+                }
+            }
+            tapIfPresent(app.buttons["incoming-done"].firstMatch)
+        }
+
+        guard app.tab("More").waitForExistence(timeout: 10) else { return }
+        app.tab("More").tap()
+        tapIfPresent(app.buttons["Settings"].firstMatch)
+        guard app.navigationBars["Settings"].waitForExistence(timeout: 10) else { return }
+        let edit = app.buttons["edit-profile"].firstMatch
+        var swipes = 0
+        while !(edit.exists && edit.isHittable) && swipes < 6 {
+            app.swipeUp()
+            swipes += 1
+        }
+        snap("settings-account")
+        let search = app.switches["spotlight-toggle"].firstMatch
+        swipes = 0
+        while !(search.exists && search.isHittable) && swipes < 6 {
+            app.swipeUp()
+            swipes += 1
+        }
+        snap("settings-search")
+        if edit.waitForExistence(timeout: 5) {
+            swipes = 0
+            while !(edit.exists && edit.isHittable) && swipes < 6 {
+                app.swipeDown()
+                swipes += 1
+            }
+            edit.tap()
+            if app.navigationBars["Edit profile"].waitForExistence(timeout: 5) {
+                snap("edit-profile")
+            }
+        }
+    }
 }

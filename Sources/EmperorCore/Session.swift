@@ -52,6 +52,8 @@ final class Session {
     let preferredModel: PreferredModelService
     /// Writes the account's role — see `Practice`.
     let practiceRoles: PracticeRoleService
+    /// Writes the account's name, title, organisation and photo — see `ProfileEditor`.
+    let profile: ProfileService
     /// Where a plan is bought, if this build sends anyone there — see `WebPlans`.
     var webPlans: WebPlans
     let officePreview: OfficePreviewService
@@ -112,6 +114,7 @@ final class Session {
         self.duplicates = DuplicateCheckService(client: client)
         self.preferredModel = PreferredModelService(client: client)
         self.practiceRoles = PracticeRoleService(client: client)
+        self.profile = ProfileService(client: client)
         self.webPlans = WebPlans(isOffered: true, apiBaseURL: config.baseURL)
         self.officePreview = OfficePreviewService(client: client)
         self.complianceCalendar = ComplianceCalendarService(client: client)
@@ -279,6 +282,30 @@ final class Session {
     func noteAccountRole(_ webID: String) {
         guard case .signedIn(var user) = state, user.practiceRole != webID else { return }
         user.practiceRole = webID
+        persist(user)
+        state = .signedIn(user)
+    }
+
+    /// Takes the account as `/update-profile` stored it.
+    ///
+    /// The four profile fields are taken exactly as the reply has them — they are what the row
+    /// now holds, an empty title included. The reply is not a whole account (it carries no
+    /// plan label and no starting model), so everything else is kept as it was, except the
+    /// account's standing and contact details, which are taken where the reply has them because
+    /// they are as fresh a reading as any. The role is left alone: it has its own route and its
+    /// own reconciliation (`Practice`), which a profile save should not set off.
+    ///
+    /// A reply about a different account is ignored, for the reason `refreshAccount` gives.
+    func adoptProfile(_ saved: User) {
+        guard case .signedIn(var user) = state, saved.id == user.id else { return }
+        user.name = saved.name
+        user.avatar = saved.avatar
+        user.title = saved.title
+        user.organization = saved.organization
+        if let email = saved.email { user.email = email }
+        if let phone = saved.phone { user.phone = phone }
+        if let needsPlan = saved.needsPlan { user.needsPlan = needsPlan }
+        if let suspended = saved.suspended { user.suspended = suspended }
         persist(user)
         state = .signedIn(user)
     }

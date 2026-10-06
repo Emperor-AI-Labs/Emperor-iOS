@@ -66,9 +66,9 @@ struct SettingsView: View {
 
                 if let user = session.currentUser {
                     Section {
-                        LabeledContent("Name") {
-                            Text(user.name ?? "—").foregroundStyle(theme.textPrimary)
-                        }
+                        // The account at a glance — photo, name, and what the person does — as
+                        // the web's profile card heads its settings.
+                        accountHeader(user)
                         LabeledContent("Email") {
                             Text(user.email ?? "—").foregroundStyle(theme.textPrimary)
                         }
@@ -78,6 +78,14 @@ struct SettingsView: View {
                                     .foregroundStyle(theme.textPrimary)
                             }
                         }
+                        NavigationLink {
+                            EditProfileView()
+                        } label: {
+                            IconRowLabel(
+                                title: ProfileEditor.Copy.title, systemImage: "person.crop.circle",
+                                hue: .teal)
+                        }
+                        .accessibilityIdentifier("edit-profile")
                     } header: {
                         SectionHeader(title: "Account")
                     }
@@ -88,6 +96,26 @@ struct SettingsView: View {
 
                 // The app lock — see `AppLockSettingsSection`.
                 AppLockSettingsSection()
+                // The device's search — see `SpotlightCoordinator`. Off removes everything
+                // already indexed, at once.
+                Section {
+                    // Read here, in the body, so the switch redraws when the setting changes.
+                    let isIndexing = AppSpotlight.shared.coordinator.isEnabled
+                    Toggle(isOn: Binding(
+                        get: { isIndexing },
+                        set: { AppSpotlight.shared.setEnabled($0) }
+                    )) {
+                        IconRowLabel(
+                            title: SpotlightCoordinator.Copy.toggle, systemImage: "magnifyingglass",
+                            hue: .steel)
+                    }
+                    .accessibilityIdentifier("spotlight-toggle")
+                } header: {
+                    SectionHeader(title: "Search")
+                } footer: {
+                    footnote(SpotlightCoordinator.Copy.footer)
+                }
+                .listRowBackground(theme.surface)
 
                 Section {
                     NavigationLink {
@@ -149,6 +177,44 @@ struct SettingsView: View {
                 Text("Cached matters on this device will be removed.")
             }
         }
+    }
+
+    /// The photo, the name, and the title and organisation beneath — one element to VoiceOver,
+    /// read as the line it is.
+    private func accountHeader(_ user: User) -> some View {
+        HStack(spacing: Spacing.md) {
+            AccountAvatar(
+                photo: ProfilePhoto.source(of: user.avatar),
+                monogram: ProfilePhoto.monogram(name: user.name, email: user.email),
+                size: 48)
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(displayName(user))
+                    .font(.brand(.headline))
+                    .foregroundStyle(theme.textPrimary)
+                if let line = profileLine(user) {
+                    Text(line)
+                        .font(.brand(.subheadline))
+                        .foregroundStyle(theme.textSecondary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, Spacing.xxs)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("account-profile")
+    }
+
+    private func displayName(_ user: User) -> String {
+        let name = user.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return name.isEmpty ? "—" : name
+    }
+
+    /// "Advocate · Iyer Chambers", or whichever half there is.
+    private func profileLine(_ user: User) -> String? {
+        let parts = [user.title, user.organization]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     /// A section footer in the theme's own colours.

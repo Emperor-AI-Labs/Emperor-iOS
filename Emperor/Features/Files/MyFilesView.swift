@@ -26,6 +26,17 @@ struct MyFilesView: View {
     /// that append here each answer only their own tap.
     @State private var openFolders: [FolderRoute] = []
 
+    /// A document to open on arrival — a tapped search result (`SpotlightRouting`): its folders
+    /// are opened on the way down, and it is previewed.
+    private let opening: DocumentRoute?
+    /// How Done closes the screen when it was not presented by SwiftUI — see `TopPresenter`.
+    private let onDone: (() -> Void)?
+
+    init(opening: DocumentRoute? = nil, onDone: (() -> Void)? = nil) {
+        self.opening = opening
+        self.onDone = onDone
+    }
+
     var body: some View {
         NavigationStack(path: $openFolders) {
             Group {
@@ -41,7 +52,9 @@ struct MyFilesView: View {
             // gives it no back button; see `MoreView`.
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        if let onDone { onDone() } else { dismiss() }
+                    }
                 }
             }
             .navigationDestination(for: FolderRoute.self) { route in
@@ -53,8 +66,14 @@ struct MyFilesView: View {
                 guard model == nil else { return }
                 let created = MyFilesViewModel(
                     service: session.files, manager: session.fileManagement)
+                // Each reading of the library keeps the device's search in step with it.
+                created.onTreeLoaded = { AppSpotlight.shared.libraryLoaded($0) }
                 model = created
                 await created.load()
+                if let opening {
+                    openFolders = opening.folderStack.map { FolderRoute(path: $0) }
+                    created.requestPreview(of: opening.path)
+                }
             }
         }
     }
@@ -145,6 +164,13 @@ private struct LibraryScreen: View {
             // library until then, and this screen may have been open the whole time.
             .onReceive(NotificationCenter.default.publisher(for: .emperorUploadDidFinish)) { _ in
                 Task { await model.uploadDidFinish() }
+            }
+            // A document asked for from outside — a search result — previews on the screen of
+            // the folder it is in, once that screen is showing.
+            .onChange(of: model.pendingPreview, initial: true) { _, _ in
+                if let file = model.takePreview(in: path) {
+                    previewing = Previewing(file: file)
+                }
             }
     }
 

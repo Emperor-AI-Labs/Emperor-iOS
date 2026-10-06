@@ -86,6 +86,8 @@ struct MainTabView: View {
         .environment(\.navigator, navigator)
         // A tapped notification opens where it leads — the Calendar, or Updates.
         .routesNotificationTaps(to: navigator)
+        // A case or document tapped in the device's search opens here too.
+        .routesSpotlightResults(to: navigator)
         // The web marks the active item with `--ex-accent` and a soft pill behind the icon.
         // The colour ports; the pill does not — a custom indicator would mean rebuilding the
         // tab bar to draw something iOS already draws, and losing the platform's own

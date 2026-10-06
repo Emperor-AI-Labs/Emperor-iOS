@@ -1544,4 +1544,133 @@ final class EmperorUITests: XCTestCase {
         }
         return condition()
     }
+
+    // MARK: - Profile, documents shared in, and search
+
+    /// Settings → Edit profile opens on the account as it is, and a save reaches the server and
+    /// comes back: the stub echoes the account it was sent, and Settings shows the new name and
+    /// title from the session — not from the form.
+    func testEditingTheProfileSavesItAndSettingsShowsIt() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
+        app.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+
+        let edit = app.buttons["edit-profile"].firstMatch
+        scrollUntilHittable(edit, in: app)
+        XCTAssertTrue(edit.waitForExistence(timeout: 10), "Settings has no Edit profile row")
+        edit.tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 10))
+
+        let name = app.textFields["profile-name"].firstMatch
+        XCTAssertTrue(name.waitForExistence(timeout: 10), "no name field")
+        XCTAssertEqual(name.value as? String, "John Doe", "the form starts from the account")
+        XCTAssertFalse(app.buttons["profile-save"].firstMatch.isEnabled, "nothing to save yet")
+
+        // The cursor lands at the end of a short name in a wide field; a few deletes more than
+        // the name has are harmless.
+        name.focusForTyping()
+        let typed = (name.value as? String) ?? ""
+        name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: typed.count + 4))
+        name.typeText("John Q. Doe")
+
+        let title = app.textFields["profile-title"].firstMatch
+        XCTAssertTrue(title.exists, "no title field")
+        title.focusForTyping()
+        title.typeText("Advocate, Bombay High Court")
+
+        let save = app.buttons["profile-save"].firstMatch
+        XCTAssertTrue(save.isEnabled, "a real change can be saved")
+        save.tap()
+
+        XCTAssertTrue(
+            app.navigationBars["Settings"].waitForExistence(timeout: 10),
+            "saving did not return to Settings")
+        let account = app.descendants(matching: .any)["account-profile"].firstMatch
+        XCTAssertTrue(account.waitForExistence(timeout: 10), "Settings has no account header")
+        var polls = 0
+        while !account.label.contains("John Q. Doe") && polls < 40 {
+            Thread.sleep(forTimeInterval: 0.25)
+            polls += 1
+        }
+        XCTAssertTrue(account.label.contains("John Q. Doe"), "Settings did not show the saved name")
+        XCTAssertTrue(
+            account.label.contains("Advocate, Bombay High Court"), "Settings did not show the title")
+    }
+
+    /// A document handed to the app before anyone signs in waits for sign-in, then opens "Save to
+    /// My Files" on its own name; choosing a folder and saving reaches the stub's upload route.
+    ///
+    /// The document is handed over by `-UITestIncomingDocument`, through the same handler
+    /// `onOpenURL` calls — a UI test cannot drive another app's "Open in".
+    func testADocumentHandedToTheAppIsSavedToMyFiles() {
+        let app = launch("-UITestIncomingDocument")
+        XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 10))
+        XCTAssertFalse(
+            app.navigationBars["Save to My Files"].exists, "nothing is asked before sign-in")
+        signIn(app)
+
+        let bar = app.navigationBars["Save to My Files"]
+        XCTAssertTrue(bar.waitForExistence(timeout: 15), "the document was not offered after sign-in")
+        let name = app.textFields["incoming-name"].firstMatch
+        XCTAssertTrue(name.waitForExistence(timeout: 5), "no name field")
+        XCTAssertEqual(name.value as? String, "Sample Order", "named as it arrived, type aside")
+
+        let folder = app.buttons["incoming-folder"].firstMatch
+        XCTAssertTrue(folder.waitForExistence(timeout: 5), "no folder choice")
+        folder.tap()
+        let bakshi = app.buttons["incoming-folder-Bakshi"].firstMatch
+        XCTAssertTrue(bakshi.waitForExistence(timeout: 10), "the library's folders were not offered")
+        XCTAssertTrue(app.buttons["incoming-folder-Bakshi/Orders"].firstMatch.exists, "sub-folders too")
+        bakshi.tap()
+        XCTAssertTrue(bar.waitForExistence(timeout: 5), "choosing a folder did not return to the form")
+
+        let save = app.buttons["incoming-save"].firstMatch
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
+        save.tap()
+        XCTAssertTrue(
+            app.staticTexts["Uploading to Bakshi"].firstMatch.waitForExistence(timeout: 15),
+            "saving did not reach the upload")
+
+        app.buttons["incoming-done"].firstMatch.tap()
+        var polls = 0
+        while bar.exists && polls < 40 {
+            Thread.sleep(forTimeInterval: 0.25)
+            polls += 1
+        }
+        XCTAssertFalse(bar.exists, "the sheet did not close once the last document was saved")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    /// "Don't save" lets a document go without uploading it, and the sheet closes.
+    func testADocumentHandedToTheAppCanBeLetGo() {
+        let app = signIn(launch("-UITestIncomingDocument"))
+        let bar = app.navigationBars["Save to My Files"]
+        XCTAssertTrue(bar.waitForExistence(timeout: 15), "the document was not offered")
+        app.buttons["incoming-dont-save"].firstMatch.tap()
+        var polls = 0
+        while bar.exists && polls < 40 {
+            Thread.sleep(forTimeInterval: 0.25)
+            polls += 1
+        }
+        XCTAssertFalse(bar.exists)
+        XCTAssertTrue(app.tab("Home").exists)
+    }
+
+    /// Settings → Search: "Show in Spotlight search", on by default, and it turns.
+    func testTheSpotlightSwitchIsInSettings() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
+        app.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+
+        let toggle = app.switches["spotlight-toggle"].firstMatch
+        scrollUntilHittable(toggle, in: app)
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10), "Settings has no Spotlight switch")
+        XCTAssertEqual(toggle.value as? String, "1", "on until turned off")
+        flip(toggle, to: "0")
+        flip(toggle, to: "1")
+    }
 }

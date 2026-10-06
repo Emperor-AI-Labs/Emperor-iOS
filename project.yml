@@ -91,6 +91,32 @@ targets:
           - fetch
         BGTaskSchedulerPermittedIdentifiers:
           - com.emperorailabs.emperor.refresh
+        # "Open in Emperor" and the share sheet, for the documents the library holds — PDF, Word
+        # and photos. `Alternate`, so Emperor is offered beside the usual app, never in place of
+        # it. With opening in place off, iOS hands the app a copy in its own inbox, which
+        # `AppIncomingDocuments` takes from there. Deliberately not a share extension: that would
+        # need an app group, which a free Apple ID's signing may rename or drop. HEIC photos are
+        # converted to JPEG on the way into the library, which does not hold HEIC.
+        LSSupportsOpeningDocumentsInPlace: false
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: PDF Document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - com.adobe.pdf
+          - CFBundleTypeName: Word Document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - org.openxmlformats.wordprocessingml.document
+              - com.microsoft.word.doc
+          - CFBundleTypeName: Image
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - public.jpeg
+              - public.png
+              - public.heic
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:

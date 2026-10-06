@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreSpotlight
 
 @main
 struct EmperorApp: App {
@@ -51,6 +52,14 @@ struct EmperorApp: App {
             if wantsRoleWelcome {
                 UserDefaults.standard.removeObject(forKey: PractitionerRole.storageKey)
             }
+
+            // A document handed to the app, as "Open in Emperor" would hand it over — through
+            // the same handler `onOpenURL` uses, before anyone has signed in, so the test also
+            // covers a document waiting for sign-in.
+            if ProcessInfo.processInfo.arguments.contains("-UITestIncomingDocument"),
+               let sample = UITestSupport.sampleIncomingDocument() {
+                AppIncomingDocuments.shared.handle(sample)
+            }
         }
         #endif
     }
@@ -79,6 +88,9 @@ struct EmperorApp: App {
             UserDefaults.standard.removeObject(forKey: NotificationPreferences.storageKey)
             UserDefaults.standard.removeObject(forKey: SeenUpdates.storageKey)
             AppNotifications.shared.session = session
+            // The search setting starts on every run, for the same reason.
+            UserDefaults.standard.removeObject(forKey: SpotlightPreference.disabledKey)
+            AppSpotlight.shared.session = session
             return session
         }
         #endif
@@ -90,6 +102,11 @@ struct EmperorApp: App {
                 store: NotifyingCacheStore(
                     base: FileCacheStore(directory: FileCacheStore.defaultDirectory()),
                     onWrite: { key in
+                        // The docket, likewise, keeps the device's search in step — see
+                        // `AppSpotlight`.
+                        if key == ResponseCache.Key.caseList.rawValue {
+                            Task { @MainActor in AppSpotlight.shared.caseListChanged() }
+                        }
                         guard key == ResponseCache.Key.causeList.rawValue else { return }
                         Task { @MainActor in AppNotifications.shared.causeListChanged() }
                     }),
@@ -102,6 +119,7 @@ struct EmperorApp: App {
         // Handed over here because this runs on every launch, including the background launch
         // a refresh arrives in, where no view will ever exist to pass it on.
         AppNotifications.shared.session = session
+        AppSpotlight.shared.session = session
         return session
     }
 
@@ -112,6 +130,9 @@ struct EmperorApp: App {
                 .environment(appLock)
                 .task {
                     await session.restore()
+                    // Empties the device's search if it should be empty, or brings it up to the
+                    // cached docket — see `AppSpotlight`.
+                    AppSpotlight.shared.launched()
                     // The stored account can be weeks old, and the token is renewed by reading
                     // it — see `Session.refreshAccount`.
                     await session.refreshAccount()
@@ -217,6 +238,22 @@ struct RootView: View {
                 hasAcknowledgedDisclaimer = Disclaimer.hasAcknowledged(preferences)
             }
         }
+        // A document another app handed over ("Open in Emperor"). Only a file URL is taken here;
+        // any other URL is left to its own handler.
+        .onOpenURL { url in
+            AppIncomingDocuments.shared.handle(url)
+        }
+        // A case or document tapped in the device's search — see `SpotlightRouting`.
+        .onContinueUserActivity(CSSearchableItemActionType) { activity in
+            AppSpotlight.shared.open(activity)
+        }
+        // Signing out empties the device's search and lets go of any document still waiting to
+        // be filed: both belong to the account that just left.
+        .onChange(of: session.currentUser?.id) { old, new in
+            guard old != nil, new == nil else { return }
+            AppSpotlight.shared.signedOut()
+            AppIncomingDocuments.shared.queue.discardAll()
+        }
     }
 
     /// Who is signed in and the role their account holds, as one value to watch: a different
@@ -272,6 +309,9 @@ struct RootView: View {
                 }
             } else {
                 MainTabView()
+                    // Documents handed over by other apps are asked about here, once the
+                    // signed-in app is showing — see `IncomingDocumentPresenting`.
+                    .presentsIncomingDocuments()
             }
         }
     }

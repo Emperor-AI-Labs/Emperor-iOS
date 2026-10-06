@@ -16,6 +16,28 @@ struct CaseRoute: Hashable, Sendable {
     var request: Int = 0
 }
 
+/// A document some other part of the app has asked My Files to open — a tapped search result.
+struct DocumentRoute: Hashable, Sendable {
+    /// The document's path in the library, `/`-joined as `/user-files` reports it.
+    let path: String
+    /// Which request asked for it, so asking again for the same document is still a change.
+    var request: Int = 0
+
+    /// The folder the document is filed in, `""` for the top level.
+    var folderPath: String {
+        guard let slash = path.lastIndex(of: "/") else { return "" }
+        return String(path[path.startIndex..<slash])
+    }
+
+    /// The folders to open on the way down to it, outermost first — `Bakshi`, then
+    /// `Bakshi/Orders` — so Back from the document's folder climbs the library as it would had
+    /// each folder been opened by hand.
+    var folderStack: [String] {
+        let parts = folderPath.split(separator: "/").map(String.init)
+        return parts.indices.map { parts[0...$0].joined(separator: "/") }
+    }
+}
+
 /// Navigation that crosses tabs: which tab is showing, and a case some other tab has asked the
 /// Cases tab to open.
 ///
@@ -74,5 +96,41 @@ final class AppNavigator {
         guard let route = pendingCase else { return nil }
         pendingCase = nil
         return [route]
+    }
+
+    // MARK: - Documents
+
+    /// A document waiting to be shown in My Files, not yet taken.
+    private(set) var pendingDocument: DocumentRoute?
+
+    /// Shows a document: My Files, open on its folder, previewing it.
+    ///
+    /// The tab is left as it is. My Files is presented over whatever is showing rather than
+    /// being a tab, so there is nothing to switch to — and closing it returns the person to where
+    /// they were. The latest request wins, as with a case.
+    func openDocument(path: String) {
+        // Blank segments are dropped, so a stray or doubled slash still finds the document.
+        let normalized = path.split(separator: "/")
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .joined(separator: "/")
+        guard !normalized.isEmpty else { return }
+        requestCount += 1
+        pendingDocument = DocumentRoute(path: normalized, request: requestCount)
+    }
+
+    /// The waiting document, once. Taking it clears it.
+    func takePendingDocument() -> DocumentRoute? {
+        defer { pendingDocument = nil }
+        return pendingDocument
+    }
+
+    // MARK: - Search results
+
+    /// Opens where a tapped search result leads.
+    func open(_ target: SpotlightTarget) {
+        switch target {
+        case .caseDetail(let id): openCase(id)
+        case .document(let path): openDocument(path: path)
+        }
     }
 }
