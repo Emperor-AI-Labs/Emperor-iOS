@@ -176,8 +176,64 @@ enum UITestSupport {
             """
             {"success":true,"cases":[{"id":"case1","title":"Bakshi v. State of Maharashtra",\
             "court_name":"Bombay High Court","case_number":"1234","case_year":"2025",\
-            "next_hearing_date":"\(dayKey(0))"}]}
+            "next_hearing_date":"\(dayKey(0))"},\(docketBody())]}
             """
+        }
+
+        /// The rest of the docket: a matter under every court heading, so the Cases tab has its
+        /// headings to draw in order and its sorts and filters something to sort and filter.
+        ///
+        /// Each is stamped the way the court lookup saves one — `court_type`, `court_code` and
+        /// the court's own name — while `case1` above carries no type at all and is placed by its
+        /// name, as an older case would be. Two High Courts besides Bombay, so that heading holds
+        /// more than one. **No hearing is today**: the Calendar opens on today, and its tests
+        /// expect `case1` to be the only listing there. Some came from the court and some were
+        /// typed in, for the source filter; some have no hearing date, for the hearing filter.
+        private static func docketBody() -> String {
+            let synced = #""last_synced_at":"2026-10-05T22:00:00.000Z""#
+            return """
+                {"id":"case-sc","title":"Rao v. Union of India","court_type":"sc",\
+                "court_code":"sc","court_name":"Supreme Court of India","case_type":"SLP(C)",\
+                "case_number":"8812","case_year":"2025","diary_number":"41207/2025",\
+                "stage":"For admission","next_hearing_date":"\(dayKey(6))",\
+                "filing_date":"2025-03-18","updated_at":"2026-10-05T22:00:00.000Z",\(synced)},\
+                {"id":"case-hc-delhi","title":"Kapoor Textiles Pvt. Ltd. v. Commissioner of Customs",\
+                "court_type":"hc","court_code":"hc-delhi","court_name":"High Court of Delhi",\
+                "case_type":"W.P.(C)","case_number":"10421","case_year":"2024",\
+                "cnr":"DLHC010104212024","judge":"Hon'ble Ms. Justice R. Menon",\
+                "stage":"Arguments","next_hearing_date":"\(dayKey(2))",\
+                "filing_date":"2024-06-01","updated_at":"2026-10-04T09:30:00.000Z",\(synced)},\
+                {"id":"case-hc-madras","title":"Lakshmi Spinning Mills v. Regional Provident Fund Commissioner",\
+                "court_type":"hc","court_code":"hc-madras","court_name":"Madras High Court",\
+                "case_type":"W.A.","case_number":"2210","case_year":"2023","status":"Pending",\
+                "filing_date":"2023-07-14","updated_at":"2026-07-02 08:15:00"},\
+                {"id":"case-nclat","title":"Creditors of Sunrise Alloys Ltd. v. Resolution Professional",\
+                "court_type":"nclat","court_code":"trib-nclat",\
+                "court_name":"National Company Law Appellate Tribunal, New Delhi",\
+                "case_type":"Comp. App. (AT) (Ins.)","case_number":"512","case_year":"2025",\
+                "stage":"Final arguments","next_hearing_date":"\(dayKey(9))",\
+                "filing_date":"2025-05-05","updated_at":"2026-10-01T12:00:00.000Z",\(synced)},\
+                {"id":"case-nclt","title":"Meridian Finance Ltd. v. Prakash Infra Projects Pvt. Ltd.",\
+                "court_type":"nclt","court_code":"trib-nclt","court_name":"NCLT Mumbai Bench",\
+                "case_type":"C.P. (IB)","case_number":"1187","case_year":"2024",\
+                "stage":"Reserved for orders","next_hearing_date":"\(dayKey(-12))",\
+                "filing_date":"2024-02-12","updated_at":"2026-09-20 11:00:00"},\
+                {"id":"case-drt","title":"Western Coast Bank v. Mehta Exports",\
+                "court_type":"tribunal","court_code":"trib-drt",\
+                "court_name":"Debts Recovery Tribunal-I, Mumbai","case_type":"O.A.",\
+                "case_number":"233","case_year":"2023","status":"Pending",\
+                "updated_at":"2026-08-11T10:00:00.000Z"},\
+                {"id":"case-district","title":"Desai v. Desai","court_type":"district",\
+                "court_code":"dist-family","court_name":"Family Court, Bandra",\
+                "case_type":"M.J. Petition","case_number":"1450","case_year":"2025",\
+                "stage":"Mediation","next_hearing_date":"\(dayKey(15))",\
+                "filing_date":"2025-08-01"},\
+                {"id":"case-forum","title":"Iyer v. Skyline Builders","court_type":"forum",\
+                "court_code":"forum-scdrc",\
+                "court_name":"State Consumer Disputes Redressal Commission, Maharashtra",\
+                "case_type":"C.C.","case_number":"88","case_year":"2024","stage":"Evidence",\
+                "next_hearing_date":"\(dayKey(-30))","filing_date":"2024-04-22",\(synced)}
+                """
         }
 
         private static func caseBody() -> String {

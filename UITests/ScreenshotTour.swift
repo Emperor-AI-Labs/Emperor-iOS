@@ -89,8 +89,30 @@ final class ScreenshotTour: XCTestCase {
         app.tab("Cases").tap()
         snap("cases")
 
-        // Finding a case at the court — the form before a court is chosen.
-        let find = app.buttons["Find a case"].firstMatch
+        // The docket's sort & filter sheet — half height on a phone, then pulled up to show
+        // every filter — and the docket once a court is chosen: its chip under the search bar,
+        // the toolbar icon filled. Cleared afterwards so the rest of the tour sees every case.
+        let arrange = app.buttons["case-sort-filter"]
+        if arrange.waitForExistence(timeout: 5) {
+            arrange.tap()
+            let sheetBar = app.navigationBars["Sort & filter"]
+            if sheetBar.waitForExistence(timeout: 5) {
+                snap("cases-sort-filter")
+                sheetBar.swipeUp()
+                let highCourts = app.buttons["case-filter-court-hc"]
+                if highCourts.waitForExistence(timeout: 3), highCourts.isHittable {
+                    highCourts.tap()
+                }
+                snap("cases-sort-filter-full")
+                tapIfPresent(sheetBar.buttons["Done"])
+                snap("cases-filtered")
+                tapIfPresent(app.buttons["case-filters-clear-all"])
+            }
+        }
+
+        // Finding a case at the court — the form before a court is chosen. "Add case" in the
+        // toolbar opens it.
+        let find = app.buttons["Add case"].firstMatch
         if find.waitForExistence(timeout: 5) {
             find.tap()
             if app.navigationBars["Find a case"].waitForExistence(timeout: 10) {

@@ -430,8 +430,8 @@ final class EmperorUITests: XCTestCase {
         let app = signIn(launch())
         XCTAssertTrue(app.tab("Cases").waitForExistence(timeout: 10))
         app.tab("Cases").tap()
-        // The toolbar "+" carries the sheet's own title as its accessibility label.
-        app.buttons["Find a case"].firstMatch.tap()
+        // The toolbar's "Add case" opens the lookup, which is titled for what it does first.
+        app.buttons["Add case"].firstMatch.tap()
 
         XCTAssertTrue(
             app.navigationBars["Find a case"].waitForExistence(timeout: 10),
@@ -478,7 +478,7 @@ final class EmperorUITests: XCTestCase {
         let app = signIn(launch())
         XCTAssertTrue(app.tab("Cases").waitForExistence(timeout: 10))
         app.tab("Cases").tap()
-        app.buttons["Find a case"].firstMatch.tap()
+        app.buttons["Add case"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["Find a case"].waitForExistence(timeout: 10))
 
         app.buttons["court-picker"].tap()
@@ -1003,5 +1003,182 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(modes.waitForExistence(timeout: 5), "the OCR | Translate switch is missing")
         XCTAssertTrue(modes.buttons["Translate"].isSelected)
         XCTAssertFalse(modes.buttons["OCR"].isSelected)
+    }
+
+    // MARK: - Cases: court headings, sort & filter, and the docket's own search
+
+    /// The docket is headed by court, in order of importance — the stub has a matter under every
+    /// heading but "Other courts". Read off the screen as it scrolls, a little at a time, because
+    /// a list only builds the rows near the screen: each pass adds the headings it can see, top
+    /// to bottom, and the order they were first seen in is the order they are drawn in.
+    func testTheDocketIsHeadedByCourtInOrderOfImportance() {
+        let app = signIn(launch())
+        openCases(app)
+
+        let headings = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "case-group-"))
+        XCTAssertTrue(headings.firstMatch.waitForExistence(timeout: 10), "the docket has no headings")
+
+        let expected = ["sc", "hc", "nclat", "nclt", "tribunal", "district", "forum"]
+        var seen: [String] = []
+        for _ in 0..<12 {
+            let onScreen = headings.allElementsBoundByIndex
+                .filter { $0.exists }
+                .sorted { $0.frame.minY < $1.frame.minY }
+                .map { String($0.identifier.dropFirst("case-group-".count)) }
+            for key in onScreen where !seen.contains(key) {
+                seen.append(key)
+            }
+            if seen.count >= expected.count { break }
+            nudgeUp(app)
+        }
+        XCTAssertEqual(seen, expected, "the court headings are not in order of importance")
+    }
+
+    /// The docket has a search bar of its own, always on screen, that searches the user's own
+    /// cases — by party, by a diary number — and says so when nothing matches, with a way back.
+    /// Adding a case is a separate, labelled control.
+    func testTheDocketsSearchBarSearchesYourOwnCases() {
+        let app = signIn(launch())
+        openCases(app)
+
+        let search = app.searchFields["Search your cases"]
+        XCTAssertTrue(search.waitForExistence(timeout: 10), "the docket has no search bar")
+        XCTAssertTrue(app.buttons["Add case"].exists, "adding a case is not its own control")
+        XCTAssertTrue(caseRow(app, "case-sc").waitForExistence(timeout: 10))
+
+        search.tap()
+        search.typeText("Kapoor")
+        XCTAssertTrue(caseRow(app, "case-hc-delhi").waitForExistence(timeout: 5),
+                      "the search did not find the matter by party")
+        XCTAssertFalse(caseRow(app, "case-sc").exists, "the search did not narrow the docket")
+        XCTAssertFalse(caseRow(app, "case1").exists, "the search did not narrow the docket")
+
+        search.buttons["Clear text"].tap()
+        search.typeText("41207/2025")
+        XCTAssertTrue(caseRow(app, "case-sc").waitForExistence(timeout: 5),
+                      "the search did not find the matter by diary number")
+        XCTAssertFalse(caseRow(app, "case-hc-delhi").exists)
+
+        search.buttons["Clear text"].tap()
+        search.typeText("zzzz")
+        let clear = app.buttons["case-no-matches-clear"]
+        XCTAssertTrue(clear.waitForExistence(timeout: 5), "nothing matching does not say so")
+        clear.tap()
+        XCTAssertTrue(caseRow(app, "case1").waitForExistence(timeout: 5),
+                      "clearing did not bring the docket back")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    /// Choosing a sort, a grouping and a court filter changes the docket; the filter shows as a
+    /// chip and on the toolbar button; Clear all brings every court back.
+    func testSortingAndFilteringChangeTheDocketAndClearAllRestoresIt() {
+        let app = signIn(launch())
+        openCases(app)
+
+        let arrange = app.buttons["case-sort-filter"]
+        XCTAssertTrue(arrange.waitForExistence(timeout: 10), "there is no sort & filter control")
+        XCTAssertTrue(caseRow(app, "case-sc").waitForExistence(timeout: 10))
+        XCTAssertEqual(arrange.value as? String, "No filters")
+
+        arrange.tap()
+        XCTAssertTrue(app.navigationBars["Sort & filter"].waitForExistence(timeout: 5),
+                      "the sort & filter sheet did not open")
+        app.buttons["Name A–Z"].firstMatch.tap()
+        app.segmentedControls.buttons["None"].tap()
+        let highCourts = app.buttons["case-filter-court-hc"]
+        revealInArrangementSheet(highCourts, app)
+        highCourts.tap()
+        app.navigationBars["Sort & filter"].buttons["Done"].tap()
+
+        // One heading, High Courts only, by name: Bakshi, Kapoor, Lakshmi.
+        XCTAssertTrue(
+            app.descendants(matching: .any).matching(identifier: "case-group-all").firstMatch
+                .waitForExistence(timeout: 5),
+            "choosing no grouping did not make one list")
+        let rows = ["case1", "case-hc-delhi", "case-hc-madras"].map { caseRow(app, $0) }
+        for row in rows {
+            XCTAssertTrue(row.waitForExistence(timeout: 5), "a High Court matter is missing")
+        }
+        XCTAssertLessThan(rows[0].frame.minY, rows[1].frame.minY, "not sorted by name")
+        XCTAssertLessThan(rows[1].frame.minY, rows[2].frame.minY, "not sorted by name")
+        XCTAssertFalse(caseRow(app, "case-sc").exists, "the court filter did not apply")
+
+        let chip = app.buttons["case-filter-chip-court-hc"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5), "the filter is not shown as a chip")
+        XCTAssertEqual(arrange.value as? String, "1 filter on")
+
+        app.buttons["case-filters-clear-all"].tap()
+        // Creditors… (NCLAT) is second by name, so it is on screen on any device.
+        XCTAssertTrue(caseRow(app, "case-nclat").waitForExistence(timeout: 5),
+                      "Clear all did not bring the other courts back")
+        XCTAssertFalse(chip.exists, "the chip outlived its filter")
+        XCTAssertEqual(arrange.value as? String, "No filters")
+    }
+
+    /// A filter that hides every case says so, rather than showing a blank list, and its Clear
+    /// brings them back.
+    func testAFilterThatHidesEverythingSaysSoAndCanBeCleared() {
+        let app = signIn(launch())
+        openCases(app)
+
+        let arrange = app.buttons["case-sort-filter"]
+        XCTAssertTrue(arrange.waitForExistence(timeout: 10))
+        arrange.tap()
+        XCTAssertTrue(app.navigationBars["Sort & filter"].waitForExistence(timeout: 5))
+        // The Supreme Court matter came from the court, so "Added by hand" leaves nothing.
+        for filter in ["case-filter-court-sc", "case-filter-source-manual"] {
+            let row = app.buttons[filter]
+            revealInArrangementSheet(row, app)
+            row.tap()
+        }
+        app.navigationBars["Sort & filter"].buttons["Done"].tap()
+
+        XCTAssertTrue(app.staticTexts["No cases match these filters"].waitForExistence(timeout: 5),
+                      "a filtered-out docket did not say so")
+        let clear = app.buttons["case-no-matches-clear"]
+        XCTAssertTrue(clear.waitForExistence(timeout: 5))
+        clear.tap()
+        XCTAssertTrue(caseRow(app, "case-sc").waitForExistence(timeout: 5),
+                      "Clear did not bring the docket back")
+    }
+
+    private func openCases(_ app: XCUIApplication) {
+        XCTAssertTrue(app.tab("Cases").waitForExistence(timeout: 10))
+        app.tab("Cases").tap()
+        XCTAssertTrue(app.navigationBars["Cases"].waitForExistence(timeout: 10))
+    }
+
+    /// A docket row, by the case's id — its label is the whole row read aloud.
+    private func caseRow(_ app: XCUIApplication, _ id: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: "case-row-\(id)").firstMatch
+    }
+
+    /// Scrolls the docket by about a third of the screen, slowly and without a fling, so no
+    /// heading can pass from below the screen to above it between two looks.
+    private func nudgeUp(_ app: XCUIApplication) {
+        let window = app.windows.firstMatch
+        let from = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+        let to = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
+        from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 0.2)
+    }
+
+    /// The sheet opens at half height on a phone, with the filters below the fold: pull it to
+    /// full height by its bar, then scroll inside it until the row can be tapped.
+    private func revealInArrangementSheet(_ element: XCUIElement, _ app: XCUIApplication) {
+        let bar = app.navigationBars["Sort & filter"]
+        var tries = 0
+        while !(element.exists && element.isHittable), tries < 6 {
+            if tries == 0 {
+                bar.swipeUp()
+            } else {
+                let start = bar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 6))
+                let end = start.withOffset(CGVector(dx: 0, dy: -180))
+                start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow,
+                            thenHoldForDuration: 0.2)
+            }
+            tries += 1
+        }
+        XCTAssertTrue(element.exists && element.isHittable, "\(element) is not reachable in the sheet")
     }
 }

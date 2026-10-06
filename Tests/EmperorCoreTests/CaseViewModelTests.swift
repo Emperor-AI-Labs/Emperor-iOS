@@ -35,8 +35,12 @@ final class CaseViewModelTests: XCTestCase {
     /// Grouped by when the matter is next in court, not by `updated_at` — the server's ordering
     /// (`sync-server.js:9682`) would move a matter to the top of the docket just for having a
     /// note added to it.
+    ///
+    /// The docket is headed by court unless the user chooses otherwise, so these hearing-date
+    /// tests choose it; `CaseListOrganisationTests` covers the court headings.
     func testCasesGroupByWhenTheyAreNextInCourt() async {
         await withCaseList { service, model in
+            model.grouping = .hearingDate
             service.cases = [
                 Self.legalCase("past", nextHearing: "2026-08-01"),
                 Self.legalCase("soon", nextHearing: "2026-09-20"),
@@ -58,6 +62,7 @@ final class CaseViewModelTests: XCTestCase {
     /// support.
     func testThePastGroupIsNotCalledOverdue() async {
         await withCaseList { service, model in
+            model.grouping = .hearingDate
             service.cases = [Self.legalCase("past", nextHearing: "2026-08-01")]
             await model.load()
 
@@ -68,6 +73,7 @@ final class CaseViewModelTests: XCTestCase {
     /// A hearing today belongs with what is upcoming, not with what has passed.
     func testTodaysHearingCountsAsUpcoming() async {
         await withCaseList { service, model in
+            model.grouping = .hearingDate
             service.cases = [Self.legalCase("today", nextHearing: "2026-09-14")]
             await model.load()
 
@@ -77,6 +83,7 @@ final class CaseViewModelTests: XCTestCase {
 
     func testEmptyGroupsAreOmitted() async {
         await withCaseList { service, model in
+            model.grouping = .hearingDate
             service.cases = [Self.legalCase("only", nextHearing: "2026-09-20")]
             await model.load()
 

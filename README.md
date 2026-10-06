@@ -114,7 +114,7 @@ enum rather than free text.
 
 **`ChatModel` is an enum because only these aliases are supported.** An unrecognised one is not
 rejected locally, so a typo becomes a request for a model that does not exist. `preferred_model`
-from the login response is only a seed for the picker; the per-request value wins
+from the login response only seeds the composer's Quick | Thinking switch; the per-request value wins
 unconditionally.
 
 **Artifact wrappers are a claim, not a fact.** The platform records a live incident
@@ -208,6 +208,12 @@ above, and `AnswerCitations` keeps the two apart.
 
 ### Matters and calendars
 
+- **`court_type` is `'district'` by default** — the `cases` column's default, and what
+  `/save-case` writes when no type is sent. `CourtTier` lets a court code or name that says
+  otherwise outrank a stored `district`, and reads the code and name whenever the type is
+  missing. The docket's headings run Supreme Court → High Courts → NCLAT → NCLT → Tribunals →
+  District Courts → Consumer Commissions → Other courts; NCLAT sits above NCLT deliberately,
+  unlike the web's `COURT_ORDER`.
 - **`/compliance-calendar` returns a bare array**, and `next_due_date` can be prose — read the
   day from `dateKey`.
 - **`/calendar/feed-url` returns a path that already starts with `/api`**, so it is resolved
