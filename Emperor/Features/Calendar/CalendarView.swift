@@ -14,6 +14,14 @@ import SwiftUI
 ///
 /// Every date is a day in India (README trap 9); the grid and "today" are pinned to it.
 ///
+/// ## Opened on a day from outside
+///
+/// A tapped hearing reminder, the Today widget and the app's `emperor://calendar?day=` link all
+/// ask `AppNavigator` for a day. This takes it the way the Cases tab takes a case — when it
+/// appears, or when the request arrives while it is already alive — selects the day, and scrolls
+/// back to the month so the day's listings are what is on screen. A request that arrives before
+/// the screen has made its model is taken as the model is made, before the first load.
+///
 /// ## Subscribing from the Calendar app
 ///
 /// **Subscribe** opens `CalendarSubscriptionSheet`: the user's private feed link, handed to the
@@ -41,6 +49,11 @@ struct CalendarView: View {
     @State private var isSubscribing = false
     /// The month steps, scaled with the heading they sit beside.
     @ScaledMetric(relativeTo: .footnote) private var stepSide: CGFloat = 32
+    /// Counts days opened from outside, each of which scrolls back up to the month.
+    @State private var openedDays = 0
+
+    /// The month grid's row, which a day opened from outside scrolls to.
+    private static let monthRowID = "calendar-month"
 
     var body: some View {
         NavigationStack {
@@ -70,64 +83,84 @@ struct CalendarView: View {
                     calendar: session.calendar,
                     caseService: session.cases,
                     cache: session.cache)
+                // A day asked for before this screen existed — the tap that launched the app.
+                if let day = navigator.takePendingDay() { created.select(day: day) }
                 model = created
                 await created.load()
             }
         }
+        // Both, as the Cases tab does: a tab never shown before is created by the switch the
+        // request causes, and one already alive sees the request change instead.
+        .onAppear { openRequestedDay() }
+        .onChange(of: navigator.pendingDay) { _, _ in openRequestedDay() }
+    }
+
+    /// Selects a day asked for from outside. Left waiting until the model exists — the `.task`
+    /// above takes it then.
+    private func openRequestedDay() {
+        guard let model, let day = navigator.takePendingDay() else { return }
+        model.select(day: day)
+        openedDays += 1
     }
 
     @ViewBuilder
     private func content(_ model: CalendarViewModel) -> some View {
         ListStateView(presentation: model.presentation, retry: { await model.load() }) {
-            List {
-                monthSection(model)
+            ScrollViewReader { proxy in
+                List {
+                    monthSection(model)
 
-                // Read once: it filters the diary for the day.
-                let day = model.selectedCalendarDay
-                listingsSection(day, model)
-                if !day.events.isEmpty {
-                    Section {
-                        ForEach(day.events) { event in
-                            eventRow(event, model)
+                    // Read once: it filters the diary for the day.
+                    let day = model.selectedCalendarDay
+                    listingsSection(day, model)
+                    if !day.events.isEmpty {
+                        Section {
+                            ForEach(day.events) { event in
+                                eventRow(event, model)
+                            }
+                        } header: {
+                            SectionHeader(title: "Diary", detail: "\(day.events.count)")
                         }
-                    } header: {
-                        SectionHeader(title: "Diary", detail: "\(day.events.count)")
+                        .listRowBackground(theme.surface)
                     }
-                    .listRowBackground(theme.surface)
+
+                    if !model.overdue.isEmpty {
+                        Section {
+                            ForEach(model.overdue) { event in
+                                eventRow(event, model)
+                            }
+                        } header: {
+                            SectionHeader(
+                                title: "Past due", detail: "\(model.overdue.count) open")
+                        }
+                        .listRowBackground(theme.surface)
+                    }
+
+                    // The selected day is listed in full directly above, so the agenda leaves it
+                    // out rather than printing the same day twice on one screen.
+                    ForEach(model.upcoming(excluding: model.selectedDay)) { upcoming in
+                        Section {
+                            ForEach(upcoming.listings) { listing in
+                                listingButton(listing)
+                            }
+                            ForEach(upcoming.events) { event in
+                                eventRow(event, model)
+                            }
+                        } header: {
+                            SectionHeader(title: DisplayText.longDay(upcoming.key))
+                        }
+                        .listRowBackground(theme.surface)
+                    }
                 }
-
-                if !model.overdue.isEmpty {
-                    Section {
-                        ForEach(model.overdue) { event in
-                            eventRow(event, model)
-                        }
-                    } header: {
-                        SectionHeader(
-                            title: "Past due", detail: "\(model.overdue.count) open")
-                    }
-                    .listRowBackground(theme.surface)
-                }
-
-                // The selected day is listed in full directly above, so the agenda leaves it
-                // out rather than printing the same day twice on one screen.
-                ForEach(model.upcoming(excluding: model.selectedDay)) { upcoming in
-                    Section {
-                        ForEach(upcoming.listings) { listing in
-                            listingButton(listing)
-                        }
-                        ForEach(upcoming.events) { event in
-                            eventRow(event, model)
-                        }
-                    } header: {
-                        SectionHeader(title: DisplayText.longDay(upcoming.key))
-                    }
-                    .listRowBackground(theme.surface)
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
+                .background(theme.canvas)
+                .refreshable { await model.load() }
+                // A day opened from outside: back up to the month, the day just below it.
+                .onChange(of: openedDays) { _, _ in
+                    withAnimation { proxy.scrollTo(Self.monthRowID, anchor: .top) }
                 }
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(theme.canvas)
-            .refreshable { await model.load() }
         } empty: {
             // Should be unreachable: `presentation` reports empty only before the first load
             // returns, and that shows a spinner or a failure instead. Left as something legible
@@ -206,6 +239,7 @@ struct CalendarView: View {
             }
             .padding(.vertical, Spacing.xxs)
             .listRowInsets(EdgeInsets(top: 12, leading: 10, bottom: 10, trailing: 10))
+            .id(Self.monthRowID)
         } header: {
             monthHeader(model)
         }

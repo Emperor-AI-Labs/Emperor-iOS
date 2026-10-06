@@ -240,6 +240,20 @@ final class NotificationCoordinator {
         }
     }
 
+    /// The Updates screen learned the unread count — it marked something read, or loaded the
+    /// feed: the app-icon badge follows at once, rather than staying on the old count until the
+    /// next time the app comes back.
+    ///
+    /// Only while notifications are on and allowed, as every pass sets it; otherwise the badge
+    /// was cleared when they were turned off and stays clear.
+    func unreadCountChanged(_ count: Int) async {
+        await serially { [self] in
+            guard await isActive() else { return true }
+            await scheduler.setBadge(count)
+            return true
+        }
+    }
+
     /// "Send a test notification". Returns whether it was sent.
     func sendTest() async -> Bool {
         guard await isActive() else { return false }

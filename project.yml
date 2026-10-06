@@ -19,6 +19,12 @@ settings:
     # intermittent streaming glitches.
     SWIFT_STRICT_CONCURRENCY: complete
     DEVELOPMENT_TEAM: "" # set this to your Apple Developer team id before archiving
+    # The app group the app and its Today widget share (`AppGroup`). Both targets declare it in
+    # their `.entitlements` and carry it in Info.plist as `EmperorAppGroup`. A build re-signed by
+    # a sideloading tool may be given a differently named group, or none; both targets then look
+    # for `group.` + the app's installed bundle id, and failing that the widget says to open the
+    # app — nothing breaks.
+    EMPEROR_APP_GROUP: group.com.emperorailabs.emperor
   configs:
     # Which backend the build talks to. Read via the Info.plist key `EmperorEnvironment` and
     # resolved by `APIConfig.resolveEnvironment`.
@@ -40,6 +46,10 @@ targets:
       # machine exercises exactly the code the app ships.
       - path: Sources/EmperorCore
       - path: Emperor
+    # The Today widget, built with the app and embedded in its `PlugIns/` (XcodeGen's default
+    # for an app extension).
+    dependencies:
+      - target: EmperorWidget
     info:
       path: Emperor/Resources/Info.plist
       properties:
@@ -118,6 +128,14 @@ targets:
               - public.png
               - public.heic
         ITSAppUsesNonExemptEncryption: false
+        # The app's own links — `emperor://calendar?day=YYYY-MM-DD`, `emperor://updates` — which
+        # the Today widget opens. They only navigate; see `EmperorLink`.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.emperorailabs.emperor
+            CFBundleURLSchemes:
+              - emperor
+        # Read by `AppGroup`; see `EMPEROR_APP_GROUP` above.
+        EmperorAppGroup: $(EMPEROR_APP_GROUP)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.emperorailabs.emperor
@@ -133,6 +151,49 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         TARGETED_DEVICE_FAMILY: "1,2" # iPhone and iPad
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # The app group, and nothing else. CI's unsigned builds pass `CODE_SIGN_ENTITLEMENTS=""`
+        # or sign nothing at all, so this only matters to a properly signed build.
+        CODE_SIGN_ENTITLEMENTS: Emperor/Resources/Emperor.entitlements
+
+  # The Today widget: Home Screen (small, medium, large) and Lock Screen (rectangular, inline),
+  # showing today's listed matters or the next day that has any.
+  #
+  # It compiles the widget's slice of the core — `Sources/EmperorCore/Today`, Foundation only and
+  # self-contained — so the snapshot it reads, the choice of what to show and the wording are the
+  # same bytes the app writes them with and `swift test` checks. Nothing else of the app: it does
+  # no networking, holds no token and reads only the snapshot the app leaves in the app group.
+  EmperorWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: EmperorWidget
+      - path: Sources/EmperorCore/Today
+      # The brand face, registered for the widget by `UIAppFonts` below. The licence ships in
+      # the app that contains it.
+      - path: Emperor/Resources/Fonts/Fredoka.ttf
+    info:
+      path: EmperorWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Emperor
+        # Must match the app's — App Store validation refuses a pair that differ; hence the
+        # same two settings below.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        EmperorAppGroup: $(EMPEROR_APP_GROUP)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        UIAppFonts:
+          - Fredoka.ttf
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.emperorailabs.emperor.widget
+        # Kept equal to the app's — see `CFBundleShortVersionString` above.
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_ENTITLEMENTS: EmperorWidget/EmperorWidget.entitlements
+        SKIP_INSTALL: true
 
   # Runs *inside* the app process, which is the point: it can reach UIKit and the app bundle,
   # so it can answer questions `swift test` on Linux structurally cannot — whether the bundled

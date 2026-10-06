@@ -238,9 +238,12 @@ struct RootView: View {
                 hasAcknowledgedDisclaimer = Disclaimer.hasAcknowledged(preferences)
             }
         }
-        // A document another app handed over ("Open in Emperor"). Only a file URL is taken here;
-        // any other URL is left to its own handler.
+        // URLs handed to the app, through one handler: the app's own `emperor://` links (the
+        // Today widget's tap, chiefly — see `AppLinks`), then documents another app handed over
+        // ("Open in Emperor"), which arrive as file URLs. One handler rather than one each,
+        // because how SwiftUI treats several `onOpenURL`s on one view is not something to rely on.
         .onOpenURL { url in
+            if AppLinks.open(url) { return }
             AppIncomingDocuments.shared.handle(url)
         }
         // A case or document tapped in the device's search — see `SpotlightRouting`.

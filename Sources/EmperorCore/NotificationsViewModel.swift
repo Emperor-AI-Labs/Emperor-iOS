@@ -21,10 +21,19 @@ final class NotificationsViewModel {
 
     private let service: any NotificationProviding
     private let cache: ResponseCache?
+    /// Told each time the server gives the unread count — after a load, and after marking read —
+    /// so the app-icon badge can follow it (`NotificationCoordinator.unreadCountChanged`). Not on
+    /// the optimistic local changes in between: the badge shows what the server counts.
+    private let onUnreadCount: (@MainActor (Int) -> Void)?
 
-    init(service: any NotificationProviding, cache: ResponseCache? = nil) {
+    init(
+        service: any NotificationProviding,
+        cache: ResponseCache? = nil,
+        onUnreadCount: (@MainActor (Int) -> Void)? = nil
+    ) {
         self.service = service
         self.cache = cache
+        self.onUnreadCount = onUnreadCount
     }
 
     var presentation: ListPresentation {
@@ -66,6 +75,7 @@ final class NotificationsViewModel {
     func refreshUnreadCount() async {
         guard let count = try? await service.unreadCount() else { return }
         unreadCount = count
+        onUnreadCount?(count)
     }
 
     // MARK: - Marking read

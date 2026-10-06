@@ -258,6 +258,23 @@ final class ScreenshotTour: XCTestCase {
                 }
             }
         }
+
+        // The Calendar opened from a link — what the Today widget, a tapped hearing reminder and
+        // "Open my calendar" do — on a day two ahead, where the stub's docket lists a matter.
+        let ahead = DateFormatter()
+        ahead.dateFormat = "yyyy-MM-dd"
+        ahead.timeZone = TimeZone(identifier: "Asia/Kolkata")
+        ahead.locale = Locale(identifier: "en_US_POSIX")
+        let day = ahead.string(from: Date().addingTimeInterval(2 * 86_400))
+        if let link = URL(string: "emperor://calendar?day=\(day)") {
+            app.open(link)
+            let confirm = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Open"]
+            if confirm.waitForExistence(timeout: 2) { confirm.tap() }
+            if app.navigationBars["Calendar"].waitForExistence(timeout: 10) {
+                _ = app.buttons["calendar-listing-case-hc-delhi"].waitForExistence(timeout: 5)
+                snap("calendar-opened-on-a-day")
+            }
+        }
     }
 
     /// What each tab says when there is nothing to show — every fixture empty. The empty state is

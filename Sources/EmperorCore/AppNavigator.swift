@@ -133,4 +133,56 @@ final class AppNavigator {
         case .document(let path): openDocument(path: path)
         }
     }
+
+    // MARK: - Opening the Calendar on a day
+
+    /// A day something outside the Calendar has asked it to show — a tapped hearing reminder, the
+    /// Today widget, a link — not yet taken by it. India's `YYYY-MM-DD`.
+    ///
+    /// Taken the way the Cases tab takes `pendingCase`: by `takePendingDay()`, when the Calendar
+    /// appears or when this changes while it is on screen, and cleared by taking.
+    private(set) var pendingDay: String?
+
+    /// Shows the Calendar tab, on `day` when that is a real day.
+    ///
+    /// The day is checked by round trip, as a notification's is (`NotificationTarget`), so a
+    /// malformed one cannot open the Calendar somewhere odd; the Calendar then opens on whatever
+    /// day it was showing. The latest request wins — including over an Updates screen still
+    /// waiting to be shown, which would otherwise appear over the day just asked for.
+    func openCalendar(on day: String?) {
+        pendingDay = day.flatMap { IndianDay.isValid($0) ? $0 : nil }
+        updatesRequest = nil
+        selectedTab = .calendar
+    }
+
+    /// The day the Calendar should select, or `nil` when nothing is waiting. Taking clears it.
+    func takePendingDay() -> String? {
+        defer { pendingDay = nil }
+        return pendingDay
+    }
+
+    // MARK: - Opening Updates
+
+    /// A request for the Updates screen not yet shown, numbered so a second request while the
+    /// first waits is still a change to observe.
+    ///
+    /// **It does not switch tabs.** The screen is a sheet, and something else may be presented
+    /// when the request arrives — a half-written diary entry, say. Whoever presents Updates waits
+    /// until nothing is, then switches to Home and shows it (`NotificationTapRouting`); an Updates
+    /// screen already open takes the request itself and reloads. Switching tabs now could take
+    /// the sheet the person is working in away with it.
+    private(set) var updatesRequest: Int?
+
+    /// Asks for the Updates screen.
+    func openUpdates() {
+        requestCount += 1
+        updatesRequest = requestCount
+    }
+
+    /// Whether Updates was asked for. Taking clears the request, so it is shown once.
+    func takeUpdatesRequest() -> Bool {
+        guard updatesRequest != nil else { return false }
+        updatesRequest = nil
+        return true
+    }
 }

@@ -72,6 +72,11 @@ final class AppNotifications {
             await signedOut()
             return
         }
+        // The Today widget moves on to a new day, or to this sign-in, at the same moments —
+        // see `TodayWidgetBridge`.
+        if let account {
+            TodayWidgetBridge.shared.refresh(isSignedIn: true, cache: account.cache)
+        }
         await coordinator.refresh(account: account)
     }
 
@@ -79,15 +84,28 @@ final class AppNotifications {
     /// a tap still waiting to be shown — it was about that account's matters.
     func signedOut() async {
         _ = inbox.take()
+        // The widget's copy of the account's listings goes with the reminders.
+        TodayWidgetBridge.shared.signedOut()
         await coordinator.signedOut()
     }
 
     /// A screen saved the cause list into the response cache. Called from the cache's write
     /// observer (`NotifyingCacheStore`), so no screen needs to know notifications exist.
+    ///
+    /// The Today widget's snapshot is written from the same read (`TodayWidgetBridge`).
     func causeListChanged() {
-        guard let listings = account?.cachedCauseList else { return }
+        let cached = account?.cache?.load([CauseListing].self, for: .causeList)
+        TodayWidgetBridge.shared.causeListSaved(cached)
+        guard let listings = cached?.value else { return }
         let coordinator = coordinator
         Task { await coordinator.causeListChanged(listings) }
+    }
+
+    /// The Updates screen learned the unread count, after marking something read or loading the
+    /// feed: the app-icon badge follows at once — see `NotificationCoordinator.unreadCountChanged`.
+    func unreadCountChanged(_ count: Int) {
+        let coordinator = coordinator
+        Task { await coordinator.unreadCountChanged(count) }
     }
 
     // MARK: - Background refresh
@@ -178,15 +196,32 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
     }
 }
 
-/// Opens where a tapped notification leads: a hearing on the Calendar tab, an update on the
-/// Updates screen.
+/// Opens where a tapped notification leads: a hearing on the Calendar tab, on its day; an update
+/// on the Updates screen. The app's own links (`AppLinks`) arrive the same way.
 ///
 /// Applied by `MainTabView`, the one place that holds the `AppNavigator`. A tap that launched the
 /// app is waiting in the inbox before this view exists, which is why the change is observed with
 /// `initial: true`.
 ///
-/// `AppNavigator` has no way to open the Calendar on a given day yet, so a hearing opens the
-/// Calendar tab as it stands; the day is carried in the notification for when it does.
+/// ## A hearing
+///
+/// `AppNavigator.openCalendar(on:)` switches to the Calendar and leaves the day for it to take
+/// (`CalendarView`), the way the Cases tab takes a case. An Updates sheet this presented is closed
+/// first, so the day is what the person sees.
+///
+/// ## An update, while something else is presented
+///
+/// The Updates screen is a sheet, and iOS presents one sheet at a time: asked for while another
+/// is up — a diary entry half written, Settings — UIKit refuses to present it over the one
+/// already showing, and the tap is simply lost. So the request is recorded
+/// (`AppNavigator.openUpdates()`) and shown **once nothing else is presented**: this checks every
+/// third of a second until the other sheet is gone, then switches to Home and presents Updates.
+/// The person's own sheet is never taken away from them, and whatever they were writing in it is
+/// not lost. An Updates screen already open takes the request itself and reloads
+/// (`NotificationsView`), which also ends the wait.
+///
+/// The check is UIKit's — whether the window's root has presented anything — because SwiftUI has
+/// no public way to ask whether a sheet is up. It reads state; it never dismisses anything.
 struct NotificationTapRouting: ViewModifier {
     let navigator: AppNavigator
 
@@ -197,19 +232,65 @@ struct NotificationTapRouting: ViewModifier {
             .onChange(of: AppNotifications.shared.inbox.tapCount, initial: true) { _, _ in
                 route()
             }
+            .task(id: navigator.updatesRequest) {
+                await presentUpdatesWhenFree()
+            }
             .sheet(isPresented: $isShowingUpdates) {
+                // Handed the navigator, so a second update tapped while this is open reaches it.
                 NotificationsView()
+                    .environment(\.navigator, navigator)
             }
     }
 
     private func route() {
         guard let target = AppNotifications.shared.inbox.take() else { return }
         switch target {
-        case .calendar:
-            navigator.selectedTab = .calendar
+        case .calendar(let day):
+            isShowingUpdates = false
+            navigator.openCalendar(on: day)
         case .updates:
-            isShowingUpdates = true
+            navigator.openUpdates()
         }
+    }
+
+    /// Waits until nothing is presented, then shows Updates — unless the request is taken or
+    /// replaced first. Cancelled with the view, so a sign-out ends the wait.
+    private func presentUpdatesWhenFree() async {
+        guard navigator.updatesRequest != nil else { return }
+        while navigator.updatesRequest != nil, ModalPresentation.isShowingAnything {
+            try? await Task.sleep(nanoseconds: 330_000_000)
+            if Task.isCancelled { return }
+        }
+        guard navigator.takeUpdatesRequest() else { return }
+        navigator.selectedTab = .home
+        isShowingUpdates = true
+    }
+}
+
+/// Whether the app is showing a sheet, a full-screen cover, an alert or a popover.
+///
+/// Every visible window at the normal level is asked, not only the key one: a tap that brings
+/// the app back from the background can arrive before its window is key again, and answering
+/// "nothing presented" then would put Updates on top of a sheet that is still up. The keyboard
+/// and other system windows sit above the normal level and are not asked.
+@MainActor
+enum ModalPresentation {
+    static var isShowingAnything: Bool {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            // Closures rather than key paths: these are main-actor properties, and a key path
+            // to one is refused or warned about depending on the compiler.
+            .flatMap { $0.windows }
+            .filter { !$0.isHidden && $0.windowLevel == .normal }
+            .compactMap { $0.rootViewController }
+            .contains { hasPresented($0) }
+    }
+
+    /// A presentation normally hangs off the root; a child that defines its own presentation
+    /// context holds it instead, so the children are asked too.
+    private static func hasPresented(_ controller: UIViewController) -> Bool {
+        controller.presentedViewController != nil
+            || controller.children.contains { hasPresented($0) }
     }
 }
 

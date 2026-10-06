@@ -30,6 +30,19 @@
 	<string>$(EMPEROR_WEB_PLANS)</string>
 	<key>EmperorEnvironment</key>
 	<string>$(EMPEROR_ENVIRONMENT)</string>
+	<key>EmperorAppGroup</key>
+	<string>$(EMPEROR_APP_GROUP)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.emperorailabs.emperor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>emperor</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Emperor uses the camera to scan paperbooks, orders and pleadings into your document library.
 </string>

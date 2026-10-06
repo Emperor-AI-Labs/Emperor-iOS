@@ -53,10 +53,16 @@ jobs:
 
       - name: Parse the app layer
         run: |
-          files=$(find Emperor AppTests UITests -name '*.swift')
+          files=$(find Emperor EmperorWidget AppTests UITests -name '*.swift')
           test -n "$files" || { echo "no Swift files found"; exit 1; }
           echo "$files" | sed 's/^/  /'
           swiftc -parse $files
+
+      # The Today widget compiles only `Sources/EmperorCore/Today` of the core (see project.yml).
+      # Type-checked on its own here, so a file there that reaches for the rest of the core fails
+      # in seconds on Linux rather than as a widget build failure on the Mac.
+      - name: The widget's slice of the core stands alone
+        run: swiftc -typecheck -swift-version 6 Sources/EmperorCore/Today/*.swift
 
   # This repository is public; the platform it talks to is still being hardened. A comment
   # naming which route is unscoped is a pointer at a live server holding privileged client
@@ -100,7 +106,7 @@ jobs:
         run: |
           # Every directory any target compiles. Adding a target without adding it here makes
           # this pass while the new files silently never reach the project.
-          expected=$(find Sources/EmperorCore Emperor AppTests UITests -name '*.swift' | wc -l)
+          expected=$(find Sources/EmperorCore Emperor EmperorWidget AppTests UITests -name '*.swift' | wc -l)
           actual=$(grep -c '\.swift .*sourcecode' Emperor.xcodeproj/project.pbxproj)
           echo "expected $expected, target has $actual"
           test "$expected" -eq "$actual"

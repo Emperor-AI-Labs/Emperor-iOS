@@ -1673,4 +1673,86 @@ final class EmperorUITests: XCTestCase {
         flip(toggle, to: "0")
         flip(toggle, to: "1")
     }
+
+    // MARK: - Opening a day from outside: the Today widget, links and notification taps
+
+    /// `emperor://calendar?day=…` — what the Today widget opens, and the path a tapped hearing
+    /// reminder takes — lands on the Calendar **on that day**: its cell selected and its listing
+    /// below. Two days ahead, where the stub's docket lists the Delhi matter. Then a bare
+    /// `emperor://calendar` while the Calendar is open moves it back to today.
+    func testALinkOpensTheCalendarOnItsDay() throws {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
+        let day = Self.indianDay(daysFromNow: 2)
+
+        openLink(try XCTUnwrap(URL(string: "emperor://calendar?day=\(day.key)")), in: app)
+        XCTAssertTrue(
+            app.navigationBars["Calendar"].waitForExistence(timeout: 10),
+            "the link did not open the Calendar")
+        XCTAssertTrue(app.tab("Calendar").isSelected)
+        let cell = app.buttons[day.label]
+        XCTAssertTrue(cell.waitForExistence(timeout: 10), "the month shown does not hold the day")
+        XCTAssertTrue(becomesSelected(cell), "the Calendar did not open on the day the link named")
+        XCTAssertTrue(
+            app.buttons["calendar-listing-case-hc-delhi"].waitForExistence(timeout: 10),
+            "the day's listing is not shown")
+
+        openLink(try XCTUnwrap(URL(string: "emperor://calendar")), in: app)
+        let today = app.buttons[Self.indianDay(daysFromNow: 0).label]
+        XCTAssertTrue(today.waitForExistence(timeout: 10))
+        XCTAssertTrue(becomesSelected(today), "a link with no day did not open on today")
+        // Still in the grid unless the two days fall in different months.
+        if cell.exists { XCTAssertFalse(cell.isSelected) }
+    }
+
+    /// An update tapped while a sheet is open — here the Calendar's Subscribe sheet — must not be
+    /// lost, and must not take the person's sheet away: Updates waits, and appears over Home the
+    /// moment that sheet is closed. `emperor://updates` takes the same path a tapped update does.
+    func testUpdatesWaitForTheOpenSheetThenAppear() throws {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tab("Calendar").waitForExistence(timeout: 10))
+        app.tab("Calendar").tap()
+        XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
+        app.navigationBars["Calendar"].buttons["Subscribe"].tap()
+        let subscribe = app.navigationBars["Subscribe"]
+        XCTAssertTrue(subscribe.waitForExistence(timeout: 10))
+
+        openLink(try XCTUnwrap(URL(string: "emperor://updates")), in: app)
+        Thread.sleep(forTimeInterval: 1.5)
+        XCTAssertTrue(subscribe.exists, "the open sheet was taken away")
+        XCTAssertFalse(
+            app.navigationBars["Updates"].exists, "Updates was put over the open sheet")
+
+        subscribe.buttons["Done"].tap()
+        let updates = app.navigationBars["Updates"]
+        XCTAssertTrue(
+            updates.waitForExistence(timeout: 10), "Updates never followed once the sheet closed")
+
+        updates.buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tab("Home").isSelected, "Updates opens over Home, where its bell is")
+    }
+
+    /// Opens one of the app's own links as the system would — from the widget, say. Some iOS
+    /// versions ask before an app is opened from outside; that is answered yes.
+    private func openLink(_ url: URL, in app: XCUIApplication) {
+        app.open(url)
+        let confirm = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Open"]
+        if confirm.waitForExistence(timeout: 2) { confirm.tap() }
+    }
+
+    /// A day `days` from now in India: its `YYYY-MM-DD` key, and the label its Calendar cell
+    /// carries (`DisplayText.longDay`).
+    private static func indianDay(daysFromNow days: Int) -> (key: String, label: String) {
+        let date = Date().addingTimeInterval(TimeInterval(days) * 86_400)
+        let india = TimeZone(identifier: "Asia/Kolkata") ?? .current
+        let key = DateFormatter()
+        key.dateFormat = "yyyy-MM-dd"
+        key.timeZone = india
+        key.locale = Locale(identifier: "en_US_POSIX")
+        let label = DateFormatter()
+        label.dateFormat = "EEEE, d MMMM yyyy"
+        label.timeZone = india
+        return (key.string(from: date), label.string(from: date))
+    }
 }

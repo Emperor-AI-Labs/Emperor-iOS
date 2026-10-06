@@ -11,9 +11,18 @@ enum NotificationRoute: Hashable {
 }
 
 /// What has happened on your matters.
+///
+/// Each count the server gives here — after the feed loads, after something is marked read —
+/// also sets the app-icon badge (`AppNotifications.unreadCountChanged`), so reading an update
+/// clears it from the Home Screen at once rather than at the next refresh.
+///
+/// An update notification tapped while this is already open is taken here
+/// (`AppNavigator.takeUpdatesRequest()`): the feed reloads and any matter pushed from it is
+/// popped, so the person lands on the list the new update is in.
 struct NotificationsView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
+    @Environment(\.navigator) private var navigator
 
     @State private var model: NotificationsViewModel?
     @State private var path: [NotificationRoute] = []
@@ -40,10 +49,16 @@ struct NotificationsView: View {
             .task {
                 guard model == nil else { return }
                 let created = NotificationsViewModel(
-                    service: session.notifications, cache: session.cache)
+                    service: session.notifications, cache: session.cache,
+                    onUnreadCount: { AppNotifications.shared.unreadCountChanged($0) })
                 model = created
                 await created.load()
             }
+        }
+        .onChange(of: navigator.updatesRequest) { _, _ in
+            guard navigator.takeUpdatesRequest() else { return }
+            path = []
+            Task { await model?.load() }
         }
     }
 
