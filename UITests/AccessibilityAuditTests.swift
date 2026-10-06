@@ -440,9 +440,13 @@ final class AccessibilityAuditTests: XCTestCase {
                     findings += found
                 case .couldNotRun(let types, let reason):
                     XCTFail(
-                        "[\(screen)] the \(AuditFinding.name(of: types)) audit could not run: "
-                            + reason,
+                        "[\(screen)] the \(AuditFinding.name(of: types)) audit could not run, "
+                            + "even retried: " + reason,
                         file: file, line: line)
+                    // Let whatever the audit left running finish before the walk goes on, so the
+                    // next tap is not refused by an app still busy with it.
+                    Thread.sleep(forTimeInterval: 5)
+                    _ = app.windows.firstMatch.frame
                 }
             }
             if pass == .contrast {
@@ -490,18 +494,30 @@ final class AccessibilityAuditTests: XCTestCase {
         guard case .couldNotRun = whole else { return [whole] }
         let single = AuditPass.kinds.filter { types.contains($0) }
         guard single.count > 1 else {
-            Thread.sleep(forTimeInterval: 2)
-            return [perform(types, on: app, in: context)]
+            return [persist(types, on: app, in: context)]
         }
-        return single.map { kind in
-            Thread.sleep(forTimeInterval: 1)
-            let first = perform(kind, on: app, in: context)
-            guard case .couldNotRun = first else { return first }
-            // A slow screen — on an iPad the Library ran out of time even one check at a time —
-            // is given longer to settle before its last try.
-            Thread.sleep(forTimeInterval: 4)
-            return perform(kind, on: app, in: context)
+        return single.map { kind in persist(kind, on: app, in: context) }
+    }
+
+    /// One kind of check, tried until it finishes or has had three goes.
+    ///
+    /// On a CI iPad the text-size checks can run past the audit's own time limit on an ordinary
+    /// screen — Notifications with its reminders on, Home in light — and the run after one that
+    /// gave up can find the app still busy with it. So each try waits longer than the last, and
+    /// first waits for the app to be idle again: reading the window's frame is a snapshot, which
+    /// XCTest takes only once the app has stopped work. A check that cannot finish after three
+    /// goes is still a failure — it is reported, not skipped.
+    private static func persist(
+        _ types: XCUIAccessibilityAuditType, on app: XCUIApplication, in context: AuditLayout
+    ) -> AuditOutcome {
+        var outcome = AuditOutcome.couldNotRun(types, "not tried")
+        for settle in [1.0, 5.0, 10.0] {
+            Thread.sleep(forTimeInterval: settle)
+            _ = app.windows.firstMatch.frame
+            outcome = perform(types, on: app, in: context)
+            guard case .couldNotRun = outcome else { return outcome }
         }
+        return outcome
     }
 
     /// One call to the audit, on the main actor, where the audit, its handler and every element
@@ -581,16 +597,19 @@ final class AccessibilityAuditTests: XCTestCase {
             .filter { $0.exists }
             .map { $0.frame }
         let bottomTabs = tabButtons.filter { $0.midY > window.midY }
+        let bottomBarTop = sheetFrame == nil ? bottomTabs.map(\.minY).min() : nil
+        let navigationBars = app.navigationBars.allElementsBoundByIndex
+            .filter { $0.exists }
+            .map { $0.frame }
+        let sheetBar = sheet.flatMap { $0.exists ? $0.frame : nil }
         return AuditLayout(
             window: window,
             keyboard: keyboard.exists ? keyboard.frame : nil,
             // Behind a sheet the tab bar is covered, and the sheet's own foot is the screen's.
-            bottomBarTop: sheetFrame == nil ? bottomTabs.map(\.minY).min() : nil,
-            navigationBars: app.navigationBars.allElementsBoundByIndex
-                .filter { $0.exists }
-                .map { $0.frame },
+            bottomBarTop: bottomBarTop,
+            navigationBars: navigationBars,
             sheet: sheetFrame,
-            sheetBar: sheet.flatMap { $0.exists ? $0.frame : nil })
+            sheetBar: sheetBar)
     }
 }
 

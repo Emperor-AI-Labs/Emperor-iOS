@@ -137,11 +137,18 @@ struct UsageMeterRow: View {
             }
             // The bar's colour, said in words — for VoiceOver, which reads this row as one, and
             // for anyone who cannot tell the red from the amber.
+            // A glyph and the words side by side rather than a `Label`, whose title the
+            // accessibility audit read as text a larger size would cut off.
             if let status = meter.statusLabel {
-                Label(status, systemImage: meter.isExhausted
-                      ? "exclamationmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .font(.brand(.caption, weight: .semibold))
-                    .foregroundStyle(meter.isExhausted ? theme.danger : theme.warning)
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.xs + 2) {
+                    Image(systemName: meter.isExhausted
+                          ? "exclamationmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .accessibilityHidden(true)
+                    Text(status)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .font(.brand(.caption, weight: .semibold))
+                .foregroundStyle(meter.isExhausted ? theme.danger : theme.warning)
             }
             if let note = meter.note, isMetered {
                 Text(note)

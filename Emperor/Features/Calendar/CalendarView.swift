@@ -233,6 +233,9 @@ struct CalendarView: View {
                 // reach.
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Sunday to Saturday")
+                // Text, not a control: without the trait an element built from children is judged
+                // as one, and its 14-point height as a target too small to hit.
+                .accessibilityAddTraits(.isStaticText)
                 if let month = model.month {
                     // Keyed by position: a week has no identity of its own, and the days inside
                     // it carry real dates that do.
@@ -275,6 +278,8 @@ struct CalendarView: View {
         .padding(.leading, Spacing.xs)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("A dot marks a day with cases listed; a ring, a day with only diary entries.")
+        // Text, not a control — see the weekday row above.
+        .accessibilityAddTraits(.isStaticText)
     }
 
     /// The month's name, as the heading of its own card, with the way back to today and the

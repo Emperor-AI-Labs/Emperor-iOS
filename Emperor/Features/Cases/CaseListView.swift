@@ -327,11 +327,14 @@ struct CaseListView: View {
 
             AdaptiveStack(spacing: Spacing.sm) {
                 if let hearing = legalCase.nextHearingDate {
-                    Label {
-                        Text(DisplayText.longDay(WireDate.dayKey(hearing)))
-                    } icon: {
+                    // A glyph and the date side by side, laid out here rather than by `Label`,
+                    // whose title the accessibility audit read as text a larger size would cut off.
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.xs + 2) {
                         Image(systemName: "calendar")
                             .foregroundStyle(theme.accentText)
+                            .accessibilityHidden(true)
+                        Text(DisplayText.longDay(WireDate.dayKey(hearing)))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 // Says where the row came from. A matter the court maintains and one typed in

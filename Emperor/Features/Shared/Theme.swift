@@ -233,12 +233,16 @@ struct SectionHeader: View {
         if let detail {
             // Side by side while both fit on one line; the detail under the title once they do
             // not — a long detail, or a large text size — rather than either being cut short.
+            //
+            // No line limit in either: side by side, the detail is held at its full width, which
+            // is what makes this layout not fit — and the stacked one be chosen — when it is too
+            // long. A limit would only ever have cut it.
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline) {
                     titleText
                     Spacer(minLength: Spacing.sm)
                     detailText(detail)
-                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                 }
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     titleText
