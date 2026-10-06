@@ -36,7 +36,11 @@ struct CaseDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             guard model == nil else { return }
-            let created = CaseDetailViewModel(caseID: caseID, service: session.cases)
+            // Kept for reading offline, and shown with its age when the server cannot be reached.
+            let created = CaseDetailViewModel(
+                caseID: caseID, service: session.cases,
+                offline: session.offlineCopies?.matters,
+                connectivity: AppConnectivity.current)
             model = created
             await created.load()
         }
@@ -83,7 +87,9 @@ struct CaseDetailView: View {
                 } label: {
                     Label("Add", systemImage: "plus")
                 }
-                .disabled(model.legalCase == nil)
+                // Not on a kept copy: a note needs the server, and the matter on screen may be
+                // behind it.
+                .disabled(!model.canWrite)
             }
         }
         .sheet(isPresented: $isAddingNote) {

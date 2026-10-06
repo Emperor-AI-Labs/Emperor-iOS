@@ -22,6 +22,11 @@ struct SourceDocumentView: View {
             Group {
                 if let model {
                     content(model)
+                        // Whatever the document is drawn as, say when it is the copy kept on
+                        // this device — and when it could not be kept.
+                        .safeAreaInset(edge: .bottom, spacing: 0) {
+                            offlineFooter(model)
+                        }
                 } else {
                     ProgressView()
                 }
@@ -47,10 +52,30 @@ struct SourceDocumentView: View {
                 guard model == nil else { return }
                 let created = SourceDocumentViewModel(
                     attachment: attachment, mention: mention, service: session.files,
-                    officePreview: session.officePreview)
+                    officePreview: session.officePreview,
+                    offline: session.offlineCopies.map { OfflineDocuments(store: $0.documents) },
+                    connectivity: AppConnectivity.current)
                 model = created
                 await created.load()
             }
+        }
+    }
+
+    @ViewBuilder
+    private func offlineFooter(_ model: SourceDocumentViewModel) -> some View {
+        if let notice = model.offlineNotice() {
+            OfflineCopyBanner(notice: notice)
+        } else if let note = model.offlineNote {
+            Label(note, systemImage: "arrow.down.circle")
+                .font(.brand(.caption))
+                .foregroundStyle(theme.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, Spacing.sm)
+                .padding(.horizontal, Spacing.lg)
+                .background(theme.surface)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(theme.separator).frame(height: 0.5)
+                }
         }
     }
 

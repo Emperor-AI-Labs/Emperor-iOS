@@ -23,6 +23,8 @@ struct DocumentRowLabel: View {
     var date: String?
     /// An edit is running against this row.
     var isBusy = false
+    /// Whether the document opens without a connection. Drawn only in My Files.
+    var offline: MyFilesViewModel.OfflineStatus = .none
 
     var body: some View {
         HStack(spacing: Spacing.md) {
@@ -46,14 +48,39 @@ struct DocumentRowLabel: View {
 
             if isBusy {
                 ProgressView().controlSize(.small)
-            } else if file.favorite == true {
-                Image(systemName: "star.fill")
-                    .font(.brand(.caption))
-                    .foregroundStyle(theme.warning)
-                    .accessibilityLabel("Starred")
+            } else {
+                HStack(spacing: Spacing.sm) {
+                    offlineMark
+                    if file.favorite == true {
+                        Image(systemName: "star.fill")
+                            .font(.brand(.caption))
+                            .foregroundStyle(theme.warning)
+                            .accessibilityLabel("Starred")
+                    }
+                }
             }
         }
         .contentShape(Rectangle())
+    }
+
+    /// Filled and in the accent for a document saved for offline on purpose; outlined and quiet
+    /// for one kept because it was opened, which goes first when room is needed.
+    @ViewBuilder
+    private var offlineMark: some View {
+        switch offline {
+        case .none:
+            EmptyView()
+        case .available:
+            Image(systemName: "arrow.down.circle")
+                .font(.brand(.caption))
+                .foregroundStyle(theme.textTertiary)
+                .accessibilityLabel("Available offline")
+        case .saved:
+            Image(systemName: "arrow.down.circle.fill")
+                .font(.brand(.caption))
+                .foregroundStyle(theme.accentText)
+                .accessibilityLabel("Saved for offline")
+        }
     }
 
     @ViewBuilder

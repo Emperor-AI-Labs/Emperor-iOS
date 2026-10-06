@@ -57,11 +57,37 @@ final class ChatViewModel {
     /// is why `load()` marks the "Chat not found" case as intact rather than failed.
     private(set) var historyIsIntact = true
 
+    /// When the transcript on screen is the copy saved on this device, the moment that copy was
+    /// fetched. `nil` means what is on screen came from the server in this session.
+    ///
+    /// ## A saved copy is for reading, and never for sending
+    ///
+    /// `POST /chat` stores exactly the history it is sent and deletes the rest, and the work-log
+    /// save rewrites the whole conversation through `/sync`. A transcript read off the disk may be
+    /// hours behind what the server holds — a question asked on the web since, an answer that
+    /// finished after the app was closed — and posting it back would delete those turns without
+    /// a word. So while this is set, `historyIsIntact` is false, and every path that writes is
+    /// shut on this as well, in case that ever changes: `send`, `edit`, the work-log save and its
+    /// final check before committing. The next question goes only from a history the server has
+    /// just sent, whole — `load()` clears this on exactly that.
+    private(set) var savedCopyAt: Date?
+
+    var isShowingSavedCopy: Bool { savedCopyAt != nil }
+
     /// Why the composer is disarmed, when it is. `nil` means it is armed.
     var sendBlockedReason: String? {
-        historyIsIntact
+        if isShowingSavedCopy { return OfflineReading.askingPaused }
+        return historyIsIntact
             ? nil
             : "This conversation could not be loaded, so a reply now would replace what is stored. Pull to retry first."
+    }
+
+    /// "Offline — showing the copy saved 2 hours ago", while the saved copy is on screen.
+    ///
+    /// Takes the clock so the age is worked out when it is drawn rather than when the copy was
+    /// opened, and so a test can fix it.
+    func offlineNotice(now: Date = Date()) -> String? {
+        savedCopyAt.map { OfflineReading.notice(savedAt: $0, now: now) }
     }
 
     /// The cited document to present, once a citation tap has been resolved to a real file.
@@ -125,6 +151,12 @@ final class ChatViewModel {
     /// Where removals are remembered. Absent means they are not — the documents come back on the
     /// next load, which is what this screen did before there was anywhere to write them.
     private let detached: (any DetachedDocuments)?
+    /// This account's saved conversations. Absent means nothing is kept and nothing is shown
+    /// offline — which is how this screen behaved before there was anywhere to keep them.
+    private let offline: OfflineStore?
+    /// Whether the system says there is no connection, so the saved copy can be shown at once
+    /// rather than after a request has waited out its timeout.
+    private let connectivity: (any ConnectivityReporting)?
     private var streamTask: Task<Void, Never>?
 
     /// The document tree, fetched on the first citation tap that needs it.
@@ -140,13 +172,17 @@ final class ChatViewModel {
     ///   - files: needed only to resolve a citation against the wider library.
     ///   - uploads: needed only to attach a scan.
     ///   - detached: where removals are remembered. Without it a removal lasts the session only.
+    ///   - offline: where this account keeps conversations for reading offline.
+    ///   - connectivity: whether the device is known to have no connection.
     init(
         chatID: String,
         service: any ChatProviding,
         files: (any FileProviding)? = nil,
         uploads: (any UploadProviding)? = nil,
         detached: (any DetachedDocuments)? = nil,
-        preferredModel: String? = nil
+        preferredModel: String? = nil,
+        offline: OfflineStore? = nil,
+        connectivity: (any ConnectivityReporting)? = nil
     ) {
         self.chatID = chatID
         self.service = service
@@ -154,6 +190,8 @@ final class ChatViewModel {
         self.uploads = uploads
         self.detached = detached
         self.model = ChatModel.fromPreference(preferredModel)
+        self.offline = offline
+        self.connectivity = connectivity
     }
 
     // MARK: - Documents on this conversation
@@ -193,8 +231,15 @@ final class ChatViewModel {
     func load() async {
         isLoading = true
         defer { isLoading = false }
+        // With no connection at all, the request below would wait for one — for minutes. The
+        // saved copy is shown meanwhile, read-only, and replaced if the request comes back.
+        if messages.isEmpty, OfflineReading.opensSavedCopyFirst(connectivity) {
+            showSavedCopy()
+        }
         do {
             messages = try await service.messages(chatID: chatID)
+            // The server's transcript replaces any saved copy on screen, and the notice goes.
+            savedCopyAt = nil
             // Reopening a matter has to reopen its documents. They are not a field on the chat —
             // they live on the turns that carried them — so they are reconstructed here; see
             // `attachedDocuments`. Without this, a conversation opened from History listed no
@@ -215,6 +260,9 @@ final class ChatViewModel {
                 attachments.append(restored)
             }
             historyIsIntact = true
+            // The server's own transcript, whole: the one state a question may be sent from,
+            // and the copy worth keeping for reading offline.
+            keepCopy()
             // A run may have continued server-side while the app was closed — generation is
             // not tied to the socket.
             await recoverInFlightRun()
@@ -223,16 +271,72 @@ final class ChatViewModel {
             // an empty list. That is not a failure worth showing — and there is nothing stored
             // to overwrite, so sending stays safe.
             if case .server(_, let message) = error, message.contains("Chat not found") {
+                // Whatever this device kept is a copy of nothing the server holds. It goes, from
+                // the screen *before* the history is declared intact — or the first question
+                // would carry it to the server as though it were the conversation.
+                discardSavedCopy()
+                offline?.remove(chatID)
                 historyIsIntact = true
                 return
             }
             // Everything else means we do not know what the server holds. Sending now would
             // post a partial history and delete the rest.
             historyIsIntact = false
+            if OfflineReading.mayStandIn(after: error), showSavedCopy() { return }
+            discardSavedCopy()
             errorMessage = error.errorDescription
         } catch {
             historyIsIntact = false
+            if OfflineReading.mayStandIn(after: error), showSavedCopy() { return }
+            discardSavedCopy()
             errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - The saved copy
+
+    /// Puts the saved copy on screen, read-only. Returns whether there was one.
+    ///
+    /// Shut before it is shown: `historyIsIntact` goes false first, so there is no moment in which
+    /// the copy is on screen and a send would be let through.
+    @discardableResult
+    private func showSavedCopy() -> Bool {
+        guard let saved = offline?.value([ChatMessage].self, for: chatID),
+              !saved.value.isEmpty
+        else { return false }
+        historyIsIntact = false
+        messages = saved.value
+        savedCopyAt = saved.storedAt
+        errorMessage = nil
+        return true
+    }
+
+    /// Takes the saved copy off the screen — the server has answered, and not with the
+    /// conversation, so the copy must not stand in for what it said.
+    private func discardSavedCopy() {
+        guard isShowingSavedCopy else { return }
+        messages = []
+        savedCopyAt = nil
+    }
+
+    /// Keeps the transcript for reading offline: only one the server has just sent whole, or one
+    /// it has just finished answering — never a refused or failed turn, which exists nowhere but
+    /// here.
+    private func keepCopy() {
+        guard historyIsIntact, !isShowingSavedCopy, !messages.isEmpty else { return }
+        offline?.save(messages, for: chatID)
+    }
+
+    /// The device's connection came or went while this conversation is open.
+    ///
+    /// Lost, while the first load is still waiting: show the saved copy now rather than when the
+    /// request gives up. Back, with the saved copy on screen and nothing in flight: load the
+    /// conversation again, which replaces the copy and takes the notice away.
+    func connectivityChanged() async {
+        if connectivity?.isOffline == true {
+            if isLoading, messages.isEmpty { showSavedCopy() }
+        } else if isShowingSavedCopy, !isLoading {
+            await load()
         }
     }
 
@@ -274,7 +378,8 @@ final class ChatViewModel {
                 }
                 if !status.active {
                     self.wasInterrupted = status.incomplete == true
-                    await self.finishStreaming()
+                    // The run finished on the server, which stored the answer itself.
+                    if await self.finishStreaming() { self.keepCopy() }
                     return
                 }
             }
@@ -304,7 +409,8 @@ final class ChatViewModel {
     /// User turns only: an assistant answer is not ours to rewrite, and offering it would
     /// suggest the model could be made to have said something it did not.
     func canEdit(_ message: ChatMessage) -> Bool {
-        message.role == .user && !isStreaming && historyIsIntact && indexOf(message) != nil
+        message.role == .user && !isStreaming && historyIsIntact && !isShowingSavedCopy
+            && indexOf(message) != nil
     }
 
     /// Replaces a question and answers again from that point.
@@ -342,8 +448,9 @@ final class ChatViewModel {
 
     func send(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        // `historyIsIntact` last, because it is the one that costs data rather than a no-op.
-        guard !trimmed.isEmpty, !isStreaming, historyIsIntact else { return }
+        // `historyIsIntact` last, because it is the one that costs data rather than a no-op —
+        // and the saved copy with it, which is never sent anywhere (see `savedCopyAt`).
+        guard !trimmed.isEmpty, !isStreaming, historyIsIntact, !isShowingSavedCopy else { return }
 
         busyNotice = nil
         wasInterrupted = false
@@ -450,6 +557,7 @@ final class ChatViewModel {
         // reported complete. Trust the shape of the answer as well as the server's word.
         if live?.hasUnclosedDocumentBlock == true { wasInterrupted = true }
         let answered = await finishStreaming(ended: .completed)
+        if answered { keepCopy() }
         saveWorkLog(answered: answered, status: status)
     }
 
@@ -522,7 +630,7 @@ final class ChatViewModel {
             workLogSave = .skipped(.nothingToSave)
             return
         }
-        guard historyIsIntact else {
+        guard historyIsIntact, !isShowingSavedCopy else {
             workLogSave = .skipped(.historyNotIntact)
             return
         }
@@ -557,7 +665,7 @@ final class ChatViewModel {
     /// Every new turn also appends its question, so the count alone would catch one; streaming is
     /// checked as well so that this does not rest on how `send` happens to be written.
     private func isUnchanged(count: Int, lastID: String) -> Bool {
-        !isStreaming && historyIsIntact
+        !isStreaming && historyIsIntact && !isShowingSavedCopy
             && messages.count == count && messages.last?.stableID == lastID
     }
 
@@ -606,8 +714,12 @@ final class ChatViewModel {
     }
 
     private func resolveFromCache(_ mention: AnnexureMention) -> Bool {
+        // The transcript's own documents after the composer's: a citation names a file some turn
+        // carried, and the transcript knows its folder exactly. This is also what lets a citation
+        // open from a saved copy with no connection, when the library cannot be fetched.
+        let transcript = messages.attachedDocuments.filter { !attachments.contains($0) }
         guard let attachment = CitationResolver.resolve(
-            mention, attachments: attachments, files: libraryCache)
+            mention, attachments: attachments + transcript, files: libraryCache)
         else { return false }
         openSource = SourceSelection(attachment: attachment, mention: mention)
         return true

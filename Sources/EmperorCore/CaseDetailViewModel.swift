@@ -25,18 +25,41 @@ final class CaseDetailViewModel {
         let title: String
     }
 
+    /// When the matter on screen is the copy kept on this device, the moment it was fetched.
+    /// `nil` means it came from the server in this session.
+    private(set) var cachedAt: Date?
+
     let caseID: String
     private let service: any CaseProviding
+    /// This account's matters, kept for reading offline.
+    private let offline: OfflineStore?
+    private let connectivity: (any ConnectivityReporting)?
 
-    init(caseID: String, service: any CaseProviding) {
+    /// - Parameters:
+    ///   - offline: where this account keeps matters for reading offline. Every matter that opens
+    ///     is kept, and opens from there when the server cannot be reached.
+    ///   - connectivity: whether the device is known to have no connection.
+    init(
+        caseID: String,
+        service: any CaseProviding,
+        offline: OfflineStore? = nil,
+        connectivity: (any ConnectivityReporting)? = nil
+    ) {
         self.caseID = caseID
         self.service = service
+        self.offline = offline
+        self.connectivity = connectivity
     }
 
     var legalCase: LegalCase? { detail?.legalCase }
+    /// Carries `cachedAt`, so a kept copy is drawn with its age — as the case list's is.
     var presentation: ListPresentation {
-        ListPresentation(state: state, isEmpty: detail == nil)
+        ListPresentation(state: state, isEmpty: detail == nil, cachedAt: cachedAt)
     }
+
+    /// Writing to a matter needs the server, and a note added to a kept copy would vanish on the
+    /// next load. Offered only while the matter on screen is the server's.
+    var canWrite: Bool { detail != nil && cachedAt == nil }
 
     // MARK: - Reading
 
@@ -186,14 +209,36 @@ final class CaseDetailViewModel {
 
     // MARK: - Loading
 
+    /// The matter from the server, kept for reading offline; or, when the server cannot be
+    /// reached, the copy kept last time — per `OfflineReading`, and never in place of an answer
+    /// the server did give. A matter it refused or could not find is not covered over with a
+    /// copy that says otherwise.
     func load() async {
         state = .loading
+        if detail == nil, OfflineReading.opensSavedCopyFirst(connectivity) {
+            showSavedCopy()
+        }
         do {
-            detail = try await service.caseDetail(id: caseID)
+            let fresh = try await service.caseDetail(id: caseID)
+            detail = fresh
+            cachedAt = nil
+            offline?.save(SavedCaseDetail(fresh), for: caseID)
             state = .loaded
         } catch {
+            if OfflineReading.mayStandIn(after: error) {
+                if detail == nil || cachedAt != nil { showSavedCopy() }
+            } else if cachedAt != nil {
+                detail = nil
+                cachedAt = nil
+            }
             state = .failed(LoadFailure(error))
         }
+    }
+
+    private func showSavedCopy() {
+        guard let saved = offline?.value(SavedCaseDetail.self, for: caseID) else { return }
+        detail = saved.value.detail
+        cachedAt = saved.storedAt
     }
 
     // MARK: - Writing
@@ -252,5 +297,23 @@ final class CaseDetailViewModel {
         } catch {
             writeError = DisplayText.message(for: error)
         }
+    }
+}
+
+/// `CaseDetail` as it is kept offline. A mirror rather than a conformance, so the wire type stays
+/// exactly what the service decodes, and its three parts are each already `Codable`.
+private struct SavedCaseDetail: Codable, Sendable {
+    var legalCase: LegalCase
+    var events: [CaseEvent]
+    var items: [CaseItem]
+
+    init(_ detail: CaseDetail) {
+        legalCase = detail.legalCase
+        events = detail.events
+        items = detail.items
+    }
+
+    var detail: CaseDetail {
+        CaseDetail(legalCase: legalCase, events: events, items: items)
     }
 }

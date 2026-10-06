@@ -65,7 +65,12 @@ struct MyFilesView: View {
             .task {
                 guard model == nil else { return }
                 let created = MyFilesViewModel(
-                    service: session.files, manager: session.fileManagement)
+                    service: session.files, manager: session.fileManagement,
+                    // The library kept between launches, and the documents kept for offline:
+                    // together, what lets My Files be used with no signal.
+                    cache: session.cache,
+                    offline: session.offlineCopies.map { OfflineDocuments(store: $0.documents) },
+                    officePreview: session.officePreview)
                 // Each reading of the library keeps the device's search in step with it.
                 created.onTreeLoaded = { AppSpotlight.shared.libraryLoaded($0) }
                 model = created
@@ -203,7 +208,8 @@ private struct LibraryScreen: View {
                         Task { uploadError = await LibraryUploadFlow.upload(chosen, into: review.folder) }
                     })
             }
-            .sheet(item: $previewing) { item in
+            // The viewer keeps what it opens, so the offline marks are read again once it closes.
+            .sheet(item: $previewing, onDismiss: { model.refreshOfflineStatus() }) { item in
                 // No citation brought us here, so there is no mark and no page to land on —
                 // the viewer opens at the top. PDFs render directly; Word documents go through
                 // the server's conversion, which the viewer says out loud.
@@ -557,7 +563,8 @@ private struct LibraryScreen: View {
             previewing = Previewing(file: file)
         } label: {
             DocumentRowLabel(
-                file: file, location: location, date: date, isBusy: model.isBusy(file.path))
+                file: file, location: location, date: date, isBusy: model.isBusy(file.path),
+                offline: model.offlineStatus(of: file))
         }
         .buttonStyle(.plain)
         .accessibilityHint("Opens the document")
@@ -570,6 +577,7 @@ private struct LibraryScreen: View {
                     systemImage: file.favorite == true ? "star.slash" : "star")
             }
             .tint(theme.warning)
+            offlineAction(file)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button {
@@ -605,6 +613,7 @@ private struct LibraryScreen: View {
                     file.favorite == true ? "Remove star" : "Star",
                     systemImage: file.favorite == true ? "star.slash" : "star")
             }
+            offlineAction(file)
             Divider()
             Button {
                 renameText = file.name
@@ -625,6 +634,27 @@ private struct LibraryScreen: View {
             }
         }
         .disabled(model.isWorking)
+    }
+
+    /// "Save for offline", or "Remove offline copy" once it is saved. A copy kept only because the
+    /// document was opened is offered for saving: it would otherwise be the first to go.
+    @ViewBuilder
+    private func offlineAction(_ file: FileNode.StoredFile) -> some View {
+        if model.offlineStatus(of: file) == .saved {
+            Button {
+                model.removeOfflineCopy(file)
+            } label: {
+                Label("Remove offline copy", systemImage: "arrow.down.circle.dotted")
+            }
+            .tint(theme.textTertiary)
+        } else {
+            Button {
+                Task { await model.saveForOffline(file) }
+            } label: {
+                Label("Save for offline", systemImage: "arrow.down.circle")
+            }
+            .tint(theme.accent)
+        }
     }
 
     // MARK: - Adding

@@ -116,6 +116,8 @@ struct SettingsView: View {
                     footnote(SpotlightCoordinator.Copy.footer)
                 }
                 .listRowBackground(theme.surface)
+                // What is kept on this device for reading offline, and clearing it.
+                OfflineStorageSection()
 
                 Section {
                     NavigationLink {

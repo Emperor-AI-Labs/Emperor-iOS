@@ -89,26 +89,58 @@ final class MyFilesViewModel {
     /// Non-nil once a document's bytes have arrived for the share sheet.
     var sharing: SharedDocument?
 
+    /// When the library on screen came from disk rather than the network.
+    private(set) var cachedAt: Date?
+
+    /// Paths of the documents that open without a connection, and of those saved for offline on
+    /// purpose. Read from the offline store in one go rather than per row, and re-read whenever
+    /// it may have changed — a document opened in the viewer is kept as it opens.
+    private(set) var offlinePaths: Set<String> = []
+    private(set) var savedOfflinePaths: Set<String> = []
+
     private let service: any FileProviding
     private let manager: any FileManaging
     private let now: @Sendable () -> Date
+    private let cache: ResponseCache?
+    private let offline: OfflineDocuments?
+    private let officePreview: (any OfficePreviewProviding)?
 
+    /// - Parameters:
+    ///   - cache: where the library is kept between launches, so it can be browsed offline.
+    ///   - offline: where this account keeps documents for reading offline.
+    ///   - officePreview: the converter, so a Word document is saved for offline as the viewer
+    ///     shows it.
     init(
         service: any FileProviding,
         manager: any FileManaging,
-        now: @escaping @Sendable () -> Date = { Date() }
+        now: @escaping @Sendable () -> Date = { Date() },
+        cache: ResponseCache? = nil,
+        offline: OfflineDocuments? = nil,
+        officePreview: (any OfficePreviewProviding)? = nil
     ) {
         self.service = service
         self.manager = manager
         self.now = now
+        self.cache = cache
+        self.offline = offline
+        self.officePreview = officePreview
+        refreshOfflineStatus()
     }
 
     // MARK: - Loading
 
     func load() async {
+        // The last library fetched, at once, so My Files opens on a bad connection — and the
+        // documents kept for offline can be reached at all. Replaced the moment the server
+        // answers, and stamped with its age until then.
+        if state == .idle, tree.isEmpty,
+           let cached = cache?.load([FileNode].self, for: .fileTree) {
+            tree = cached.value
+            cachedAt = cached.storedAt
+        }
         state = .loading
         do {
-            tree = try await service.tree()
+            adopt(try await service.tree())
             state = .loaded
             onTreeLoaded?(tree)
         } catch {
@@ -118,10 +150,20 @@ final class MyFilesViewModel {
         }
     }
 
+    /// A library the server has just sent: shown, kept for next time, and used to let go of the
+    /// automatic offline copies of documents no longer in it (`OfflineDocuments.prune`).
+    private func adopt(_ fresh: [FileNode]) {
+        tree = fresh
+        cachedAt = nil
+        cache?.save(fresh, for: .fileTree)
+        offline?.prune(keepingPaths: Set(FileService.allFiles(in: fresh).map(\.path)))
+        refreshOfflineStatus()
+    }
+
     /// Refetches after an edit without flashing the loading state over a list in use.
     private func reload() async {
         do {
-            tree = try await service.tree()
+            adopt(try await service.tree())
             state = .loaded
             onTreeLoaded?(tree)
         } catch {
@@ -208,11 +250,12 @@ final class MyFilesViewModel {
         case .favorites: isEmpty = favorites.isEmpty
         case .folders: isEmpty = listing(at: "")?.isEmpty ?? true
         }
-        return ListPresentation(state: state, isEmpty: isEmpty)
+        return ListPresentation(state: state, isEmpty: isEmpty, cachedAt: cachedAt)
     }
 
     func presentation(forFolder path: String) -> ListPresentation {
-        ListPresentation(state: state, isEmpty: listing(at: path)?.isEmpty ?? true)
+        ListPresentation(
+            state: state, isEmpty: listing(at: path)?.isEmpty ?? true, cachedAt: cachedAt)
     }
 
     /// The library holds documents but the search matched none of them — a different sentence
@@ -292,12 +335,16 @@ final class MyFilesViewModel {
 
     /// - Important: the name typed is a **request**. The server keeps the original extension and
     ///   sanitises the rest, so what is shown afterwards is the name it echoed (`FileEditWording`).
+    ///   The offline copy follows the echoed name too.
     func rename(_ file: FileNode.StoredFile, to newName: String) async {
         let requested = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !requested.isEmpty, requested != file.name else { return }
-        await perform(on: file.path) { manager in
+        await perform(on: file.path) { [weak self] manager in
             let result = try await manager.rename(
                 name: file.name, in: file.folderPath, to: requested)
+            self?.offline?.carry(
+                file.attachment,
+                to: ChatAttachment(name: result.fileName, folderName: file.attachment.folderName))
             return FileEditWording.renamed(result, requested: requested)
         }
         await reload()
@@ -323,8 +370,11 @@ final class MyFilesViewModel {
 
     func move(_ file: FileNode.StoredFile, to destination: FolderSummary) async {
         guard destination.path != file.folderPath else { return }
-        await perform(on: file.path) { manager in
+        await perform(on: file.path) { [weak self] manager in
             try await manager.move(name: file.name, from: file.folderPath, to: destination.path)
+            self?.offline?.carry(
+                file.attachment,
+                to: ChatAttachment(name: file.name, folderName: destination.path))
             return "Moved \(DisplayText.fileName(file.name)) to \(destination.displayName)."
         }
         await reload()
@@ -341,6 +391,85 @@ final class MyFilesViewModel {
             self.sharing = SharedDocument(fileName: file.name, data: data)
             return nil
         }
+    }
+
+    // MARK: - Offline
+
+    /// Whether a document opens without a connection, and whether that was asked for.
+    enum OfflineStatus: Equatable, Sendable {
+        case none
+        /// Kept because it was opened. Goes first when room is needed.
+        case available
+        /// Saved for offline on purpose. Goes last.
+        case saved
+    }
+
+    func offlineStatus(of file: FileNode.StoredFile) -> OfflineStatus {
+        if savedOfflinePaths.contains(file.path) { return .saved }
+        return offlinePaths.contains(file.path) ? .available : .none
+    }
+
+    /// Re-reads which documents are kept — after a document was opened in the viewer, which keeps
+    /// it as it opens.
+    func refreshOfflineStatus() {
+        guard let offline else { return }
+        let status = offline.status
+        offlinePaths = status.available
+        savedOfflinePaths = status.saved
+    }
+
+    /// "Save for offline": kept on the device, and the last thing to go when room is needed.
+    ///
+    /// A document already kept because it was opened is simply marked — that needs no connection
+    /// and no room. Otherwise it is fetched exactly as the viewer would show it. When documents
+    /// saved earlier had to go to make room, the notice names them: the person chose to keep
+    /// those, and finding one missing in court is the failure this is here to prevent.
+    func saveForOffline(_ file: FileNode.StoredFile) async {
+        guard let offline else { return }
+        let name = DisplayText.fileName(file.name)
+        if offline.pin(file.attachment) {
+            refreshOfflineStatus()
+            actionNotice = "\(name) is saved for offline reading."
+            return
+        }
+        await perform(on: file.path) { [weak self] _ in
+            guard let self else { return nil }
+            let document = try await DocumentFetch.fetch(
+                file.attachment, files: self.service, officePreview: self.officePreview)
+            let outcome = offline.keep(document, of: file.attachment, pin: true)
+            self.refreshOfflineStatus()
+            return try Self.wording(for: outcome, name: name)
+        }
+    }
+
+    /// What saving for offline says, or throws as the reason it could not.
+    nonisolated static func wording(for outcome: OfflineStore.SaveOutcome, name: String) throws
+        -> String {
+        switch outcome {
+        case .saved:
+            let displaced = outcome.evictedPinned.map {
+                DisplayText.fileName(OfflineDocuments.fileName(fromKey: $0.key))
+            }
+            guard !displaced.isEmpty else { return "\(name) is saved for offline reading." }
+            return "\(name) is saved for offline reading. Offline space ran out, so "
+                + "\(DisplayText.list(displaced)) "
+                + (displaced.count == 1 ? "was" : "were") + " removed to make room."
+        case .notSaved(.tooLarge):
+            throw DocumentNotViewable(message:
+                "\(name) is larger than the \(OfflineStorageSummary.size(OfflineLibrary.documentBudget)) kept for offline reading, so it cannot be saved.")
+        case .notSaved(.empty):
+            throw DocumentNotViewable(message:
+                "\(name) arrived empty, so there is nothing to save for offline reading.")
+        case .notSaved(.noRoom), .notSaved(.unavailable):
+            throw DocumentNotViewable(message:
+                "\(name) could not be saved for offline reading. The phone may be short of space.")
+        }
+    }
+
+    /// "Remove offline copy".
+    func removeOfflineCopy(_ file: FileNode.StoredFile) {
+        offline?.remove(file.attachment)
+        refreshOfflineStatus()
     }
 
     // MARK: - Folders
@@ -413,8 +542,9 @@ final class MyFilesViewModel {
 
         switch plan.target {
         case .file(let file):
-            await perform(on: file.path) { manager in
+            await perform(on: file.path) { [weak self] manager in
                 try await manager.delete(name: file.name, folderName: file.folderPath)
+                self?.offline?.remove(file.attachment)
                 return plan.doneNotice
             }
         case .folder(let folder):

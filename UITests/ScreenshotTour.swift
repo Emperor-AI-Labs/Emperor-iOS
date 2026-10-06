@@ -335,6 +335,71 @@ final class ScreenshotTour: XCTestCase {
         add(create)
     }
 
+    // MARK: - Offline reading
+
+    /// A conversation reopened with no signal — the copy kept on the device, the calm bar above
+    /// the composer that says so and how old it is — and Settings → Storage counting it.
+    /// `-UITestOffline` lets each route answer once and then fails it, as a phone in a court
+    /// corridor does.
+    func testTheOfflineConversationDark() { offlineTour(light: false) }
+    func testTheOfflineConversationLight() { offlineTour(light: true) }
+
+    private func offlineTour(light: Bool) {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestMode", "-UITestOffline"] + (light ? ["-UITestLight"] : [])
+        app.launch()
+        let theme = light ? "light" : "dark"
+        var step = 0
+        func snap(_ name: String) {
+            step += 1
+            Thread.sleep(forTimeInterval: 0.8)
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = String(format: "offline-%@-%02d-%@", theme, step, name)
+            shot.lifetime = .keepAlways
+            add(shot)
+        }
+
+        guard app.textFields["Email"].waitForExistence(timeout: 15) else { return }
+        let email = app.textFields["Email"]
+        email.tap()
+        email.typeText("john.doe@firm.com")
+        let password = app.secureTextFields["Password"]
+        if password.waitForExistence(timeout: 5) {
+            password.tap()
+            password.typeText("hunter2")
+        }
+        tapIfPresent(app.buttons["Sign in"])
+        guard app.tab("Chat").waitForExistence(timeout: 15) else { return }
+
+        // Opened once with the signal, which keeps it; then reopened without.
+        app.tab("Chat").tap()
+        let conversation = app.staticTexts["Bakshi v. State"]
+        guard conversation.waitForExistence(timeout: 10) else { return }
+        conversation.tap()
+        _ = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch
+            .waitForExistence(timeout: 10)
+        let bar = app.navigationBars["Conversation"]
+        if bar.waitForExistence(timeout: 5) { bar.buttons.element(boundBy: 0).tap() }
+        if conversation.waitForExistence(timeout: 10) { conversation.tap() }
+        if app.staticTexts["offline-notice"].firstMatch.waitForExistence(timeout: 10) {
+            snap("conversation")
+        }
+        if bar.waitForExistence(timeout: 5) { bar.buttons.element(boundBy: 0).tap() }
+
+        // Settings → Storage, scrolled to.
+        app.tab("More").tap()
+        let settings = app.buttons["Settings"].firstMatch
+        guard settings.waitForExistence(timeout: 5) else { return }
+        settings.tap()
+        let size = app.staticTexts["offline-storage-size"].firstMatch
+        var swipes = 0
+        while !(size.exists && size.isHittable) && swipes < 6 {
+            app.swipeUp()
+            swipes += 1
+        }
+        snap("settings-storage")
+    }
+
     /// Turns a switch on, tolerating a miss as every step here does. The switch is a child of the
     /// row on recent iOS; otherwise it is drawn at the row's trailing edge — tapping the middle of
     /// the row lands on the label, which does not turn it.

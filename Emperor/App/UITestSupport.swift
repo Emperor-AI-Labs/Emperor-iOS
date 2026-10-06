@@ -62,6 +62,26 @@ enum UITestSupport {
         }
     }
 
+    /// The signal goes after the first load: every route answers once, then fails as a phone with
+    /// no connection does. So a conversation, document or matter opened once can be opened again
+    /// offline, which is what offline reading is for.
+    static var isOffline: Bool {
+        ProcessInfo.processInfo.arguments.contains("-UITestOffline")
+    }
+
+    /// The routes already answered once in an offline run. Behind a lock because `URLProtocol`
+    /// answers on the session's own queue.
+    final class AnsweredRoutes: @unchecked Sendable {
+        static let shared = AnsweredRoutes()
+        private let lock = NSLock()
+        private var answered: Set<String> = []
+
+        /// `true` the first time a route is asked for, and never again.
+        func isFirst(_ path: String) -> Bool {
+            lock.withLock { answered.insert(path).inserted }
+        }
+    }
+
     static func makeSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubProtocol.self]
@@ -80,6 +100,10 @@ enum UITestSupport {
 
         override func startLoading() {
             let path = request.url?.path.replacingOccurrences(of: "/api", with: "") ?? ""
+            if UITestSupport.isOffline, !AnsweredRoutes.shared.isFirst(path) {
+                client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+                return
+            }
             // The profile write answers with the account as it was sent, as the platform does.
             if path == "/update-profile" { Fixtures.ProfileStub.shared.record(request) }
             let body = Fixtures.itemBody(for: request.url) ?? Fixtures.body(for: path)

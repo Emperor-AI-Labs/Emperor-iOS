@@ -1755,4 +1755,91 @@ final class EmperorUITests: XCTestCase {
         label.timeZone = india
         return (key.string(from: date), label.string(from: date))
     }
+
+    // MARK: - Offline reading
+
+    /// Waits for the stub's stored answer to be drawn — its work-log panel is the first thing in
+    /// it — so a test knows the conversation has loaded and been kept.
+    private func waitForTheStoredAnswer(_ app: XCUIApplication) -> Bool {
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch
+            .waitForExistence(timeout: 10)
+    }
+
+    /// Back from the conversation to the list, by the bar's leading button — see
+    /// `testAToolOpensItsFormAndCanBeRun` for why it is not found by its label.
+    private func leaveTheConversation(_ app: XCUIApplication) {
+        let bar = app.navigationBars["Conversation"]
+        XCTAssertTrue(bar.waitForExistence(timeout: 10))
+        bar.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(
+            app.staticTexts["Bakshi v. State"].waitForExistence(timeout: 10),
+            "leaving the conversation did not return to the list")
+    }
+
+    /// `-UITestOffline` lets every route answer once and then fails it as a phone with no signal
+    /// does. A conversation opened once therefore reopens from the copy kept on the device: the
+    /// stored answer is there, the bar above the composer says it is the saved copy and how old,
+    /// and a question typed into the composer cannot be sent — a saved copy is never posted back.
+    func testAConversationOpenedOnceReopensOfflineAndCannotBeAskedFrom() {
+        let app = signIn(launch("-UITestOffline"))
+        openTheStubConversation(app)
+        XCTAssertTrue(waitForTheStoredAnswer(app), "the conversation did not load the first time")
+        XCTAssertFalse(app.staticTexts["offline-notice"].exists, "online, there is no notice")
+        leaveTheConversation(app)
+
+        app.staticTexts["Bakshi v. State"].tap()
+
+        let notice = app.staticTexts["offline-notice"].firstMatch
+        XCTAssertTrue(notice.waitForExistence(timeout: 10), "reopened offline with no notice")
+        XCTAssertTrue(
+            notice.label.hasPrefix("Offline — showing the copy saved"),
+            "the notice does not say what it is: \(notice.label)")
+        XCTAssertTrue(waitForTheStoredAnswer(app), "the saved copy's answer is not drawn")
+
+        // Typed, so that only the offline rule can be what holds the send back.
+        let placeholder = "Ask about this matter…"
+        let field = app.textViews[placeholder].exists
+            ? app.textViews[placeholder] : app.textFields[placeholder]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "no composer")
+        field.focusForTyping()
+        field.typeText("Is the limitation extendable?")
+        XCTAssertFalse(app.buttons["Send"].firstMatch.isEnabled, "a saved copy must not be asked from")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    /// Settings → Storage counts what was kept — here, the conversation just opened — and
+    /// clearing it asks first and then leaves nothing.
+    func testSettingsStorageShowsWhatIsKeptAndClearsIt() {
+        let app = signIn(launch())
+        openTheStubConversation(app)
+        XCTAssertTrue(waitForTheStoredAnswer(app))
+        leaveTheConversation(app)
+
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
+        app.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+
+        let size = app.staticTexts["offline-storage-size"].firstMatch
+        scrollUntilHittable(size, in: app)
+        XCTAssertTrue(size.waitForExistence(timeout: 10), "Settings has no Storage row")
+        XCTAssertNotEqual(size.label, "None", "the conversation just opened was not counted")
+
+        let clear = app.buttons["offline-storage-clear"].firstMatch
+        scrollUntilHittable(clear, in: app)
+        clear.tap()
+        // A confirmation dialog: a sheet on iPhone, a popover on iPad.
+        let confirm = [app.sheets, app.popovers, app.alerts]
+            .map { $0.buttons["Clear offline copies"] }
+            .first { $0.waitForExistence(timeout: 3) }
+        XCTAssertNotNil(confirm, "clearing did not ask first")
+        confirm?.tap()
+
+        var polls = 0
+        while size.label != "None" && polls < 20 {
+            Thread.sleep(forTimeInterval: 0.25)
+            polls += 1
+        }
+        XCTAssertEqual(size.label, "None")
+    }
 }

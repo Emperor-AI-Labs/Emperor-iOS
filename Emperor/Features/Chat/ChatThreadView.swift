@@ -63,6 +63,11 @@ struct ChatThreadView: View {
         }
         .navigationTitle("Conversation")
         .navigationBarTitleDisplayMode(.inline)
+        // The connection came or went: show the saved copy, or reload over it.
+        .onReceive(NotificationCenter.default.publisher(for: .emperorConnectivityChanged)) { _ in
+            guard let model else { return }
+            Task { await model.connectivityChanged() }
+        }
         .task {
             guard model == nil else { return }
             let created = ChatViewModel(
@@ -71,7 +76,11 @@ struct ChatThreadView: View {
                 files: session.files,
                 uploads: session.uploads,
                 detached: StoredDetachedDocuments(store: Preferences.detachedDocuments),
-                preferredModel: session.currentUser?.preferredModel)
+                preferredModel: session.currentUser?.preferredModel,
+                // Kept for reading offline, and read back only when the server cannot be
+                // reached — never sent. See `ChatViewModel.savedCopyAt`.
+                offline: session.offlineCopies?.conversations,
+                connectivity: AppConnectivity.current)
             // Asked for in the role the user practises in, and only that: the conversation
             // offers no role of its own to pick, so the one chosen in Settings governs every
             // answer. Without this every conversation would open as a litigator regardless of
@@ -168,7 +177,9 @@ struct ChatThreadView: View {
                         // Why the composer is disarmed. Shown next to the load failure that
                         // caused it, because the two are one situation and separating them
                         // would leave the user with a dead composer and no explanation.
-                        if let blocked = model.sendBlockedReason {
+                        // Not while the saved copy is on screen: the offline bar above the composer
+                        // says why, calmly, and stays in sight.
+                        if let blocked = model.sendBlockedReason, !model.isShowingSavedCopy {
                             Notice(
                                 icon: "exclamationmark.triangle",
                                 text: blocked,
@@ -208,6 +219,13 @@ struct ChatThreadView: View {
                     }
                     model.restoredDraft = nil
                 }
+            }
+
+            // Above the composer it explains, and outside the transcript so it cannot scroll away.
+            if let notice = model.offlineNotice() {
+                OfflineCopyBanner(
+                    notice: notice, detail: model.sendBlockedReason,
+                    isReloading: model.isLoading, retry: { await model.load() })
             }
 
             composerBar(model)

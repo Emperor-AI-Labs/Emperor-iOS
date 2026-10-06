@@ -110,6 +110,12 @@ struct EmperorApp: App {
                         guard key == ResponseCache.Key.causeList.rawValue else { return }
                         Task { @MainActor in AppNotifications.shared.causeListChanged() }
                     }),
+                // Conversations, documents and matters kept for reading offline: Application
+                // Support rather than Caches, sealed while the phone is locked — see
+                // `FileCacheStore.Protection`. Wiped with the rest on sign-out.
+                offline: OfflineLibrary(store: FileCacheStore(
+                    directory: FileCacheStore.offlineDirectory(),
+                    protection: .whileUnlocked, fileExtension: "dat")),
                 onClear: { ShareableFile.clear() }))
         // Off unless the build is configured for it — see `SocialSignInConfig`.
         session.signInFlow.social = SocialSignInConfig(info: Bundle.main.infoDictionary ?? [:])
@@ -120,6 +126,9 @@ struct EmperorApp: App {
         // a refresh arrives in, where no view will ever exist to pass it on.
         AppNotifications.shared.session = session
         AppSpotlight.shared.session = session
+        // Started at launch, so the first screen to ask whether there is a connection is given
+        // the system's answer rather than "not known yet" — see `NetworkConnectivity`.
+        _ = NetworkConnectivity.shared
         return session
     }
 
