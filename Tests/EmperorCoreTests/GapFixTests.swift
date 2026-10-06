@@ -90,6 +90,8 @@ final class GapFixTests: XCTestCase {
         ])
         await withSignedInSession(store) { session in
             XCTAssertEqual(session.state, .signedIn(User(id: 42)))
+            // A 401 met before the session's handler is installed would go unnoticed.
+            await session.clientHandlersInstalled()
 
             HTTPStub.always(.json(#"{"error":"Invalid credentials"}"#, status: 401))
             _ = try? await session.chats.chats()

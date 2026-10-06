@@ -212,11 +212,75 @@ Settings → Notifications schedules, on the device, a morning briefing and an e
 reminder for each day the person's matters are listed — never for an empty day — and announces
 new items in the Updates feed from background refresh. Permission is asked for only from the
 switch. The "Email briefing" switch is the platform's own daily email, account-wide and shared
-with the web. Tapping a hearing opens the Calendar tab (not yet on that day — `AppNavigator`
-cannot open a given day); tapping an update opens Updates. There is no remote push: the server
-has no APNs sender, so a reminder for a listing added on the web reaches the phone at its next
-refresh. Known gaps: the badge is the unread count as of the last refresh, and a tap that
-arrives while another sheet is open does not open Updates.
+with the web. Tapping a hearing opens the Calendar on that hearing's day; tapping an update
+opens Updates over Home — and if another sheet is open at the time, as soon as it closes; the
+person's own sheet is never taken away. The app-icon badge is the unread count, set on every
+refresh, on return to the app, and the moment Updates marks something read. There is no remote
+push: the server has no APNs sender, so a reminder for a listing added on the web reaches the
+device at its next refresh.
+
+### Today: widget, Siri and links
+
+- **Widget** (`EmperorWidget/`): Home Screen small/medium/large, Lock Screen rectangular and
+  inline. It reads only a snapshot the app writes to the app group (`TodaySnapshot`: the next
+  seven days of listings, when they were fetched, and whether anyone is signed in — no token)
+  whenever the cause list is saved; cleared on sign-out. Days are IST, and the timeline turns at
+  each Indian midnight. Matter rows are `.privacySensitive()`, so a locked device shows counts
+  only.
+- **The app group is found at run time** (`AppGroup`): `EmperorAppGroup` (`EMPEROR_APP_GROUP`),
+  then `group.` + the installed bundle id — a sideloading tool may rename it. With none, the app
+  is unaffected and the widget says to open the app.
+- **Links**: `emperor://calendar[?day=YYYY-MM-DD]` and `emperor://updates`. They only navigate
+  (`EmperorLink`), through the same path as a notification tap.
+- **Siri and Shortcuts** (App Intents): What's Listed Today / Tomorrow, from the cached cause
+  list (its age said past six hours; requires the device unlocked), and Open My Calendar.
+- **Signing**: the widget is a second bundle (`com.emperorailabs.emperor.widget`) and needs its
+  own App ID and the App Groups capability.
+
+### App lock and privacy cover
+
+Settings → Security turns on "Require Face ID" (Touch ID / Optic ID / passcode, whichever the
+device has — `LAPolicy.deviceOwnerAuthentication`), with a "Lock after" choice (Immediately to
+After 1 hour; default 1 minute). Turning it on asks first; a device without a passcode cannot
+turn it on. The app locks at a cold start with a stored session and on a return after the
+background has lasted at least the timeout, measured on `ContinuousClock` so a changed date
+cannot shorten it. Whenever the scene is not active a brand cover hides the app — lock or no
+lock — so the app switcher never shows a matter. The cover is its own `UIWindow` above alerts,
+because a view-level cover sits under sheets. The setting is the device's and survives sign-out;
+the login screen is never locked. Decisions are `AppLock` (core, tested); drawing is
+`AppLockShield`. Widgets, Spotlight results and notification text live outside the app and are
+not behind the lock — each has its own privacy rule (above, and below).
+
+### Offline reading
+
+Conversations, documents (a Word file as the server's PDF of it) and matters that open are kept
+on the device per account. They are read back only when the system reports no connection or a
+request cannot reach the server — never in place of an answer the server gave
+(`OfflineReading`). A saved conversation is read-only: `POST /chat` and `/sync` rewrite stored
+history, so nothing is sent until a fresh, whole history has loaded
+(`ChatViewModel.savedCopyAt`). Documents are capped at 300 MB — least recently opened first,
+"Save for offline" last. Copies live in Application Support, excluded from backup, sealed
+whenever the device is locked; the response cache stays readable after first unlock because
+background refresh reads the cause list. Signing out wipes all of it (`ResponseCache.clear`).
+Settings → Storage shows and clears it.
+
+### Profile, documents shared in, and Spotlight
+
+- **`/update-profile` clears what it is not sent.** It writes `avatar`, `title` and
+  `organization` from the request, so a missing key clears that field; only `name` keeps its
+  value when omitted, and `phone` changes only when its key is present. `ProfileEditor` sends
+  all four fields on every save and never sends `phone`. The photo uses the web's format:
+  centre-cropped to 256 px, JPEG, as a `data:image/jpeg;base64,` URL, capped at 150 KB. The
+  reply is adopted into `Session` (`adoptProfile`), keeping the plan, starting model and role.
+- **Documents shared into the app** arrive through "Open in…" and the share sheet via
+  `CFBundleDocumentTypes`, with `LSSupportsOpeningDocumentsInPlace` off, so iOS hands over a
+  copy. There is no share extension — that would need an app group a sideloading tool may not
+  grant. `IncomingDocumentStore` keeps each file until it is saved or let go; one that arrives
+  signed out waits for the next sign-in, and signing out lets all of them go. "Save to My Files"
+  uploads through `LibraryUploadFlow`, duplicate check included.
+- **Spotlight.** Cases and documents are indexed into the app's own protected index, replaced in
+  full on every docket and My Files load. It is emptied on sign-out, when the Settings switch is
+  off, and at launch if either applies.
 
 ### Matters and calendars
 
@@ -248,6 +312,27 @@ The live chat surface is `src/tools/ToolWorkspace.jsx` rendering through
 `src/tools/renderers/Markdown.jsx`.
 
 Everything in this client was read from source rather than from those docs.
+
+## iPad
+
+At regular width the Cases and Chat tabs show the list beside what it opens
+(`ListBesideDetail`). Both layouts read one navigation path — the phone pushes it, the split
+shows its last element (`ListDetailPath`) — so `AppNavigator` requests work unchanged. Sheets
+that are whole screens get `.pageSizedSheet()` (iOS 18+); single-list screens get
+`.readableColumn()`. A matter whose load is cancelled part-way (the column rebuilt while its
+tab was off screen) goes back to idle and loads on its next appearance.
+
+## Accessibility
+
+Contrast is tested, not eyeballed: `PaletteTests` measures every text colour on every surface
+and every wash text is drawn on (`Palette.Wash`), in both themes. Text in the accent is
+`accentText`, never `accent`, which is a fill. Layouts survive the accessibility text sizes
+through `AdaptiveStack` (a row that becomes a column) and `.dynamicLineLimit(n)`; outcomes that
+land away from VoiceOver's focus are said with `VoiceOver.announce`.
+`UITests/AccessibilityAuditTests.swift` runs Xcode's accessibility audit over the main screens on
+iPhone and iPad, in both themes, and photographs the main tabs at the largest text size
+(`a11y-xxxl-*` in the screenshot-tour artifact). A failure names the screen, the issue and the
+element; the few waivers, each with its reason, are listed in that file.
 
 ## Server-side hardening is still in progress
 

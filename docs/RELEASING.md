@@ -113,9 +113,14 @@ ideviceinstaller -i Emperor-signed.ipa
 
 Then on the phone: Settings → General → VPN & Device Management → trust the profile.
 
-> The `unsigned-ipa` artifact carries no `_CodeSignature` and no `embedded.mobileprovision`, and
-> the app bundle has no nested frameworks or dylibs. That is the simplest case there is for
-> `zsign` — it writes both, and has no inner code to sign first.
+> The `unsigned-ipa` artifact carries no `_CodeSignature` and no `embedded.mobileprovision`.
+> Since the Today widget it is **two bundles**: the app and `PlugIns/EmperorWidget.appex`
+> (`com.emperorailabs.emperor.widget`). Each needs signing, and on a paid account the widget
+> needs its own App ID and profile, with the App Groups capability on both — `zsign` signs nested
+> bundles when given a profile that covers each. Sideloading tools that sign with a free Apple ID
+> (iloader, AltStore, Sideloadly) register both App IDs themselves. If a tool refuses the widget,
+> `zip -d Emperor-unsigned.ipa 'Payload/Emperor.app/PlugIns/*'` removes it and the app installs
+> and works without it.
 
 ### The free-Apple-ID variant
 

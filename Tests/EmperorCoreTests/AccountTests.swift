@@ -33,6 +33,7 @@ final class AccountTests: XCTestCase {
             store: store, cache: ResponseCache(store: InMemoryCacheStore()),
             urlSession: HTTPStub.session())
         await session.restore()
+        await session.clientHandlersInstalled()
         return (session, store)
     }
 
@@ -163,8 +164,12 @@ final class AccountTests: XCTestCase {
             status: 403))
 
         _ = try? await session.cases.cases()
-        // The observer hops to the main actor; let it land.
-        for _ in 0..<20 where session.standing == nil { await Task.yield() }
+        // The observer hops to the main actor; let it land — by the clock, not a count of
+        // yields, which a slow parallel run can outlast.
+        let deadline = Date().addingTimeInterval(3)
+        while session.standing == nil, Date() < deadline {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
 
         XCTAssertEqual(session.standing, .suspended)
         let stored = try XCTUnwrap(store.string(for: "auth.user"))

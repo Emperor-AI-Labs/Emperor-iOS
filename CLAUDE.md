@@ -155,6 +155,22 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   `screenshot-tour` and `screenshot-tour-ipad` artifacts hold the pictures as plain PNGs —
   `gh run download <run> -n screenshot-tour-ipad`. Look at both after any visible change; an
   iPad turns sheets into form sheets and confirmation dialogs into popovers.
+- **iPad layouts.** At regular width Cases and Chat show the list beside what it opens
+  (`ListBesideDetail`); both layouts read one navigation path (`ListDetailPath`). UI tests that
+  tap a row and then go Back must branch on `UIDevice.current.userInterfaceIdiom` — on iPad
+  there is no Back — and should drag inside a named list rather than the window's centre.
+- **Anything drawn over the whole app goes in `AppLockShield`'s window, not the root view.** A
+  root-view overlay is under every sheet. In UI tests `-UITestAppLock` starts locked with a
+  session on the device, and a stand-in answers for Face ID.
+- **The widget compiles only `Sources/EmperorCore/Today/`.** Keep those files Foundation-only and
+  free of references to the rest of the core (`IndianDay` restates the IST rule; a test holds it
+  to `WireDate`). CI type-checks the folder alone. `emperor://` links only navigate — add
+  destinations, never actions.
+- **Accessibility is checked twice:** colours in `PaletteTests` (a new pairing or wash gets a
+  test there), and drawn screens by `AccessibilityAuditTests` on both devices. Use `accentText`
+  for text, `AdaptiveStack` for a title with something beside it, `.dynamicLineLimit` for
+  essential text, `ValueRow` rather than `LabeledContent(_:value:)`, and a label on every
+  icon-only control. Add an audit waiver only for something the system draws, with its reason.
 - The app target compiles `Sources/EmperorCore` directly, so the tested code and the shipped
   code are the same bytes.
 
@@ -239,6 +255,13 @@ Full detail in `README.md`. The short list:
     (`com.emperorailabs.emperor.refresh`, which must match `Info.plist`). Never add the Push
     capability or `aps-environment` — a free Apple ID cannot sign it, and the server has no
     APNs sender.
+29. **`POST /update-profile` clears what it is not sent.** `avatar`, `title` and `organization`
+    are written from the request, and a missing key clears that field; only `name` survives
+    being left out. Always send all four (`ProfileEditor`), and never send `phone` unless you
+    mean to change it.
+30. **A request made with no signal does not fail for ten minutes** (`waitsForConnectivity`,
+    600 s timeout). Screens that keep offline copies ask the network monitor first; a saved copy
+    is never posted back — see `OfflineReading`.
 
 ## Runtime connectivity
 

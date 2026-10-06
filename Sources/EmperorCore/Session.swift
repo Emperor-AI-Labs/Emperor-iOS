@@ -132,7 +132,7 @@ final class Session {
         // instead, so nothing crosses the isolation boundary.
         weakSelf.session = self
         let box = weakSelf
-        Task {
+        clientHandlers = Task {
             await client.setAuthenticationLostHandler {
                 Task { @MainActor in box.session?.handleAuthenticationLost() }
             }
@@ -146,6 +146,16 @@ final class Session {
     }
 
     private let weakSelf = SessionBox()
+
+    /// The installation of the client's two handlers, which `init` cannot await. In the app it
+    /// finishes long before the first request; a test that sends one at once — and a slow,
+    /// parallel CI run — can beat it, and a refusal or a 401 met before it lands goes unnoticed.
+    private var clientHandlers: Task<Void, Never>?
+
+    /// Returns once the client reports refusals and lost sessions to this session.
+    func clientHandlersInstalled() async {
+        await clientHandlers?.value
+    }
 
     /// The server rejected our identity, so the token is spent. Sign out rather than leaving
     /// the app in a state where every screen fails and nothing offers a way forward.
