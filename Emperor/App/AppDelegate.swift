@@ -1,7 +1,8 @@
 import SwiftUI
 import UIKit
 
-/// Exists for exactly one callback.
+/// Exists for two callbacks: launching, where notifications register what must be in place
+/// before launch finishes (`AppNotifications.registerAtLaunch`), and background uploads.
 ///
 /// When a background upload finishes while the app is suspended or dead, the system relaunches
 /// the app and calls `handleEventsForBackgroundURLSession`. There is no SwiftUI equivalent that
@@ -13,6 +14,17 @@ import UIKit
 /// as misbehaving, and becomes progressively less willing to relaunch it for later transfers —
 /// so a large scan silently stops being reliable after a few of them.
 final class AppDelegate: NSObject, UIApplicationDelegate {
+
+    /// The notification delegate and the background refresh task, which both have to be in
+    /// place before launching finishes — see `AppNotifications.registerAtLaunch`. Neither asks
+    /// the person for anything.
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        AppNotifications.registerAtLaunch()
+        return true
+    }
 
     func application(
         _ application: UIApplication,

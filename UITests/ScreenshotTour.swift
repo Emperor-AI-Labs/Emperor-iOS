@@ -191,6 +191,25 @@ final class ScreenshotTour: XCTestCase {
                         backOut(app)
                     }
                 }
+                // Notifications: off, as a fresh install finds it; then on, with the hearing
+                // reminders and updates beneath; then the account's email at the foot.
+                let notifications = app.buttons["notifications-settings"].firstMatch
+                if notifications.waitForExistence(timeout: 5) {
+                    notifications.tap()
+                    if app.navigationBars["Notifications"].waitForExistence(timeout: 5) {
+                        snap("settings-notifications")
+                        let allow = app.switches["notifications-allow"].firstMatch
+                        if allow.waitForExistence(timeout: 5) {
+                            turnOn(allow)
+                            _ = app.switches["notifications-briefing"].firstMatch
+                                .waitForExistence(timeout: 5)
+                            snap("settings-notifications-on")
+                            app.swipeUp()
+                            snap("settings-notifications-email")
+                        }
+                        backOut(app)
+                    }
+                }
                 app.swipeUp()
                 snap("settings-plan-and-usage")
             }
@@ -279,6 +298,24 @@ final class ScreenshotTour: XCTestCase {
         create.name = "providers-02-create-account"
         create.lifetime = .keepAlways
         add(create)
+    }
+
+    /// Turns a switch on, tolerating a miss as every step here does. The switch is a child of the
+    /// row on recent iOS; otherwise it is drawn at the row's trailing edge — tapping the middle of
+    /// the row lands on the label, which does not turn it.
+    private func turnOn(_ toggle: XCUIElement) {
+        guard (toggle.value as? String) != "1" else { return }
+        let inner = toggle.switches.firstMatch
+        if inner.exists {
+            inner.tap()
+        } else {
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        }
+        var polls = 0
+        while (toggle.value as? String) != "1" && polls < 20 {
+            Thread.sleep(forTimeInterval: 0.25)
+            polls += 1
+        }
     }
 
     private func tapIfPresent(_ element: XCUIElement) {

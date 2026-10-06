@@ -33,6 +33,14 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Emperor uses the camera to scan paperbooks, orders and pleadings into your document library.
 </string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.emperorailabs.emperor.refresh</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

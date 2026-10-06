@@ -206,6 +206,18 @@ which the platform has reworded once already.
 section in every answer. They are a different thing from the `<@file:MARK:7>` annexure tokens
 above, and `AnswerCitations` keeps the two apart.
 
+### Notifications
+
+Settings → Notifications schedules, on the device, a morning briefing and an evening-before
+reminder for each day the person's matters are listed — never for an empty day — and announces
+new items in the Updates feed from background refresh. Permission is asked for only from the
+switch. The "Email briefing" switch is the platform's own daily email, account-wide and shared
+with the web. Tapping a hearing opens the Calendar tab (not yet on that day — `AppNavigator`
+cannot open a given day); tapping an update opens Updates. There is no remote push: the server
+has no APNs sender, so a reminder for a listing added on the web reaches the phone at its next
+refresh. Known gaps: the badge is the unread count as of the last refresh, and a tap that
+arrives while another sheet is open does not open Updates.
+
 ### Matters and calendars
 
 - **`court_type` is `'district'` by default** — the `cases` column's default, and what

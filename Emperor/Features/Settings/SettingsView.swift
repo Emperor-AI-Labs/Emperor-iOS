@@ -50,6 +50,20 @@ struct SettingsView: View {
                 }
                 .listRowBackground(theme.surface)
 
+                // Hearing reminders on this device, and the account's daily email — see
+                // `NotificationSettingsView`.
+                Section {
+                    NavigationLink {
+                        NotificationSettingsView()
+                    } label: {
+                        IconRowLabel(title: "Notifications", systemImage: "bell", hue: .violet)
+                    }
+                    .accessibilityIdentifier("notifications-settings")
+                } footer: {
+                    footnote("Hearing reminders on this device, and the daily cause-list email.")
+                }
+                .listRowBackground(theme.surface)
+
                 if let user = session.currentUser {
                     Section {
                         LabeledContent("Name") {

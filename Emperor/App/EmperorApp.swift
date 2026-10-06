@@ -2,7 +2,8 @@ import SwiftUI
 
 @main
 struct EmperorApp: App {
-    /// Present only to receive `handleEventsForBackgroundURLSession` — see `AppDelegate`.
+    /// Present to receive `handleEventsForBackgroundURLSession`, and to register notifications
+    /// before launching finishes — see `AppDelegate`.
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     /// The Keychain and the response cache are supplied here because they are the parts of
@@ -65,19 +66,35 @@ struct EmperorApp: App {
                 session.signInFlow.social = SocialSignInConfig(
                     isEnabled: true, googleClientID: "0000-uitest.apps.googleusercontent.com")
             }
+            // Notifications start off on every run, for the reason the gates in `init` are
+            // reset. Cleared here rather than there: the coordinator reads them when the session
+            // is handed over below, which happens before `init`'s body runs.
+            UserDefaults.standard.removeObject(forKey: NotificationPreferences.storageKey)
+            UserDefaults.standard.removeObject(forKey: SeenUpdates.storageKey)
+            AppNotifications.shared.session = session
             return session
         }
         #endif
         let session = Session(
             store: Keychain(),
             cache: ResponseCache(
-                store: FileCacheStore(directory: FileCacheStore.defaultDirectory()),
+                // Told when anything is cached, so that whichever screen loaded the cause list,
+                // the hearing reminders are re-planned from it — see `NotifyingCacheStore`.
+                store: NotifyingCacheStore(
+                    base: FileCacheStore(directory: FileCacheStore.defaultDirectory()),
+                    onWrite: { key in
+                        guard key == ResponseCache.Key.causeList.rawValue else { return }
+                        Task { @MainActor in AppNotifications.shared.causeListChanged() }
+                    }),
                 onClear: { ShareableFile.clear() }))
         // Off unless the build is configured for it — see `SocialSignInConfig`.
         session.signInFlow.social = SocialSignInConfig(info: Bundle.main.infoDictionary ?? [:])
         // On unless the build switches it off — see `WebPlans`.
         session.webPlans = WebPlans(
             info: Bundle.main.infoDictionary ?? [:], apiBaseURL: APIConfig.current.baseURL)
+        // Handed over here because this runs on every launch, including the background launch
+        // a refresh arrives in, where no view will ever exist to pass it on.
+        AppNotifications.shared.session = session
         return session
     }
 
@@ -111,6 +128,9 @@ struct EmperorApp: App {
                     // A plan bought on the web, or a pause lifted, reaches a phone that was
                     // left open — at most every half hour.
                     Task { await session.refreshAccountIfDue() }
+                    // The cause list and the feed may have moved on while the app was away, and
+                    // permission may have been changed in iOS Settings.
+                    Task { await AppNotifications.shared.refresh() }
                     #if DEBUG
                     if UITestSupport.isActive { return }
                     #endif
@@ -172,6 +192,15 @@ struct RootView: View {
             guard let reading else { return }
             practice.link(to: session)
             practice.reconcile(withAccountRole: reading.role)
+        }
+        // Reminders belong to the account signed in: planned when one signs in or is restored at
+        // launch, and withdrawn the moment it signs out — a reminder naming a client's matter
+        // must not fire on a phone its owner has left. See `AppNotifications`.
+        .onChange(of: session.currentUser?.id) { old, new in
+            Task {
+                if old != nil { await AppNotifications.shared.signedOut() }
+                if new != nil { await AppNotifications.shared.refresh() }
+            }
         }
         .task {
             if hasAcknowledgedDisclaimer == nil {

@@ -78,6 +78,15 @@ targets:
         NSCameraUsageDescription: >
           Emperor uses the camera to scan paperbooks, orders and pleadings into your
           document library.
+        # Background App Refresh, so hearing reminders are re-planned from a fresh cause list
+        # while the app is not open (`AppNotifications`, `NotificationCoordinator`). The
+        # identifier must match `NotificationCoordinator.refreshTaskIdentifier`, or iOS refuses
+        # the request. Reminders are local notifications: there is deliberately no Push
+        # Notifications capability and no `aps-environment`.
+        UIBackgroundModes:
+          - fetch
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.emperorailabs.emperor.refresh
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:

@@ -230,6 +230,15 @@ Full detail in `README.md`. The short list:
 26. **The role lives on the account** (`practice_role`, the web's role id — not
     `PractitionerRole.rawValue`). `Practice` keeps the device's copy in step; a role the app
     does not carry (Devil's Advocate) is never overwritten.
+27. **`POST /notif/test` also opts the account in**, exactly as `/notif/optin` does, and
+    `/notif/optout` deletes every browser push subscription the account holds. `/notif/status`
+    has no `success` key. See `NotificationOptInService`.
+28. **There is no push channel to an iPhone.** Reminders are local notifications planned by
+    `NotificationPlanner` from the cause list, in IST, re-planned at launch, on foreground, on
+    every cause-list cache write and from a `BGAppRefreshTask`
+    (`com.emperorailabs.emperor.refresh`, which must match `Info.plist`). Never add the Push
+    capability or `aps-environment` — a free Apple ID cannot sign it, and the server has no
+    APNs sender.
 
 ## Runtime connectivity
 

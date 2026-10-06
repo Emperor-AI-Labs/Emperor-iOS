@@ -134,6 +134,20 @@ enum UITestSupport {
                 return #"{"success":true,"notifications":[{"id":"n1","title":"Hearing listed"}]}"#
             case "/notifications/unread-count":
                 return #"{"success":true,"count":1}"#
+            // The account's daily email, for Settings → Notifications. Remembers the switch for
+            // the run, so turning it on reads back as on — the screen re-reads `/notif/status`
+            // after every change rather than assuming. No `success` key on the status: the
+            // platform sends the fields alone.
+            case "/notif/status":
+                return EmailBriefingStub.shared.status()
+            case "/notif/optin":
+                EmailBriefingStub.shared.set(optedIn: true)
+                return #"{"success":true}"#
+            case "/notif/optout":
+                EmailBriefingStub.shared.set(optedIn: false)
+                return #"{"success":true}"#
+            case "/notif/test":
+                return #"{"success":true,"emailed":1,"pushed":0,"skipped":0,"errors":[]}"#
             // `folders`, not `files`. Every node carries `type`, which `FileNode` switches on,
             // and a file needs `status: "ready"` or it reads as still being processed. See
             // `userFilesBody` for what the library holds.
@@ -304,6 +318,21 @@ enum UITestSupport {
             "path":"Engagement_Letter.pdf","size":3072,"modified":"2026-09-30T09:00:00.000Z",\
             "status":"ready","favorite":false}]}
             """
+        }
+
+        /// The daily-email switch, as the stub server holds it for one run. Behind a lock
+        /// because `URLProtocol` answers on the session's own queue.
+        final class EmailBriefingStub: @unchecked Sendable {
+            static let shared = EmailBriefingStub()
+            private let lock = NSLock()
+            private var optedIn = false
+
+            func set(optedIn value: Bool) { lock.withLock { optedIn = value } }
+
+            func status() -> String {
+                let on = lock.withLock { optedIn }
+                return #"{"asked":true,"optedIn":\#(on),"pushCount":0,"systemEnabled":true,"notifTime":"08:00"}"#
+            }
         }
 
         /// `nil` means "this route has no distinct empty shape", so the normal body is used.

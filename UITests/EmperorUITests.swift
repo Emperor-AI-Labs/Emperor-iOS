@@ -1181,4 +1181,101 @@ final class EmperorUITests: XCTestCase {
         }
         XCTAssertTrue(element.exists && element.isHittable, "\(element) is not reachable in the sheet")
     }
+
+    // MARK: - Notifications
+
+    /// Settings → Notifications opens, is off until asked for, and turning it on shows the
+    /// hearing reminders, updates and a test. In UI-test mode the app answers as a device that was
+    /// asked and said yes — no real permission prompt, no real notification.
+    ///
+    /// The account's email switch is turned on and off against the stub, which remembers it for
+    /// the run: the screen re-reads `/notif/status` after each change, so the switch only stays on
+    /// if that read-back decodes.
+    func testNotificationSettingsOpenAndShowTheirControls() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
+        app.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+
+        let row = app.buttons["notifications-settings"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "Settings has no Notifications row")
+        scrollUntilHittable(row, in: app)
+        row.tap()
+        XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 10))
+
+        let allow = app.switches["notifications-allow"].firstMatch
+        XCTAssertTrue(allow.waitForExistence(timeout: 10), "no master switch")
+        XCTAssertEqual(allow.value as? String, "0", "off until the person turns it on")
+        XCTAssertFalse(app.switches["notifications-briefing"].exists)
+
+        flip(allow, to: "1")
+        XCTAssertTrue(
+            app.switches["notifications-briefing"].firstMatch.waitForExistence(timeout: 10),
+            "turning notifications on did not show the hearing reminders")
+        XCTAssertTrue(app.switches["notifications-evening"].firstMatch.exists)
+        XCTAssertTrue(
+            app.descendants(matching: .any)["notifications-briefing-time"].firstMatch.exists,
+            "no briefing time")
+
+        let test = app.buttons["notifications-test"].firstMatch
+        XCTAssertTrue(test.waitForExistence(timeout: 5))
+        test.tap()
+        XCTAssertTrue(
+            app.staticTexts["notifications-notice"].firstMatch.waitForExistence(timeout: 5),
+            "the test did not say it was sent")
+
+        let updates = app.switches["notifications-updates"].firstMatch
+        scrollUntilHittable(updates, in: app)
+        XCTAssertTrue(updates.exists, "no updates switch")
+
+        // The account's email, lowest on the screen — scrolled to before it is looked for, since
+        // a row below the fold does not exist yet.
+        let email = app.switches["notifications-email"].firstMatch
+        scrollUntilHittable(email, in: app)
+        XCTAssertTrue(email.waitForExistence(timeout: 10), "the email switch did not load")
+        XCTAssertEqual(email.value as? String, "0")
+        flip(email, to: "1")
+        let testEmail = app.buttons["notifications-test-email"].firstMatch
+        scrollUntilHittable(testEmail, in: app)
+        XCTAssertTrue(
+            testEmail.waitForExistence(timeout: 5), "a test email is offered once the email is on")
+        scrollUntilHittable(email, in: app)
+        flip(email, to: "0")
+        XCTAssertTrue(app.navigationBars["Notifications"].exists)
+
+        // And back out to Settings, intact.
+        app.navigationBars["Notifications"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+    }
+
+    /// Swipes until an element lower on the screen can be tapped — a list builds only the rows it
+    /// shows, and on a phone these start below the fold.
+    private func scrollUntilHittable(_ element: XCUIElement, in app: XCUIApplication) {
+        var swipes = 0
+        while !(element.exists && element.isHittable) && swipes < 6 {
+            app.swipeUp()
+            swipes += 1
+        }
+    }
+
+    /// Turns a switch and waits for it to read `value`.
+    ///
+    /// A SwiftUI `Toggle` in a list is one element covering the whole row, and tapping its middle
+    /// lands on the label, which does not turn it. The switch itself is a child element on recent
+    /// iOS; where it is not, the trailing edge of the row is where it is drawn.
+    private func flip(_ toggle: XCUIElement, to value: String) {
+        let inner = toggle.switches.firstMatch
+        if inner.exists {
+            inner.tap()
+        } else {
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        }
+        var polls = 0
+        while (toggle.value as? String) != value && polls < 40 {
+            Thread.sleep(forTimeInterval: 0.25)
+            polls += 1
+        }
+        XCTAssertEqual(toggle.value as? String, value, "the switch did not turn")
+    }
 }
