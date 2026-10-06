@@ -607,7 +607,7 @@ final class EmperorUITests: XCTestCase {
         let app = signIn(launch())
         XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
         app.tab("More").tap()
-        app.buttons["All tools"].tap()
+        app.buttons["All tools"].firstMatch.tap()
 
         XCTAssertTrue(app.navigationBars["Tools"].waitForExistence(timeout: 10))
         // The five the web's own sidebar links, so the ones most likely to be opened.
@@ -616,8 +616,10 @@ final class EmperorUITests: XCTestCase {
                 app.staticTexts[tool].waitForExistence(timeout: 5), "\(tool) is not listed")
         }
 
-        app.staticTexts["Devil's Advocate"].tap()
-        let run = app.buttons["Run"]
+        // `firstMatch` throughout: an iPad draws the sheet and the screen behind it at once, so a
+        // name can be on screen twice, and a bare query that finds two refuses to tap either.
+        app.staticTexts["Devil's Advocate"].firstMatch.tap()
+        let run = app.buttons["Run"].firstMatch
         XCTAssertTrue(run.waitForExistence(timeout: 10), "the tool form did not render")
         run.tap()
 
@@ -644,7 +646,7 @@ final class EmperorUITests: XCTestCase {
                 "going back from \(leaving) did not land on \(arriving)")
         }
 
-        app.navigationBars["Tools"].buttons["Done"].tap()
+        app.navigationBars["Tools"].buttons["Done"].firstMatch.tap()
         XCTAssertTrue(
             app.navigationBars["More"].waitForExistence(timeout: 10),
             "the tool sheet could not be closed after running a tool")

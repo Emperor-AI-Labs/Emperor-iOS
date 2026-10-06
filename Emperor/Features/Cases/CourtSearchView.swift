@@ -444,7 +444,12 @@ private struct CourtPicker: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(theme.canvas)
-        .searchable(text: $query, prompt: "Search courts")
+        // Always shown, not tucked under the bar: forty-eight courts is a list that is searched,
+        // not scrolled, and on iPad an automatic placement hides the field behind a toolbar
+        // button that is easy to miss.
+        .searchable(
+            text: $query, placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search courts")
         .navigationTitle("Court")
         .navigationBarTitleDisplayMode(.inline)
         .overlay {
