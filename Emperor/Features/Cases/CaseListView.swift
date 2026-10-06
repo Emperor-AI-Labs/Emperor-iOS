@@ -54,7 +54,6 @@ struct CaseListView: View {
             .sheet(isPresented: $isArranging) {
                 if let model {
                     CaseArrangementSheet(model: model)
-                        .presentationDetents([.medium, .large])
                 }
             }
             .navigationDestination(for: CaseRoute.self) { route in
@@ -155,16 +154,6 @@ struct CaseListView: View {
                 }
             }
             .background(theme.canvas)
-            // An inset rather than the first thing in a stack: the list scrolls beneath the chips,
-            // and stays the scroll view the navigation bar's large title follows.
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if !model.filterChips.isEmpty {
-                    FilterChipBar(
-                        chips: model.filterChips,
-                        remove: { model.remove($0) },
-                        clearAll: { model.clearFilters() })
-                }
-            }
         } empty: {
             EmptyStateView(
                 Copy.noMattersTitle,
@@ -187,6 +176,21 @@ struct CaseListView: View {
 
     private func docket(_ model: CaseListViewModel) -> some View {
         List {
+            // The active filters, as the list's first row. Not a `safeAreaInset` above the list:
+            // on iOS 26 the navigation bar's scroll-edge effect covers that band, and the chips
+            // were laid out — leaving their gap — but never seen. In the list they scroll away
+            // with it; the filled toolbar icon still says a filter is on.
+            if !model.filterChips.isEmpty {
+                Section {
+                    FilterChipBar(
+                        chips: model.filterChips,
+                        remove: { model.remove($0) },
+                        clearAll: { model.clearFilters() })
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+            }
             ForEach(model.groups) { group in
                 Section {
                     ForEach(group.cases) { legalCase in
@@ -318,9 +322,12 @@ private struct FilterChipBar: View {
 /// once, and a menu closes on every tap, so choosing three courts would mean opening it three
 /// times. Five sorts, three groupings and up to thirteen filters is more than a menu can show
 /// without scrolling inside a popover. And a sheet has room to say how many cases each choice
-/// holds, which is what tells someone a filter is worth choosing. Medium height first on iPhone,
-/// over the docket it is changing, so the list can be seen responding underneath; on iPad it is
-/// a form sheet, which suits a short list of choices better than a full-screen page.
+/// holds, which is what tells someone a filter is worth choosing.
+///
+/// Full height, not a half-height detent. Twenty-odd choices do not fit in half a phone, and on
+/// iPad a detent turns the sheet into a small panel with the grouping and every filter below the
+/// fold — the screen shows its first section and looks like a sort menu. The standard sheet is
+/// the whole list on a phone and a form sheet on iPad.
 private struct CaseArrangementSheet: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
@@ -363,6 +370,8 @@ private struct CaseArrangementSheet: View {
                 filterSection("Source", options: SourceFilter.allCases.map(CaseFilterChip.source))
             }
             .font(.brand(.body))
+            // Named so the UI tests can scroll this list, never the docket behind the sheet.
+            .accessibilityIdentifier("case-arrangement-form")
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(theme.canvas)

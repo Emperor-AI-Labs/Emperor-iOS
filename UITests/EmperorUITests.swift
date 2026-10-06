@@ -489,7 +489,7 @@ final class EmperorUITests: XCTestCase {
         // so without this the row is not merely hard to reach, it does not exist to the test.
         let search = app.searchFields["Search courts"]
         XCTAssertTrue(search.waitForExistence(timeout: 5), "the picker has no search field")
-        search.tap()
+        search.focusForTyping()
         search.typeText("Sessions")
 
         let district = app.buttons["court-dist-sessions"]
@@ -508,6 +508,7 @@ final class EmperorUITests: XCTestCase {
         // A searchable one, for contrast — otherwise this would pass on a picker where every
         // row happened to be disabled.
         search.buttons["Clear text"].tap()
+        search.focusForTyping()
         search.typeText("Supreme")
         XCTAssertTrue(app.buttons["court-sc"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["court-sc"].isEnabled)
@@ -1047,7 +1048,7 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Add case"].exists, "adding a case is not its own control")
         XCTAssertTrue(caseRow(app, "case-sc").waitForExistence(timeout: 10))
 
-        search.tap()
+        search.focusForTyping()
         search.typeText("Kapoor")
         XCTAssertTrue(caseRow(app, "case-hc-delhi").waitForExistence(timeout: 5),
                       "the search did not find the matter by party")
@@ -1055,12 +1056,14 @@ final class EmperorUITests: XCTestCase {
         XCTAssertFalse(caseRow(app, "case1").exists, "the search did not narrow the docket")
 
         search.buttons["Clear text"].tap()
+        search.focusForTyping()
         search.typeText("41207/2025")
         XCTAssertTrue(caseRow(app, "case-sc").waitForExistence(timeout: 5),
                       "the search did not find the matter by diary number")
         XCTAssertFalse(caseRow(app, "case-hc-delhi").exists)
 
         search.buttons["Clear text"].tap()
+        search.focusForTyping()
         search.typeText("zzzz")
         let clear = app.buttons["case-no-matches-clear"]
         XCTAssertTrue(clear.waitForExistence(timeout: 5), "nothing matching does not say so")
@@ -1085,7 +1088,9 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Sort & filter"].waitForExistence(timeout: 5),
                       "the sort & filter sheet did not open")
         app.buttons["Name A–Z"].firstMatch.tap()
-        app.segmentedControls.buttons["None"].tap()
+        let ungrouped = app.segmentedControls.buttons["None"]
+        revealInArrangementSheet(ungrouped, app)
+        ungrouped.tap()
         let highCourts = app.buttons["case-filter-court-hc"]
         revealInArrangementSheet(highCourts, app)
         highCourts.tap()
@@ -1166,17 +1171,20 @@ final class EmperorUITests: XCTestCase {
     /// The sheet opens at half height on a phone, with the filters below the fold: pull it to
     /// full height by its bar, then scroll inside it until the row can be tapped.
     private func revealInArrangementSheet(_ element: XCUIElement, _ app: XCUIApplication) {
-        let bar = app.navigationBars["Sort & filter"]
+        // Dragged inside the sheet's own list, from low in it to higher up. A drag that starts on
+        // the sheet's bar or edge moves the sheet itself — it resized a half-height sheet and then
+        // pulled it back down, so the row was never reached — and the docket behind it is a list
+        // too, so the sheet's is found by name (the last list on screen, failing that).
+        let named = app.collectionViews["case-arrangement-form"]
+        let form = named.waitForExistence(timeout: 5)
+            ? named : app.collectionViews.allElementsBoundByIndex.last ?? named
         var tries = 0
-        while !(element.exists && element.isHittable), tries < 6 {
-            if tries == 0 {
-                bar.swipeUp()
-            } else {
-                let start = bar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 6))
-                let end = start.withOffset(CGVector(dx: 0, dy: -180))
-                start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow,
-                            thenHoldForDuration: 0.2)
-            }
+        while !(element.exists && element.isHittable), tries < 8 {
+            let start = form.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+            let end = form.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
+            start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow,
+                        thenHoldForDuration: 0.2)
+            Thread.sleep(forTimeInterval: 0.3)
             tries += 1
         }
         XCTAssertTrue(element.exists && element.isHittable, "\(element) is not reachable in the sheet")

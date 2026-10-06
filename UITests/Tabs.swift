@@ -24,3 +24,21 @@ extension XCUIApplication {
             NSPredicate(format: "label == %@ AND identifier == %@", name, symbol)).firstMatch
     }
 }
+
+extension XCUIElement {
+    /// Taps a text or search field until it actually holds the keyboard, then returns.
+    ///
+    /// On iPad a tap can land while a search field in the navigation bar is still settling and
+    /// leave nothing focused, and `typeText` then fails outright with "neither element nor any
+    /// descendant has keyboard focus" — on a field that works perfectly by hand. Asking the field
+    /// whether it has focus, and tapping again if not, makes typing deterministic on both devices.
+    func focusForTyping() {
+        for _ in 0..<4 {
+            tap()
+            for _ in 0..<10 {
+                if (value(forKey: "hasKeyboardFocus") as? Bool) == true { return }
+                Thread.sleep(forTimeInterval: 0.2)
+            }
+        }
+    }
+}
