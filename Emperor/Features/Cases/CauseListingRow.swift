@@ -37,23 +37,28 @@ struct CauseListingRow: View {
                 // Only where the published list printed one. Nothing here is ever inferred,
                 // because a plausible "10:30" for a hearing a lawyer has to attend is exactly the
                 // helpful guess that gets a matter dismissed.
+                // A glyph and the words side by side, laid out here rather than by `Label`: the
+                // accessibility audit read the `Label`'s title as text a larger size would cut
+                // off, and a time must wrap before it is cut.
                 if leadsWithTime, let time = display.time {
-                    Label {
-                        Text(time)
-                            .foregroundStyle(theme.textPrimary)
-                    } icon: {
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.xs + 2) {
                         Image(systemName: "clock")
                             .foregroundStyle(theme.accentText)
+                            .accessibilityHidden(true)
+                        Text(time)
+                            .foregroundStyle(theme.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .font(.brand(.subheadline, weight: .semibold).monospacedDigit())
-                    .dynamicLineLimit(1)
                 }
 
+                // In full, however long. A bench is named so a litigator knows which courtroom
+                // and which judge, and the part an ellipsis took was the judge's name.
                 if let forum = display.forum(courtName: listing.courtName) {
                     Text(forum)
                         .font(.brand(.caption2, weight: .semibold))
                         .foregroundStyle(theme.accentText)
-                        .dynamicLineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Text(listing.displayTitle)

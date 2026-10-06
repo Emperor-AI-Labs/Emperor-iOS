@@ -137,7 +137,7 @@ struct ProjectListView: View {
                     Text(client).dynamicLineLimit(1)
                 }
                 if let reference = project.caseReference {
-                    if project.client?.isEmpty == false { Text("·").accessibilityHidden(true) }
+                    if project.client?.isEmpty == false { SeparatorDot() }
                     Text(reference)
                 }
             }

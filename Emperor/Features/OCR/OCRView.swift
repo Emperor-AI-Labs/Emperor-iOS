@@ -347,13 +347,18 @@ struct OCRScreen: View {
                     historyRow(job, model)
                 }
                 if model.canClearHistory {
-                    Button(role: .destructive) {
+                    // Drawn as Settings' "Sign out" is: a tile, and the words in the palette's
+                    // danger colour rather than the system red, which is 3.6:1 on a white card.
+                    // `IconRowLabel` wraps its title; drawn as a `Label`, the accessibility audit
+                    // read this one as text that would be cut off at a larger size. No
+                    // `.destructive` role here — the confirmation dialog carries it, where the
+                    // history is actually cleared.
+                    Button {
                         isConfirmingClear = true
                     } label: {
-                        // The palette's danger, not the system red, which is 3.6:1 on a white
-                        // card in light.
-                        Label("Clear history", systemImage: "trash")
-                            .foregroundStyle(theme.danger)
+                        IconRowLabel(
+                            title: "Clear history", systemImage: "trash", hue: .rose,
+                            titleColor: theme.danger)
                     }
                 }
             }

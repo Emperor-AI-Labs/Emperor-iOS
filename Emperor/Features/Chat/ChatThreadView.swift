@@ -100,7 +100,11 @@ struct ChatThreadView: View {
             // has not been read would erase it. `ChatViewModel` gates on `historyIsIntact` for
             // this reason — a new conversation has nothing to lose, but this path must not be
             // the one place that assumes so.
-            if let seed, !seed.isEmpty {
+            //
+            // And only while the screen is still there. The history is read to the end even if
+            // this task is cancelled (`uncancelledRead`), so a tool's prompt would otherwise go
+            // out — and count against the plan — after the person had already backed out.
+            if let seed, !seed.isEmpty, !Task.isCancelled {
                 created.send(seed)
             }
         }
@@ -858,8 +862,9 @@ private struct MessageBubble: View {
                     .font(.brand(.body))
                     .foregroundStyle(theme.textPrimary)
                     // Which side of the exchange this is shows only by position and colour; to
-                    // VoiceOver it is said.
-                    .accessibilityLabel("You asked: \(message.content)")
+                    // VoiceOver it is said, as the value after the words. Not as a prefix to the
+                    // label: a label longer than the text drawn reads to the audit as text cut off.
+                    .accessibilityValue("Your question")
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(

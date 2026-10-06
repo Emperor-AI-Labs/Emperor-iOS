@@ -167,19 +167,29 @@ struct CitationNumberBadge: View {
 struct CitationReferenceList: View {
     @Environment(\.theme) private var theme
     @Environment(\.openURL) private var openURL
+    /// The badge's drawn height, scaled with its number — how far its 44-point target reaches
+    /// above and below it, to be handed back so the row keeps its height. On the generous side,
+    /// so the target never reaches past the row's own card.
+    @ScaledMetric(relativeTo: .caption) private var badgeHeight: CGFloat = 20
     let references: [CitationReference]
     let citations: CitationIndex
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(references) { reference in
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+                    // The badge at the leading edge of a 44-point target, which also spaces the
+                    // reference from it. Vertically the extra is given back, so a list of
+                    // references keeps the height of its lines.
                     Button {
                         if let url = CitationLink.url(for: reference.number) { openURL(url) }
                     } label: {
                         CitationNumberBadge(number: reference.number)
+                            .frame(minWidth: 44, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .padding(.vertical, -max(0, (44 - badgeHeight) / 2))
                     .accessibilityLabel("Reference \(reference.number)")
                     .accessibilityHint("Shows this reference on its own, to copy")
 

@@ -190,9 +190,10 @@ struct StatusPill: View {
         }
         .font(.brand(.caption2, weight: .semibold))
         .foregroundStyle(foreground)
-        // One line where a row has room for it; whole at the accessibility sizes, where one line
-        // of a court's remark is a word and an ellipsis.
-        .dynamicLineLimit(1)
+        // Never cut short. A pill is a few words, so it is given its full width first (the
+        // priority below) and wraps only where even that does not fit — at a large text size,
+        // or a court's long remark — rather than ending in an ellipsis that hides the status.
+        .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, 3)
         // A full capsule, matching the 999px radius the dashboard's pills use, with a hairline
@@ -201,6 +202,7 @@ struct StatusPill: View {
         // on — on a card and on the canvas.
         .background(foreground.opacity(Palette.Wash.pill), in: Capsule())
         .overlay(Capsule().strokeBorder(foreground.opacity(0.22), lineWidth: 0.5))
+        .layoutPriority(1)
         .accessibilityElement(children: .combine)
     }
 
@@ -265,6 +267,21 @@ struct SectionHeader: View {
             .font(.brand(.footnote, weight: .semibold))
             .foregroundStyle(theme.textSecondary)
             .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// The dot between two facts on a line — "O.A. 233/2023 · Debts Recovery Tribunal".
+///
+/// A shape rather than a "·" in a `Text`. As text, a glyph three points wide is read aloud as
+/// "middle dot", and it is the one piece of text on the line a contrast check cannot measure: it
+/// is all edge. Drawn in the colour of the words beside it, and sized with them.
+struct SeparatorDot: View {
+    @ScaledMetric(relativeTo: .caption) private var side: CGFloat = 3
+
+    var body: some View {
+        Circle()
+            .frame(width: side, height: side)
+            .accessibilityHidden(true)
     }
 }
 

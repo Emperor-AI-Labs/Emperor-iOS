@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 
 /// Xcode's accessibility audit, run over the main screens — on an iPhone and on an iPad, as every
@@ -116,9 +117,9 @@ final class AccessibilityAuditTests: XCTestCase {
                 _ = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked"))
                     .firstMatch.waitForExistence(timeout: 10)
                 audit(theme + "conversation", in: app)
-                // Back to the list, so the next tab is reached from where a person would be.
-                let back = app.navigationBars["Conversation"].buttons.element(boundBy: 0)
-                if back.exists { back.tap() }
+                // Not backed out of. The next tab is a tap away from here on both devices — and on
+                // an iPad, where the conversation sits beside the list, the bar's first button is
+                // the options menu, not a Back, and opening it held the Calendar tab's tap.
             }
         }
     }
@@ -238,7 +239,8 @@ final class AccessibilityAuditTests: XCTestCase {
         _ = settings.waitForExistence(timeout: 10)
         for (identifier, screen, what) in [
             ("app-lock-toggle", "settings-security", "the Security section"),
-            ("offline-storage-clear", "settings-storage", "the Storage section"),
+            // The size, not "Clear offline copies": that is offered only when something is kept.
+            ("offline-storage-size", "settings-storage", "the Storage section"),
         ] {
             let anchor = app.descendants(matching: .any)[identifier].firstMatch
             scrollUntilHittable(anchor, in: app)
@@ -277,6 +279,15 @@ final class AccessibilityAuditTests: XCTestCase {
             shoot(tab.lowercased(), app)
             XCTAssertEqual(
                 app.state, .runningForeground, "the app died on \(tab) at the largest text size")
+        }
+
+        // The Library: a sheet with a search bar under a large title, whose text-size audit could
+        // not finish on an iPad. Drawn here at the largest size, so a screen that stops answering
+        // there shows as that, and not only as an audit that ran out of time.
+        if present("Library", titled: "Library", from: app) != nil {
+            shoot("library", app)
+            XCTAssertEqual(app.state, .runningForeground)
+            close("Library", in: app)
         }
 
         // One of the sheets, too: Settings carries the most kinds of row.
@@ -329,8 +340,10 @@ final class AccessibilityAuditTests: XCTestCase {
         _ row: String, titled title: String, from app: XCUIApplication
     ) -> XCUIElement? {
         let button = app.buttons[row].firstMatch
-        guard reached(button, "the \(row) row in More") else { return nil }
+        // Scrolled to before it is looked for: at the largest text size the lower rows are
+        // below the fold, and a list builds only the rows it is showing.
         scrollUntilHittable(button, in: app)
+        guard reached(button, "the \(row) row in More") else { return nil }
         button.tap()
         let bar = app.navigationBars[title]
         return reached(bar, "the \(title) screen") ? bar : nil
@@ -397,6 +410,15 @@ final class AccessibilityAuditTests: XCTestCase {
     ///
     /// The audit's own report is replaced with one written here — the issue handler takes every
     /// issue — because the system's names the element but not the screen, and a run audits twenty.
+    /// The one exception is an issue the audit ties to no element this test can see: that one is
+    /// also left to XCTest to record, because its record carries a picture of the element, and
+    /// without one there is nothing to go on.
+    ///
+    /// The checks run in three passes rather than one (`AuditPass`): contrast alone first, on a
+    /// still screen, before the text-size checks start resizing things behind the scenes; then the
+    /// checks about controls; then the ones about text size. A long screen — a whole answer, with
+    /// its table and references — could not finish every check inside the audit's own time limit
+    /// at once. A pass that runs out of time is tried again, one kind of check at a time.
     ///
     /// - Parameter sheet: the navigation bar of the sheet being audited, when the screen is
     ///   presented over another. What lies wholly outside the sheet is the screen it was opened
@@ -409,46 +431,35 @@ final class AccessibilityAuditTests: XCTestCase {
         Thread.sleep(forTimeInterval: 1)
         let context = layout(of: app, sheet: sheet)
 
-        // On the main actor, where the audit, its handler and every element it names live — and
-        // everything that touches them stays inside. Gathering into an array declared out here
-        // would send that array across actors, which Swift 6 refuses to compile; so the issues
-        // are gathered and turned into plain `AuditFinding`s in the block, and only those (all
-        // `Sendable`) come out. UI tests run on the main thread, so asserting the isolation is
-        // true, not a cast. `facts` is static so the block captures no test case.
-        let outcome: AuditOutcome = MainActor.assumeIsolated {
-            var gathered: [XCUIAccessibilityAuditIssue] = []
-            do {
-                try app.performAccessibilityAudit { issue in
-                    gathered.append(issue)
-                    return true
+        var findings: [AuditFinding] = []
+        var pixels: ScreenPixels?
+        for pass in AuditPass.allCases {
+            for outcome in Self.run(pass.types, on: app, in: context) {
+                switch outcome {
+                case .ran(let found):
+                    findings += found
+                case .couldNotRun(let types, let reason):
+                    XCTFail(
+                        "[\(screen)] the \(AuditFinding.name(of: types)) audit could not run: "
+                            + reason,
+                        file: file, line: line)
                 }
-            } catch {
-                return .couldNotRun(String(describing: error))
             }
-            return .ran(gathered.map { issue in
-                AuditFinding(
-                    kind: issue.auditType,
-                    summary: issue.compactDescription,
-                    detail: issue.detailedDescription,
-                    element: Self.facts(about: issue.element))
-            })
-        }
-        let findings: [AuditFinding]
-        switch outcome {
-        case .couldNotRun(let reason):
-            XCTFail(
-                "[\(screen)] the accessibility audit could not run: \(reason)",
-                file: file, line: line)
-            return
-        case .ran(let found):
-            findings = found
+            if pass == .contrast {
+                // The screen as the contrast check saw it, to measure what it flagged.
+                pixels = ScreenPixels(app.screenshot(), pointsWide: context.window.width)
+            }
         }
 
         var waived: [String] = []
         var failures = 0
-        for finding in findings {
+        for var finding in findings {
+            if finding.kind.contains(.contrast), let element = finding.element, let pixels,
+               let box = Waiver.measurableBox(of: element, in: context) {
+                finding.measuredContrast = pixels.contrast(in: box)
+            }
             if let waiver = Waiver.allCases.first(where: { $0.applies(to: finding, in: context) }) {
-                waived.append("\(finding.report)\n    waived — \(waiver.reason)")
+                waived.append("\(finding.report)\n    waived — \(waiver.reason(for: finding))")
             } else {
                 failures += 1
                 XCTFail("[\(screen)] \(finding.report)", file: file, line: line)
@@ -471,22 +482,89 @@ final class AccessibilityAuditTests: XCTestCase {
         }
     }
 
+    /// Runs one pass, and when it cannot finish in time, settles and runs its checks one by one.
+    private static func run(
+        _ types: XCUIAccessibilityAuditType, on app: XCUIApplication, in context: AuditLayout
+    ) -> [AuditOutcome] {
+        let whole = perform(types, on: app, in: context)
+        guard case .couldNotRun = whole else { return [whole] }
+        let single = AuditPass.kinds.filter { types.contains($0) }
+        guard single.count > 1 else {
+            Thread.sleep(forTimeInterval: 2)
+            return [perform(types, on: app, in: context)]
+        }
+        return single.map { kind in
+            Thread.sleep(forTimeInterval: 1)
+            let first = perform(kind, on: app, in: context)
+            guard case .couldNotRun = first else { return first }
+            // A slow screen — on an iPad the Library ran out of time even one check at a time —
+            // is given longer to settle before its last try.
+            Thread.sleep(forTimeInterval: 4)
+            return perform(kind, on: app, in: context)
+        }
+    }
+
+    /// One call to the audit, on the main actor, where the audit, its handler and every element
+    /// it names live — and everything that touches them stays inside. Gathering into an array
+    /// declared out here would send that array across actors, which Swift 6 refuses to compile;
+    /// so the issues are turned into plain `AuditFinding`s in the block, and only those (all
+    /// `Sendable`) come out. UI tests run on the main thread, so asserting the isolation is true,
+    /// not a cast. Static, so the block captures no test case.
+    private static func perform(
+        _ types: XCUIAccessibilityAuditType, on app: XCUIApplication, in context: AuditLayout
+    ) -> AuditOutcome {
+        MainActor.assumeIsolated {
+            var gathered: [AuditFinding] = []
+            do {
+                try app.performAccessibilityAudit(for: types) { issue in
+                    let finding = AuditFinding(
+                        kind: issue.auditType,
+                        summary: issue.compactDescription,
+                        detail: issue.detailedDescription,
+                        element: Self.facts(
+                            about: issue.element,
+                            withWords: issue.auditType.contains(.contrast)))
+                    gathered.append(finding)
+                    // Handled here (`true`) unless the audit named no element and no waiver
+                    // covers it: then XCTest records it too, with its picture of the element.
+                    let unnamed = finding.element == nil
+                        && !Waiver.allCases.contains { $0.applies(to: finding, in: context) }
+                    return !unnamed
+                }
+            } catch {
+                return .couldNotRun(types, String(describing: error))
+            }
+            return .ran(gathered)
+        }
+    }
+
     /// The facts about an element the report and the waivers need, read once while it is there.
-    private static func facts(about element: XCUIElement?) -> AuditFinding.Element? {
+    ///
+    /// - Parameter withWords: for a button, also find its words — the first text inside it — so
+    ///   a contrast finding can be measured on them rather than on the whole button, whose box
+    ///   may hold an avatar or a tile as well.
+    private static func facts(
+        about element: XCUIElement?, withWords: Bool = false
+    ) -> AuditFinding.Element? {
         guard let element, element.exists else { return nil }
+        var words: CGRect?
+        if withWords, element.elementType == .button {
+            let text = element.staticTexts.firstMatch
+            words = text.exists ? text.frame : nil
+        }
         return AuditFinding.Element(
             kind: element.elementType,
             label: element.label,
             identifier: element.identifier,
             frame: element.frame,
-            isEnabled: element.isEnabled)
+            isEnabled: element.isEnabled,
+            wordsFrame: words)
     }
 
     /// Where the system's own furniture is on screen as the audit runs.
     private func layout(of app: XCUIApplication, sheet: XCUIElement?) -> AuditLayout {
         let window = app.windows.firstMatch.frame
         let keyboard = app.keyboards.firstMatch
-        let tabBar = app.tabBars.firstMatch
         var sheetFrame: CGRect?
         if let sheet, sheet.exists {
             // From the sheet's bar to the foot of the window, across the sheet's width — the whole
@@ -495,25 +573,53 @@ final class AccessibilityAuditTests: XCTestCase {
             sheetFrame = CGRect(
                 x: bar.minX, y: bar.minY, width: bar.width, height: max(0, window.maxY - bar.minY))
         }
+        // The tab bar, found by its own buttons rather than as a tab bar element: on iOS 26 the
+        // element's frame is not the floating bar a person sees. On a phone the buttons sit along
+        // the foot of the screen; on an iPad they are across the top, and there is no bar below.
+        let tabButtons = AuditLayout.tabs.keys
+            .map { app.tab($0) }
+            .filter { $0.exists }
+            .map { $0.frame }
+        let bottomTabs = tabButtons.filter { $0.midY > window.midY }
         return AuditLayout(
             window: window,
             keyboard: keyboard.exists ? keyboard.frame : nil,
-            tabBar: tabBar.exists ? tabBar.frame : nil,
+            // Behind a sheet the tab bar is covered, and the sheet's own foot is the screen's.
+            bottomBarTop: sheetFrame == nil ? bottomTabs.map(\.minY).min() : nil,
             navigationBars: app.navigationBars.allElementsBoundByIndex
                 .filter { $0.exists }
                 .map { $0.frame },
-            sheet: sheetFrame)
+            sheet: sheetFrame,
+            sheetBar: sheet.flatMap { $0.exists ? $0.frame : nil })
     }
 }
 
 // MARK: - Findings and waivers
 
-/// One issue the audit raised, as plain facts.
-/// What one audit came back with: its findings, or why it could not run. Plain values, so it can
-/// leave the main-actor block the audit runs in.
+/// Which checks run together. Contrast first and alone, then controls, then text size.
+private enum AuditPass: CaseIterable {
+    case contrast, controls, textSize
+
+    var types: XCUIAccessibilityAuditType {
+        switch self {
+        case .contrast: return .contrast
+        case .controls: return [.elementDetection, .sufficientElementDescription, .trait, .hitRegion]
+        case .textSize: return [.dynamicType, .textClipped]
+        }
+    }
+
+    /// Every kind of check, one at a time, for running a pass again in pieces.
+    static let kinds: [XCUIAccessibilityAuditType] = [
+        .contrast, .elementDetection, .sufficientElementDescription, .trait, .hitRegion,
+        .dynamicType, .textClipped,
+    ]
+}
+
+/// What one audit call came back with: its findings, or why it could not run. Plain values, so it
+/// can leave the main-actor block the audit runs in.
 private enum AuditOutcome: Sendable {
     case ran([AuditFinding])
-    case couldNotRun(String)
+    case couldNotRun(XCUIAccessibilityAuditType, String)
 }
 
 private struct AuditFinding: Sendable {
@@ -523,12 +629,17 @@ private struct AuditFinding: Sendable {
         let identifier: String
         let frame: CGRect
         let isEnabled: Bool
+        /// A button's words — the first text inside it — when they were looked for.
+        var wordsFrame: CGRect? = nil
     }
 
     let kind: XCUIAccessibilityAuditType
     let summary: String
     let detail: String
     let element: Element?
+    /// For a contrast finding, the ratio measured from the screen's own pixels inside the
+    /// element's box — `ScreenPixels` — when the element is one that can be measured that way.
+    var measuredContrast: Double? = nil
 
     /// "contrast — Contrast failed. <detail> Element: button "Done" (id "Done"), at (16, 54)
     /// 60×44." Everything needed to find it, on one line.
@@ -536,6 +647,9 @@ private struct AuditFinding: Sendable {
         var parts = ["\(AuditFinding.name(of: kind)) — \(summary)"]
         if !detail.isEmpty, detail != summary { parts.append(detail) }
         parts.append("Element: \(elementDescription)")
+        if let measuredContrast {
+            parts.append(String(format: "Measured on screen: %.2f:1.", measuredContrast))
+        }
         return parts.joined(separator: " ")
     }
 
@@ -601,83 +715,300 @@ private struct AuditFinding: Sendable {
     }
 }
 
+
 /// Where the system draws its own furniture while an audit runs.
-private struct AuditLayout {
+private struct AuditLayout: Sendable {
+    /// The tabs, by title, with the SF Symbol each carries as its identifier on iPad — see
+    /// `Tabs.swift`.
+    static let tabs = [
+        "Home": "house", "Cases": "briefcase", "Chat": "bubble.left.and.bubble.right",
+        "Calendar": "calendar", "More": "ellipsis.circle",
+    ]
+
     let window: CGRect
     let keyboard: CGRect?
-    let tabBar: CGRect?
+    /// The top of the tab bar along the foot of a phone's screen; `nil` on an iPad, whose tabs
+    /// are across the top.
+    let bottomBarTop: CGFloat?
     let navigationBars: [CGRect]
     /// The presented sheet's extent, when the screen audited is one.
     let sheet: CGRect?
+    /// That sheet's own navigation bar, which its rows scroll up under.
+    let sheetBar: CGRect?
+
+    /// Whether an element is one of the tab bar's own buttons.
+    func isTab(_ element: AuditFinding.Element) -> Bool {
+        guard let symbol = Self.tabs[element.label] else { return false }
+        if element.identifier == symbol { return true }
+        guard let bottomBarTop else { return false }
+        return element.frame.minY >= bottomBarTop - 8
+    }
+
+    /// Whether an element is inside a navigation bar — its title, or one of its buttons.
+    func isInANavigationBar(_ frame: CGRect) -> Bool {
+        navigationBars.contains { $0.contains(frame) }
+    }
+
+    /// Whether an element lies where iOS 26 fades the content at a bar's edge as it scrolls: under
+    /// a navigation bar or within 24 points below it (the fade reaches past the bar's own frame —
+    /// CI measured a sheet's row there at 1.27:1), or near the foot of the screen,
+    /// just above and behind a phone's floating tab bar, or in the strip above an iPad's home
+    /// indicator.
+    func isAtTheScrollEdge(_ frame: CGRect) -> Bool {
+        let topBars = navigationBars + [sheetBar].compactMap { $0 }
+        let underATopBar = topBars.contains { bar in
+            !bar.contains(frame)
+                && frame.minY < bar.maxY + 24 && frame.maxY > bar.minY
+                && frame.minX < bar.maxX && frame.maxX > bar.minX
+        }
+        if underATopBar { return true }
+        let fadeStarts = bottomBarTop.map { $0 - 24 } ?? (window.maxY - 34)
+        return frame.maxY > fadeStarts
+    }
+}
+
+/// The screen as the contrast check saw it, as pixels, to measure a flagged element's text
+/// against what is actually behind it.
+///
+/// Inside the element's box, the commonest colour is its background, and the colour furthest from
+/// that in luminance — among those that cover enough of the box to be strokes, not the soft edge
+/// of a glyph — is its text. The ratio between the two is WCAG's, from the same formula
+/// `PaletteColor.contrastRatio` uses in the core.
+private struct ScreenPixels {
+    private let width: Int
+    private let height: Int
+    /// Pixels per point.
+    private let scale: CGFloat
+    private let rgbx: [UInt8]
+
+    init?(_ screenshot: XCUIScreenshot, pointsWide: CGFloat) {
+        guard pointsWide > 0, let image = screenshot.image.cgImage else { return nil }
+        let width = image.width
+        let height = image.height
+        var rgbx = [UInt8](repeating: 0, count: width * height * 4)
+        let space = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        let drawn = rgbx.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(
+                data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                bytesPerRow: width * 4, space: space,
+                bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)
+            else { return false }
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drawn else { return nil }
+        self.width = width
+        self.height = height
+        self.scale = CGFloat(width) / pointsWide
+        self.rgbx = rgbx
+    }
+
+    /// The text-to-background ratio inside `frame`, in points; `nil` when the box is off the
+    /// picture, and 1 when it holds a single colour.
+    func contrast(in frame: CGRect) -> Double? {
+        let x0 = max(0, Int((frame.minX * scale).rounded(.down)))
+        let y0 = max(0, Int((frame.minY * scale).rounded(.down)))
+        let x1 = min(width, Int((frame.maxX * scale).rounded(.up)))
+        let y1 = min(height, Int((frame.maxY * scale).rounded(.up)))
+        guard x1 > x0, y1 > y0 else { return nil }
+
+        var counts: [UInt32: Int] = [:]
+        for y in y0..<y1 {
+            for x in x0..<x1 {
+                let index = (y * width + x) * 4
+                let colour = UInt32(rgbx[index]) << 16 | UInt32(rgbx[index + 1]) << 8
+                    | UInt32(rgbx[index + 2])
+                counts[colour, default: 0] += 1
+            }
+        }
+        guard let background = counts.max(by: { $0.value < $1.value })?.key else { return nil }
+        let strokes = max(4, (x1 - x0) * (y1 - y0) / 200)
+        let backgroundLuminance = Self.luminance(background)
+        let distance = { (colour: UInt32) in abs(Self.luminance(colour) - backgroundLuminance) }
+        guard let text = counts.filter({ $0.value >= strokes }).keys
+            .max(by: { distance($0) < distance($1) })
+        else { return 1 }
+        let lighter = max(Self.luminance(text), backgroundLuminance)
+        let darker = min(Self.luminance(text), backgroundLuminance)
+        return (lighter + 0.05) / (darker + 0.05)
+    }
+
+    /// WCAG relative luminance of an sRGB colour packed as 0xRRGGBB.
+    private static func luminance(_ colour: UInt32) -> Double {
+        func channel(_ byte: UInt32) -> Double {
+            let value = Double(byte) / 255
+            return value <= 0.03928 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * channel(colour >> 16 & 0xFF)
+            + 0.7152 * channel(colour >> 8 & 0xFF)
+            + 0.0722 * channel(colour & 0xFF)
+    }
 }
 
 /// An issue the audit raises that is not this app's to fix, and why.
 ///
-/// Kept short on purpose. Each one is either something the system draws, or a reading the audit
-/// cannot make where it is looking; none is "this is hard". A new kind of finding is fixed in the
-/// app, not added here, unless it is plainly one of those two things.
+/// Each one is something the system draws, a reading the audit cannot make where it is looking,
+/// or a reading the screen itself contradicts — and each is drawn as tightly as the facts allow:
+/// an element's kind, where it is, what the audit said. None is "this is hard". A new kind of
+/// finding is fixed in the app, not added here, unless it is plainly one of these.
 private enum Waiver: CaseIterable {
     case systemKeyboard
+    case behindTheKeyboard
     case inactiveControl
-    case tabBarTitleSize
-    case behindTheSheet
-    case partlyUnderABar
+    case measuredOnScreen
+    case atTheScrollEdge
+    case outsideTheSheet
+    case tabTitles
+    case barItems
+    case brandFace
+    case uikitLabelInTheBrandFace
+    case inlineText
+    case oneLineEntry
+    case systemSearchField
 
-    var reason: String {
+    /// Where the screen's pixels can be measured for an element: a run of text, whose box is its
+    /// glyphs; a button's own words, when they were found inside it; or a bar's button, whose box
+    /// is its word on its glass. Never a whole row or card, whose box holds other things — a tile,
+    /// an avatar — that would answer for the text.
+    static func measurableBox(
+        of element: AuditFinding.Element, in layout: AuditLayout
+    ) -> CGRect? {
+        if element.kind == .staticText { return element.frame }
+        guard element.kind == .button else { return nil }
+        if let words = element.wordsFrame { return words }
+        return layout.isInANavigationBar(element.frame) ? element.frame : nil
+    }
+
+    func reason(for finding: AuditFinding) -> String {
         switch self {
         case .systemKeyboard:
-            return "the system keyboard is Apple's, drawn in its own process; nothing in this app "
-                + "styles a key."
+            return "the system keyboard and its suggestions are Apple's, drawn in their own "
+                + "process; nothing in this app styles a key."
+        case .behindTheKeyboard:
+            return "partly behind the system keyboard as it was audited, so it was measured "
+                + "against the keys over it. Shown again once the keyboard goes."
         case .inactiveControl:
             return "a disabled control is dimmed on purpose, to read as unavailable, and WCAG 1.4.3 "
                 + "exempts inactive controls from the contrast minimum."
-        case .tabBarTitleSize:
-            return "UIKit's tab bar keeps its titles at one size by design and offers the Large "
-                + "Content Viewer instead (press and hold an item); the app draws none of it."
-        case .behindTheSheet:
-            return "wholly outside the sheet being audited: the screen it was opened from, dimmed "
-                + "by the system while the sheet is up. That screen has an audit of its own."
-        case .partlyUnderABar:
-            return "part-way under a translucent navigation or tab bar as the list scrolls, so the "
-                + "text is measured against the bar's blur and cut by its edge — not by the layout."
+        case .measuredOnScreen:
+            let ratio = finding.measuredContrast.map { String(format: "%.2f", $0) } ?? "?"
+            return "measured from the screen as the check left it: the text against what is behind "
+                + "it is \(ratio):1, at or above WCAG's 4.5:1 — the audit's reading is not what "
+                + "is on screen."
+        case .atTheScrollEdge:
+            return "where iOS 26 fades scrolling content into a bar's edge — part under a "
+                + "navigation bar, or near the foot of the screen by the tab bar or home "
+                + "indicator — so it is measured, and partly covered, by the system's fade. "
+                + "Scrolled clear of the edge it is read as anywhere else."
+        case .outsideTheSheet:
+            return "wholly outside the visible part of the sheet being audited — the dimmed screen "
+                + "it was opened from, or a row of the sheet scrolled out of its view. Neither is "
+                + "text a person can read there."
+        case .tabTitles:
+            return "a tab's own title: UIKit's tab bar keeps its titles at one size by design and "
+                + "offers the Large Content Viewer instead (press and hold a tab)."
+        case .barItems:
+            return "in a navigation bar: UIKit holds a bar's titles and buttons to a ceiling by "
+                + "design and offers the Large Content Viewer instead (press and hold). The brand "
+                + "titles are capped the same way (`BrandAppearance`)."
+        case .brandFace:
+            return "drawn in the brand face (Fredoka) through `Font.custom(_:size:relativeTo:)`, "
+                + "which scales with Dynamic Type — `testTheMainTabsSurviveTheLargestTextSize` "
+                + "photographs it at the largest size — but carries no text-style trait, and that "
+                + "trait is what the audit reads; so it says 'partially'."
+        case .uikitLabelInTheBrandFace:
+            return "a label UIKit draws in the brand face — a bar's title or a picker's value — "
+                + "whose font SwiftUI or `BrandAppearance` scales with Dynamic Type (in a bar, to "
+                + "the ceiling UIKit keeps for its own titles). It carries no text-style trait, so "
+                + "the audit says 'partially'."
+        case .inlineText:
+            return "a run of text, not a control. The audit counts it as one because it can be "
+                + "pressed to select or carries its row's swipe actions; its target is the line "
+                + "or the row, and WCAG 2.5.8 exempts targets in a line of text."
+        case .oneLineEntry:
+            return "a field that is one line by design — the sign-in fields, whose AutoFill, "
+                + "one-time-code fill and Next/Go key belong to a single-line field, or the "
+                + "system's search bar. It grows taller with the text size and scrolls sideways "
+                + "rather than cutting text off."
+        case .systemSearchField:
+            return "UIKit's search bar (`searchable`): its field and placeholder are drawn in the "
+                + "system's own colours, which the app cannot restyle."
         }
     }
 
     func applies(to finding: AuditFinding, in layout: AuditLayout) -> Bool {
+        let said = finding.summary + " " + finding.detail
+        let isTextSize = finding.kind.contains(.dynamicType) || finding.kind.contains(.textClipped)
+        let isPartial = finding.kind.contains(.dynamicType) && said.contains("partially unsupported")
+
+        // The two that need no element: the audit names the class it found in its own words.
+        switch self {
+        case .systemKeyboard where said.contains("TUIPrediction"):
+            return true
+        case .brandFace:
+            return isPartial
+                && (said.contains("SwiftUI.AccessibilityNode") || said.contains("UITextField"))
+                && !(finding.element.map { layout.isTab($0) || layout.isInANavigationBar($0.frame) }
+                    ?? false)
+        case .uikitLabelInTheBrandFace:
+            return isPartial && said.contains("UILabel")
+        default:
+            break
+        }
+
         guard let element = finding.element else { return false }
         let frame = element.frame
         switch self {
         case .systemKeyboard:
-            if element.kind == .key || element.kind == .keyboard { return true }
-            guard let keyboard = layout.keyboard else { return false }
-            return keyboard.contains(frame)
+            return element.kind == .key || element.kind == .keyboard
+
+        case .behindTheKeyboard:
+            guard let keyboard = layout.keyboard, !finding.kind.contains(.dynamicType) else {
+                return false
+            }
+            return keyboard.intersects(frame)
 
         case .inactiveControl:
             return finding.kind.contains(.contrast) && !element.isEnabled
 
-        case .tabBarTitleSize:
-            guard finding.kind.contains(.dynamicType) else { return false }
-            if let tabBar = layout.tabBar, tabBar.contains(frame) { return true }
-            // On an iPad (iPadOS 18 and later) the tabs are buttons across the top, with no tab
-            // bar element; each carries its SF Symbol as its identifier — see `Tabs.swift`.
-            let tabs = [
-                "Home": "house", "Cases": "briefcase", "Chat": "bubble.left.and.bubble.right",
-                "Calendar": "calendar", "More": "ellipsis.circle",
-            ]
-            return tabs[element.label] == element.identifier
-
-        case .behindTheSheet:
-            guard let sheet = layout.sheet, !frame.isEmpty else { return false }
-            return !sheet.intersects(frame)
-
-        case .partlyUnderABar:
-            guard finding.kind.contains(.contrast) || finding.kind.contains(.textClipped) else {
+        case .measuredOnScreen:
+            guard finding.kind.contains(.contrast), let ratio = finding.measuredContrast else {
                 return false
             }
-            let bars = layout.navigationBars + [layout.tabBar].compactMap { $0 }
-            let underABar = bars.contains { $0.intersects(frame) && !$0.contains(frame) }
-            let offScreen = !layout.window.isEmpty && !layout.window.contains(frame)
-            return underABar || offScreen
+            return ratio >= 4.5
+
+        case .atTheScrollEdge:
+            guard finding.kind.contains(.contrast) || finding.kind.contains(.hitRegion)
+                || finding.kind.contains(.textClipped)
+            else { return false }
+            return !layout.isTab(element) && layout.isAtTheScrollEdge(frame)
+
+        case .outsideTheSheet:
+            guard let sheet = layout.sheet, !frame.isEmpty else { return false }
+            return !sheet.intersects(frame)
+                && !layout.navigationBars.contains { $0.intersects(frame) }
+
+        case .tabTitles:
+            return isTextSize && layout.isTab(element)
+
+        case .barItems:
+            return isTextSize && layout.isInANavigationBar(frame)
+
+        case .inlineText:
+            return finding.kind.contains(.hitRegion) && element.kind == .staticText
+
+        case .oneLineEntry:
+            guard finding.kind.contains(.textClipped) else { return false }
+            if element.kind == .searchField { return true }
+            guard element.kind == .textField else { return false }
+            return ["Email", "Mobile number"].contains(element.identifier)
+                || element.label == "Sign-in code"
+
+        case .systemSearchField:
+            return finding.kind.contains(.contrast) && element.kind == .searchField
+
+        case .brandFace, .uikitLabelInTheBrandFace:
+            return false
         }
     }
 }

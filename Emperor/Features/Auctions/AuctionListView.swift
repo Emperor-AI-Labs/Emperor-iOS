@@ -203,7 +203,7 @@ struct AuctionListView: View {
                     Label(DisplayText.longDay(day), systemImage: "calendar")
                 }
                 if let platform = notice.auctionPlatform, !platform.isEmpty {
-                    Text("·").accessibilityHidden(true)
+                    SeparatorDot()
                     Text(platform).dynamicLineLimit(1)
                 }
             }

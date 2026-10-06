@@ -304,19 +304,22 @@ struct CaseListView: View {
                 .foregroundStyle(theme.textPrimary)
                 .dynamicLineLimit(2)
 
-            // Reference and court on one line, or one over the other at the accessibility sizes,
-            // where one line holds neither.
-            AdaptiveStack(spacing: 6) {
+            // Reference and court side by side, or one over the other at the accessibility sizes,
+            // where one line holds neither. The court is never cut short: in an iPad's docket
+            // column "Supreme Court of India" came out as "Supreme Court of I…", so it wraps.
+            AdaptiveStack(verticalAlignment: .firstTextBaseline, spacing: 6) {
                 if let reference = legalCase.caseReference {
                     Text(reference)
                         .monospacedDigit()
                 }
                 if let court = legalCase.courtName {
                     if !dynamicTypeSize.isAccessibilitySize {
-                        // A separator for the eye; read aloud it is "middle dot".
-                        Text("·").accessibilityHidden(true)
+                        // Raised off the baseline to the middle of the letters, as a "·" sits.
+                        SeparatorDot()
+                            .alignmentGuide(.firstTextBaseline) { $0[.bottom] + 4 }
                     }
-                    Text(court).dynamicLineLimit(1)
+                    Text(court)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .font(.brand(.subheadline))

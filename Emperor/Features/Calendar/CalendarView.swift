@@ -227,7 +227,12 @@ struct CalendarView: View {
                     }
                 }
                 .padding(.bottom, Spacing.xxs)
-                .accessibilityHidden(true)
+                // One element for the row, saying what it is — each day cell already names its
+                // own weekday, so seven single letters read aloud would only be noise; but text
+                // on screen with nothing behind it reads to the audit as text VoiceOver cannot
+                // reach.
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Sunday to Saturday")
                 if let month = model.month {
                     // Keyed by position: a week has no identity of its own, and the days inside
                     // it carry real dates that do.
@@ -250,7 +255,8 @@ struct CalendarView: View {
         .listRowBackground(theme.surface)
     }
 
-    /// What the two marks mean. Hidden from VoiceOver, which hears each day's mark as words.
+    /// What the two marks mean — said once, as a sentence, to VoiceOver, which also hears each
+    /// day's own mark as words.
     private var legend: some View {
         HStack(spacing: 14) {
             HStack(spacing: 5) {
@@ -267,7 +273,8 @@ struct CalendarView: View {
         .foregroundStyle(theme.textTertiary)
         .padding(.top, Spacing.sm)
         .padding(.leading, Spacing.xs)
-        .accessibilityHidden(true)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("A dot marks a day with cases listed; a ring, a day with only diary entries.")
     }
 
     /// The month's name, as the heading of its own card, with the way back to today and the
@@ -467,7 +474,7 @@ struct CalendarView: View {
                     Label(event.kind.label, systemImage: event.kind.systemImage)
                     if let due = event.dayKey {
                         if !dynamicTypeSize.isAccessibilitySize {
-                            Text("·").accessibilityHidden(true)
+                            SeparatorDot()
                         }
                         Text(DisplayText.longDay(due))
                     }

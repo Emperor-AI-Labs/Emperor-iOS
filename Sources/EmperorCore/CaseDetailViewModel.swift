@@ -219,18 +219,24 @@ final class CaseDetailViewModel {
             showSavedCopy()
         }
         do {
-            let fresh = try await service.caseDetail(id: caseID)
+            // Not the screen's to cancel: SwiftUI cancels a screen's task whenever it takes the
+            // screen off and puts it back, which on an iPad happens when the Calendar opens a
+            // matter as the Cases tab comes to the front. Cancelled here, the read was abandoned
+            // and the matter came back to "Could not load" — see `uncancelledRead`.
+            let service = self.service
+            let caseID = self.caseID
+            let fresh = try await uncancelledRead { try await service.caseDetail(id: caseID) }
             detail = fresh
             cachedAt = nil
             offline?.save(SavedCaseDetail(fresh), for: caseID)
             state = .loaded
         } catch {
-            // Cancelled — the screen was rebuilt or left before the answer came, which on an iPad
-            // happens when the Calendar opens a matter while the Cases tab is off screen — is not
-            // a failure to show. Back to idle, so the screen's next appearance loads it again
-            // instead of standing on "Could not load" with nothing wrong.
-            if Task.isCancelled || error is CancellationError
-                || (error as? URLError)?.code == .cancelled {
+            // A read cancelled for some other reason — the session ended under it — is not a
+            // failure to show. Back to idle, so the screen's next appearance loads it again
+            // instead of standing on "Could not load" with nothing wrong. Judged by the error
+            // alone, not by whether the asking task was cancelled: the read above finishes
+            // either way, and a real failure it brings back is still a failure.
+            if error is CancellationError || (error as? URLError)?.code == .cancelled {
                 state = .idle
                 return
             }

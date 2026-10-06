@@ -237,7 +237,13 @@ final class ChatViewModel {
             showSavedCopy()
         }
         do {
-            messages = try await service.messages(chatID: chatID)
+            // Read to the end even if the screen's task is cancelled under it — a tab switched
+            // away and back while the history was on its way. Abandoned, the read came back as a
+            // failure, the history counted as unread, and the composer stayed shut on a
+            // conversation that was fine. See `uncancelledRead`.
+            let service = self.service
+            let chatID = self.chatID
+            messages = try await uncancelledRead { try await service.messages(chatID: chatID) }
             // The server's transcript replaces any saved copy on screen, and the notice goes.
             savedCopyAt = nil
             // Reopening a matter has to reopen its documents. They are not a field on the chat —

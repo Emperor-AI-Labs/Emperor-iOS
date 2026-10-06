@@ -796,7 +796,7 @@ final class EmperorUITests: XCTestCase {
             ("compressImage", "Compress image"),
         ] {
             let card = app.buttons["tool-\(id)"]
-            // The grid is lazy: a card below the fold does not exist until it is scrolled to.
+            // A card below the fold has to be scrolled to before it can be tapped.
             var swipes = 0
             while !(card.exists && card.isHittable), swipes < 4 {
                 app.swipeUp()
@@ -1396,8 +1396,10 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(becomesSelected(first), "the open conversation's row is not marked as open")
 
         second.tap()
-        let secondQuestion = app.staticTexts[
-            "Can the Customs order in Kapoor Textiles be stayed pending the writ?"]
+        // Read as "You asked: …", so matched on the question inside the label.
+        let secondQuestion = app.staticTexts.matching(NSPredicate(
+            format: "label CONTAINS %@",
+            "Can the Customs order in Kapoor Textiles be stayed pending the writ?")).firstMatch
         XCTAssertTrue(
             secondQuestion.waitForExistence(timeout: 10),
             "choosing another conversation did not open it")
@@ -1446,10 +1448,14 @@ final class EmperorUITests: XCTestCase {
         app.buttons["Settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
 
-        // Below Plan & usage, so off screen on a phone until scrolled to.
+        // Below Plan & usage, so off screen on a phone until scrolled to — and then raised well
+        // into view, not left on the bottom edge where the swipe first finds it. The timeout row
+        // appears *beneath* the switch, and a list builds no row it is not showing: with the switch
+        // on the last visible line, the row is never built and cannot be found.
         let toggle = app.switches["app-lock-toggle"].firstMatch
         scrollUntilHittable(toggle, in: app)
         XCTAssertTrue(toggle.waitForExistence(timeout: 10), "Settings has no Security section")
+        appLockRaise(toggle, in: app)
         XCTAssertTrue(
             toggle.label.contains("Require Face ID"),
             "the switch is not named for the device: \(toggle.label)")
@@ -1527,6 +1533,22 @@ final class EmperorUITests: XCTestCase {
             app.tab("Home").waitForExistence(timeout: 10), "unlocking again did not reveal the app")
     }
 
+    /// Drags the list holding `element` until the element sits in its upper half, so a row that
+    /// appears beneath it is on screen — and so built — at once. Slow drags, not swipes: a swipe's
+    /// momentum can carry the element off the top. Stops early where the list ends.
+    private func appLockRaise(_ element: XCUIElement, in app: XCUIApplication) {
+        let list = app.collectionViews.containing(.any, identifier: element.identifier).firstMatch
+        guard list.exists else { return }
+        for _ in 0..<6 {
+            guard element.exists, element.frame.minY > list.frame.midY else { return }
+            let start = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+            let end = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
+            start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow,
+                        thenHoldForDuration: 0.2)
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+    }
+
     /// Whether the timeout row reads `text` — as its value, in its label, or as a text of its own,
     /// since a menu picker in a list is drawn differently from one iOS to the next. Not as a
     /// button: an item of the still-open menu is one, and would pass for the row.
@@ -1581,7 +1603,9 @@ final class EmperorUITests: XCTestCase {
         name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: typed.count + 4))
         name.typeText("John Q. Doe")
 
-        let title = app.textFields["profile-title"].firstMatch
+        // Found by identifier, not as a text field: the title wraps, and a field that wraps can
+        // be reported as a text view.
+        let title = app.descendants(matching: .any).matching(identifier: "profile-title").firstMatch
         XCTAssertTrue(title.exists, "no title field")
         title.focusForTyping()
         title.typeText("Advocate, Bombay High Court")
@@ -1685,37 +1709,55 @@ final class EmperorUITests: XCTestCase {
     /// `emperor://calendar?day=…` — what the Today widget opens, and the path a tapped hearing
     /// reminder takes — lands on the Calendar **on that day**: its cell selected and its listing
     /// below. Two days ahead, where the stub's docket lists the Delhi matter. Then a bare
-    /// `emperor://calendar` while the Calendar is open moves it back to today.
-    func testALinkOpensTheCalendarOnItsDay() throws {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
+    /// `emperor://calendar` moves it back to today.
+    ///
+    /// Each link arrives as the app comes back from the background (`-UITestLinkOnReturn`), which
+    /// is how a widget's tap reaches an app that is already running — see
+    /// `UITestSupport.takeLinkOnReturn` for why not `XCUIApplication.open(_:)`.
+    func testALinkOpensTheCalendarOnItsDay() {
         let day = Self.indianDay(daysFromNow: 2)
+        let app = signIn(launch(
+            "-UITestLinkOnReturn", "emperor://calendar?day=\(day.key)",
+            "-UITestLinkOnReturn", "emperor://calendar"))
+        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10), "signing in did not reach Home")
 
-        openLink(try XCTUnwrap(URL(string: "emperor://calendar?day=\(day.key)")), in: app)
+        leaveAndReturn(app)
         XCTAssertTrue(
             app.navigationBars["Calendar"].waitForExistence(timeout: 10),
             "the link did not open the Calendar")
-        XCTAssertTrue(app.tab("Calendar").isSelected)
-        let cell = app.buttons[day.label]
+        XCTAssertTrue(
+            becomesSelected(app.tab("Calendar")), "the Calendar opened but its tab is not selected")
+        let cell = dayCell(day.label, in: app)
         XCTAssertTrue(cell.waitForExistence(timeout: 10), "the month shown does not hold the day")
         XCTAssertTrue(becomesSelected(cell), "the Calendar did not open on the day the link named")
         XCTAssertTrue(
             app.buttons["calendar-listing-case-hc-delhi"].waitForExistence(timeout: 10),
             "the day's listing is not shown")
 
-        openLink(try XCTUnwrap(URL(string: "emperor://calendar")), in: app)
-        let today = app.buttons[Self.indianDay(daysFromNow: 0).label]
-        XCTAssertTrue(today.waitForExistence(timeout: 10))
+        leaveAndReturn(app)
+        let today = dayCell(Self.indianDay(daysFromNow: 0).label, in: app)
+        XCTAssertTrue(today.waitForExistence(timeout: 10), "today is not in the month shown")
         XCTAssertTrue(becomesSelected(today), "a link with no day did not open on today")
         // Still in the grid unless the two days fall in different months.
-        if cell.exists { XCTAssertFalse(cell.isSelected) }
+        if cell.exists {
+            XCTAssertFalse(cell.isSelected, "the day the first link named is still selected")
+        }
+    }
+
+    /// A day's cell in the Calendar's month. Today's is read out as "Today, …" — so it is found by
+    /// either form of its label, not by the date alone.
+    private func dayCell(_ label: String, in app: XCUIApplication) -> XCUIElement {
+        app.buttons.matching(
+            NSPredicate(format: "label == %@ OR label == %@", label, "Today, \(label)")
+        ).firstMatch
     }
 
     /// An update tapped while a sheet is open — here the Calendar's Subscribe sheet — must not be
     /// lost, and must not take the person's sheet away: Updates waits, and appears over Home the
-    /// moment that sheet is closed. `emperor://updates` takes the same path a tapped update does.
-    func testUpdatesWaitForTheOpenSheetThenAppear() throws {
-        let app = signIn(launch())
+    /// moment that sheet is closed. `emperor://updates` takes the same path a tapped update does,
+    /// and arrives as the app comes back to the front, the privacy cover lifting as it does.
+    func testUpdatesWaitForTheOpenSheetThenAppear() {
+        let app = signIn(launch("-UITestLinkOnReturn", "emperor://updates"))
         XCTAssertTrue(app.tab("Calendar").waitForExistence(timeout: 10))
         app.tab("Calendar").tap()
         XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
@@ -1723,7 +1765,8 @@ final class EmperorUITests: XCTestCase {
         let subscribe = app.navigationBars["Subscribe"]
         XCTAssertTrue(subscribe.waitForExistence(timeout: 10))
 
-        openLink(try XCTUnwrap(URL(string: "emperor://updates")), in: app)
+        leaveAndReturn(app)
+        XCTAssertTrue(subscribe.waitForExistence(timeout: 10), "the open sheet was taken away")
         Thread.sleep(forTimeInterval: 1.5)
         XCTAssertTrue(subscribe.exists, "the open sheet was taken away")
         XCTAssertFalse(
@@ -1739,12 +1782,29 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(app.tab("Home").isSelected, "Updates opens over Home, where its bell is")
     }
 
-    /// Opens one of the app's own links as the system would — from the widget, say. Some iOS
-    /// versions ask before an app is opened from outside; that is answered yes.
-    private func openLink(_ url: URL, in app: XCUIApplication) {
-        app.open(url)
-        let confirm = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Open"]
-        if confirm.waitForExistence(timeout: 2) { confirm.tap() }
+    /// Sends the app to the background and brings it back — the moment a link handed over with
+    /// `-UITestLinkOnReturn` is opened. The Home button as the app-lock tests press it, with
+    /// SpringBoard brought forward if the press alone does not move the app off screen.
+    private func leaveAndReturn(_ app: XCUIApplication) {
+        XCUIDevice.shared.press(.home)
+        if !Self.poll(5, { app.state != .runningForeground }) {
+            XCUIApplication(bundleIdentifier: "com.apple.springboard").activate()
+        }
+        XCTAssertTrue(Self.poll(10) { app.state != .runningForeground }, "the app did not leave")
+        app.activate()
+        XCTAssertTrue(
+            Self.poll(10) { app.state == .runningForeground }, "the app did not come back")
+    }
+
+    /// Polls `condition` until it holds or `seconds` pass — an expectation would not compile
+    /// in this target under Swift 6.
+    private static func poll(_ seconds: TimeInterval, _ condition: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            if condition() { return true }
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        return condition()
     }
 
     /// A day `days` from now in India: its `YYYY-MM-DD` key, and the label its Calendar cell
@@ -1771,15 +1831,41 @@ final class EmperorUITests: XCTestCase {
             .waitForExistence(timeout: 10)
     }
 
+    /// The list sits beside the conversation — an iPad at full width — rather than under it.
+    private var listIsBesideConversation: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
     /// Back from the conversation to the list, by the bar's leading button — see
-    /// `testAToolOpensItsFormAndCanBeRun` for why it is not found by its label.
+    /// `testAToolOpensItsFormAndCanBeRun` for why it is not found by its label. A phone only: on
+    /// an iPad the list is already in sight beside the conversation, and that bar's leading
+    /// button is not a way back.
     private func leaveTheConversation(_ app: XCUIApplication) {
+        guard !listIsBesideConversation else { return }
         let bar = app.navigationBars["Conversation"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
         bar.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(
             app.stubConversationRow.waitForExistence(timeout: 10),
             "leaving the conversation did not return to the list")
+    }
+
+    /// Opens the stub conversation again, so that it loads a second time.
+    ///
+    /// On a phone: back to the list, and in again. On an iPad the conversation opens beside the
+    /// list with its row selected, and choosing the selected row again opens nothing — so the
+    /// list's other conversation is opened first, and the stub's chosen after it, which replaces
+    /// the column and loads it afresh.
+    private func reopenTheStubConversation(_ app: XCUIApplication) {
+        if listIsBesideConversation {
+            let other = app.buttons["chat-row-c2"].firstMatch
+            XCTAssertTrue(other.waitForExistence(timeout: 10), "no other conversation to open")
+            other.tap()
+            XCTAssertTrue(becomesSelected(other), "the other conversation did not open")
+        } else {
+            leaveTheConversation(app)
+        }
+        app.stubConversationRow.tap()
     }
 
     /// `-UITestOffline` lets every route answer once and then fails it as a phone with no signal
@@ -1791,9 +1877,8 @@ final class EmperorUITests: XCTestCase {
         openTheStubConversation(app)
         XCTAssertTrue(waitForTheStoredAnswer(app), "the conversation did not load the first time")
         XCTAssertFalse(app.staticTexts["offline-notice"].exists, "online, there is no notice")
-        leaveTheConversation(app)
 
-        app.stubConversationRow.tap()
+        reopenTheStubConversation(app)
 
         let notice = app.staticTexts["offline-notice"].firstMatch
         XCTAssertTrue(notice.waitForExistence(timeout: 10), "reopened offline with no notice")

@@ -62,23 +62,62 @@ enum UITestSupport {
         }
     }
 
-    /// The signal goes after the first load: every route answers once, then fails as a phone with
-    /// no connection does. So a conversation, document or matter opened once can be opened again
-    /// offline, which is what offline reading is for.
+    /// `-UITestLinkOnReturn <link>`, as many times as there are links: each is opened, in order,
+    /// the next time the signed-in app comes back from the background — which is how a tap on the
+    /// Today widget or a notification reaches an app that is already running.
+    ///
+    /// The tests cannot simply hand the running app a link. `XCUIApplication.open(_:)` *launches*
+    /// the app with it, ending the running process first — and with it the in-memory session, so
+    /// the link lands on the sign-in screen (seen on CI: the app went to the Home Screen and came
+    /// back through a cold launch). `XCUIDevice.system.open(_:)` is reported to stop on an "Open
+    /// in…" confirmation that the test cannot answer while the call is waiting. So the link is
+    /// carried in from launch and opened through `AppLinks.open`, the function
+    /// `RootView.onOpenURL` calls.
+    @MainActor
+    static func takeLinkOnReturn() -> URL? {
+        let arguments = ProcessInfo.processInfo.arguments
+        let links = arguments.indices.compactMap { index -> URL? in
+            guard arguments[index] == "-UITestLinkOnReturn",
+                  arguments.indices.contains(index + 1)
+            else { return nil }
+            return URL(string: arguments[index + 1])
+        }
+        guard isActive, linksOpened < links.count else { return nil }
+        defer { linksOpened += 1 }
+        return links[linksOpened]
+    }
+
+    @MainActor private static var linksOpened = 0
+
+    /// The signal goes after the first load: every request answers once, then fails as a phone
+    /// with no connection does. So a conversation, document or matter opened once can be opened
+    /// again offline, which is what offline reading is for — and a second conversation opened for
+    /// the first time still loads, which is how the iPad, whose open conversation cannot be
+    /// re-chosen, leaves and comes back to it.
     static var isOffline: Bool {
         ProcessInfo.processInfo.arguments.contains("-UITestOffline")
     }
 
-    /// The routes already answered once in an offline run. Behind a lock because `URLProtocol`
-    /// answers on the session's own queue.
+    /// The requests already answered once in an offline run — a route and its query, so each
+    /// conversation's `/messages` is its own. Behind a lock because `URLProtocol` answers on the
+    /// session's own queue.
     final class AnsweredRoutes: @unchecked Sendable {
         static let shared = AnsweredRoutes()
         private let lock = NSLock()
         private var answered: Set<String> = []
 
-        /// `true` the first time a route is asked for, and never again.
-        func isFirst(_ path: String) -> Bool {
-            lock.withLock { answered.insert(path).inserted }
+        /// `true` the first time a request is made, and never again.
+        func isFirst(_ url: URL?) -> Bool {
+            lock.withLock { answered.insert(Self.key(for: url)).inserted }
+        }
+
+        /// The path and the query, its items sorted: the client builds a query from a dictionary,
+        /// whose order is not promised to be the same twice.
+        private static func key(for url: URL?) -> String {
+            guard let url else { return "" }
+            let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            let query = items.map { "\($0.name)=\($0.value ?? "")" }.sorted()
+            return ([url.path] + query).joined(separator: "&")
         }
     }
 
@@ -100,7 +139,11 @@ enum UITestSupport {
 
         override func startLoading() {
             let path = request.url?.path.replacingOccurrences(of: "/api", with: "") ?? ""
-            if UITestSupport.isOffline, !AnsweredRoutes.shared.isFirst(path) {
+            if UITestSupport.isOffline, !AnsweredRoutes.shared.isFirst(request.url) {
+                // A bare code, with none of the wording iOS gives the real thing — the harder case,
+                // and the one a phone set to another language presents too. The client reads the
+                // code (`APIError.transportFailure`), so it takes this for no connection as it
+                // takes a real phone's.
                 client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
                 return
             }

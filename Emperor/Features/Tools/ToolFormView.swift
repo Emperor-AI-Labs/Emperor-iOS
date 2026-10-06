@@ -77,7 +77,11 @@ struct ToolFormView: View {
     private func field(_ field: ToolField) -> some View {
         switch field.type {
         case .text:
-            TextField(field.label, text: binding(field.key), prompt: prompt(for: field))
+            // A short answer, but one that wraps rather than scrolling out of sight sideways at
+            // a large text size — "the Respondent, a statutory authority" is still one answer.
+            TextField(
+                field.label, text: binding(field.key), prompt: prompt(for: field), axis: .vertical)
+                .lineLimit(1...4)
                 .accessibilityLabel(field.label)
 
         case .textarea:

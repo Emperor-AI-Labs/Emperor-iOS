@@ -237,9 +237,7 @@ struct LibraryView: View {
                             fromByteCount: Int64(size), countStyle: .file))
                     }
                     if let added = document.addedDate {
-                        // A separator for the eye; read aloud it is "middle dot".
-                        Text("·")
-                            .accessibilityHidden(true)
+                        SeparatorDot()
                         Text(DisplayText.longDay(WireDate.dayKey(added)))
                     }
                 }

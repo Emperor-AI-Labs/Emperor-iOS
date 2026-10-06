@@ -226,11 +226,18 @@ struct NotificationTapRouting: ViewModifier {
     let navigator: AppNavigator
 
     @State private var isShowingUpdates = false
+    @Environment(\.scenePhase) private var scenePhase
+    /// Whether the app has been in the background since it was last active — for
+    /// `openUITestLinkOnReturn`.
+    @State private var hasBeenAway = false
 
     func body(content: Content) -> some View {
         content
             .onChange(of: AppNotifications.shared.inbox.tapCount, initial: true) { _, _ in
                 route()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                openUITestLinkOnReturn(phase)
             }
             .task(id: navigator.updatesRequest) {
                 await presentUpdatesWhenFree()
@@ -251,6 +258,19 @@ struct NotificationTapRouting: ViewModifier {
         case .updates:
             navigator.openUpdates()
         }
+    }
+
+    /// `-UITestLinkOnReturn`: a link handed over as the app comes back to the front, the way a
+    /// widget or notification tap reaches a running app — see `UITestSupport.takeLinkOnReturn`.
+    /// Does nothing outside the UI tests.
+    private func openUITestLinkOnReturn(_ phase: ScenePhase) {
+        #if DEBUG
+        guard UITestSupport.isActive else { return }
+        if phase == .background { hasBeenAway = true }
+        guard phase == .active, hasBeenAway else { return }
+        hasBeenAway = false
+        if let url = UITestSupport.takeLinkOnReturn() { _ = AppLinks.open(url) }
+        #endif
     }
 
     /// Waits until nothing is presented, then shows Updates — unless the request is taken or

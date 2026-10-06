@@ -83,7 +83,7 @@ final class ListDetailPathTests: XCTestCase {
     /// A new conversation is not in the list yet. Choosing a listed one replaces it.
     func testAListedConversationReplacesANewOne() {
         let new = ["9F3C-NEW"]
-        XCTAssertNil(["c1", "c2"].first { ListDetailPath.selection(in: new) == $0 })
+        XCTAssertEqual(ListDetailPath.selection(in: new), "9F3C-NEW", "a new conversation is in no row")
         XCTAssertEqual(ListDetailPath.selecting("c1", in: new), ["c1"])
     }
 

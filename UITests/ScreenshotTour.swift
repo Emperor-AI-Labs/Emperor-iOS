@@ -258,23 +258,6 @@ final class ScreenshotTour: XCTestCase {
                 }
             }
         }
-
-        // The Calendar opened from a link — what the Today widget, a tapped hearing reminder and
-        // "Open my calendar" do — on a day two ahead, where the stub's docket lists a matter.
-        let ahead = DateFormatter()
-        ahead.dateFormat = "yyyy-MM-dd"
-        ahead.timeZone = TimeZone(identifier: "Asia/Kolkata")
-        ahead.locale = Locale(identifier: "en_US_POSIX")
-        let day = ahead.string(from: Date().addingTimeInterval(2 * 86_400))
-        if let link = URL(string: "emperor://calendar?day=\(day)") {
-            app.open(link)
-            let confirm = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Open"]
-            if confirm.waitForExistence(timeout: 2) { confirm.tap() }
-            if app.navigationBars["Calendar"].waitForExistence(timeout: 10) {
-                _ = app.buttons["calendar-listing-case-hc-delhi"].waitForExistence(timeout: 5)
-                snap("calendar-opened-on-a-day")
-            }
-        }
     }
 
     /// What each tab says when there is nothing to show — every fixture empty. The empty state is
@@ -371,7 +354,11 @@ final class ScreenshotTour: XCTestCase {
         tapIfPresent(app.buttons["Sign in"])
         guard app.tab("Chat").waitForExistence(timeout: 15) else { return }
 
-        // Opened once with the signal, which keeps it; then reopened without.
+        // Opened once with the signal, which keeps it; then reopened without. On a phone that
+        // is back to the list and in again. An iPad shows the conversation beside the list with
+        // its row selected, and the selected row cannot be chosen again — so the list's other
+        // conversation is opened in between.
+        let isBeside = UIDevice.current.userInterfaceIdiom == .pad
         app.tab("Chat").tap()
         let conversation = app.stubConversationRow
         guard conversation.waitForExistence(timeout: 10) else { return }
@@ -379,12 +366,24 @@ final class ScreenshotTour: XCTestCase {
         _ = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch
             .waitForExistence(timeout: 10)
         let bar = app.navigationBars["Conversation"]
-        if bar.waitForExistence(timeout: 5) { bar.buttons.element(boundBy: 0).tap() }
+        if isBeside {
+            let other = app.buttons["chat-row-c2"].firstMatch
+            if other.waitForExistence(timeout: 5) {
+                other.tap()
+                var polls = 0
+                while !other.isSelected && polls < 40 {
+                    Thread.sleep(forTimeInterval: 0.1)
+                    polls += 1
+                }
+            }
+        } else if bar.waitForExistence(timeout: 5) {
+            bar.buttons.element(boundBy: 0).tap()
+        }
         if conversation.waitForExistence(timeout: 10) { conversation.tap() }
         if app.staticTexts["offline-notice"].firstMatch.waitForExistence(timeout: 10) {
             snap("conversation")
         }
-        if bar.waitForExistence(timeout: 5) { bar.buttons.element(boundBy: 0).tap() }
+        if !isBeside, bar.waitForExistence(timeout: 5) { bar.buttons.element(boundBy: 0).tap() }
 
         // Settings → Storage, scrolled to.
         app.tab("More").tap()
@@ -461,14 +460,31 @@ final class ScreenshotTour: XCTestCase {
         guard app.tab("More").waitForExistence(timeout: 10) else { snap("unlock-failed"); return }
         app.tab("More").tap()
         tapIfPresent(app.buttons["Settings"].firstMatch)
-        // Below Plan & usage; scrolled until the switch is in view.
+        // Below Plan & usage; scrolled until the switch is in view, then raised so the timeout row
+        // beneath it is in the picture too — a swipe alone leaves the switch on the bottom edge.
         let toggle = app.switches["app-lock-toggle"].firstMatch
         var swipes = 0
         while !(toggle.exists && toggle.isHittable) && swipes < 6 {
             app.swipeUp()
             swipes += 1
         }
+        appLockRaise(toggle, in: app)
         snap("settings-security")
+    }
+
+    /// Drags the list holding `element` until the element sits in its upper half. Slow drags, so
+    /// momentum cannot carry it off the top; stops early where the list ends.
+    private func appLockRaise(_ element: XCUIElement, in app: XCUIApplication) {
+        let list = app.collectionViews.containing(.any, identifier: element.identifier).firstMatch
+        guard list.exists else { return }
+        for _ in 0..<6 {
+            guard element.exists, element.frame.minY > list.frame.midY else { return }
+            let start = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+            let end = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
+            start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow,
+                        thenHoldForDuration: 0.2)
+            Thread.sleep(forTimeInterval: 0.3)
+        }
     }
 
     // MARK: - Profile and documents shared in
@@ -556,5 +572,58 @@ final class ScreenshotTour: XCTestCase {
                 snap("edit-profile")
             }
         }
+    }
+
+    // MARK: - Opened from a link
+
+    /// The Calendar opened from a link — what the Today widget, a tapped hearing reminder and
+    /// "Open my calendar" do — on a day two ahead, where the stub's docket lists a matter. The
+    /// link arrives as the app comes back to the front (`-UITestLinkOnReturn`), as a widget's
+    /// tap reaches a running app; `XCUIApplication.open(_:)` would relaunch it signed out.
+    func testTheCalendarOpenedFromALinkDark() { linkTour(light: false) }
+    func testTheCalendarOpenedFromALinkLight() { linkTour(light: true) }
+
+    private func linkTour(light: Bool) {
+        let ahead = DateFormatter()
+        ahead.dateFormat = "yyyy-MM-dd"
+        ahead.timeZone = TimeZone(identifier: "Asia/Kolkata")
+        ahead.locale = Locale(identifier: "en_US_POSIX")
+        let day = ahead.string(from: Date().addingTimeInterval(2 * 86_400))
+
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-UITestMode", "-UITestLinkOnReturn", "emperor://calendar?day=\(day)",
+        ] + (light ? ["-UITestLight"] : [])
+        app.launch()
+        guard app.textFields["Email"].waitForExistence(timeout: 15) else { return }
+        let email = app.textFields["Email"]
+        email.tap()
+        email.typeText("john.doe@firm.com")
+        let password = app.secureTextFields["Password"]
+        if password.waitForExistence(timeout: 5) {
+            password.tap()
+            password.typeText("hunter2")
+        }
+        tapIfPresent(app.buttons["Sign in"])
+        guard app.tab("Home").waitForExistence(timeout: 15) else { return }
+
+        XCUIDevice.shared.press(.home)
+        var polls = 0
+        while app.state == .runningForeground && polls < 20 {
+            Thread.sleep(forTimeInterval: 0.25)
+            polls += 1
+        }
+        if app.state == .runningForeground {
+            XCUIApplication(bundleIdentifier: "com.apple.springboard").activate()
+        }
+        app.activate()
+
+        guard app.navigationBars["Calendar"].waitForExistence(timeout: 10) else { return }
+        _ = app.buttons["calendar-listing-case-hc-delhi"].waitForExistence(timeout: 5)
+        Thread.sleep(forTimeInterval: 0.8)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = String(format: "link-%@-01-calendar-on-a-day", light ? "light" : "dark")
+        shot.lifetime = .keepAlways
+        add(shot)
     }
 }

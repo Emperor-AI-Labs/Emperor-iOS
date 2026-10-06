@@ -14,6 +14,7 @@ struct PDFToolsView: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         NavigationStack {
@@ -47,25 +48,39 @@ struct PDFToolsView: View {
         }
     }
 
-    /// Two columns where they fit; one at the accessibility text sizes, where a half-width card
-    /// would wrap its title a word to a line.
-    private var columns: [GridItem] {
-        dynamicTypeSize.isAccessibilitySize
-            ? [GridItem(.flexible())]
-            : [GridItem(.adaptive(minimum: 158), spacing: Spacing.md, alignment: .top)]
+    /// Two columns on a phone, four across an iPad's readable width; one at the accessibility text
+    /// sizes, where a half-width card would wrap its title a word to a line.
+    private var columnCount: Int {
+        if dynamicTypeSize.isAccessibilitySize { return 1 }
+        return sizeClass == .regular ? 4 : 2
     }
 
+    /// The cards in rows, built at once rather than by a lazy grid: seven cards cost nothing to
+    /// lay out, and a lazy grid lets go of the card at the foot of the screen as the text grows —
+    /// which the accessibility audit read as text that does not scale at all.
     private func group(_ title: String, tools: [DocumentTool]) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm + 2) {
+        let columns = columnCount
+        let rows = stride(from: 0, to: tools.count, by: columns).map {
+            Array(tools[$0..<min($0 + columns, tools.count)])
+        }
+        return VStack(alignment: .leading, spacing: Spacing.sm + 2) {
             SectionHeader(title: title)
                 .padding(.horizontal, Spacing.xs)
-            LazyVGrid(columns: columns, alignment: .leading, spacing: Spacing.md) {
-                ForEach(tools) { tool in
-                    NavigationLink(value: tool) {
-                        ToolCard(tool: tool)
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    HStack(alignment: .top, spacing: Spacing.md) {
+                        ForEach(row) { tool in
+                            NavigationLink(value: tool) {
+                                ToolCard(tool: tool)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("tool-\(tool.rawValue)")
+                        }
+                        // A short last row keeps its cards at the width of the rows above.
+                        ForEach(0..<(columns - row.count), id: \.self) { _ in
+                            Color.clear.frame(maxWidth: .infinity, maxHeight: 0)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("tool-\(tool.rawValue)")
                 }
             }
         }

@@ -505,7 +505,7 @@ enum ByteStream {
             defer { session.finishTasksAndInvalidate() }
 
             if let error {
-                continuation.finish(throwing: APIError.transport(error.localizedDescription))
+                continuation.finish(throwing: APIError.transportFailure(error))
                 return
             }
             if isErrorResponse {

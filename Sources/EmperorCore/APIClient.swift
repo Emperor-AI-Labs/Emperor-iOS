@@ -59,6 +59,24 @@ enum APIError: LocalizedError, Equatable {
         return nil
     }
 
+    /// A request that failed before the server answered, as `.transport` — worded so that a
+    /// missing connection still reads as one.
+    ///
+    /// `.transport` keeps only text, and the screens decide from that text whether the network
+    /// was unreachable (`DisplayText.isOffline`) — which is what lets a saved copy stand in. A
+    /// `URLError`'s description cannot be relied on for it: iOS words it in the language the
+    /// phone is set to, and an error built from a bare code says only "NSURLErrorDomain error
+    /// -1009". So when the *code* means no connection and the wording does not say so, the
+    /// wording is replaced with this client's own. iOS's sentence is kept wherever it already
+    /// reads as offline, so what an English-language phone shows is unchanged.
+    static func transportFailure(_ error: Error) -> APIError {
+        let wrapped = APIError.transport(error.localizedDescription)
+        guard let urlError = error as? URLError, DisplayText.isOffline(urlError),
+              !DisplayText.isOffline(wrapped)
+        else { return wrapped }
+        return .transport(DisplayText.offlineMessage)
+    }
+
     /// Classifies a non-2xx response the way every caller on this API should.
     ///
     /// One function for the two transports — `APIClient` for JSON and `ByteStream` for the chat
@@ -233,7 +251,7 @@ actor APIClient {
         } catch let error as APIError {
             throw error
         } catch {
-            throw APIError.transport(error.localizedDescription)
+            throw APIError.transportFailure(error)
         }
     }
 

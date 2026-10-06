@@ -580,3 +580,105 @@ final class OfflineReadingTests: XCTestCase {
         XCTAssertTrue(OfflineStorageSummary.explanation.contains("300 MB"))
     }
 }
+
+// MARK: - Over the wire
+
+/// The offline rule as a real request meets it: through `APIClient`, which turns a `URLError`
+/// into `APIError.transport` and keeps only its wording.
+///
+/// The UI tests' stub fails a request with a bare `URLError(.notConnectedToInternet)`, whose
+/// description is the generic "The operation couldn't be completed. (NSURLErrorDomain error
+/// -1009.)" — and a phone set to another language words even a real one in that language. Either
+/// way the wording said nothing `DisplayText.isOffline` recognised, the failure read as the
+/// server's, and the saved copy correctly refused to stand in for a server that had "answered".
+@MainActor
+final class OfflineOverTheWireTests: XCTestCase {
+
+    override func setUp() {
+        super.setUp()
+        HTTPStub.reset()
+    }
+
+    override func tearDown() {
+        HTTPStub.reset()
+        super.tearDown()
+    }
+
+    private func client() async -> APIClient {
+        let client = APIClient(
+            config: APIConfig(baseURL: URL(string: "https://example.test/api")!),
+            session: HTTPStub.session())
+        await client.setCredentials(Credentials(token: "tok", userID: 1))
+        return client
+    }
+
+    private func failure(of client: APIClient) async -> Error? {
+        do {
+            let request = try await client.makeRequest("GET", "/chats")
+            _ = try await client.send(request, as: ChatListResponse.self)
+            return nil
+        } catch {
+            return error
+        }
+    }
+
+    func testAConnectionErrorWithNoWordingStillReadsAsOffline() async throws {
+        HTTPStub.fail(URLError(.notConnectedToInternet))
+        let failed = await failure(of: await client())
+        let error = try XCTUnwrap(failed)
+        XCTAssertTrue(OfflineReading.mayStandIn(after: error), "\(error)")
+        XCTAssertEqual(LoadFailure(error).kind, .offline)
+    }
+
+    func testAConnectionErrorWordedInAnotherLanguageStillReadsAsOffline() async throws {
+        HTTPStub.fail(URLError(.notConnectedToInternet, userInfo: [
+            NSLocalizedDescriptionKey: "इंटरनेट कनेक्शन ऑफ़लाइन प्रतीत होता है।",
+        ]))
+        let failed = await failure(of: await client())
+        let error = try XCTUnwrap(failed)
+        XCTAssertTrue(OfflineReading.mayStandIn(after: error), "\(error)")
+    }
+
+    /// iOS's own sentence, where it already says so, is kept as it was.
+    func testTheSystemsOwnOfflineWordingIsKept() async throws {
+        HTTPStub.fail(URLError(.notConnectedToInternet, userInfo: [
+            NSLocalizedDescriptionKey: "The Internet connection appears to be offline.",
+        ]))
+        let failed = await failure(of: await client())
+        let error = try XCTUnwrap(failed)
+        XCTAssertEqual(error as? APIError, .transport("The Internet connection appears to be offline."))
+    }
+
+    /// A transport failure that is not a missing connection is still not offline.
+    func testOtherTransportFailuresAreNotOffline() async throws {
+        HTTPStub.fail(URLError(.badServerResponse))
+        let failed = await failure(of: await client())
+        let error = try XCTUnwrap(failed)
+        XCTAssertFalse(OfflineReading.mayStandIn(after: error), "\(error)")
+    }
+
+    /// The failure CI found, end to end: a conversation loaded once over the wire reopens from its
+    /// saved copy when the next request fails with a bare "not connected" error.
+    func testAConversationReopensOfflineThroughTheRealTransport() async throws {
+        let chats = ChatService(client: await client())
+        let library = OfflineLibrary(store: InMemoryCacheStore())
+        let store = library.copies(for: 1).conversations
+        HTTPStub.respond { request in
+            if request.url?.path.hasSuffix("/messages") == true {
+                return .json(#"{"success":true,"messages":[{"id":"q1","role":"user","content":"Is the suit barred?"},{"id":"a1","role":"assistant","content":"Yes."}]}"#)
+            }
+            return .json(#"{"active":false}"#)
+        }
+        await ChatViewModel(chatID: "c1", service: chats, offline: store).load()
+        XCTAssertTrue(store.contains("c1"), "the first load was kept")
+
+        HTTPStub.fail(URLError(.notConnectedToInternet))
+        let reopened = ChatViewModel(chatID: "c1", service: chats, offline: store)
+        await reopened.load()
+
+        XCTAssertTrue(reopened.isShowingSavedCopy)
+        XCTAssertEqual(reopened.messages.map(\.content), ["Is the suit barred?", "Yes."])
+        XCTAssertNil(reopened.errorMessage)
+        XCTAssertEqual(reopened.sendBlockedReason, OfflineReading.askingPaused)
+    }
+}

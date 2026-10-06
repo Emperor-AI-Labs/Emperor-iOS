@@ -16,6 +16,8 @@ struct EditProfileView: View {
     @State private var model: ProfileEditor?
     @State private var photoItem: PhotosPickerItem?
     @State private var isReadingPhoto = false
+    /// The field being typed in, so Return on a field that wraps can mean "done", as its key says.
+    @FocusState private var focusedField: String?
 
     private typealias Copy = ProfileEditor.Copy
 
@@ -57,11 +59,14 @@ struct EditProfileView: View {
             Section {
                 field("Full name", placeholder: Copy.namePlaceholder, text: $bindable.name,
                       id: "profile-name", contentType: .name)
+                // These two wrap: a designation or a chambers' name can run long, and at a
+                // large text size a one-line field scrolls the end of it out of sight.
                 field("Title / designation", placeholder: Copy.titlePlaceholder,
-                      text: $bindable.title, id: "profile-title", contentType: .jobTitle)
+                      text: $bindable.title, id: "profile-title", contentType: .jobTitle,
+                      wraps: true)
                 field("Organisation", placeholder: Copy.organizationPlaceholder,
                       text: $bindable.organization, id: "profile-organization",
-                      contentType: .organizationName)
+                      contentType: .organizationName, wraps: true)
             } header: {
                 SectionHeader(title: "Your details")
             } footer: {
@@ -201,7 +206,7 @@ struct EditProfileView: View {
     /// is — a placeholder alone vanishes the moment there is something in it.
     private func field(
         _ label: String, placeholder: String, text: Binding<String>, id: String,
-        contentType: UITextContentType
+        contentType: UITextContentType, wraps: Bool = false
     ) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xxs) {
             Text(label)
@@ -210,17 +215,40 @@ struct EditProfileView: View {
                 .accessibilityHidden(true)
             // The example in the palette's tertiary: the system's placeholder grey is about 2.4:1
             // on a dark card.
-            TextField(
-                label, text: text,
-                prompt: Text(verbatim: placeholder).foregroundStyle(theme.textTertiary))
-                .font(.brand(.body))
-                .foregroundStyle(theme.textPrimary)
-                .textContentType(contentType)
-                .submitLabel(.done)
-                .accessibilityLabel(label)
-                .accessibilityIdentifier(id)
+            let prompt = Text(verbatim: placeholder).foregroundStyle(theme.textTertiary)
+            Group {
+                if wraps {
+                    TextField(label, text: oneParagraph(text), prompt: prompt, axis: .vertical)
+                        .lineLimit(1...4)
+                } else {
+                    TextField(label, text: text, prompt: prompt)
+                }
+            }
+            .focused($focusedField, equals: id)
+            .font(.brand(.body))
+            .foregroundStyle(theme.textPrimary)
+            .textContentType(contentType)
+            .submitLabel(.done)
+            .accessibilityLabel(label)
+            .accessibilityIdentifier(id)
         }
         .padding(.vertical, Spacing.xxs)
+    }
+
+    /// The text as one paragraph. Return in a field that wraps types a line break, which a title
+    /// has no use for; here it is taken as "done", as the keyboard's key says, and the break is
+    /// never kept.
+    private func oneParagraph(_ text: Binding<String>) -> Binding<String> {
+        Binding(
+            get: { text.wrappedValue },
+            set: { new in
+                guard new.contains("\n") else {
+                    text.wrappedValue = new
+                    return
+                }
+                text.wrappedValue = new.replacingOccurrences(of: "\n", with: "")
+                focusedField = nil
+            })
     }
 
     private func footnote(_ text: String, tone: Color? = nil) -> some View {

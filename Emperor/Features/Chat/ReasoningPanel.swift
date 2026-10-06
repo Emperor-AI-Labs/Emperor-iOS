@@ -13,6 +13,9 @@ struct ReasoningPanel: View {
 
     @State private var isExpanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The summary line's height, scaled with it — how far the header's 44-point target reaches
+    /// above and below the line, to be handed back so the collapsed panel stays one line tall.
+    @ScaledMetric(relativeTo: .footnote) private var headerLine: CGFloat = 18
     /// The spinner's and the tick's slot, scaled with the summary beside it.
     @ScaledMetric(relativeTo: .footnote) private var glyphSlot: CGFloat = 18
 
@@ -75,9 +78,13 @@ struct ReasoningPanel: View {
                         .accessibilityHidden(true)
                 }
             }
+            // A 44-point target for a one-line header; the extra is given back below, so the
+            // panel is drawn as tight as it was.
+            .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .padding(.vertical, -max(0, (44 - headerLine) / 2))
         .disabled(snapshot.isEmpty)
         .accessibilityValue(snapshot.isEmpty ? "" : (isExpanded ? "Expanded" : "Collapsed"))
     }

@@ -201,6 +201,10 @@ struct InlineMarkdownText: View {
 /// readable at the normal width.
 private struct MarkdownTableView: View {
     @Environment(\.theme) private var theme
+    /// A column's bounds, scaled with the cells' text: at a large size a fixed 240 points holds a
+    /// short phrase a word to a line. The table scrolls sideways, so a wider column costs nothing.
+    @ScaledMetric(relativeTo: .caption) private var minimumCellWidth: CGFloat = 72
+    @ScaledMetric(relativeTo: .caption) private var maximumCellWidth: CGFloat = 240
     let table: MarkdownTable
     var citations: CitationIndex = .empty
 
@@ -258,8 +262,11 @@ private struct MarkdownTableView: View {
                 .monospacedDigit())
             .multilineTextAlignment(alignment == .trailing ? .trailing : .leading)
             // Wide enough to read a date or a short phrase; capped so one long cell cannot
-            // push every other column off the screen.
-            .frame(minWidth: 72, maxWidth: 240, alignment: frameAlignment(alignment))
+            // push every other column off the screen. Both grow with the text.
+            .frame(
+                minWidth: minimumCellWidth, maxWidth: maximumCellWidth,
+                alignment: frameAlignment(alignment))
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
     }

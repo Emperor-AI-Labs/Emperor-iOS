@@ -36,32 +36,38 @@ struct OfflineStorageSection: View {
             }
             .padding(.vertical, Spacing.xxs)
 
-            Button(role: .destructive) {
-                isConfirmingClear = true
-            } label: {
-                IconRowLabel(
-                    title: "Clear offline copies", systemImage: "trash", hue: .rose,
-                    titleColor: summary.isEmpty ? theme.textTertiary : theme.danger)
-            }
-            .disabled(summary.isEmpty)
-            .accessibilityLabel(Text("Clear offline copies"))
-            .accessibilityIdentifier("offline-storage-clear")
-            // Asked first: a document saved for tomorrow's hearing goes with the rest, and comes
-            // back only by opening it again with a connection.
-            .confirmationDialog(
-                "Clear offline copies?",
-                isPresented: $isConfirmingClear,
-                titleVisibility: .visible
-            ) {
-                Button("Clear offline copies", role: .destructive) {
-                    model?.clear()
-                    // The dialog closes onto its button, now dimmed with nothing left to clear;
-                    // what happened is said rather than left to be inferred.
-                    VoiceOver.announce("Offline copies cleared")
+            // Offered only when there is something to clear. It used to stay, dimmed and disabled,
+            // under a row already saying "None" — a control that could do nothing, which the
+            // accessibility audit could not read either: the dimmed words were reported as text
+            // that neither scales nor fits. No `.destructive` role on the row; the confirmation
+            // below carries it, where the act actually happens.
+            if !summary.isEmpty {
+                Button {
+                    isConfirmingClear = true
+                } label: {
+                    IconRowLabel(
+                        title: "Clear offline copies", systemImage: "trash", hue: .rose,
+                        titleColor: theme.danger)
                 }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Conversations, documents and matters kept on this device — including documents you saved for offline — will be removed. They are kept again the next time you open them with a connection.")
+                .accessibilityLabel(Text("Clear offline copies"))
+                .accessibilityIdentifier("offline-storage-clear")
+                // Asked first: a document saved for tomorrow's hearing goes with the rest, and
+                // comes back only by opening it again with a connection.
+                .confirmationDialog(
+                    "Clear offline copies?",
+                    isPresented: $isConfirmingClear,
+                    titleVisibility: .visible
+                ) {
+                    Button("Clear offline copies", role: .destructive) {
+                        model?.clear()
+                        // The dialog closes, and the button goes with nothing left to clear; what
+                        // happened is said rather than left to be inferred.
+                        VoiceOver.announce("Offline copies cleared")
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Conversations, documents and matters kept on this device — including documents you saved for offline — will be removed. They are kept again the next time you open them with a connection.")
+                }
             }
         } header: {
             SectionHeader(title: "Storage")
