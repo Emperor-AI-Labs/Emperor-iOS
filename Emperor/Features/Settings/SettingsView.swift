@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Role, appearance, account, usage, reference and sign-out.
+/// Role, appearance, account, usage, security, reference and sign-out.
 ///
 /// The role selector leads, because it is the setting that changes the most about the app — the
 /// toolkit, the home screen, what the model is told — and it is the one people switch.
@@ -85,6 +85,9 @@ struct SettingsView: View {
 
                     PlanUsageSection()
                 }
+
+                // The app lock — see `AppLockSettingsSection`.
+                AppLockSettingsSection()
 
                 Section {
                     NavigationLink {

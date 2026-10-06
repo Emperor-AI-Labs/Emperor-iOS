@@ -1432,4 +1432,116 @@ final class EmperorUITests: XCTestCase {
         }
         return !element.exists
     }
+
+    // MARK: - App lock
+
+    /// Settings → Security: the switch, named for what this device asks for, and — once it is on
+    /// — how long the app may be away. In UI-test mode a stand-in answers for Face ID and
+    /// recognises every face, so the real `LAContext` is never touched; and every launch starts
+    /// with the lock off, so turning it on here is turning it on from off.
+    func testSecuritySettingsShowTheLockAndItsTimeout() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
+        app.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+
+        // Below Plan & usage, so off screen on a phone until scrolled to.
+        let toggle = app.switches["app-lock-toggle"].firstMatch
+        scrollUntilHittable(toggle, in: app)
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10), "Settings has no Security section")
+        XCTAssertTrue(
+            toggle.label.contains("Require Face ID"),
+            "the switch is not named for the device: \(toggle.label)")
+        XCTAssertEqual(toggle.value as? String, "0", "the lock is off until turned on")
+        let timeout = app.descendants(matching: .any)["app-lock-timeout"].firstMatch
+        XCTAssertFalse(timeout.exists, "a timeout is offered while the lock is off")
+
+        // On — the stand-in confirms it is the owner — and the timeout appears, at a minute.
+        flip(toggle, to: "1")
+        XCTAssertTrue(
+            timeout.waitForExistence(timeout: 10), "turning the lock on offered no timeout")
+        scrollUntilHittable(timeout, in: app)
+        XCTAssertTrue(
+            appLockWait { self.appLockShows(app, "After 1 minute") },
+            "the timeout does not start at a minute")
+
+        // Another choice, from its menu.
+        timeout.tap()
+        let five = app.buttons["After 5 minutes"].firstMatch
+        XCTAssertTrue(five.waitForExistence(timeout: 5), "the timeout's choices did not open")
+        five.tap()
+        XCTAssertTrue(
+            appLockWait { self.appLockShows(app, "After 5 minutes") }, "the choice did not stick")
+
+        // And off again, which takes the timeout with it.
+        scrollUntilHittable(toggle, in: app)
+        flip(toggle, to: "0")
+        XCTAssertTrue(appLockWait { !timeout.exists }, "the timeout outlived the lock")
+    }
+
+    /// `-UITestAppLock`: the lock on, and someone already signed in on the device — a cold start
+    /// with a session, which is when the lock is for. The app opens behind the lock with nothing
+    /// behind it reachable, and Unlock reveals it.
+    func testTheAppOpensLockedAndUnlockRevealsIt() {
+        let app = launch("-UITestAppLock")
+        let unlock = app.buttons["app-lock-unlock"]
+        XCTAssertTrue(unlock.waitForExistence(timeout: 15), "the app did not open locked")
+        XCTAssertTrue(app.staticTexts["Emperor is locked"].exists)
+        XCTAssertFalse(app.tab("Home").exists, "the tabs were reachable behind the lock")
+        XCTAssertFalse(app.textFields["Email"].exists, "a session on the device opened on sign-in")
+
+        unlock.tap()
+        XCTAssertTrue(
+            app.tab("Home").waitForExistence(timeout: 10), "unlocking did not reveal the app")
+        XCTAssertTrue(appLockWait { !unlock.exists }, "the lock stayed up")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    /// Away and back: `-UITestAppLock` sets the lock to Immediately, so leaving for the Home
+    /// Screen and returning locks the app again.
+    func testReturningToTheAppLocksItAgain() {
+        let app = launch("-UITestAppLock")
+        let unlock = app.buttons["app-lock-unlock"]
+        XCTAssertTrue(unlock.waitForExistence(timeout: 15), "the app did not open locked")
+        unlock.tap()
+        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
+
+        XCUIDevice.shared.press(.home)
+        XCTAssertTrue(
+            appLockWait(10) { app.state != .runningForeground }, "the app did not leave")
+        app.activate()
+
+        XCTAssertTrue(
+            app.buttons["app-lock-unlock"].waitForExistence(timeout: 10),
+            "coming back did not lock the app")
+        XCTAssertFalse(app.tab("Home").exists, "the tabs were reachable behind the lock")
+        app.buttons["app-lock-unlock"].tap()
+        XCTAssertTrue(
+            app.tab("Home").waitForExistence(timeout: 10), "unlocking again did not reveal the app")
+    }
+
+    /// Whether the timeout row reads `text` — as its value, in its label, or as a text of its own,
+    /// since a menu picker in a list is drawn differently from one iOS to the next. Not as a
+    /// button: an item of the still-open menu is one, and would pass for the row.
+    private func appLockShows(_ app: XCUIApplication, _ text: String) -> Bool {
+        let timeout = app.descendants(matching: .any)["app-lock-timeout"].firstMatch
+        if timeout.exists {
+            if let value = timeout.value as? String, value.contains(text) { return true }
+            if timeout.label.contains(text) { return true }
+        }
+        return app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", text))
+            .firstMatch.exists
+    }
+
+    /// Polls `condition` until it holds or `seconds` pass. `waitForExpectations` sends the test
+    /// case across actors, which Swift 6 refuses to compile here.
+    private func appLockWait(_ seconds: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            if condition() { return true }
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        return condition()
+    }
 }

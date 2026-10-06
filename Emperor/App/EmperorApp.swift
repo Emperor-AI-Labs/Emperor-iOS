@@ -13,6 +13,11 @@ struct EmperorApp: App {
     /// sheets write PDFs into — those would otherwise outlive the session that fetched them.
     @State private var session = EmperorApp.makeSession()
 
+    /// Face ID when the app opens or comes back, and the cover in the app switcher. Made here,
+    /// beside the session, so there is one lock however the scene's views are rebuilt — see
+    /// `AppLock` and `AppLockShield`.
+    @State private var appLock = AppLock.forThisDevice()
+
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -55,9 +60,11 @@ struct EmperorApp: App {
         if UITestSupport.isActive {
             // In-memory everywhere: no Keychain prompt, and no state carried between test runs.
             // Sign-in is not faked — the tests drive the real login screen and the stub answers
-            // `/login`, so the whole authentication path is exercised.
+            // `/login`, so the whole authentication path is exercised. The one exception is
+            // `-UITestAppLock`, whose subject is a session already on the device at launch — see
+            // `UITestSupport.storedCredentials`.
             let session = Session(
-                store: InMemoryCredentialStore(),
+                store: InMemoryCredentialStore(UITestSupport.storedCredentials),
                 cache: ResponseCache(store: InMemoryCacheStore()),
                 urlSession: UITestSupport.makeSession())
             // `-UITestSocial` draws the provider buttons so the screenshot tour can show them;
@@ -102,6 +109,7 @@ struct EmperorApp: App {
         WindowGroup {
             RootView()
                 .environment(session)
+                .environment(appLock)
                 .task {
                     await session.restore()
                     // The stored account can be weeks old, and the token is renewed by reading
@@ -177,6 +185,8 @@ struct RootView: View {
         .preferredColorScheme(theme.colorScheme)
         .tint(theme.accent)
         .background(theme.canvas.ignoresSafeArea())
+        // The app lock, and the cover in the app switcher — over everything, sheets included.
+        .appLockShield(theme: theme)
         .onAppear { recordDeviceAppearance(systemColorScheme) }
         .onChange(of: systemColorScheme) { _, new in recordDeviceAppearance(new) }
         // Also on the way *into* "Match device", not only when the scheme moves. Releasing the

@@ -78,6 +78,10 @@ targets:
         NSCameraUsageDescription: >
           Emperor uses the camera to scan paperbooks, orders and pleadings into your
           document library.
+        # Required for the app lock to use Face ID (`DeviceOwnerAuthenticator`) — without it iOS
+        # refuses Face ID to the app. Shown once, the first time the lock asks.
+        NSFaceIDUsageDescription: >-
+          Emperor uses Face ID to keep your matters private when you open the app.
         # Background App Refresh, so hearing reminders are re-planned from a fresh cause list
         # while the app is not open (`AppNotifications`, `NotificationCoordinator`). The
         # identifier must match `NotificationCoordinator.refreshTaskIdentifier`, or iOS refuses

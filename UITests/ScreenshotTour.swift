@@ -348,4 +348,44 @@ final class ScreenshotTour: XCTestCase {
         let back = app.navigationBars.buttons.element(boundBy: 0)
         if back.exists { back.tap() }
     }
+
+    // MARK: - App lock
+
+    /// The lock the app opens behind, and Settings → Security with the lock on and its timeout
+    /// showing — `-UITestAppLock` starts with the lock on and someone signed in.
+    func testTheAppLockDark() { appLockTour(light: false) }
+    func testTheAppLockLight() { appLockTour(light: true) }
+
+    private func appLockTour(light: Bool) {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestMode", "-UITestAppLock"] + (light ? ["-UITestLight"] : [])
+        app.launch()
+        let theme = light ? "light" : "dark"
+        var step = 0
+        func snap(_ name: String) {
+            step += 1
+            Thread.sleep(forTimeInterval: 0.8)
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = String(format: "lock-%@-%02d-%@", theme, step, name)
+            shot.lifetime = .keepAlways
+            add(shot)
+        }
+
+        let unlock = app.buttons["app-lock-unlock"]
+        guard unlock.waitForExistence(timeout: 15) else { snap("launch-failed"); return }
+        snap("locked")
+
+        unlock.tap()
+        guard app.tab("More").waitForExistence(timeout: 10) else { snap("unlock-failed"); return }
+        app.tab("More").tap()
+        tapIfPresent(app.buttons["Settings"].firstMatch)
+        // Below Plan & usage; scrolled until the switch is in view.
+        let toggle = app.switches["app-lock-toggle"].firstMatch
+        var swipes = 0
+        while !(toggle.exists && toggle.isHittable) && swipes < 6 {
+            app.swipeUp()
+            swipes += 1
+        }
+        snap("settings-security")
+    }
 }
