@@ -69,7 +69,7 @@ final class ScreenshotTour: XCTestCase {
             tapIfPresent(app.buttons["Continue"])
         }
 
-        guard app.tabBars.buttons["Home"].waitForExistence(timeout: 15) else {
+        guard app.tab("Home").waitForExistence(timeout: 15) else {
             snap("sign-in-failed"); return
         }
         snap("home")
@@ -86,7 +86,7 @@ final class ScreenshotTour: XCTestCase {
             }
         }
 
-        app.tabBars.buttons["Cases"].tap()
+        app.tab("Cases").tap()
         snap("cases")
 
         // Finding a case at the court — the form before a court is chosen.
@@ -101,8 +101,8 @@ final class ScreenshotTour: XCTestCase {
 
         // The Calendar opens on today, where the stub lists one matter and one diary entry; the
         // listing then opens its case on the Cases tab, on the overview.
-        if app.tabBars.buttons["Calendar"].exists {
-            app.tabBars.buttons["Calendar"].tap()
+        if app.tab("Calendar").exists {
+            app.tab("Calendar").tap()
             let listing = app.buttons["calendar-listing-case1"]
             let isListed = listing.waitForExistence(timeout: 10)
             snap("calendar")
@@ -118,7 +118,7 @@ final class ScreenshotTour: XCTestCase {
 
         // A conversation: the stub serves a stored answer with headings, a table and citations,
         // and the work log it was stored with, collapsed above it.
-        app.tabBars.buttons["Chat"].tap()
+        app.tab("Chat").tap()
         snap("chats")
         let conversation = app.staticTexts["Bakshi v. State"]
         if conversation.waitForExistence(timeout: 10) {
@@ -130,7 +130,7 @@ final class ScreenshotTour: XCTestCase {
         }
 
         // Everything behind More, each opened and closed from its own Done.
-        app.tabBars.buttons["More"].tap()
+        app.tab("More").tap()
         snap("more")
         // Projects and eAuctions are hidden for now; see `MoreView`.
         for row in ["My Files", "Corporate Calendar", "Library", "Your workspace",
@@ -192,11 +192,11 @@ final class ScreenshotTour: XCTestCase {
             password.typeText("hunter2")
         }
         tapIfPresent(app.buttons["Sign in"])
-        guard app.tabBars.buttons["Home"].waitForExistence(timeout: 15) else { return }
+        guard app.tab("Home").waitForExistence(timeout: 15) else { return }
 
         var step = 0
         for tab in ["Home", "Cases", "Chat", "Calendar"] {
-            let button = app.tabBars.buttons[tab]
+            let button = app.tab(tab)
             guard button.waitForExistence(timeout: 5) else { continue }
             button.tap()
             step += 1

@@ -80,7 +80,7 @@ final class EmperorUITests: XCTestCase {
         code.typeText("123456")
 
         XCTAssertTrue(
-            app.tabBars.buttons["Home"].waitForExistence(timeout: 10),
+            app.tab("Home").waitForExistence(timeout: 10),
             "a complete code did not sign in")
     }
 
@@ -118,7 +118,7 @@ final class EmperorUITests: XCTestCase {
             app.staticTexts["Confirm your email"].waitForExistence(timeout: 10),
             "the confirmation step never appeared")
         XCTAssertTrue(app.buttons["Use a code instead"].exists)
-        XCTAssertFalse(app.tabBars.buttons["Home"].exists, "nobody is signed in yet")
+        XCTAssertFalse(app.tab("Home").exists, "nobody is signed in yet")
     }
 
     // MARK: - The tab bar
@@ -130,23 +130,23 @@ final class EmperorUITests: XCTestCase {
         let app = signIn(launch())
         for tab in ["Home", "Cases", "Chat", "Calendar", "More"] {
             XCTAssertTrue(
-                app.tabBars.buttons[tab].waitForExistence(timeout: 10),
+                app.tab(tab).waitForExistence(timeout: 10),
                 "the \(tab) tab is missing")
         }
-        XCTAssertFalse(app.tabBars.buttons["Corporate"].exists, "Corporate lives in More now")
+        XCTAssertFalse(app.tab("Corporate").exists, "Corporate lives in More now")
     }
 
     /// Every tab renders. A tab that crashes on appear takes the app down, and this is what
     /// notices.
     func testEveryTabOpensAndRendersItsScreen() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
 
         for (tab, title) in [
             ("Home", "Home"), ("Cases", "Cases"), ("Chat", "Emperor"),
             ("Calendar", "Calendar"), ("More", "More"),
         ] {
-            app.tabBars.buttons[tab].tap()
+            app.tab(tab).tap()
             XCTAssertTrue(
                 app.navigationBars[title].waitForExistence(timeout: 10),
                 "tapping \(tab) did not show a screen titled \(title)")
@@ -160,7 +160,7 @@ final class EmperorUITests: XCTestCase {
     /// litigator scans a list for. The row is one accessibility element saying so, in order.
     func testAHomeListingLeadsWithItsItemAndCourt() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
         let row = app.descendants(matching: .any).matching(
             NSPredicate(format: "label BEGINSWITH %@", "Item 7, Court 12")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10), "the listing does not lead with item and court")
@@ -178,8 +178,8 @@ final class EmperorUITests: XCTestCase {
     /// never re-armed (the second tap would do nothing).
     func testACalendarListingOpensItsCaseOnTheCasesTab() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["Calendar"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["Calendar"].tap()
+        XCTAssertTrue(app.tab("Calendar").waitForExistence(timeout: 10))
+        app.tab("Calendar").tap()
         XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
 
         let listing = app.buttons["calendar-listing-case1"]
@@ -196,7 +196,7 @@ final class EmperorUITests: XCTestCase {
                 matter.waitForExistence(timeout: 10),
                 "pass \(pass): tapping the listing did not open its case")
             XCTAssertTrue(
-                app.tabBars.buttons["Cases"].isSelected,
+                app.tab("Cases").isSelected,
                 "pass \(pass): the case opened somewhere other than the Cases tab")
             let overview = app.staticTexts.matching(
                 NSPredicate(format: "label ==[c] %@", "Overview")).firstMatch
@@ -210,12 +210,12 @@ final class EmperorUITests: XCTestCase {
                 app.navigationBars["Cases"].waitForExistence(timeout: 10),
                 "pass \(pass): back from the case did not land on the docket")
 
-            app.tabBars.buttons["Calendar"].tap()
+            app.tab("Calendar").tap()
             XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
         }
 
         // And coming back to Cases does not open the case again by itself.
-        app.tabBars.buttons["Cases"].tap()
+        app.tab("Cases").tap()
         XCTAssertTrue(app.navigationBars["Cases"].waitForExistence(timeout: 10))
         XCTAssertFalse(
             app.navigationBars["Bakshi v. State of Maharashtra"].exists,
@@ -223,7 +223,7 @@ final class EmperorUITests: XCTestCase {
 
         // The day's diary entry follows its listings, in a section of its own. Scrolled to, as
         // it sits below the month and the listing: a list only builds the rows it is showing.
-        app.tabBars.buttons["Calendar"].tap()
+        app.tab("Calendar").tap()
         let diary = app.staticTexts["File written statement"]
         var swipes = 0
         while !diary.exists, swipes < 3 {
@@ -239,8 +239,8 @@ final class EmperorUITests: XCTestCase {
     /// it, the way back is the back button, and the screen closes from its own Done.
     func testTheCorporateCalendarOpensFromMoreAndOpensADeadline() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["More"].tap()
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
         app.buttons["Corporate Calendar"].tap()
         XCTAssertTrue(app.navigationBars["Corporate Calendar"].waitForExistence(timeout: 10))
 
@@ -269,8 +269,8 @@ final class EmperorUITests: XCTestCase {
     /// the Calendar app, which is the point of it and the end of any test.
     func testCalendarOffersAPrivateLinkThatCanBeCopied() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["Calendar"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["Calendar"].tap()
+        XCTAssertTrue(app.tab("Calendar").waitForExistence(timeout: 10))
+        app.tab("Calendar").tap()
         XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
 
         app.navigationBars["Calendar"].buttons["Subscribe"].tap()
@@ -302,8 +302,8 @@ final class EmperorUITests: XCTestCase {
     /// how the gap survived a green suite the first time.
     func testEveryMoreRowOpensAndClosesFromAControlOnScreen() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["More"].tap()
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
 
         // Hidden for now at the product owner's request; their screens are kept. See the note
         // at `MoreView`'s rows for how to bring them back.
@@ -350,8 +350,8 @@ final class EmperorUITests: XCTestCase {
     /// path cannot be reached without a confirmation that says what it will destroy.
     func testDeletingADocumentAsksFirstAndNamesIt() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["More"].tap()
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
         app.buttons["My Files"].tap()
         XCTAssertTrue(app.navigationBars["My Files"].waitForExistence(timeout: 10))
 
@@ -386,14 +386,14 @@ final class EmperorUITests: XCTestCase {
 
         let choice = app.buttons["role-corporateCounsel"]
         XCTAssertTrue(choice.waitForExistence(timeout: 10), "the role choice did not appear")
-        XCTAssertFalse(app.tabBars.buttons["Home"].exists, "the app was reachable behind it")
+        XCTAssertFalse(app.tab("Home").exists, "the app was reachable behind it")
         XCTAssertTrue(app.buttons["Skip for now"].exists, "there must be a way past without choosing")
 
         choice.tap()
         app.buttons["Continue"].tap()
 
         XCTAssertTrue(
-            app.tabBars.buttons["Home"].waitForExistence(timeout: 10),
+            app.tab("Home").waitForExistence(timeout: 10),
             "choosing a role did not lead into the app")
     }
 
@@ -402,7 +402,7 @@ final class EmperorUITests: XCTestCase {
         let skip = app.buttons["Skip for now"]
         XCTAssertTrue(skip.waitForExistence(timeout: 10), "the role choice did not appear")
         skip.tap()
-        XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
     }
 
     // MARK: - Court search
@@ -416,8 +416,8 @@ final class EmperorUITests: XCTestCase {
     /// actually reshapes the form rather than just relabelling it.
     func testACaseCanBeFoundByCaseNumberAndByDiaryNumber() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["Cases"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["Cases"].tap()
+        XCTAssertTrue(app.tab("Cases").waitForExistence(timeout: 10))
+        app.tab("Cases").tap()
         // The toolbar "+" carries the sheet's own title as its accessibility label.
         app.buttons["Find a case"].firstMatch.tap()
 
@@ -464,8 +464,8 @@ final class EmperorUITests: XCTestCase {
     /// product that has not heard of them rather than one that knows what it cannot do.
     func testDistrictCourtsAreListedButCannotBeChosen() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["Cases"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["Cases"].tap()
+        XCTAssertTrue(app.tab("Cases").waitForExistence(timeout: 10))
+        app.tab("Cases").tap()
         app.buttons["Find a case"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["Find a case"].waitForExistence(timeout: 10))
 
@@ -509,8 +509,8 @@ final class EmperorUITests: XCTestCase {
     /// calls that were made.
     func testAStoredAnswerShowsTheWorkItRestsOn() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["Chat"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["Chat"].tap()
+        XCTAssertTrue(app.tab("Chat").waitForExistence(timeout: 10))
+        app.tab("Chat").tap()
         let conversation = app.staticTexts["Bakshi v. State"]
         XCTAssertTrue(conversation.waitForExistence(timeout: 10), "the conversation is not listed")
         conversation.tap()
@@ -534,10 +534,10 @@ final class EmperorUITests: XCTestCase {
     /// fixture empty, each of these must say something rather than showing a blank list.
     func testEmptyStatesRenderRatherThanBlankScreens() {
         let app = signIn(launch("-UITestEmpty"))
-        XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
 
         for tab in ["Home", "Cases", "Chat", "Calendar"] {
-            app.tabBars.buttons[tab].tap()
+            app.tab(tab).tap()
             // `ContentUnavailableView` renders as static text; any of it is enough to prove the
             // empty branch drew something.
             let hasCopy = app.staticTexts.count > 0
@@ -552,8 +552,8 @@ final class EmperorUITests: XCTestCase {
     /// login screen.
     func testSigningOutReturnsToLogin() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["More"].tap()
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
         app.buttons["Settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
 
@@ -593,8 +593,8 @@ final class EmperorUITests: XCTestCase {
     /// break every tool at once. This opens the list and runs one.
     func testAToolOpensItsFormAndCanBeRun() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["More"].tap()
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
         app.buttons["All tools"].tap()
 
         XCTAssertTrue(app.navigationBars["Tools"].waitForExistence(timeout: 10))
@@ -644,8 +644,8 @@ final class EmperorUITests: XCTestCase {
     /// the workspace follows it.
     func testTheRoleIsSwitchedFromSettings() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["More"].tap()
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
         app.buttons["Settings"].tap()
 
         let selector = app.buttons["Role selector"].firstMatch
@@ -699,8 +699,8 @@ final class EmperorUITests: XCTestCase {
         litigator.tap()
         app.buttons["Continue"].tap()
 
-        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["More"].tap()
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
         app.buttons["Your workspace"].tap()
         XCTAssertTrue(
             app.navigationBars["Litigator"].waitForExistence(timeout: 10),
@@ -749,8 +749,8 @@ final class EmperorUITests: XCTestCase {
     /// appear — shows up here rather than in a user's hands.
     func testEveryFileToolOpensFromTheHubAndComesBack() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["More"].tap()
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
         app.buttons["File tools"].tap()
         XCTAssertTrue(app.navigationBars["File tools"].waitForExistence(timeout: 10))
 
@@ -791,8 +791,8 @@ final class EmperorUITests: XCTestCase {
     /// shows "Could not load" here instead of the row.
     func testTranslateListsTheAccountsHistory() {
         let app = signIn(launch())
-        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["More"].tap()
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
         app.buttons["Translate"].tap()
         XCTAssertTrue(app.navigationBars["Translate"].waitForExistence(timeout: 10))
 

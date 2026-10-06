@@ -180,8 +180,14 @@ jobs:
           # "iPad Air 11-inch (M3) (UDID)" — so a pattern that stops at the first bracket misses
           # every one of them.
           uuid='[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}'
+          #
+          # For the iPhone, a name with no bracket in it — a current full-size model. Taking any
+          # iPhone picked "iPhone SE (3rd generation)", whose small screen hid rows the tests
+          # scroll to on every other phone, and failed four tests that had nothing wrong with them.
           if [ "$kind" = "iPad" ]; then
             udid=$(echo "$list" | grep -E "^ +iPad Air" | grep -oE "$uuid" | tail -1 || true)
+          else
+            udid=$(echo "$list" | grep -E "^ +iPhone [^(]*\([0-9A-F]{8}-" | grep -oE "$uuid" | tail -1 || true)
           fi
           if [ -z "$udid" ]; then
             udid=$(echo "$list" | grep -E "^ +${kind}" | grep -oE "$uuid" | tail -1 || true)
