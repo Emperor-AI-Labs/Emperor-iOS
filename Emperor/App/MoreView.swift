@@ -50,7 +50,7 @@ struct MoreView: View {
     /// `projects` and `eAuctions` are kept although no row offers them — see the note at the
     /// rows in `body`.
     private enum Destination: String, Identifiable {
-        case myFiles, deck, corporateCalendar, library, projects, tools, fileTools, translate
+        case myFiles, deck, corporateCalendar, library, projects, tools, fileTools, ocr, translate
         case eAuctions, settings
 
         var id: String { rawValue }
@@ -65,6 +65,7 @@ struct MoreView: View {
             case .projects: return "Projects"
             case .tools: return "All tools"
             case .fileTools: return "File tools"
+            case .ocr: return "OCR"
             case .translate: return "Translate"
             case .eAuctions: return "eAuctions"
             case .settings: return "Settings"
@@ -89,6 +90,8 @@ struct MoreView: View {
             case .tools: return "wrench.and.screwdriver"
             // The web lists its file tools one by one and `Scissors` leads them.
             case .fileTools: return "scissors"
+            // The web's `ScanText`: a page of text inside a scanner's frame.
+            case .ocr: return "doc.text.viewfinder"
             case .translate: return "character.bubble"
             case .eAuctions: return "hammer"
             case .settings: return "gearshape"
@@ -107,6 +110,10 @@ struct MoreView: View {
             case .deck: return role.tileHue
             case .tools: return .copper
             case .fileTools: return .rose
+            // Worn by no other tool row, so beside Translate's aqua the two halves of one screen
+            // are told apart at a glance. Every hue still free here is also some role's; this
+            // one repeats only Paralegal's workspace tile.
+            case .ocr: return .violet
             case .translate: return .aqua
             case .eAuctions: return .aqua
             case .settings: return .graphite
@@ -136,6 +143,7 @@ struct MoreView: View {
                     row(.deck)
                     row(.tools)
                     row(.fileTools)
+                    row(.ocr)
                     row(.translate)
                 } header: {
                     // The platform groups these under "Tools" in its rail. "All tools" is not a
@@ -166,7 +174,11 @@ struct MoreView: View {
                 case .projects: ProjectListView()
                 case .tools: ToolsListView()
                 case .fileTools: PDFToolsView()
-                case .translate: OCRView()
+                // One screen with an OCR | Translate switch at its head; each row opens it in its
+                // own mode. The web has the one row, "OCR & Translate" (`Sidebar.jsx:289`); here
+                // each is an option of its own, at the product owner's request.
+                case .ocr: OCRView(mode: .ocr)
+                case .translate: OCRView(mode: .translate)
                 case .eAuctions: AuctionListView()
                 case .settings: SettingsView()
                 }

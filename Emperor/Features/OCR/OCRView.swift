@@ -2,7 +2,11 @@ import QuickLook
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Translate, as presented from More: the screen in its own stack, with its own **Done**.
+/// OCR or Translate, as presented from More: the screen in its own stack, with its own **Done**.
+///
+/// Opens in the mode it is asked for — More has a row for each — and the screen's own switch
+/// moves between the two, as the web's `?mode=` entry and its tabs do (`OCRTranslate.jsx:257-263`).
+/// Everywhere else that offers it opens on Translate.
 ///
 /// The screen itself is `OCRScreen`, which File tools also pushes — locked to PDF to Word — the
 /// way the platform's `/tools/pdf-to-docx` is the same page as `/ocr-translate` with its mode
@@ -10,9 +14,11 @@ import UniformTypeIdentifiers
 struct OCRView: View {
     @Environment(\.dismiss) private var dismiss
 
+    var mode: OCRViewModel.Mode = .translate
+
     var body: some View {
         NavigationStack {
-            OCRScreen(mode: .translate)
+            OCRScreen(mode: mode)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { dismiss() }
@@ -22,23 +28,31 @@ struct OCRView: View {
     }
 }
 
-/// Digitise a scanned order, optionally translating it — or convert a PDF to Word — and reopen
-/// what was done before.
+/// Digitise a scanned order, or translate it — or convert a PDF to Word — and reopen what was
+/// done before.
 ///
 /// The most phone-native thing in the product: photograph a paper order on a courtroom desk
 /// and get a document you can search and quote.
 ///
+/// ## Modes
+///
+/// OCR and Translate share the screen, with a switch between them at the top as the web has
+/// tabs; `mode` is only where it opens. PDF to Word is pushed from File tools locked to its mode,
+/// and shows no switch.
+///
 /// ## History
 ///
-/// "Recent translations" is the account's own history from the server, so a document translated
-/// on the web can be opened here and the other way round. Tapping a finished one fetches it and
-/// opens it in Quick Look, which reads Word documents on the device and carries its own share
-/// button for saving or sending it on. Clearing asks first, says that it reaches every device,
-/// and is not offered while this screen is waiting on a document of its own.
+/// "Recent documents" is the account's own history from the server — everything digitised,
+/// translated or converted, whichever mode is showing — so a document made on the web can be
+/// opened here and the other way round. Tapping a finished one fetches it and opens it in Quick
+/// Look, which reads Word documents on the device and carries its own share button for saving or
+/// sending it on. Clearing asks first, says that it reaches every device, and is not offered
+/// while this screen is waiting on a document of its own.
 struct OCRScreen: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
 
+    /// The mode the screen opens in. Once it has, the model's mode is the one shown.
     let mode: OCRViewModel.Mode
 
     @State private var model: OCRViewModel?
@@ -58,7 +72,7 @@ struct OCRScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .scrollContentBackground(.hidden)
         .background(theme.canvas)
-        .navigationTitle(mode == .translate ? "Translate" : "PDF to Word")
+        .navigationTitle((model?.mode ?? mode).title)
         .navigationBarTitleDisplayMode(.inline)
         .task {
             guard model == nil else { return }
@@ -74,20 +88,20 @@ struct OCRScreen: View {
         @Bindable var bindable = model
 
         Form {
-            if mode == .translate {
+            if model.mode.isSwitchable {
+                modeSection(model)
+            }
+
+            if model.mode.choosesLanguage {
                 Section {
                     Picker("Translate to", selection: $bindable.language) {
-                        ForEach(OCRLanguage.allCases, id: \.self) { language in
+                        ForEach(OCRLanguage.translationTargets, id: \.self) { language in
                             Text(language.label).tag(language)
                         }
                     }
                     .disabled(model.isRunning)
                 } footer: {
-                    // Said plainly because the server's default is the opposite of the intuitive
-                    // one: omitting a language translates to Hindi.
-                    Text(model.language == .original
-                         ? "The document will be read and kept in its original language."
-                         : "The document will be read, then translated into \(model.language.rawValue).")
+                    Text("The document will be read, then translated into \(model.language.rawValue).")
                         .font(.brand(.caption))
                         .foregroundStyle(theme.textSecondary)
                 }
@@ -98,7 +112,7 @@ struct OCRScreen: View {
                 Section {
                     // The two ways in, as action rows: the words in the accent, as an action is
                     // drawn, beside a tile that says what each does.
-                    if mode == .translate {
+                    if model.mode.offersScanning {
                         Button {
                             isScanning = true
                         } label: {
@@ -111,14 +125,21 @@ struct OCRScreen: View {
                         isPickingFile = true
                     } label: {
                         IconRowLabel(
-                            title: "Choose a PDF", systemImage: "folder", hue: .steel,
+                            title: model.mode == .pdfToWord ? "Choose a PDF" : "Choose a file",
+                            systemImage: "folder", hue: .steel,
                             titleColor: theme.accentText)
                     }
                 } footer: {
-                    if mode == .pdfToWord {
+                    if model.mode == .pdfToWord {
                         // The one File tool that leaves the phone, as on the web — so it says so
                         // where the choice is made.
                         Text("The PDF is uploaded to Emperor and converted into an editable Word document. The other file tools work on this phone.")
+                            .font(.brand(.caption))
+                            .foregroundStyle(theme.textSecondary)
+                    } else {
+                        // "Choose a file" says less than "Choose a PDF" did, so the footer
+                        // names what the picker will offer.
+                        Text("A PDF, a Word document, or a JPEG, PNG, WebP or TIFF image.")
                             .font(.brand(.caption))
                             .foregroundStyle(theme.textSecondary)
                     }
@@ -174,8 +195,7 @@ struct OCRScreen: View {
                     Button {
                         model.reset()
                     } label: {
-                        Label(mode == .translate ? "Digitise another" : "Convert another",
-                              systemImage: "arrow.counterclockwise")
+                        Label(model.mode.againTitle, systemImage: "arrow.counterclockwise")
                     }
                 } header: {
                     SectionHeader(title: "Ready")
@@ -201,7 +221,11 @@ struct OCRScreen: View {
         }
         .fileImporter(
             isPresented: $isPickingFile,
-            allowedContentTypes: [.pdf],
+            // The mode's own list, by extension. `jpg` and `jpeg` name one type, which is
+            // harmless; an extension the system does not know is simply not offered.
+            allowedContentTypes: model.mode.acceptedFileExtensions.compactMap {
+                UTType(filenameExtension: $0)
+            },
             allowsMultipleSelection: false
         ) { outcome in
             guard case .success(let urls) = outcome, let url = urls.first else { return }
@@ -221,7 +245,7 @@ struct OCRScreen: View {
             model.opened = nil
         }
         .confirmationDialog(
-            "Clear your translation history?",
+            "Clear your document history?",
             isPresented: $isConfirmingClear,
             titleVisibility: .visible
         ) {
@@ -232,7 +256,7 @@ struct OCRScreen: View {
         } message: {
             Text(model.clearHistoryConfirmation)
         }
-        .alert(mode == .translate ? "Could not translate" : "Could not convert", isPresented: Binding(
+        .alert(model.mode.failureTitle, isPresented: Binding(
             get: { model.errorMessage != nil },
             set: { if !$0 { model.errorMessage = nil } }
         )) {
@@ -241,6 +265,38 @@ struct OCRScreen: View {
             Text(model.errorMessage ?? "")
         }
         .onDisappear { model.cancelPolling() }
+    }
+
+    // MARK: - Mode
+
+    /// OCR | Translate, at the head of the screen as the web's tabs are (`OCRTranslate.jsx:624-650`),
+    /// with a line saying what the selected one does.
+    ///
+    /// The system's segmented control rather than a drawn one: it is two words, it reads as a
+    /// switch between views of one screen on every device, and VoiceOver already announces it
+    /// as one control with its selected segment. Switching starts clean — see `switchMode(to:)`
+    /// — and is held while a document is on its way.
+    private func modeSection(_ model: OCRViewModel) -> some View {
+        Section {
+            Picker("Mode", selection: Binding(
+                get: { model.mode },
+                set: { model.switchMode(to: $0) }
+            )) {
+                ForEach(OCRViewModel.Mode.switchable, id: \.self) { choice in
+                    Text(choice.title).tag(choice)
+                }
+            }
+            .pickerStyle(.segmented)
+            .disabled(!model.canSwitchMode)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+        } footer: {
+            if let summary = model.mode.summary {
+                Text(summary)
+                    .font(.brand(.caption))
+                    .foregroundStyle(theme.textSecondary)
+            }
+        }
     }
 
     // MARK: - History
@@ -268,9 +324,9 @@ struct OCRScreen: View {
                     }
                 }
             } else if presentation.showsEmptyState {
-                Text(mode == .translate
-                     ? "Documents you translate or digitise, here or on the web, appear here."
-                     : "Documents you convert, here or on the web, appear here.")
+                Text(model.mode == .pdfToWord
+                     ? "Documents you convert, here or on the web, appear here."
+                     : "Documents you digitise or translate, here or on the web, appear here.")
                     .font(.brand(.subheadline))
                     .foregroundStyle(theme.textSecondary)
             } else {
@@ -294,8 +350,10 @@ struct OCRScreen: View {
                 }
             }
         } header: {
+            // The same title in every mode: the list holds every kind of job, and a heading that
+            // changed with the switch would suggest the list had been filtered when it had not.
             SectionHeader(
-                title: mode == .translate ? "Recent translations" : "Recent documents",
+                title: "Recent documents",
                 detail: jobs.isEmpty ? nil : "\(jobs.count)")
         }
         .listRowBackground(theme.surface)

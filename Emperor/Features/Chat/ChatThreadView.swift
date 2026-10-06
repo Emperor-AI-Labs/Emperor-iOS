@@ -63,9 +63,10 @@ struct ChatThreadView: View {
                 uploads: session.uploads,
                 detached: StoredDetachedDocuments(store: Preferences.detachedDocuments),
                 preferredModel: session.currentUser?.preferredModel)
-            // Asked for in the role the user practises in. The chat's own "Acting as" picker
-            // still overrides a single answer; this is only where it starts, and without it
-            // every conversation would open as a litigator regardless of who is asking.
+            // Asked for in the role the user practises in, and only that: the conversation
+            // offers no role of its own to pick, so the one chosen in Settings governs every
+            // answer. Without this every conversation would open as a litigator regardless of
+            // who is asking.
             created.role = practice.role.wireRole
             composer = PromptEnhancerViewModel(service: session.enhancer)
             model = created
@@ -220,10 +221,9 @@ struct ChatThreadView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                settingsMenu(model)
+                optionsMenu(model)
             }
-            // Trailing-most, matching the Android client: mode is read while composing, the
-            // document list only when checking what a question is resting on.
+            // Trailing-most, as on the Android client.
             ToolbarItem(placement: .primaryAction) {
                 documentsMenu(model)
             }
@@ -331,32 +331,13 @@ struct ChatThreadView: View {
                 : "Documents in this conversation, \(model.attachments.count) attached")
     }
 
-    /// Mode and persona.
+    /// The conversation's less-used settings: searching the web, and reporting an answer.
     ///
-    /// Both are per-request and neither is plan-gated — a Lite account may select Thinking,
-    /// which the platform is explicit about being a default rather than a restriction.
-    private func settingsMenu(_ model: ChatViewModel) -> some View {
+    /// Quick and Thinking are not here — they sit in the composer, where they are always in
+    /// sight (`AnswerModeSwitch`). Nor is a role: a conversation is asked for in the role the
+    /// user practises in, set as it opens, and Settings is the one place that role is chosen.
+    private func optionsMenu(_ model: ChatViewModel) -> some View {
         Menu {
-            Picker("Mode", selection: Binding(
-                get: { model.model },
-                set: { model.model = $0 }
-            )) {
-                ForEach(ChatModel.allCases) { choice in
-                    Text("\(choice.label) — \(choice.detail)").tag(choice)
-                }
-            }
-
-            Picker("Acting as", selection: Binding(
-                get: { model.role },
-                set: { model.role = $0 }
-            )) {
-                ForEach(ChatRole.allCases) { choice in
-                    Text(choice.label).tag(choice)
-                }
-            }
-
-            Divider()
-
             // "Search the web" rather than a switch labelled "web search": the server searches
             // on its own when the question looks like it needs it, so this can turn searching
             // ON but cannot turn it off. Wording that implied otherwise would be contradicted.
@@ -381,7 +362,8 @@ struct ChatThreadView: View {
                 Label("Report an answer", systemImage: "flag")
             }
         } label: {
-            Label(model.model.label, systemImage: "slider.horizontal.3")
+            // A Label, so the bar may draw it as the bare icon and VoiceOver still names it.
+            Label("More options", systemImage: "ellipsis.circle")
         }
         .sheet(isPresented: $isReporting) {
             ReportAnswerSheet(chatID: chatID)
@@ -474,6 +456,18 @@ struct ChatThreadView: View {
                     .padding(.horizontal)
                 }
             }
+
+            // Next to the field, so the choice is in sight as the question is written and the
+            // send button is pressed. Per conversation, seeded from the account's preferred
+            // model, and never plan-gated: a Lite account may select Thinking, which the
+            // platform is explicit about being a default rather than a restriction.
+            //
+            // Aligned with the attach button below it, so the switch and the bar read as one
+            // composer rather than a control floating above it.
+            AnswerModeSwitch(selection: model.model, onSelect: { model.model = $0 })
+                .disabled(model.isStreaming)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.md)
 
             HStack(alignment: .bottom, spacing: Spacing.sm) {
                 // Straight to the picker rather than a menu. Attaching from the library is what
@@ -627,6 +621,106 @@ struct ChatThreadView: View {
 }
 
 // MARK: - Pieces
+
+/// Quick or Thinking, just above the composer's field.
+///
+/// It used to be the first thing in the toolbar's menu, behind an icon — a reader had to know it
+/// was there to find it, and it is the one setting that changes every answer. The web keeps its
+/// own switch just above its composer as well (`ToolWorkspace.jsx:2131-2145`).
+///
+/// Two segments in one capsule rather than the system's segmented control: this sits among the
+/// bar's round controls and rounded field, and a full-width segmented strip would outweigh the
+/// question beneath it. The chosen segment is filled with the accent and the fill slides to the
+/// other on a tap; the unchosen one is plain.
+///
+/// One control to VoiceOver, "Answer mode", whose options are buttons with the chosen one marked
+/// selected — so the choice is heard rather than inferred from a colour.
+private struct AnswerModeSwitch: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var selectionSpace
+
+    let selection: ChatModel
+    let onSelect: (ChatModel) -> Void
+
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            track
+                // Measured first, so the caption gets only what is left.
+                .layoutPriority(1)
+
+            // What the chosen mode does, while there is room for it. On a narrow phone at a
+            // large text size the caption goes — never the switch. The fallback is a real
+            // zero-size view rather than `EmptyView`, which a builder may drop altogether and
+            // so leave the caption as the only, and therefore chosen, candidate.
+            ViewThatFits(in: .horizontal) {
+                Text(selection.detail)
+                    .font(.brand(.caption))
+                    .foregroundStyle(theme.textTertiary)
+                    .lineLimit(1)
+                Color.clear.frame(width: 0, height: 0)
+            }
+            .accessibilityHidden(true)
+        }
+        .opacity(isEnabled ? 1 : 0.5)
+    }
+
+    private var track: some View {
+        HStack(spacing: 0) {
+            ForEach(ChatModel.allCases) { choice in
+                segment(choice)
+            }
+        }
+        .padding(3)
+        .background(theme.surfaceElevated, in: Capsule())
+        .overlay(Capsule().strokeBorder(theme.separator, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Answer mode")
+        .accessibilityIdentifier("answer-mode")
+    }
+
+    private func segment(_ choice: ChatModel) -> some View {
+        let isSelected = choice == selection
+        return Button {
+            guard !isSelected else { return }
+            withAnimation(reduceMotion ? nil : Animation.easeOut(duration: 0.18)) {
+                onSelect(choice)
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: Self.symbol(for: choice))
+                    .imageScale(.small)
+                Text(choice.label)
+                    .lineLimit(1)
+            }
+            .font(.brand(.footnote, weight: .semibold))
+            .foregroundStyle(isSelected ? theme.onAccent : theme.textSecondary)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, 6)
+            .background {
+                if isSelected {
+                    Capsule()
+                        .fill(theme.accent)
+                        .matchedGeometryEffect(id: "selection", in: selectionSpace)
+                }
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(choice.label)
+        .accessibilityHint(choice == .fast ? "Faster answers" : "Deeper reasoning; takes longer")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    /// A bolt for speed; a brain for Thinking, which is the web's own icon for it.
+    private static func symbol(for choice: ChatModel) -> String {
+        switch choice {
+        case .fast: return "bolt.fill"
+        case .thinking: return "brain"
+        }
+    }
+}
 
 private struct MessageBubble: View {
     @Environment(\.theme) private var theme

@@ -5,7 +5,8 @@ import Observation
 
 /// Digitising a document, watching it happen, and reopening what was done before.
 ///
-/// One model serves two screens, as one page serves both on the web: Translate, and PDF to Word —
+/// One model serves three modes, as one page serves all three on the web: OCR and Translate,
+/// which share a screen and a switch between them as the web's two tabs do, and PDF to Word —
 /// which the platform implements as the same page with its mode locked to a digitise-only DOCX
 /// conversion (`src/pages/tools/PdfToDocx.jsx`, `OCRTranslate.jsx:257-262`).
 ///
@@ -16,22 +17,133 @@ import Observation
 @MainActor
 final class OCRViewModel {
 
-    enum Mode: Equatable, Sendable {
+    enum Mode: Hashable, Sendable {
+        /// Digitise only: read the document and keep it in its own language.
+        case ocr
         /// Read a document, optionally translating it.
         case translate
         /// Convert a PDF to Word: digitise only, PDFs only.
         case pdfToWord
+
+        /// The two the screen's switch moves between, in the web's tab order
+        /// (`OCRTranslate.jsx:629-632`). PDF to Word is not among them: it is its own tool, and
+        /// the screen it opens on stays locked to it.
+        static let switchable: [Mode] = [.ocr, .translate]
+
+        var isSwitchable: Bool { Self.switchable.contains(self) }
+
+        /// The screen's title, and the switch's label for the mode.
+        var title: String {
+            switch self {
+            case .ocr: return "OCR"
+            case .translate: return "Translate"
+            case .pdfToWord: return "PDF to Word"
+            }
+        }
+
+        /// One line under the switch saying what the selected mode does. PDF to Word has no
+        /// switch, and says what it does in its picker's footer instead.
+        var summary: String? {
+            switch self {
+            case .ocr:
+                return "Make a scanned or photographed document searchable and editable, in its own language."
+            case .translate:
+                return "Read a scanned or photographed document and translate it into another language."
+            case .pdfToWord:
+                return nil
+            }
+        }
+
+        /// Only Translate asks for a language. OCR and PDF to Word always send `Original`, so a
+        /// language control there would be a choice that changes nothing.
+        var choosesLanguage: Bool { self == .translate }
+
+        /// The camera is offered wherever a photographed page is a sensible input.
+        var offersScanning: Bool { self != .pdfToWord }
+
+        /// The file types the picker offers, by extension — the web's own list for each mode
+        /// (`OCRTranslate.jsx:309-310`, `:692`). The server reads an image or a Word document as
+        /// readily as a PDF, choosing its pipeline by the extension.
+        var acceptedFileExtensions: [String] {
+            switch self {
+            case .pdfToWord: return ["pdf"]
+            case .ocr, .translate: return ["pdf", "docx", "jpg", "jpeg", "png", "webp", "tiff", "tif"]
+            }
+        }
+
+        /// Whether a file of this name may be submitted in this mode, judged by its extension
+        /// in any case — the server picks its pipeline the same way.
+        func accepts(fileName: String) -> Bool {
+            guard let dot = fileName.lastIndex(of: ".") else { return false }
+            let ext = fileName[fileName.index(after: dot)...].lowercased()
+            return acceptedFileExtensions.contains(ext)
+        }
+
+        /// Said instead of uploading a file this mode cannot take.
+        var unsupportedFileMessage: String {
+            switch self {
+            case .pdfToWord:
+                return "PDF to Word converts PDFs only. Choose a PDF."
+            case .ocr, .translate:
+                return "That kind of file cannot be read here. Choose a PDF, a Word document, or a JPEG, PNG, WebP or TIFF image."
+            }
+        }
+
+        /// The action that clears a finished document for the next, in the web's words
+        /// (`OCRTranslate.jsx:763`).
+        var againTitle: String {
+            switch self {
+            case .ocr: return "Digitise another"
+            case .translate: return "Translate another"
+            case .pdfToWord: return "Convert another"
+            }
+        }
+
+        /// The title of the alert that reports a failure.
+        var failureTitle: String {
+            switch self {
+            case .ocr: return "Could not digitise"
+            case .translate: return "Could not translate"
+            case .pdfToWord: return "Could not convert"
+            }
+        }
+
+        /// The name to save a document this mode has just finished under, or `nil` to keep the
+        /// server's.
+        ///
+        /// OCR follows the web: the source's name with `_ocr.docx` in place of its extension
+        /// (`OCRTranslate.jsx:593-595`). The server's own name for a digitise-only result is the
+        /// source's with `.docx` on it, so a Word document put through OCR would come back under
+        /// exactly the name it went in with — two different files, one name.
+        /// Translate keeps the server's name, which carries the language (`Order_Hindi.docx`)
+        /// where the web's `_translated` would drop it; PDF to Word keeps it too, since a `.pdf`
+        /// source cannot collide.
+        func resultFileName(source: String) -> String? {
+            guard self == .ocr else { return nil }
+            // The web's `/\.\w+$/`: a trailing extension of word characters only, so a name
+            // with no extension, or a dot inside a court reference, keeps all of itself.
+            var base = Substring(source)
+            if let dot = base.lastIndex(of: ".") {
+                let ext = base[base.index(after: dot)...]
+                let isWord = ext.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_") }
+                if !ext.isEmpty, isWord { base = base[..<dot] }
+            }
+            return "\(base.isEmpty ? "document" : String(base))_ocr.docx"
+        }
     }
 
-    let mode: Mode
+    /// Changed only through `switchMode(to:)`, which keeps it within the switchable pair.
+    private(set) var mode: Mode
 
     private(set) var job: OCRJob?
     private(set) var jobID: String?
     private(set) var isSubmitting = false
     private(set) var isDownloading = false
     var errorMessage: String?
-    /// The target language. Ignored in `.pdfToWord`, which always sends `Original`.
-    var language: OCRLanguage = .original
+    /// The target language. Ignored outside `.translate` — OCR and PDF to Word always send
+    /// `Original` — and kept across a switch, so going back to Translate finds it as it was.
+    /// Starts on Hindi, as the web's Translate does; "keep the original" is OCR now.
+    var language: OCRLanguage = OCRLanguage.defaultTranslationTarget
     var result: OCRResult?
 
     // MARK: History
@@ -95,6 +207,9 @@ final class OCRViewModel {
     /// Polling gave up on a stalled job. The job's last known state is still "running", so
     /// without this the screen stayed on a progress bar with no way to start again.
     private var gaveUp = false
+    /// The name the document was submitted under — what the result is named after when the
+    /// job's own record has lost it.
+    private var submittedName: String?
 
     init(
         service: any OCRProviding, mode: Mode = .translate,
@@ -106,10 +221,34 @@ final class OCRViewModel {
         self.lastChangeAt = now()
     }
 
-    /// What is actually sent. PDF to Word never translates (`OCRTranslate.jsx:511-513`).
-    var effectiveLanguage: OCRLanguage { mode == .pdfToWord ? .original : language }
+    /// What is actually sent. Only Translate translates; OCR and PDF to Word send `Original`
+    /// whatever the language control last held (`OCRTranslate.jsx:511-513`).
+    var effectiveLanguage: OCRLanguage { mode.choosesLanguage ? language : .original }
 
     deinit { pollTask?.cancel() }
+
+    // MARK: - Mode
+
+    /// Whether the OCR | Translate switch can be used now.
+    ///
+    /// Not while a document is on its way — uploading, being read, or its result downloading.
+    /// Switching starts the screen afresh, and a job that finished into a cleared screen would
+    /// land its result under the other mode's name and wording.
+    var canSwitchMode: Bool {
+        mode.isSwitchable && !isRunning && !isSubmitting && !isDownloading
+    }
+
+    /// Moves between OCR and Translate, and starts clean, as the web's tabs do
+    /// (`OCRTranslate.jsx:636`): a finished document and its error belong to the mode that made
+    /// them. The language choice survives, for whoever switches back.
+    ///
+    /// Never into or out of PDF to Word — that screen is locked to its mode, as the web's
+    /// `/tools/pdf-to-docx` page is.
+    func switchMode(to newMode: Mode) {
+        guard newMode != mode, newMode.isSwitchable, canSwitchMode else { return }
+        mode = newMode
+        reset()
+    }
 
     var isRunning: Bool {
         if gaveUp { return false }
@@ -152,6 +291,13 @@ final class OCRViewModel {
 
     func submit(data: Data, fileName: String) async {
         guard !isSubmitting else { return }
+        // Before the size: a file the pipeline cannot read is refused whatever it weighs. The
+        // picker offers only these types, so this is the backstop for anything that arrives
+        // another way.
+        guard mode.accepts(fileName: fileName) else {
+            errorMessage = mode.unsupportedFileMessage
+            return
+        }
         guard data.count <= Self.maxUploadBytes else {
             errorMessage = Self.tooLargeMessage
             return
@@ -161,6 +307,7 @@ final class OCRViewModel {
         job = nil
         result = nil
         gaveUp = false
+        submittedName = fileName
         defer { isSubmitting = false }
 
         do {
@@ -256,6 +403,7 @@ final class OCRViewModel {
         lastChangeAt = now()
         awaitingFirstStatus = false
         gaveUp = false
+        submittedName = nil
     }
 
     func cancelPolling() {
@@ -269,11 +417,15 @@ final class OCRViewModel {
         guard let outputFile = finished.outputFile else { return }
         isDownloading = true
         defer { isDownloading = false }
+        // The job's own record of the source first, as the web names it from: that is the
+        // server's sanitised name, the one the file is stored and listed under.
+        let source = finished.fileName ?? submittedName
+        let named = source.flatMap { mode.resultFileName(source: $0) }
         do {
             let data = try await service.download(outputFile: outputFile)
             result = OCRResult(
                 data: data,
-                fileName: finished.downloadName ?? outputFile,
+                fileName: named ?? finished.downloadName ?? outputFile,
                 translationMayBeIncomplete: finished.translationMayBeIncomplete)
         } catch {
             errorMessage = DisplayText.message(for: error)

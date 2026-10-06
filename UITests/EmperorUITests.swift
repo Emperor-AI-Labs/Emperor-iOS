@@ -318,6 +318,7 @@ final class EmperorUITests: XCTestCase {
             ("Library", "Library"),
             ("All tools", "Tools"),
             ("File tools", "File tools"),
+            ("OCR", "OCR"),
             ("Translate", "Translate"),
             ("Settings", "Settings"),
         ] {
@@ -340,6 +341,15 @@ final class EmperorUITests: XCTestCase {
             XCTAssertTrue(
                 app.navigationBars["More"].waitForExistence(timeout: 10),
                 "closing \(row) did not return to More")
+            // Gone, not only going. More's own bar is there behind a sheet the whole time, so it
+            // does not prove the sheet has left — and the OCR screen's switch carries a button
+            // named "Translate", the next row's name, until it has.
+            var polls = 0
+            while app.navigationBars[title].exists && polls < 40 {
+                Thread.sleep(forTimeInterval: 0.25)
+                polls += 1
+            }
+            XCTAssertFalse(app.navigationBars[title].exists, "\(row) did not close")
         }
     }
 
@@ -856,5 +866,140 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["My Files"].waitForExistence(timeout: 10), "Back did not return to My Files")
         XCTAssertTrue(app.buttons["folder-Bakshi"].waitForExistence(timeout: 10), "the grid is not there on return")
         XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    // MARK: - Answer mode and OCR
+
+    /// Opens the stub's stored conversation from the Chat tab.
+    private func openTheStubConversation(_ app: XCUIApplication) {
+        XCTAssertTrue(app.tab("Chat").waitForExistence(timeout: 10))
+        app.tab("Chat").tap()
+        let conversation = app.staticTexts["Bakshi v. State"]
+        XCTAssertTrue(conversation.waitForExistence(timeout: 10), "the conversation is not listed")
+        conversation.tap()
+    }
+
+    /// Waits for an element to report itself selected, as a tap lands a frame or two later.
+    /// Polled rather than waited on with an expectation, which Swift 6 refuses to compile here.
+    @discardableResult
+    private func becomesSelected(_ element: XCUIElement) -> Bool {
+        var polls = 0
+        while !element.isSelected && polls < 40 {
+            Thread.sleep(forTimeInterval: 0.1)
+            polls += 1
+        }
+        return element.isSelected
+    }
+
+    /// Quick and Thinking sit in the composer, always in sight, and one tap switches. A new
+    /// account has no preferred model, so a conversation opens on Quick.
+    func testTheComposerSwitchesBetweenQuickAndThinking() {
+        let app = signIn(launch())
+        openTheStubConversation(app)
+
+        let quick = app.buttons["Quick"]
+        let thinking = app.buttons["Thinking"]
+        XCTAssertTrue(quick.waitForExistence(timeout: 10), "the composer has no mode switch")
+        XCTAssertTrue(thinking.exists)
+        XCTAssertTrue(quick.isSelected, "a conversation opens on the account's default, Quick")
+        XCTAssertFalse(thinking.isSelected)
+
+        thinking.tap()
+        XCTAssertTrue(becomesSelected(thinking), "tapping Thinking did not select it")
+        XCTAssertFalse(quick.isSelected, "both options are selected at once")
+
+        quick.tap()
+        XCTAssertTrue(becomesSelected(quick), "tapping Quick did not select it again")
+        XCTAssertFalse(thinking.isSelected)
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    /// The toolbar's menu keeps searching the web and reporting an answer — and offers no role
+    /// and no mode. A conversation is asked for in the practitioner's own role.
+    func testTheOptionsMenuOffersNoRoleAndNoMode() {
+        let app = signIn(launch())
+        openTheStubConversation(app)
+
+        let options = app.buttons["More options"]
+        XCTAssertTrue(options.waitForExistence(timeout: 10), "the options menu is missing")
+        options.tap()
+        XCTAssertTrue(
+            app.buttons["Report an answer"].waitForExistence(timeout: 5), "the menu did not open")
+        let search = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Always search the web"))
+            .firstMatch
+        XCTAssertTrue(search.exists, "the web-search switch left the menu")
+
+        // A picker in a menu is drawn either inline, as a button per choice, or as one button
+        // named for the picker that opens them — so both shapes are looked for.
+        XCTAssertFalse(
+            app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Acting as"))
+                .firstMatch.exists,
+            "the menu still offers a role")
+        for role in ["Litigator", "Corporate Counsel", "Arbitrator or Judge"] {
+            XCTAssertFalse(app.buttons[role].exists, "the menu still offers \(role)")
+        }
+        for mode in ["Mode", "Quick —", "Thinking —"] {
+            XCTAssertFalse(
+                app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", mode))
+                    .firstMatch.exists,
+                "the mode is in the composer now, not the menu")
+        }
+    }
+
+    /// More has an OCR row of its own beside Translate. It opens the shared screen on OCR —
+    /// no language to choose — and the switch at its head turns it into Translate and back.
+    func testOCROpensFromMoreAndItsSwitchChangesTheScreen() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
+        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
+
+        let row = app.buttons["OCR"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "More has no OCR row")
+        row.tap()
+        XCTAssertTrue(app.navigationBars["OCR"].waitForExistence(timeout: 10), "OCR did not open")
+
+        let modes = app.segmentedControls.firstMatch
+        XCTAssertTrue(modes.waitForExistence(timeout: 5), "the OCR | Translate switch is missing")
+        let ocr = modes.buttons["OCR"]
+        let translate = modes.buttons["Translate"]
+        XCTAssertTrue(ocr.isSelected, "opened from the OCR row, the switch is not on OCR")
+        XCTAssertTrue(
+            app.staticTexts["Make a scanned or photographed document searchable and editable, in its own language."]
+                .exists,
+            "OCR does not say what it does")
+        let language = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Translate to")).firstMatch
+        XCTAssertFalse(language.exists, "OCR offers a language it would never send")
+        XCTAssertTrue(app.buttons["Scan with the camera"].exists, "OCR cannot scan")
+
+        translate.tap()
+        XCTAssertTrue(
+            app.navigationBars["Translate"].waitForExistence(timeout: 5),
+            "the switch did not turn the screen into Translate")
+        XCTAssertTrue(becomesSelected(translate))
+        XCTAssertTrue(language.waitForExistence(timeout: 5), "Translate lost its language")
+
+        ocr.tap()
+        XCTAssertTrue(app.navigationBars["OCR"].waitForExistence(timeout: 5), "could not switch back")
+        XCTAssertTrue(becomesSelected(ocr))
+
+        app.navigationBars["OCR"].buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
+    }
+
+    /// Translate, opened from its own row, opens on Translate — the same screen, other side.
+    func testTranslateOpensOnTranslateWithItsSwitch() {
+        let app = signIn(launch())
+        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
+        app.tab("More").tap()
+        app.buttons["Translate"].tap()
+        XCTAssertTrue(app.navigationBars["Translate"].waitForExistence(timeout: 10))
+
+        let modes = app.segmentedControls.firstMatch
+        XCTAssertTrue(modes.waitForExistence(timeout: 5), "the OCR | Translate switch is missing")
+        XCTAssertTrue(modes.buttons["Translate"].isSelected)
+        XCTAssertFalse(modes.buttons["OCR"].isSelected)
     }
 }

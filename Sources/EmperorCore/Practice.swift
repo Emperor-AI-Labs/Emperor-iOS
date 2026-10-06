@@ -10,9 +10,9 @@ import FoundationNetworking
 ///
 /// App-level rather than per-conversation, which is how the platform treats it: a role scopes the
 /// toolkit and seeds what the model is told, and neither of those is a decision to retake on
-/// every question. The per-conversation "Acting as" picker in the chat's own menu still overrides
-/// what a single answer is asked for, and deliberately offers the three wire values rather than
-/// these seven — see `PractitionerRole.wireRole` for why those are different lists.
+/// every question. A conversation offers no role of its own: each is asked for in this one,
+/// narrowed to the three the model knows — see `PractitionerRole.wireRole` for why those are
+/// different lists.
 ///
 /// ## Two copies, one choice
 ///

@@ -247,6 +247,14 @@ enum OCRLanguage: String, CaseIterable, Sendable, Codable {
     }
 
     var translates: Bool { Self.translates(rawValue) }
+
+    /// What Translate offers: every real language, and not "Original". Keeping the document in
+    /// its own language is OCR's job now, a mode of its own — the web's Translate tab lists the
+    /// same twenty-three and no "keep" option (`src/pages/OCRTranslate.jsx`, `LANGUAGES`).
+    static var translationTargets: [OCRLanguage] { allCases.filter(\.translates) }
+
+    /// Where Translate starts, as the web's does.
+    static let defaultTranslationTarget = OCRLanguage.hindi
 }
 
 // MARK: - Envelopes
@@ -315,7 +323,7 @@ struct OCRHistoryResponse: Decodable, Sendable {
     }
 }
 
-/// The signed-in account's translation history.
+/// The signed-in account's history of documents digitised, translated or converted.
 struct OCRHistory: Equatable, Sendable {
     /// This account's jobs, newest first.
     var jobs: [OCRJob]

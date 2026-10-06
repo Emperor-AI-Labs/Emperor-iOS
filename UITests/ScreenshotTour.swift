@@ -124,6 +124,13 @@ final class ScreenshotTour: XCTestCase {
         if conversation.waitForExistence(timeout: 10) {
             conversation.tap()
             snap("conversation")
+            // The composer's Quick | Thinking switch, on its other side. Left on Thinking: the
+            // choice belongs to this open conversation, and backing out discards it.
+            let thinking = app.buttons["Thinking"].firstMatch
+            if thinking.waitForExistence(timeout: 5) {
+                thinking.tap()
+                snap("conversation-thinking")
+            }
             app.swipeUp()
             snap("conversation-references")
             backOut(app)
@@ -134,7 +141,7 @@ final class ScreenshotTour: XCTestCase {
         snap("more")
         // Projects and eAuctions are hidden for now; see `MoreView`.
         for row in ["My Files", "Corporate Calendar", "Library", "Your workspace",
-                    "All tools", "File tools", "Translate", "Settings"] {
+                    "All tools", "File tools", "OCR", "Translate", "Settings"] {
             let button = app.buttons[row].firstMatch
             guard button.waitForExistence(timeout: 5) else { continue }
             button.tap()
@@ -181,6 +188,16 @@ final class ScreenshotTour: XCTestCase {
             }
             let done = app.buttons["Done"].firstMatch
             if done.waitForExistence(timeout: 5) { done.tap() } else { app.swipeDown() }
+            if row == "OCR" {
+                // Until the sheet has gone, its OCR | Translate switch carries a button named
+                // for the next row, and the next lookup could find that instead.
+                let modes = app.segmentedControls.firstMatch
+                var polls = 0
+                while modes.exists && polls < 20 {
+                    Thread.sleep(forTimeInterval: 0.1)
+                    polls += 1
+                }
+            }
         }
     }
 

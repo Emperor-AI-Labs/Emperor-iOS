@@ -31,6 +31,17 @@ final class OCRTests: XCTestCase {
             "the web's order: English, Hindi, then alphabetical")
     }
 
+    /// Translate offers the web's twenty-three languages and no "keep the original" — that is
+    /// OCR, a mode of its own — and starts on Hindi as the web does. A default that does not
+    /// translate would make Translate and OCR the same screen.
+    func testTranslateOffersRealLanguagesAndStartsOnHindi() {
+        XCTAssertEqual(OCRLanguage.translationTargets.count, 23)
+        XCTAssertFalse(OCRLanguage.translationTargets.contains(.original))
+        XCTAssertEqual(OCRLanguage.translationTargets.first, .english)
+        XCTAssertTrue(OCRLanguage.defaultTranslationTarget.translates)
+        XCTAssertEqual(OCRLanguage.defaultTranslationTarget, .hindi)
+    }
+
     func testTheLanguageListIsNonTrivial() {
         XCTAssertGreaterThan(OCRLanguage.allCases.count, 20)
         XCTAssertTrue(OCRLanguage.allCases.contains(.hindi))
