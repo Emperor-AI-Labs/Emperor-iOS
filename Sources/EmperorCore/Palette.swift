@@ -313,3 +313,60 @@ extension Palette {
     /// Whether this is the dark appearance, read off the canvas rather than remembered.
     var isDark: Bool { canvas.luminance < 0.5 }
 }
+
+// MARK: - Washes
+
+extension Palette {
+    /// How strongly a colour is washed behind text drawn in that same colour, or behind a row
+    /// that is chosen. Each strength is the one `PaletteTests` measures the text on it against, so
+    /// a wash cannot be deepened for looks without a test saying which words stop being legible.
+    enum Wash {
+        /// A status pill — "Overdue", "Ready", "4 documents": a caption in the tone's colour on a
+        /// wash of itself. 8%, not the web's 14%: at 10% the accent pill's caption fell to
+        /// 4.47:1 on the light canvas, which a pill outside a card — a deadline's head — sits on.
+        static let pill = 0.08
+        /// A message in the sign-in card — what went wrong, or what was just sent — in the
+        /// danger or info colour on a wash of itself, on the card.
+        static let message = 0.12
+        /// The chosen row in the role picker, washed in the role's own tile colour.
+        static let selection = 0.14
+        /// The warning banner over content that may be out of date, which carries an accent
+        /// "Retry". 8%: at the 12% it was drawn with, "Retry" fell to 4.32:1 on the light canvas.
+        static let banner = 0.08
+        /// The row open beside the list on an iPad — a matter, a conversation. 5%: at the 13% of
+        /// `surfaceAccent` it was drawn with, a "From court" pill on the open row fell to about
+        /// 4.0:1 and accent text to 4.49:1 on dark. So faint a tint does not mark the row alone,
+        /// which is why the row also carries a bar in the accent (`ListRowCard`).
+        static let openRow = 0.05
+    }
+
+    /// `colour`, as the wash behind a pill drawn in it.
+    func pillWash(_ colour: PaletteColor) -> PaletteColor {
+        PaletteColor(colour.red, colour.green, colour.blue, opacity: Wash.pill)
+    }
+
+    /// `colour`, as the wash behind a message drawn in it.
+    func messageWash(_ colour: PaletteColor) -> PaletteColor {
+        PaletteColor(colour.red, colour.green, colour.blue, opacity: Wash.message)
+    }
+
+    /// The tint of the row open beside the list — `accentText`, washed.
+    var openRowWash: PaletteColor {
+        PaletteColor(accentText.red, accentText.green, accentText.blue, opacity: Wash.openRow)
+    }
+
+    /// The fill of the "showing what was last loaded" banner.
+    var bannerWash: PaletteColor {
+        PaletteColor(warning.red, warning.green, warning.blue, opacity: Wash.banner)
+    }
+
+    /// The fill of a chosen row: the role's tile hue, washed.
+    ///
+    /// Tertiary text is not drawn on it. In light it falls to about 4.2:1 there — under AA for
+    /// the caption it would be — so a chosen row's quietest line is drawn in secondary instead
+    /// (`RoleOptionLabel`).
+    func selectionWash(_ hue: TileHue) -> PaletteColor {
+        let tile = self.tile(hue)
+        return PaletteColor(tile.red, tile.green, tile.blue, opacity: Wash.selection)
+    }
+}

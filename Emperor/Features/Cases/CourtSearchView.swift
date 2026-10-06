@@ -106,6 +106,14 @@ struct CourtSearchView: View {
         .font(.brand(.body))
         .scrollContentBackground(.hidden)
         .background(theme.canvas)
+        // A search can hold the screen for most of a minute, and its outcome lands below the
+        // button VoiceOver was left on — so the outcome is said, not only drawn.
+        .onChange(of: model.notice) { _, notice in
+            if let notice { VoiceOver.announce(notice) }
+        }
+        .onChange(of: model.errorMessage) { _, message in
+            if let message { VoiceOver.announce(message) }
+        }
         .sheet(isPresented: Binding(
             get: { model.isShowingCaptcha },
             set: { if !$0 { model.dismissCaptcha() } }
@@ -332,7 +340,7 @@ struct CourtSearchView: View {
                     .foregroundStyle(theme.textSecondary)
             }
 
-            HStack(spacing: 8) {
+            AdaptiveStack(horizontalAlignment: .leading, spacing: 8) {
                 if let status = result.status, !status.isEmpty {
                     StatusPill(text: status)
                 }
@@ -471,9 +479,11 @@ private struct CourtPicker: View {
                     .multilineTextAlignment(.leading)
                 Spacer(minLength: 8)
                 if model.court?.id == court.id {
+                    // Said by the row's selected trait, not by the glyph's name.
                     Image(systemName: "checkmark")
                         .font(.brand(.subheadline, weight: .semibold))
                         .foregroundStyle(theme.accentText)
+                        .accessibilityHidden(true)
                 } else if !court.isSearchable {
                     // Says which of the two it is: not "coming soon", but "this app cannot look
                     // this one up". The section footer carries the reason.
@@ -486,6 +496,7 @@ private struct CourtPicker: View {
         }
         .buttonStyle(.plain)
         .disabled(!court.isSearchable)
+        .accessibilityAddTraits(model.court?.id == court.id ? [.isSelected] : [])
         // The row's label is composed too — a disabled one reads "…, Not yet searchable" — so
         // the court's own id is what a test should name.
         .accessibilityIdentifier("court-\(court.id)")

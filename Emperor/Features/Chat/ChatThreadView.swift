@@ -5,6 +5,7 @@ struct ChatThreadView: View {
     @Environment(Session.self) private var session
     @Environment(\.practice) private var practice
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var model: ChatViewModel?
     /// Owns the composer's text as well as the rewrite over it — see the type's own note on
@@ -22,6 +23,10 @@ struct ChatThreadView: View {
     /// The composer's round controls and the height of its field, scaled with Dynamic Type so
     /// the bar keeps its proportions at every text size.
     @ScaledMetric(relativeTo: .body) private var composerControl: CGFloat = 36
+    /// How far a round control's 44-point target reaches past the circle drawn for it — given
+    /// back with negative padding, so the target grows and the bar does not. Nothing once the
+    /// circle itself is 44 points or more.
+    private var composerSlack: CGFloat { max(0, (44 - composerControl) / 2) }
 
     let chatID: String
     /// An opening message to send as soon as the thread is ready.
@@ -296,6 +301,17 @@ struct ChatThreadView: View {
         }
         .onChange(of: model.isStreaming) { _, isStreaming in
             if !isStreaming { onTurnFinished?() }
+            // The answer streams in above the composer VoiceOver was left on, so its end is
+            // said. A failure or a refusal says itself, below.
+            if !isStreaming, model.errorMessage == nil, model.refusal == nil {
+                VoiceOver.announce("Answer finished")
+            }
+        }
+        .onChange(of: model.errorMessage) { _, error in
+            if let error { VoiceOver.announce(error) }
+        }
+        .onChange(of: model.refusal) { _, refusal in
+            if let refusal { VoiceOver.announce(DisplayText.title(for: refusal)) }
         }
     }
 
@@ -426,10 +442,17 @@ struct ChatThreadView: View {
                 // paths, so without saying so a failed rewrite is a button that did nothing.
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.circle")
+                        .accessibilityHidden(true)
                     Text(notice)
                     Spacer(minLength: 0)
-                    Button("Dismiss") { composer.dismissFailure() }
-                        .font(.brand(.caption, weight: .semibold))
+                    Button {
+                        composer.dismissFailure()
+                    } label: {
+                        Text("Dismiss")
+                            .font(.brand(.caption, weight: .semibold))
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
                 }
                 .font(.brand(.caption))
                 .foregroundStyle(theme.textSecondary)
@@ -440,11 +463,25 @@ struct ChatThreadView: View {
             if composer.canUndo {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.uturn.backward")
-                    Button(PromptEnhancerViewModel.Copy.undoButton) { composer.undo() }
+                        .accessibilityHidden(true)
+                    // Each a line of text to the eye and a 44-point target to the thumb.
+                    Button {
+                        composer.undo()
+                    } label: {
+                        Text(PromptEnhancerViewModel.Copy.undoButton)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
                     Spacer(minLength: 0)
                     if composer.template != nil {
-                        Button(PromptEnhancerViewModel.Copy.fillTitle) { isFillingBlanks = true }
-                            .font(.brand(.caption, weight: .semibold))
+                        Button {
+                            isFillingBlanks = true
+                        } label: {
+                            Text(PromptEnhancerViewModel.Copy.fillTitle)
+                                .font(.brand(.caption, weight: .semibold))
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
+                        }
                     }
                 }
                 .font(.brand(.caption))
@@ -478,6 +515,9 @@ struct ChatThreadView: View {
                                 .padding(.vertical, 6)
                                 .background(theme.surfaceElevated, in: Capsule())
                                 .overlay(Capsule().strokeBorder(theme.separator, lineWidth: 1))
+                                // Drawn as a small capsule, answering a touch across 44 points.
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(
@@ -518,9 +558,11 @@ struct ChatThreadView: View {
                         .frame(width: composerControl, height: composerControl)
                         .background(theme.surfaceElevated, in: Circle())
                         .overlay(Circle().strokeBorder(theme.separator, lineWidth: 1))
-                        .contentShape(Circle())
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .padding(-composerSlack)
                 .accessibilityLabel("Attach a document")
                 .disabled(model.isStreaming)
                 .opacity(model.isStreaming ? 0.5 : 1)
@@ -554,9 +596,11 @@ struct ChatThreadView: View {
                         }
                         .foregroundStyle(theme.accentText)
                         .frame(width: composerControl, height: composerControl)
+                        .frame(minWidth: 44, minHeight: 44)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .padding(-composerSlack)
                     .accessibilityLabel(
                         composer.isEnhancing
                             ? PromptEnhancerViewModel.Copy.running
@@ -584,9 +628,11 @@ struct ChatThreadView: View {
                             .foregroundStyle(theme.onAccent)
                             .frame(width: composerControl, height: composerControl)
                             .background(theme.accent, in: Circle())
-                            .contentShape(Circle())
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .padding(-composerSlack)
                     .accessibilityLabel("Stop this answer")
                 } else {
                     let canSend = !(composer.isEnhancing
@@ -606,9 +652,11 @@ struct ChatThreadView: View {
                             .foregroundStyle(canSend ? theme.onAccent : theme.textTertiary)
                             .frame(width: composerControl, height: composerControl)
                             .background(canSend ? theme.accent : theme.surfaceElevated, in: Circle())
-                            .contentShape(Circle())
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .padding(-composerSlack)
                     .accessibilityLabel("Send")
                     .disabled(!canSend)
                 }
@@ -629,8 +677,14 @@ struct ChatThreadView: View {
         .overlay(alignment: .top) {
             Rectangle().fill(theme.separator).frame(height: 0.5)
         }
-        .animation(.easeOut(duration: 0.15), value: composer.canUndo)
-        .animation(.easeOut(duration: 0.15), value: composer.failureNotice)
+        // The lines above the field slide in and out; under Reduce Motion they are simply there.
+        .animation(reduceMotion ? nil : Animation.easeOut(duration: 0.15), value: composer.canUndo)
+        .animation(
+            reduceMotion ? nil : Animation.easeOut(duration: 0.15), value: composer.failureNotice)
+        // A failed rewrite lands above the field, away from the button that asked for it.
+        .onChange(of: composer.failureNotice) { _, notice in
+            if let notice { VoiceOver.announce(notice) }
+        }
         // Offered rather than forced: a rewrite full of blanks is still sendable as it stands,
         // and the assistant is told by the {{LABEL}} itself what was left unspecified.
         .onChange(of: composer.template) { _, template in
@@ -652,7 +706,8 @@ struct ChatThreadView: View {
     private func scrollToBottom(_ proxy: ScrollViewProxy, _ model: ChatViewModel) {
         let target = model.live != nil ? "live" : model.messages.last?.stableID
         guard let target else { return }
-        withAnimation(.easeOut(duration: 0.15)) {
+        // Every streamed chunk scrolls; under Reduce Motion it jumps rather than glides.
+        withAnimation(reduceMotion ? nil : Animation.easeOut(duration: 0.15)) {
             proxy.scrollTo(target, anchor: .bottom)
         }
     }
@@ -678,6 +733,10 @@ private struct AnswerModeSwitch: View {
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var selectionSpace
+    /// A segment's drawn height, scaled with its words — enough to know how far a 44-point target
+    /// reaches past it at each text size. On the generous side, so the target never spills far
+    /// past the track.
+    @ScaledMetric(relativeTo: .footnote) private var segmentHeight: CGFloat = 30
 
     let selection: ChatModel
     let onSelect: (ChatModel) -> Void
@@ -743,9 +802,13 @@ private struct AnswerModeSwitch: View {
                         .matchedGeometryEffect(id: "selection", in: selectionSpace)
                 }
             }
-            .contentShape(Capsule())
+            // Drawn as a slim pill; a 44-point target. The negative padding hands the extra back,
+            // so the track keeps its height and the composer does not grow.
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .padding(.vertical, -max(0, (44 - segmentHeight) / 2))
         .accessibilityLabel(choice.label)
         .accessibilityHint(choice == .fast ? "Faster answers" : "Deeper reasoning; takes longer")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
@@ -794,6 +857,9 @@ private struct MessageBubble: View {
                 Text(message.content)
                     .font(.brand(.body))
                     .foregroundStyle(theme.textPrimary)
+                    // Which side of the exchange this is shows only by position and colour; to
+                    // VoiceOver it is said.
+                    .accessibilityLabel("You asked: \(message.content)")
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(
@@ -939,7 +1005,7 @@ private struct ArtifactCard: View {
                 Text(artifact.title)
                     .font(.brand(.subheadline, weight: .semibold))
                     .foregroundStyle(theme.textPrimary)
-                    .lineLimit(2)
+                    .dynamicLineLimit(2)
                 Text(artifact.kind == .canvas ? "Document" : "Table")
                     .font(.brand(.caption))
                     .foregroundStyle(theme.textSecondary)

@@ -21,7 +21,8 @@ struct OfflineCopyBanner: View {
     var retry: (() async -> Void)?
 
     var body: some View {
-        HStack(alignment: .center, spacing: Spacing.sm + 2) {
+        // "Retry" under the words at the accessibility sizes, so the notice keeps its line.
+        AdaptiveStack(spacing: Spacing.sm + 2) {
             Image(systemName: "wifi.slash")
                 .font(.brand(.footnote, weight: .semibold))
                 .foregroundStyle(theme.textSecondary)
@@ -45,11 +46,19 @@ struct OfflineCopyBanner: View {
                     .controlSize(.small)
                     .accessibilityLabel("Reloading")
             } else if let retry {
-                Button("Retry") { Task { await retry() } }
-                    .font(.brand(.caption, weight: .semibold))
-                    .foregroundStyle(theme.accentText)
-                    .buttonStyle(.borderless)
-                    .accessibilityHint("Loads it again from the server")
+                // A word to the eye, a 44-point target to the thumb. `accentText` on the elevated
+                // bar is a pairing `PaletteTests` holds to 4.5:1.
+                Button {
+                    Task { await retry() }
+                } label: {
+                    Text("Retry")
+                        .font(.brand(.caption, weight: .semibold))
+                        .foregroundStyle(theme.accentText)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .accessibilityHint("Loads it again from the server")
             }
         }
         .padding(.horizontal, Spacing.lg)

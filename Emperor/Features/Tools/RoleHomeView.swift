@@ -139,7 +139,8 @@ struct RoleHomeView: View {
 
     private func cardText(_ card: RoleCard) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 6) {
+            // The flag under the title at the accessibility sizes, so neither is cut short.
+            AdaptiveStack(spacing: 6) {
                 Text(card.title)
                     .font(.brand(.subheadline, weight: .semibold))
                     .foregroundStyle(theme.textPrimary)
@@ -158,7 +159,7 @@ struct RoleHomeView: View {
                 Text(card.dropdown.prefix(3).joined(separator: " · "))
                     .font(.brand(.caption2))
                     .foregroundStyle(theme.textTertiary)
-                    .lineLimit(2)
+                    .dynamicLineLimit(2)
             }
         }
     }

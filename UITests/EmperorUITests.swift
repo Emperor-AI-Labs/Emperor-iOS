@@ -541,7 +541,7 @@ final class EmperorUITests: XCTestCase {
         let app = signIn(launch())
         XCTAssertTrue(app.tab("Chat").waitForExistence(timeout: 10))
         app.tab("Chat").tap()
-        let conversation = app.staticTexts["Bakshi v. State"]
+        let conversation = app.stubConversationRow
         XCTAssertTrue(conversation.waitForExistence(timeout: 10), "the conversation is not listed")
         conversation.tap()
 
@@ -894,7 +894,7 @@ final class EmperorUITests: XCTestCase {
     private func openTheStubConversation(_ app: XCUIApplication) {
         XCTAssertTrue(app.tab("Chat").waitForExistence(timeout: 10))
         app.tab("Chat").tap()
-        let conversation = app.staticTexts["Bakshi v. State"]
+        let conversation = app.stubConversationRow
         XCTAssertTrue(conversation.waitForExistence(timeout: 10), "the conversation is not listed")
         conversation.tap()
     }
@@ -1507,7 +1507,13 @@ final class EmperorUITests: XCTestCase {
         unlock.tap()
         XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
 
+        // To the Home Screen. The Home button press alone did not background the app on the
+        // iOS 26 runners, so if the app is still in front a moment later, bringing SpringBoard
+        // forward does the same thing a person's swipe home does.
         XCUIDevice.shared.press(.home)
+        if !appLockWait(5, { app.state != .runningForeground }) {
+            XCUIApplication(bundleIdentifier: "com.apple.springboard").activate()
+        }
         XCTAssertTrue(
             appLockWait(10) { app.state != .runningForeground }, "the app did not leave")
         app.activate()
@@ -1772,7 +1778,7 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
         bar.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(
-            app.staticTexts["Bakshi v. State"].waitForExistence(timeout: 10),
+            app.stubConversationRow.waitForExistence(timeout: 10),
             "leaving the conversation did not return to the list")
     }
 
@@ -1787,7 +1793,7 @@ final class EmperorUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["offline-notice"].exists, "online, there is no notice")
         leaveTheConversation(app)
 
-        app.staticTexts["Bakshi v. State"].tap()
+        app.stubConversationRow.tap()
 
         let notice = app.staticTexts["offline-notice"].firstMatch
         XCTAssertTrue(notice.waitForExistence(timeout: 10), "reopened offline with no notice")

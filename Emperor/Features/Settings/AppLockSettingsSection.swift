@@ -59,6 +59,11 @@ struct AppLockSettingsSection: View {
             .font(.brand(.caption))
         }
         .listRowBackground(theme.surface)
+        // Why the lock could not be turned on lands in the footer, below the switch VoiceOver is
+        // on — so it is said as well.
+        .onChange(of: lock.notice) { _, notice in
+            if let notice { VoiceOver.announce(notice) }
+        }
         // Face ID enrolled, or a passcode set, in the Settings app since this screen last looked.
         .onAppear { lock.refreshAvailability() }
         .onChange(of: scenePhase) { _, phase in

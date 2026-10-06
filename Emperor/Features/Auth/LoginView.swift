@@ -9,6 +9,7 @@ import SwiftUI
 struct LoginView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @FocusState private var focused: Field?
     @State private var isAskingForReset = false
@@ -35,8 +36,18 @@ struct LoginView: View {
             .scrollDismissesKeyboard(.interactively)
         }
         .background(theme.canvas.ignoresSafeArea())
-        .animation(.easeInOut(duration: 0.22), value: flow.step)
-        .animation(.easeInOut(duration: 0.15), value: flow.error)
+        // The card changes height between steps; under Reduce Motion it changes at once.
+        .animation(reduceMotion ? nil : Animation.easeInOut(duration: 0.22), value: flow.step)
+        .animation(reduceMotion ? nil : Animation.easeInOut(duration: 0.15), value: flow.error)
+        // Said as well as shown. A refusal lands in the card above the button, which is not
+        // where VoiceOver's focus is after tapping "Sign in" — without this a blind user hears
+        // nothing happen.
+        .onChange(of: flow.error) { _, error in
+            if let error { VoiceOver.announce("Error: \(error)") }
+        }
+        .onChange(of: flow.notice) { _, notice in
+            if let notice { VoiceOver.announce(notice) }
+        }
         .onChange(of: flow.step) { _, step in
             showsPassword = false
             switch step {
@@ -185,7 +196,7 @@ struct LoginView: View {
             // full name, email, password and its confirmation — plus an optional mobile number.
             VStack(spacing: 14) {
                 labelled("Full name") {
-                    TextField("Full name", text: $flow.name, prompt: Text(verbatim: "John Doe"))
+                    TextField("Full name", text: $flow.name, prompt: placeholder("John Doe"))
                         .accessibilityIdentifier("Full name")
                         .textContentType(.name)
                         .textInputAutocapitalization(.words)
@@ -266,7 +277,7 @@ struct LoginView: View {
             TextField("\(SignInFlow.codeLength)-digit code", text: Binding(
                 get: { flow.code },
                 set: { flow.setCode($0) }
-            ))
+            ), prompt: placeholder("\(SignInFlow.codeLength)-digit code"))
             .textContentType(.oneTimeCode)
             .keyboardType(.numberPad)
             .font(.system(.title2, design: .monospaced, weight: .semibold))
@@ -326,7 +337,7 @@ struct LoginView: View {
     // MARK: - Shared fields
 
     private func emailField(_ text: Binding<String>, submit: @escaping () -> Void) -> some View {
-        TextField("Email", text: text, prompt: Text(verbatim: "name@firm.com"))
+        TextField("Email", text: text, prompt: placeholder("name@firm.com"))
             .accessibilityIdentifier("Email")
             .textContentType(.emailAddress)
             .keyboardType(.emailAddress)
@@ -345,11 +356,11 @@ struct LoginView: View {
         HStack(spacing: 8) {
             Group {
                 if showsPassword {
-                    TextField(label, text: text, prompt: Text(verbatim: "••••••••"))
+                    TextField(label, text: text, prompt: placeholder("••••••••"))
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 } else {
-                    SecureField(label, text: text, prompt: Text(verbatim: "••••••••"))
+                    SecureField(label, text: text, prompt: placeholder("••••••••"))
                 }
             }
             .accessibilityIdentifier(label)
@@ -363,8 +374,14 @@ struct LoginView: View {
             } label: {
                 Image(systemName: showsPassword ? "eye.slash" : "eye")
                     .foregroundStyle(theme.textTertiary)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            // A 44-point target round a small glyph. The negative padding gives the field back
+            // its own height — the target reaches into the field's padding, and the field does
+            // not grow to hold it.
+            .padding(.vertical, -12)
             .accessibilityLabel(showsPassword ? "Hide password" : "Show password")
         }
         .authField("lock", isFocused: focused == field)
@@ -384,13 +401,23 @@ struct LoginView: View {
             TextField("Mobile number", text: Binding(
                 get: { flow.phoneDisplay },
                 set: { flow.setPhone($0) }
-            ), prompt: Text(verbatim: "98765 43210"))
+            ), prompt: placeholder("98765 43210"))
             .accessibilityIdentifier("Mobile number")
+            // The "+91" and "Optional" beside it are drawn for the eye and hidden from VoiceOver,
+            // so the field says both itself.
+            .accessibilityHint("Optional. An Indian number; +91 is added for you.")
             .keyboardType(.phonePad)
             .textContentType(.telephoneNumber)
             .focused($focused, equals: .phone)
         }
         .authField("phone", isFocused: focused == .phone)
+    }
+
+    /// A field's example text, in the palette's tertiary rather than the system's placeholder grey,
+    /// which on the dark field measures about 2.4:1 — too faint to read for the people most
+    /// likely to need the example.
+    private func placeholder(_ text: String) -> Text {
+        Text(verbatim: text).foregroundStyle(theme.textTertiary)
     }
 
     /// A field with its label above it, as the web lays out its forms. The label is for the eye:
@@ -452,13 +479,28 @@ struct LoginView: View {
         }
     }
 
+    /// The question and its answer on one line while they fit; the answer under the question
+    /// once a large text size would push it off the edge.
     private func switchLink(prompt: String, action: String, perform: @escaping () -> Void) -> some View {
-        HStack(spacing: 4) {
-            Text(prompt)
-                .foregroundStyle(theme.textSecondary)
-            Button(action, action: perform)
+        let question = Text(prompt).foregroundStyle(theme.textSecondary)
+        let answer = Button(action: perform) {
+            Text(action)
                 .fontWeight(.semibold)
                 .foregroundStyle(theme.accentText)
+                // A full-height target, though it reads as a line of text.
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 4) {
+                question
+                answer
+            }
+            VStack(spacing: 0) {
+                question
+                    .multilineTextAlignment(.center)
+                answer
+            }
         }
         .font(.brand(.subheadline))
     }

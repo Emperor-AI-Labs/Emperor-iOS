@@ -312,11 +312,15 @@ private struct PageChip: View {
                     .padding(6)
             }
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            // The picture of the page and its position badge, for the eye. The line under them
+            // says both in words.
+            .accessibilityHidden(true)
 
             HStack(spacing: 4) {
                 Text("p. \(page)")
                     .font(.brand(.caption, weight: .semibold).monospacedDigit())
                     .foregroundStyle(theme.textSecondary)
+                    .accessibilityLabel("Position \(position + 1) of \(total): page \(page)")
                 Spacer(minLength: 0)
                 Menu {
                     Button {
@@ -345,7 +349,7 @@ private struct PageChip: View {
                     Image(systemName: "ellipsis.circle")
                         .font(.brand(.body))
                         .foregroundStyle(theme.accentText)
-                        .frame(minWidth: 32, minHeight: 32)
+                        .frame(minWidth: 44, minHeight: 44)
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Change position \(position + 1)")
@@ -359,7 +363,6 @@ private struct PageChip: View {
             RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                 .strokeBorder(theme.separator, lineWidth: 1))
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Position \(position + 1) of \(total): page \(page)")
         .task(id: page) {
             image = thumbnails?.image(for: page)
         }

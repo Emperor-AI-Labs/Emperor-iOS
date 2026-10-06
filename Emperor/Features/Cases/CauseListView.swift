@@ -10,6 +10,7 @@ import SwiftUI
 struct CauseListView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var model: CauseListViewModel?
     @State private var isShowingSettings = false
@@ -119,7 +120,9 @@ struct CauseListView: View {
                         Label("Share this day", systemImage: "square.and.arrow.up")
                     }
                 } label: {
-                    Label("More", systemImage: "ellipsis.circle")
+                    // Not "More": that is the name of a tab, and two controls with one name are
+                    // one too many for VoiceOver — and for a test looking for either.
+                    Label("More actions", systemImage: "ellipsis.circle")
                 }
             }
             ToolbarItem(placement: .topBarLeading) {
@@ -139,15 +142,17 @@ struct CauseListView: View {
     /// only once there is somewhere to come back from — the heading itself does the same on a
     /// tap, but a control nobody can see is not one anybody uses.
     private func header(_ model: CauseListViewModel) -> some View {
-        HStack(alignment: .center, spacing: Spacing.md) {
+        // The day, Today and the steps one under another at the accessibility sizes, where
+        // beside each other the day would be cut to a word.
+        AdaptiveStack(spacing: Spacing.md) {
             Button {
-                model.goToToday()
+                goToToday(model)
             } label: {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(DisplayText.longDay(model.selectedDay))
                         .font(.brand(.headline, weight: .semibold))
                         .foregroundStyle(theme.textPrimary)
-                        .lineLimit(2)
+                        .dynamicLineLimit(2)
                         .minimumScaleFactor(0.85)
                     // On every state, including the empty one.
                     Text(CauseListViewModel.Copy.subtitle)
@@ -165,26 +170,47 @@ struct CauseListView: View {
             .accessibilityHint(model.isShowingToday ? "" : "Return to today")
 
             if !model.isShowingToday {
-                Button("Today") { model.goToToday() }
-                    .font(.brand(.caption, weight: .semibold))
-                    .foregroundStyle(theme.accentText)
-                    .padding(.horizontal, Spacing.md)
-                    .padding(.vertical, 6)
-                    .background(theme.accentWash, in: Capsule())
-                    .buttonStyle(.plain)
-                    .transition(.opacity)
+                // The capsule inside the label, and a 44-point frame round it, so the whole
+                // capsule and the space about it take the tap — not the word alone.
+                Button {
+                    goToToday(model)
+                } label: {
+                    Text("Today")
+                        .font(.brand(.caption, weight: .semibold))
+                        .foregroundStyle(theme.accentText)
+                        .padding(.horizontal, Spacing.md)
+                        .padding(.vertical, 6)
+                        .background(theme.accentWash, in: Capsule())
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity)
             }
 
             HStack(spacing: Spacing.sm) {
-                stepButton("chevron.left", label: "Previous day") { model.step(days: -1) }
-                stepButton("chevron.right", label: "Next day") { model.step(days: 1) }
+                stepButton("chevron.left", label: "Previous day") { step(model, by: -1) }
+                stepButton("chevron.right", label: "Next day") { step(model, by: 1) }
             }
         }
         // The system's own margin, so the day lines up under the large title above it.
         .padding(.horizontal)
         .padding(.top, Spacing.sm)
         .padding(.bottom, Spacing.xs)
-        .animation(.easeOut(duration: 0.15), value: model.isShowingToday)
+        // "Today" arriving moves the steps along; under Reduce Motion it is simply there.
+        .animation(
+            reduceMotion ? nil : Animation.easeOut(duration: 0.15), value: model.isShowingToday)
+    }
+
+    /// The day changes above the control VoiceOver is on, so the new day is said as well.
+    private func step(_ model: CauseListViewModel, by days: Int) {
+        model.step(days: days)
+        VoiceOver.announce(DisplayText.longDay(model.selectedDay))
+    }
+
+    private func goToToday(_ model: CauseListViewModel) {
+        model.goToToday()
+        VoiceOver.announce(DisplayText.longDay(model.selectedDay))
     }
 
     /// A round step button, the size of a fingertip.
@@ -198,7 +224,9 @@ struct CauseListView: View {
                 .frame(width: min(stepSide, 52), height: min(stepSide, 52))
                 .background(theme.surface, in: Circle())
                 .overlay(Circle().strokeBorder(theme.separator, lineWidth: 1))
-                .contentShape(Circle())
+                // The circle is drawn at its size; the target is at least 44 points.
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)

@@ -237,6 +237,11 @@ struct OCRScreen: View {
                 await model.submit(data: data, fileName: url.lastPathComponent)
             }
         }
+        // A document takes minutes, and the row that says it is ready is not where VoiceOver's
+        // focus was left — so its arrival is said. A failure is an alert, which speaks for itself.
+        .onChange(of: model.result != nil) { _, isReady in
+            if isReady { VoiceOver.announce("Your document is ready.") }
+        }
         .onChange(of: model.opened?.id) { _, _ in
             // A history document arrived: hand it to Quick Look, then let it go so tapping the
             // same row again fetches it afresh.
@@ -345,7 +350,10 @@ struct OCRScreen: View {
                     Button(role: .destructive) {
                         isConfirmingClear = true
                     } label: {
+                        // The palette's danger, not the system red, which is 3.6:1 on a white
+                        // card in light.
                         Label("Clear history", systemImage: "trash")
+                            .foregroundStyle(theme.danger)
                     }
                 }
             }
@@ -366,7 +374,9 @@ struct OCRScreen: View {
         return Button {
             Task { await model.open(job) }
         } label: {
-            HStack(alignment: .top, spacing: Spacing.md) {
+            // The status under the document at the accessibility sizes, where beside it the
+            // document's name would be cut to a word.
+            AdaptiveStack(verticalAlignment: .top, spacing: Spacing.md) {
                 // A Word document, as the result is, in the kind's own colour — grey until it
                 // can be opened.
                 IconTile(systemImage: "doc.text", hue: canOpen ? .steel : .graphite)
@@ -374,7 +384,7 @@ struct OCRScreen: View {
                     Text(job.displayName)
                         .font(.brand(.subheadline, weight: .semibold))
                         .foregroundStyle(theme.textPrimary)
-                        .lineLimit(2)
+                        .dynamicLineLimit(2)
                     Text(historyDetail(job))
                         .font(.brand(.caption))
                         .foregroundStyle(theme.textSecondary)
@@ -382,7 +392,7 @@ struct OCRScreen: View {
                         Text(error)
                             .font(.brand(.caption))
                             .foregroundStyle(theme.danger)
-                            .lineLimit(3)
+                            .dynamicLineLimit(3)
                     }
                 }
                 Spacer(minLength: 8)

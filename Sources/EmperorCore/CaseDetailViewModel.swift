@@ -225,6 +225,15 @@ final class CaseDetailViewModel {
             offline?.save(SavedCaseDetail(fresh), for: caseID)
             state = .loaded
         } catch {
+            // Cancelled — the screen was rebuilt or left before the answer came, which on an iPad
+            // happens when the Calendar opens a matter while the Cases tab is off screen — is not
+            // a failure to show. Back to idle, so the screen's next appearance loads it again
+            // instead of standing on "Could not load" with nothing wrong.
+            if Task.isCancelled || error is CancellationError
+                || (error as? URLError)?.code == .cancelled {
+                state = .idle
+                return
+            }
             if OfflineReading.mayStandIn(after: error) {
                 if detail == nil || cachedAt != nil { showSavedCopy() }
             } else if cachedAt != nil {

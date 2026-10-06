@@ -125,7 +125,7 @@ struct ProjectListView: View {
                 }
                 Text(project.displayName)
                     .font(.brand(.headline))
-                    .lineLimit(2)
+                    .dynamicLineLimit(2)
                 Spacer(minLength: 0)
                 if project.isArchived {
                     StatusPill(text: "Archived", tone: .neutral)
@@ -134,10 +134,10 @@ struct ProjectListView: View {
 
             HStack(spacing: 6) {
                 if let client = project.client, !client.isEmpty {
-                    Text(client).lineLimit(1)
+                    Text(client).dynamicLineLimit(1)
                 }
                 if let reference = project.caseReference {
-                    if project.client?.isEmpty == false { Text("·") }
+                    if project.client?.isEmpty == false { Text("·").accessibilityHidden(true) }
                     Text(reference)
                 }
             }
@@ -148,7 +148,7 @@ struct ProjectListView: View {
                 Text(forum)
                     .font(.brand(.caption))
                     .foregroundStyle(theme.textSecondary)
-                    .lineLimit(1)
+                    .dynamicLineLimit(1)
             }
 
             if let hearing = project.nextHearingDate {

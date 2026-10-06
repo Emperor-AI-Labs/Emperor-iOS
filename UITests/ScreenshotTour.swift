@@ -158,7 +158,7 @@ final class ScreenshotTour: XCTestCase {
         // and the work log it was stored with, collapsed above it.
         app.tab("Chat").tap()
         snap("chats")
-        let conversation = app.staticTexts["Bakshi v. State"]
+        let conversation = app.stubConversationRow
         if conversation.waitForExistence(timeout: 10) {
             conversation.tap()
             snap("conversation")
@@ -373,7 +373,7 @@ final class ScreenshotTour: XCTestCase {
 
         // Opened once with the signal, which keeps it; then reopened without.
         app.tab("Chat").tap()
-        let conversation = app.staticTexts["Bakshi v. State"]
+        let conversation = app.stubConversationRow
         guard conversation.waitForExistence(timeout: 10) else { return }
         conversation.tap()
         _ = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch

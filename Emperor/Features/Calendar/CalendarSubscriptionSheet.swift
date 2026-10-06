@@ -80,7 +80,9 @@ struct CalendarSubscriptionSheet: View {
                             systemImage: didCopy ? "checkmark" : "doc.on.doc")
                             .font(.brand(.subheadline, weight: .semibold))
                             .foregroundStyle(theme.accentText)
-                            .frame(maxWidth: .infinity)
+                            // The whole row takes the tap, not only the glyph and the words.
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .listRowBackground(theme.surface)
@@ -139,6 +141,10 @@ struct CalendarSubscriptionSheet: View {
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(theme.canvas)
+            // The confirmation lands in a section of its own, away from the dialog's button.
+            .onChange(of: model.didReset) { _, didReset in
+                if didReset { VoiceOver.announce(CalendarSubscriptionViewModel.Copy.resetDone) }
+            }
         } empty: {
             // Unreachable in practice: a load that returns carries a link or throws. Legible
             // rather than blank if that ever stops being true.
@@ -176,6 +182,7 @@ struct CalendarSubscriptionSheet: View {
             Text("Your diary in Calendar")
                 .font(.brand(.title3, weight: .semibold))
                 .foregroundStyle(theme.textPrimary)
+                .accessibilityAddTraits(.isHeader)
             Text(CalendarSubscriptionViewModel.Copy.explanation)
                 .font(.brand(.subheadline))
                 .foregroundStyle(theme.textSecondary)
@@ -200,5 +207,7 @@ struct CalendarSubscriptionSheet: View {
             [[UTType.plainText.identifier: link.feedURL.absoluteString]],
             options: [.expirationDate: Date().addingTimeInterval(Self.clipboardLifetime)])
         didCopy = true
+        // "Copied" replaces the words on the button VoiceOver is on, which it does not re-read.
+        VoiceOver.announce("Link copied")
     }
 }

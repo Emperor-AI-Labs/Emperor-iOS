@@ -13,6 +13,8 @@ struct ReasoningPanel: View {
 
     @State private var isExpanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The spinner's and the tick's slot, scaled with the summary beside it.
+    @ScaledMetric(relativeTo: .footnote) private var glyphSlot: CGFloat = 18
 
     var body: some View {
         if snapshot.isEmpty && liveStatus == nil {
@@ -55,13 +57,13 @@ struct ReasoningPanel: View {
                             .foregroundStyle(theme.accentText)
                     }
                 }
-                .frame(width: 18)
+                .frame(width: glyphSlot)
                 .accessibilityHidden(true)
 
                 Text(summary)
                     .font(.brand(.footnote, weight: .medium))
                     .foregroundStyle(theme.textSecondary)
-                    .lineLimit(1)
+                    .dynamicLineLimit(1)
 
                 Spacer(minLength: 0)
 
@@ -177,23 +179,30 @@ struct ReasoningPanel: View {
         }
     }
 
+    /// A step's state, as a glyph for the eye and a word for VoiceOver — which would otherwise
+    /// read the symbol's name, or nothing, before the step: "Done", not "checkmark circle fill".
     @ViewBuilder
     private func statusIcon(_ status: WorkStatus) -> some View {
         switch status {
         case .completed:
             Image(systemName: "checkmark.circle.fill")
                 .font(.brand(.caption2)).foregroundStyle(theme.success)
+                .accessibilityLabel("Done")
         case .inProgress:
             ProgressView().controlSize(.mini)
+                .accessibilityLabel("In progress")
         case .pending:
             Image(systemName: "circle").font(.brand(.caption2)).foregroundStyle(theme.textTertiary)
+                .accessibilityLabel("Not started")
         case .superseded:
             Image(systemName: "arrow.uturn.backward.circle")
                 .font(.brand(.caption2)).foregroundStyle(theme.textTertiary)
+                .accessibilityLabel("Set aside")
         case .stopped:
             // Deliberately not a tick: the stream ended without confirming this came back.
             Image(systemName: "questionmark.circle")
                 .font(.brand(.caption2)).foregroundStyle(theme.warning)
+                .accessibilityLabel("Not confirmed")
         }
     }
 }

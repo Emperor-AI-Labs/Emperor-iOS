@@ -125,12 +125,12 @@ struct DraftHistoryView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.displayTitle)
                         .font(.brand(.subheadline, weight: .medium))
-                        .lineLimit(2)
+                        .dynamicLineLimit(2)
                         .foregroundStyle(theme.textPrimary)
                     Text(item.sourceLabel)
                         .font(.brand(.caption2))
                         .foregroundStyle(theme.textTertiary)
-                        .lineLimit(1)
+                        .dynamicLineLimit(1)
                 }
 
                 Spacer(minLength: 0)

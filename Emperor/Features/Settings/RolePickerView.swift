@@ -47,8 +47,9 @@ struct RolePickerView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // `Palette.selectionWash`, which `PaletteTests` measures the row's text on.
         .listRowBackground(
-            isSelected ? theme.tile(role.tileHue).opacity(0.14) : theme.surface)
+            isSelected ? Color(theme.palette.selectionWash(role.tileHue)) : theme.surface)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .accessibilityHint(isSelected ? "Current role" : "Switch to this role")
@@ -64,7 +65,9 @@ struct RoleSelectorLabel: View {
     let role: PractitionerRole
 
     var body: some View {
-        HStack(spacing: Spacing.md) {
+        // At the accessibility sizes the tile, the words and "Switch" go one under another;
+        // beside each other they would leave the role's name a word to a line.
+        AdaptiveStack(spacing: Spacing.md) {
             IconTile(systemImage: role.systemImage, hue: role.tileHue, size: .large)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Practising as")
@@ -76,7 +79,7 @@ struct RoleSelectorLabel: View {
                 Text(role.tagline)
                     .font(.brand(.footnote))
                     .foregroundStyle(theme.textSecondary)
-                    .lineLimit(2)
+                    .dynamicLineLimit(2)
             }
             Spacer(minLength: Spacing.sm)
             Text("Switch")
@@ -115,9 +118,11 @@ struct RoleOptionLabel: View {
                 Text(role.tagline)
                     .font(.brand(.caption))
                     .foregroundStyle(theme.textSecondary)
+                // Tertiary on a plain card; secondary on the chosen one, whose wash takes tertiary
+                // under 4.5:1 in light (`PaletteTests.testTertiaryTextIsTooFaintForAChosenRow`).
                 Text(role.detail)
                     .font(.brand(.caption2))
-                    .foregroundStyle(theme.textTertiary)
+                    .foregroundStyle(isSelected ? theme.textSecondary : theme.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: Spacing.sm)

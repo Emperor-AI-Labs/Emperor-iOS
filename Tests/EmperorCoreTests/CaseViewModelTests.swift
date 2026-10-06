@@ -119,6 +119,37 @@ final class CaseViewModelTests: XCTestCase {
 
     // MARK: - Detail
 
+    /// A load cancelled part-way — the screen rebuilt or left before the answer came, which on an
+    /// iPad is the Calendar opening a matter while Cases is off screen — is not a failure. The
+    /// model goes back to idle, so the screen's next appearance loads it, and then it shows.
+    func testACancelledLoadIsNotAFailureAndLoadsAgain() async {
+        await withCaseDetail { service, model in
+            service.error = CancellationError()
+            await model.load()
+            XCTAssertEqual(model.state, .idle, "a cancelled load must not read as a failure")
+
+            service.error = URLError(.cancelled)
+            await model.load()
+            XCTAssertEqual(model.state, .idle)
+
+            service.error = nil
+            service.detail = CaseDetail(
+                legalCase: Self.legalCase("case_1"), events: [], items: [])
+            await model.load()
+            XCTAssertEqual(model.state, .loaded)
+            XCTAssertNotNil(model.legalCase)
+        }
+    }
+
+    /// A real failure is still a failure.
+    func testAFailedLoadStillFails() async {
+        await withCaseDetail { service, model in
+            service.error = URLError(.badServerResponse)
+            await model.load()
+            if case .failed = model.state {} else { XCTFail("expected a failure, got \(model.state)") }
+        }
+    }
+
     func testDetailSplitsHearingsOrdersAndTasks() async {
         await withCaseDetail { service, model in
             service.detail = CaseDetail(

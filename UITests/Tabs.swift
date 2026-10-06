@@ -42,3 +42,16 @@ extension XCUIElement {
         }
     }
 }
+
+extension XCUIApplication {
+    /// The stub's stored conversation, "Bakshi v. State", in the chat list — wherever this device
+    /// draws it. On a phone its title is a text of its own; on an iPad, where the list sits beside
+    /// the conversation and keeps a selection, the row is one button (`chat-row-c1`) and its title
+    /// is not exposed separately. Found by either, so a test reads the same on both.
+    var stubConversationRow: XCUIElement {
+        descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ OR (elementType == %d AND label == %@)",
+            "chat-row-c1", XCUIElement.ElementType.staticText.rawValue, "Bakshi v. State"))
+            .firstMatch
+    }
+}

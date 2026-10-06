@@ -85,6 +85,7 @@ struct AuctionDetailView: View {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(theme.warning)
+                        .accessibilityHidden(true)
                     Text(warning)
                         .font(.brand(.footnote))
                         .foregroundStyle(theme.textPrimary)
@@ -139,10 +140,10 @@ struct AuctionDetailView: View {
             .padding(.vertical, 2)
 
             if let cin = notice.cin, !cin.isEmpty {
-                LabeledContent("CIN", value: cin)
+                ValueRow("CIN", value: cin)
             }
             if let reference = notice.displayReference {
-                LabeledContent("Notice number", value: reference)
+                ValueRow("Notice number", value: reference)
                     .font(.brand(.caption))
             }
             // "Watch this company" belonged here and is held back. See `AuctionListView`.
@@ -153,17 +154,17 @@ struct AuctionDetailView: View {
         Section("The auction") {
             // Absent figures are named rather than omitted. A missing reserve price on a
             // liquidation notice is information; a blank row is not.
-            LabeledContent(
+            ValueRow(
                 "Reserve price", value: notice.reservePriceText ?? "Not published")
-            LabeledContent("EMD", value: notice.emdAmountText ?? "Not published")
-            LabeledContent(
+            ValueRow("EMD", value: notice.emdAmountText ?? "Not published")
+            ValueRow(
                 "Auction date",
                 value: notice.auctionDayKey.map { DisplayText.longDay($0) } ?? "Not published")
-            LabeledContent(
+            ValueRow(
                 "Last date for EMD",
                 value: notice.emdLastDateRaw.map { DisplayText.longDay($0) } ?? "Not published")
             if let platform = notice.auctionPlatform, !platform.isEmpty {
-                LabeledContent("Platform", value: platform)
+                ValueRow("Platform", value: platform)
             }
             if let url = notice.platformURL {
                 Link(destination: url) {
@@ -181,7 +182,7 @@ struct AuctionDetailView: View {
                     Text(nature).font(.brand(.subheadline))
                 }
                 if let location = notice.assetLocation, !location.isEmpty {
-                    LabeledContent("Location", value: location)
+                    ValueRow("Location", value: location)
                 }
             }
         }
@@ -191,22 +192,22 @@ struct AuctionDetailView: View {
     private func liquidator(_ notice: AuctionNotice) -> some View {
         Section("Liquidation") {
             if let name = notice.liquidatorName, !name.isEmpty {
-                LabeledContent("Liquidator", value: name)
+                ValueRow("Liquidator", value: name)
             }
             if let registration = notice.ipRegistrationNumber, !registration.isEmpty {
-                LabeledContent("IP registration", value: registration)
+                ValueRow("IP registration", value: registration)
             }
             if let raw = notice.liquidationCommencementDateRaw, !raw.isEmpty {
-                LabeledContent("Liquidation commenced", value: DisplayText.longDay(raw))
+                ValueRow("Liquidation commenced", value: DisplayText.longDay(raw))
             }
             if let raw = notice.insolvencyCommencementDateRaw, !raw.isEmpty {
-                LabeledContent("Insolvency commenced", value: DisplayText.longDay(raw))
+                ValueRow("Insolvency commenced", value: DisplayText.longDay(raw))
             }
             if let process = notice.processNumber, !process.isEmpty {
-                LabeledContent("Process number", value: process)
+                ValueRow("Process number", value: process)
             }
             if let raw = notice.dateIssuedRaw, !raw.isEmpty {
-                LabeledContent("Notice issued", value: DisplayText.longDay(raw))
+                ValueRow("Notice issued", value: DisplayText.longDay(raw))
             }
         }
     }
@@ -244,6 +245,7 @@ struct AuctionDetailView: View {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "doc.badge.ellipsis")
                         .foregroundStyle(theme.textSecondary)
+                        .accessibilityHidden(true)
                     Text(caveat)
                         .font(.brand(.caption))
                         .foregroundStyle(theme.textSecondary)

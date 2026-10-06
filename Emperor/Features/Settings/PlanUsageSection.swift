@@ -121,7 +121,7 @@ struct UsageMeterRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm - 2) {
-            HStack(alignment: .firstTextBaseline) {
+            AdaptiveStack(verticalAlignment: .firstTextBaseline, spacing: Spacing.xs) {
                 Text(meter.title)
                     .font(.brand(.subheadline))
                     .foregroundStyle(theme.textPrimary)
@@ -134,6 +134,14 @@ struct UsageMeterRow: View {
             if let fraction = meter.fraction {
                 MeterBar(fraction: fraction, color: barColour)
                     .padding(.top, Spacing.xxs)
+            }
+            // The bar's colour, said in words — for VoiceOver, which reads this row as one, and
+            // for anyone who cannot tell the red from the amber.
+            if let status = meter.statusLabel {
+                Label(status, systemImage: meter.isExhausted
+                      ? "exclamationmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .font(.brand(.caption, weight: .semibold))
+                    .foregroundStyle(meter.isExhausted ? theme.danger : theme.warning)
             }
             if let note = meter.note, isMetered {
                 Text(note)

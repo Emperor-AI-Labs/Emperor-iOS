@@ -14,7 +14,9 @@ struct OfflineStorageSection: View {
 
     var body: some View {
         Section {
-            HStack(spacing: Spacing.md) {
+            // The size under the words at the accessibility sizes, where beside them both would
+            // be cut short.
+            AdaptiveStack(spacing: Spacing.md) {
                 IconTile(systemImage: "arrow.down.circle", hue: .teal)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Kept for offline reading")
@@ -53,6 +55,9 @@ struct OfflineStorageSection: View {
             ) {
                 Button("Clear offline copies", role: .destructive) {
                     model?.clear()
+                    // The dialog closes onto its button, now dimmed with nothing left to clear;
+                    // what happened is said rather than left to be inferred.
+                    VoiceOver.announce("Offline copies cleared")
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {

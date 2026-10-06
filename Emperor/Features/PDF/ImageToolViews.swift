@@ -138,7 +138,7 @@ struct CompressImageView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(source.name)
                                 .font(.brand(.subheadline, weight: .semibold))
-                                .lineLimit(2)
+                                .dynamicLineLimit(2)
                             Text("Original · \(FileSize.format(source.bytes))")
                                 .font(.brand(.caption))
                                 .foregroundStyle(theme.textSecondary)
@@ -353,7 +353,7 @@ struct ImageToPDFView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(image.name)
                                 .font(.brand(.subheadline))
-                                .lineLimit(1)
+                                .dynamicLineLimit(1)
                             Text(FileSize.format(image.bytes))
                                 .font(.brand(.caption))
                                 .foregroundStyle(theme.textSecondary)

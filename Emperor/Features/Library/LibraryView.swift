@@ -230,14 +230,16 @@ struct LibraryView: View {
                 Text(document.displayTitle)
                     .font(.brand(.subheadline, weight: .medium))
                     .foregroundStyle(theme.textPrimary)
-                    .lineLimit(3)
+                    .dynamicLineLimit(3)
                 HStack(spacing: 6) {
                     if let size = document.fileSize, size > 0 {
                         Text(ByteCountFormatter.string(
                             fromByteCount: Int64(size), countStyle: .file))
                     }
                     if let added = document.addedDate {
+                        // A separator for the eye; read aloud it is "middle dot".
                         Text("·")
+                            .accessibilityHidden(true)
                         Text(DisplayText.longDay(WireDate.dayKey(added)))
                     }
                 }

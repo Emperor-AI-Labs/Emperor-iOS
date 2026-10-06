@@ -16,6 +16,10 @@ import SwiftUI
 struct LitigatorWorkspaceView: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// The document glyph's slot, scaled with the row's text so the glyph never spills over.
+    @ScaledMetric(relativeTo: .subheadline) private var glyphWidth: CGFloat = 20
 
     /// The matter is a device preference, as the web keeps it — so it is read from, and written
     /// to, the same store as the role and the appearance.
@@ -116,7 +120,7 @@ struct LitigatorWorkspaceView: View {
                 proxy.scrollTo(model.matter.id, anchor: .center)
             }
             .onChange(of: model.matter.id) { _, id in
-                withAnimation(.easeOut(duration: 0.2)) {
+                withAnimation(reduceMotion ? nil : Animation.easeOut(duration: 0.2)) {
                     proxy.scrollTo(id, anchor: .center)
                 }
             }
@@ -139,7 +143,9 @@ struct LitigatorWorkspaceView: View {
 
     private var matterHeader: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            HStack(alignment: .center, spacing: Spacing.md) {
+            // The count under the matter's name at the accessibility sizes, where beside it the
+            // two would share a line too short for either.
+            AdaptiveStack(spacing: Spacing.md) {
                 // Litigator's own colour, beside the matter's mark.
                 IconTile(
                     systemImage: model.matter.systemImage,
@@ -189,7 +195,7 @@ struct LitigatorWorkspaceView: View {
                 Image(systemName: "doc.text")
                     .font(.brand(.subheadline))
                     .foregroundStyle(theme.accentText)
-                    .frame(width: 20)
+                    .frame(width: glyphWidth)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(document.label)
@@ -216,7 +222,7 @@ struct LitigatorWorkspaceView: View {
                 Image(systemName: "list.bullet.rectangle")
                     .font(.brand(.subheadline))
                     .foregroundStyle(theme.accentText)
-                    .frame(width: 20)
+                    .frame(width: glyphWidth)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(group.anyDocumentLabel)

@@ -213,7 +213,9 @@ struct IncomingDocumentPresenting: ViewModifier {
                 .environment(\.theme, theme)
                 .environment(\.practice, practice)
                 .preferredColorScheme(theme.colorScheme)
-                .tint(theme.accent),
+                // The text accent, as the app's root uses — presented on its own, this sheet does
+                // not inherit it.
+                .tint(theme.accentText),
             modal: true)
     }
 
@@ -404,6 +406,14 @@ private struct SaveIncomingDocumentForm: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .accessibilityIdentifier("incoming-form")
+        // What a save ran into — a refusal, a failure, a name the library already holds — lands
+        // in the form below the Save that VoiceOver was on, so it is said as well.
+        .onChange(of: model.errorMessage ?? model.refusal) { _, problem in
+            if let problem { VoiceOver.announce(problem) }
+        }
+        .onChange(of: model.confirmationMessage) { _, message in
+            if let message { VoiceOver.announce(message) }
+        }
     }
 
     /// The document as it arrived — named as the other app named it, so the person can see which
@@ -415,7 +425,7 @@ private struct SaveIncomingDocumentForm: View {
                 Text(model.document.originalName)
                     .font(.brand(.subheadline, weight: .semibold))
                     .foregroundStyle(theme.textPrimary)
-                    .lineLimit(2)
+                    .dynamicLineLimit(2)
                 Text(waiting == 0
                      ? "Shared with Emperor"
                      : "Shared with Emperor · \(waiting) more after this")
@@ -522,8 +532,14 @@ private struct DestinationList: View {
                         Text(SaveIncomingDocumentModel.Copy.foldersFailed)
                             .font(.brand(.caption))
                             .foregroundStyle(theme.textSecondary)
-                        Button("Try again") { Task { await model.loadFolders() } }
-                            .font(.brand(.caption, weight: .semibold))
+                        Button {
+                            Task { await model.loadFolders() }
+                        } label: {
+                            Text("Try again")
+                                .font(.brand(.caption, weight: .semibold))
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
+                        }
                     }
                 }
             }
@@ -555,7 +571,7 @@ private struct DestinationList: View {
                     Text(destination.title)
                         .font(.brand(.body))
                         .foregroundStyle(theme.textPrimary)
-                        .lineLimit(1)
+                        .dynamicLineLimit(1)
                     if let detail = destination.detail {
                         Text(detail)
                             .font(.brand(.caption))

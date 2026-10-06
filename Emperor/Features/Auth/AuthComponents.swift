@@ -12,12 +12,16 @@ struct AuthFieldChrome: ViewModifier {
     let systemImage: String
     var isFocused: Bool
 
+    /// The glyph's slot, scaled with the text beside it, so a large text size widens the slot
+    /// instead of letting the glyph spill into the field.
+    @ScaledMetric(relativeTo: .callout) private var glyphWidth: CGFloat = 20
+
     func body(content: Content) -> some View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
                 .font(.brand(.callout))
                 .foregroundStyle(isFocused ? theme.accentText : theme.textTertiary)
-                .frame(width: 20)
+                .frame(width: glyphWidth)
                 .accessibilityHidden(true)
             content
                 .font(.brand(.body))
@@ -65,8 +69,9 @@ struct AuthMessage: View {
         .font(.brand(.footnote))
         .foregroundStyle(color)
         .padding(Spacing.md)
+        // `Palette.Wash.message`: the strength `PaletteTests` holds both tones' text to 4.5:1 on.
         .background(
-            color.opacity(0.12),
+            color.opacity(Palette.Wash.message),
             in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
@@ -123,8 +128,11 @@ struct AuthLinkButton: View {
             }
             .font(.brand(.subheadline, weight: .semibold))
             .foregroundStyle(theme.accentText)
+            .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 6)
+            // A full-height target, though it is drawn as a line of text.
+            .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -35,14 +35,19 @@ struct CaseDetailView: View {
         .navigationTitle(model?.legalCase?.displayTitle ?? "Matter")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            guard model == nil else { return }
-            // Kept for reading offline, and shown with its age when the server cannot be reached.
-            let created = CaseDetailViewModel(
-                caseID: caseID, service: session.cases,
-                offline: session.offlineCopies?.matters,
-                connectivity: AppConnectivity.current)
-            model = created
-            await created.load()
+            if model == nil {
+                // Kept for reading offline, and shown with its age when the server cannot be
+                // reached.
+                model = CaseDetailViewModel(
+                    caseID: caseID, service: session.cases,
+                    offline: session.offlineCopies?.matters,
+                    connectivity: AppConnectivity.current)
+            }
+            // Loads when nothing has been loaded yet — including after a load that was cancelled
+            // part-way (the model goes back to idle), so the matter is not left unloaded.
+            if let model, model.state == .idle {
+                await model.load()
+            }
         }
     }
 
@@ -122,28 +127,30 @@ struct CaseDetailView: View {
     @ViewBuilder
     private func overview(_ legalCase: LegalCase, _ model: CaseDetailViewModel) -> some View {
         Section {
+            // `ValueRow`, not `LabeledContent(_:value:)`: the system's grey for the value is
+            // about 3.4:1 on a white card.
             if let reference = legalCase.caseReference {
-                LabeledContent("Case", value: reference)
+                ValueRow("Case", value: reference)
             }
             if let court = legalCase.courtName {
-                LabeledContent("Court", value: court)
+                ValueRow("Court", value: court)
             }
             if let judge = legalCase.judge {
-                LabeledContent("Bench", value: judge)
+                ValueRow("Bench", value: judge)
             }
             if let status = legalCase.status {
-                LabeledContent("Status", value: status)
+                ValueRow("Status", value: status)
             }
             if let stage = legalCase.stage {
-                LabeledContent("Stage", value: stage)
+                ValueRow("Stage", value: stage)
             }
             if let hearing = legalCase.nextHearingDate {
-                LabeledContent(
+                ValueRow(
                     "Next hearing",
                     value: DisplayText.longDay(WireDate.dayKey(hearing)))
             }
             if let filed = legalCase.filingDate {
-                LabeledContent("Filed", value: DisplayText.longDay(WireDate.dayKey(filed)))
+                ValueRow("Filed", value: DisplayText.longDay(WireDate.dayKey(filed)))
             }
 
             // Said plainly, because it decides whether the dates above are worth trusting.
@@ -151,6 +158,7 @@ struct CaseDetailView: View {
                 Text(model.syncDescription)
             } icon: {
                 Image(systemName: model.isCourtSynced ? "building.columns" : "exclamationmark.triangle")
+                    .accessibilityHidden(true)
             }
             .font(.brand(.caption))
             .foregroundStyle(model.isCourtSynced ? theme.textSecondary : theme.warning)
@@ -263,7 +271,7 @@ struct CaseDetailView: View {
             HStack(spacing: 6) {
                 Text(item.title ?? "—")
                     .font(.brand(.subheadline))
-                    .lineLimit(2)
+                    .dynamicLineLimit(2)
                 if item.isCourtOwned {
                     Image(systemName: "building.columns")
                         .font(.brand(.caption2))

@@ -89,6 +89,21 @@ final class PaletteTests: XCTestCase {
         }
     }
 
+    /// The *fill* accent is not a text colour on dark: as the words of a "Done" or a "Try again"
+    /// it measures about 3.4:1 on a card. That is why the app's tint — what SwiftUI draws every
+    /// text button, toolbar item and link in — has to be `accentText`, never `accent`. In light
+    /// the two are the same colour, so only dark shows the difference.
+    func testTheFillAccentIsNotATextColourOnDark() {
+        let dark = Palette.dark
+        for (surfaceName, surface) in [("canvas", dark.canvas), ("surface", dark.surface)] {
+            XCTAssertLessThan(
+                dark.accent.contrastRatio(against: surface), 4.5,
+                "dark/\(surfaceName): if the fill accent now passes as text, the tint can use it")
+            XCTAssertGreaterThanOrEqual(dark.accentText.contrastRatio(against: surface), 4.5)
+        }
+        XCTAssertEqual(Palette.light.accent, Palette.light.accentText)
+    }
+
     /// Status colours are carrying meaning — "past due", "from court", "could not load" — so
     /// they have to be readable as text, not merely distinguishable as dots.
     func testStatusColoursAreReadableAsText() {
@@ -236,6 +251,195 @@ final class PaletteTests: XCTestCase {
                 webToken.contrastRatio(against: Palette.light.canvas), 4.5,
                 "\(label): the web value still fails on light — the deviation is still needed")
         }
+    }
+
+    // MARK: - Captions, and the washes text is drawn on
+
+    /// Tertiary text is held to only 3:1 above, as non-essential — but the app draws real
+    /// captions in it at caption size: a role's description, a document's date, a court's name
+    /// under a search result. On the plain surfaces it is drawn on it clears the full 4.5:1, and
+    /// this keeps it there.
+    func testTertiaryCaptionsClearAAOnPlainSurfaces() {
+        for (name, palette) in cases {
+            for (surfaceName, surface) in [
+                ("canvas", palette.canvas), ("surface", palette.surface),
+                ("elevated", palette.surfaceElevated),
+            ] {
+                let ratio = palette.textTertiary.contrastRatio(against: surface)
+                XCTAssertGreaterThanOrEqual(
+                    ratio, 4.5,
+                    "\(name)/\(surfaceName): tertiary text is \(String(format: "%.2f", ratio)):1")
+            }
+        }
+    }
+
+    /// The offline bar's "Retry" is accent text on the elevated surface — the narrowest pairing
+    /// the app draws accent text on, at about 4.6:1 on dark.
+    func testAccentTextClearsAAOnTheElevatedSurface() {
+        for (name, palette) in cases {
+            let ratio = palette.accentText.contrastRatio(against: palette.surfaceElevated)
+            XCTAssertGreaterThanOrEqual(
+                ratio, 4.5, "\(name): accent on elevated is \(String(format: "%.2f", ratio)):1")
+        }
+    }
+
+    /// The "as of" stamp over cached content is secondary text on the elevated surface.
+    func testSecondaryTextClearsAAOnTheElevatedSurface() {
+        for (name, palette) in cases {
+            let ratio = palette.textSecondary.contrastRatio(against: palette.surfaceElevated)
+            XCTAssertGreaterThanOrEqual(
+                ratio, 4.5, "\(name): secondary on elevated is \(String(format: "%.2f", ratio)):1")
+        }
+    }
+
+    /// A status pill's caption, in every tone, on its own wash — on a card, where most pills sit,
+    /// and on the canvas, where a pill in a header or a role's deck sits. Neutral is secondary
+    /// text; accent is `accentText`.
+    func testStatusPillCaptionsClearAAOnCardsAndTheCanvas() {
+        for (name, palette) in cases {
+            for (tone, colour) in [
+                ("neutral", palette.textSecondary), ("accent", palette.accentText),
+                ("success", palette.success), ("warning", palette.warning),
+                ("danger", palette.danger), ("info", palette.info),
+            ] {
+                for (surfaceName, surface) in [
+                    ("canvas", palette.canvas), ("surface", palette.surface),
+                ] {
+                    let fill = palette.pillWash(colour).composited(over: surface)
+                    let ratio = colour.contrastRatio(against: fill)
+                    XCTAssertGreaterThanOrEqual(
+                        ratio, 4.5,
+                        "\(name)/\(tone) pill on \(surfaceName) is \(String(format: "%.2f", ratio)):1")
+                }
+            }
+        }
+    }
+
+    /// Why the pill's wash is 8% and not the 10% it was: at 10% the accent pill's caption falls
+    /// under AA on the light canvas. If this ever passes, the palette has changed and the wash
+    /// can be reconsidered.
+    func testAPillWashedAtTenPercentFailsOnTheLightCanvas() {
+        let palette = Palette.light
+        let accent = palette.accentText
+        let tenPercent = PaletteColor(accent.red, accent.green, accent.blue, opacity: 0.10)
+            .composited(over: palette.canvas)
+        XCTAssertLessThan(accent.contrastRatio(against: tenPercent), 4.5)
+        XCTAssertLessThan(Palette.Wash.pill, 0.10, "the pill's wash was deepened again")
+    }
+
+    /// A message in the sign-in card: the danger or info colour, on a wash of itself, on the card.
+    func testSignInMessagesClearAAOnTheirWash() {
+        for (name, palette) in cases {
+            for (tone, colour) in [("error", palette.danger), ("info", palette.info)] {
+                let fill = palette.messageWash(colour).composited(over: palette.surface)
+                let ratio = colour.contrastRatio(against: fill)
+                XCTAssertGreaterThanOrEqual(
+                    ratio, 4.5, "\(name)/\(tone) message is \(String(format: "%.2f", ratio)):1")
+            }
+        }
+    }
+
+    /// The banner over content that may be out of date: its caveat, its "as of" line and its
+    /// accent "Retry", on the banner's wash, over the canvas and a card.
+    func testTheStaleBannerAndItsRetryClearAA() {
+        for (name, palette) in cases {
+            for (surfaceName, surface) in [
+                ("canvas", palette.canvas), ("surface", palette.surface),
+            ] {
+                let fill = palette.bannerWash.composited(over: surface)
+                for (text, colour) in [
+                    ("caveat", palette.textPrimary), ("as of", palette.textSecondary),
+                    ("Retry", palette.accentText),
+                ] {
+                    let ratio = colour.contrastRatio(against: fill)
+                    XCTAssertGreaterThanOrEqual(
+                        ratio, 4.5,
+                        "\(name)/\(surfaceName): \(text) is \(String(format: "%.2f", ratio)):1")
+                }
+            }
+        }
+        // At the 12% the banner was drawn with, "Retry" fails on the light canvas.
+        let light = Palette.light
+        let old = PaletteColor(
+            light.warning.red, light.warning.green, light.warning.blue, opacity: 0.12
+        ).composited(over: light.canvas)
+        XCTAssertLessThan(light.accentText.contrastRatio(against: old), 4.5)
+    }
+
+    /// The row open beside the list on an iPad keeps every word on it legible — its title, its
+    /// details, its date, any accent text, and a pill of any tone — and is marked by a bar in the
+    /// accent that is visible against the card: the tint alone is too faint to find.
+    func testTheOpenRowKeepsItsTextLegibleAndIsMarkedByMoreThanATint() {
+        for (name, palette) in cases {
+            let fill = palette.openRowWash.composited(over: palette.surface)
+            for (text, colour) in [
+                ("primary", palette.textPrimary), ("secondary", palette.textSecondary),
+                ("tertiary", palette.textTertiary), ("accent", palette.accentText),
+            ] {
+                let ratio = colour.contrastRatio(against: fill)
+                XCTAssertGreaterThanOrEqual(
+                    ratio, 4.5, "\(name): \(text) on the open row is \(String(format: "%.2f", ratio)):1")
+            }
+            for (tone, colour) in [
+                ("neutral", palette.textSecondary), ("accent", palette.accentText),
+                ("success", palette.success), ("warning", palette.warning),
+                ("danger", palette.danger), ("info", palette.info),
+            ] {
+                let pill = palette.pillWash(colour).composited(over: fill)
+                let ratio = colour.contrastRatio(against: pill)
+                XCTAssertGreaterThanOrEqual(
+                    ratio, 4.5,
+                    "\(name): the \(tone) pill on the open row is \(String(format: "%.2f", ratio)):1")
+            }
+            let bar = palette.accent.contrastRatio(against: palette.surface)
+            XCTAssertGreaterThanOrEqual(
+                bar, 3.0, "\(name): the open row's bar is \(String(format: "%.2f", bar)):1")
+        }
+        // At the 13% it was drawn with, the accent pill on the open row fails.
+        let dark = Palette.dark
+        let old = dark.surfaceAccent.composited(over: dark.surface)
+        let oldPill = dark.pillWash(dark.accentText).composited(over: old)
+        XCTAssertLessThan(dark.accentText.contrastRatio(against: oldPill), 4.5)
+    }
+
+    /// The chosen role — in the picker, washed in the role's own colour; at first sign-in, on the
+    /// tinted panel — keeps its name and its description legible: primary and secondary text on
+    /// the wash, over the canvas and a card, for every role, in both appearances.
+    func testAChosenRoleIsLegibleOnItsWash() {
+        for (name, palette) in cases {
+            for role in PractitionerRole.allCases {
+                for (surfaceName, surface) in [
+                    ("canvas", palette.canvas), ("surface", palette.surface),
+                ] {
+                    let washes = [
+                        ("picker", palette.selectionWash(role.tileHue).composited(over: surface)),
+                        ("welcome", palette.surfaceAccent.composited(over: surface)),
+                    ]
+                    for (place, fill) in washes {
+                        for (text, colour) in [
+                            ("primary", palette.textPrimary), ("secondary", palette.textSecondary),
+                        ] {
+                            let ratio = colour.contrastRatio(against: fill)
+                            XCTAssertGreaterThanOrEqual(
+                                ratio, 4.5,
+                                "\(name)/\(role)/\(place) on \(surfaceName): \(text) is "
+                                    + "\(String(format: "%.2f", ratio)):1")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Why a chosen row draws its quietest line in secondary rather than tertiary: on the light
+    /// selection wash tertiary falls under AA. Pinned, so the row is not "tidied" back.
+    func testTertiaryTextIsTooFaintForAChosenRow() {
+        let palette = Palette.light
+        let fill = palette.selectionWash(PractitionerRole.seniorCounsel.tileHue)
+            .composited(over: palette.canvas)
+        XCTAssertLessThan(palette.textTertiary.contrastRatio(against: fill), 4.5)
+        let panel = palette.surfaceAccent.composited(over: palette.canvas)
+        XCTAssertLessThan(palette.textTertiary.contrastRatio(against: panel), 4.5)
     }
 
     // MARK: - Preference

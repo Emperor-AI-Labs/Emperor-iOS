@@ -296,6 +296,8 @@ struct FileLibraryView: View {
         .buttonStyle(.plain)
         // A file still being read cannot answer questions yet, so it cannot be attached.
         .disabled(!file.isReadable)
+        // Chosen or not, as VoiceOver's own "Selected" — the leading mark says it to the eye.
+        .accessibilityAddTraits(model.isSelected(file) ? [.isSelected] : [])
         .swipeActions(edge: .trailing) {
             if model.canManage {
                 Button {

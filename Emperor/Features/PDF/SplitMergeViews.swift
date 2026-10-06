@@ -213,7 +213,7 @@ struct MergePDFView: View {
                     HStack(spacing: Spacing.md) {
                         IconTile(systemImage: "doc.richtext", hue: .rose, size: .small)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(file.name).font(.brand(.subheadline, weight: .medium)).lineLimit(1)
+                            Text(file.name).font(.brand(.subheadline, weight: .medium)).dynamicLineLimit(1)
                             Text(file.pageCount.map { "\($0) page\($0 == 1 ? "" : "s")" }
                                  ?? "could not be opened")
                                 .font(.brand(.caption))

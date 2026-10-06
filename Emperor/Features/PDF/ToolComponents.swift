@@ -97,23 +97,30 @@ struct ToolSourceRow: View {
     var change: (() -> Void)?
 
     var body: some View {
-        HStack(spacing: Spacing.md) {
+        // "Change" under the file at the accessibility sizes, where beside it the file's name
+        // would be cut to a word.
+        AdaptiveStack(spacing: Spacing.md) {
             IconTile(systemImage: systemImage, hue: .rose, size: .large)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
                     .font(.brand(.subheadline, weight: .semibold))
                     .foregroundStyle(theme.textPrimary)
-                    .lineLimit(2)
+                    .dynamicLineLimit(2)
                 Text(detail)
                     .font(.brand(.caption))
                     .foregroundStyle(theme.textSecondary)
             }
             Spacer(minLength: 8)
             if let change {
-                Button("Change", action: change)
-                    .font(.brand(.caption, weight: .semibold))
-                    .foregroundStyle(theme.accentText)
-                    .buttonStyle(.borderless)
+                Button(action: change) {
+                    Text("Change")
+                        .font(.brand(.caption, weight: .semibold))
+                        .foregroundStyle(theme.accentText)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Change \(name)")
             }
         }
         .padding(.vertical, Spacing.xs)
@@ -135,7 +142,7 @@ struct ToolResultRow: View {
                         Text(file.name)
                             .font(.brand(.subheadline, weight: .semibold))
                             .foregroundStyle(theme.textPrimary)
-                            .lineLimit(2)
+                            .dynamicLineLimit(2)
                         Text(FileSize.format(file.data.count))
                             .font(.brand(.caption))
                             .foregroundStyle(theme.textSecondary)
@@ -182,13 +189,17 @@ struct SizeComparison: View {
     let headline: String
     var isImprovement = true
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
+            // Before over after at the accessibility sizes, where two columns of large figures
+            // do not fit side by side.
+            AdaptiveStack(verticalAlignment: .top, spacing: 12) {
                 column("Original", bytes: originalBytes, detail: originalDetail, highlighted: false)
-                Image(systemName: "arrow.right")
+                Image(systemName: dynamicTypeSize.isAccessibilitySize ? "arrow.down" : "arrow.right")
                     .foregroundStyle(theme.textTertiary)
-                    .padding(.top, 18)
+                    .padding(.top, dynamicTypeSize.isAccessibilitySize ? 0 : 18)
                     .accessibilityHidden(true)
                 column("Result", bytes: resultBytes, detail: resultDetail, highlighted: true)
                 Spacer(minLength: 0)
@@ -203,7 +214,9 @@ struct SizeComparison: View {
 
     private func column(_ title: String, bytes: Int, detail: String, highlighted: Bool) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title.uppercased())
+            // Drawn in capitals, spoken as the word: a string in capitals can be spelled out.
+            Text(title)
+                .textCase(.uppercase)
                 .font(.brand(.caption2, weight: .semibold))
                 .foregroundStyle(highlighted ? theme.accentText : theme.textTertiary)
             Text(FileSize.format(bytes))

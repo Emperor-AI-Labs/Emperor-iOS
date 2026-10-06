@@ -182,7 +182,9 @@ struct SpotlightRouting: ViewModifier {
                 .environment(\.practice, practice)
                 .environment(\.navigator, navigator)
                 .preferredColorScheme(theme.colorScheme)
-                .tint(theme.accent),
+                // The text accent, as the app's root uses — presented on its own, this screen does
+                // not inherit it.
+                .tint(theme.accentText),
             modal: false)
     }
 }

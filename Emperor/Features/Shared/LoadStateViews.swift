@@ -68,7 +68,8 @@ struct StaleBanner: View {
     var retry: (() async -> Void)?
 
     var body: some View {
-        HStack(spacing: Spacing.sm + 2) {
+        // "Retry" under the caveat at the accessibility sizes, so the caveat keeps its words.
+        AdaptiveStack(spacing: Spacing.sm + 2) {
             Image(systemName: failure.kind == .offline ? "wifi.slash" : "exclamationmark.triangle.fill")
                 .foregroundStyle(theme.warning)
                 .accessibilityHidden(true)
@@ -77,7 +78,7 @@ struct StaleBanner: View {
                      ? "Offline — showing what was last loaded."
                      : "Could not refresh. Showing what was last loaded.")
                     .foregroundStyle(theme.textPrimary)
-                    .lineLimit(2)
+                    .dynamicLineLimit(2)
                 if let cachedAt {
                     Text("As of \(cachedAt, format: .relative(presentation: .named))")
                         .foregroundStyle(theme.textSecondary)
@@ -85,17 +86,24 @@ struct StaleBanner: View {
             }
             Spacer(minLength: 0)
             if failure.isRetryable, let retry {
-                Button("Retry") { Task { await retry() } }
-                    .font(.brand(.caption, weight: .semibold))
-                    .foregroundStyle(theme.accentText)
-                    .buttonStyle(.borderless)
+                Button {
+                    Task { await retry() }
+                } label: {
+                    Text("Retry")
+                        .font(.brand(.caption, weight: .semibold))
+                        .foregroundStyle(theme.accentText)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
             }
         }
         .font(.brand(.caption))
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.sm + 2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.warning.opacity(0.12))
+        // `Palette.bannerWash`, on which `PaletteTests` holds the caveat and "Retry" to 4.5:1.
+        .background(Color(theme.palette.bannerWash))
         .overlay(alignment: .bottom) {
             Rectangle().fill(theme.warning.opacity(0.25)).frame(height: 0.5)
         }

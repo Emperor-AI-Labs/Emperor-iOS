@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 extension Color {
     init(_ palette: PaletteColor) {
@@ -180,19 +181,25 @@ struct StatusPill: View {
             if let systemImage {
                 Image(systemName: systemImage)
                     .imageScale(.small)
+                    // The words carry the meaning; a glyph read aloud first ("exclamation mark
+                    // triangle, Overdue") only delays them.
+                    .accessibilityHidden(true)
             }
             Text(text)
                 .monospacedDigit()
         }
         .font(.brand(.caption2, weight: .semibold))
         .foregroundStyle(foreground)
-        .lineLimit(1)
+        // One line where a row has room for it; whole at the accessibility sizes, where one line
+        // of a court's remark is a word and an ellipsis.
+        .dynamicLineLimit(1)
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, 3)
         // A full capsule, matching the 999px radius the dashboard's pills use, with a hairline
-        // of its own tone so a pale wash still has an edge on a white card. A 10% wash: at the
-        // web's 14% the accent pill's caption fell under 4.5:1 on a white card.
-        .background(foreground.opacity(0.10), in: Capsule())
+        // of its own tone so a pale wash still has an edge on a white card. The wash is
+        // `Palette.Wash.pill`, the strength `PaletteTests` holds every tone's caption to 4.5:1
+        // on — on a card and on the canvas.
+        .background(foreground.opacity(Palette.Wash.pill), in: Capsule())
         .overlay(Capsule().strokeBorder(foreground.opacity(0.22), lineWidth: 0.5))
         .accessibilityElement(children: .combine)
     }
@@ -222,14 +229,21 @@ struct SectionHeader: View {
 
     var body: some View {
         if let detail {
-            HStack(alignment: .firstTextBaseline) {
-                titleText
-                Spacer(minLength: Spacing.sm)
-                Text(detail)
-                    .font(.brand(.caption, weight: .medium))
-                    .monospacedDigit()
-                    .foregroundStyle(theme.textTertiary)
-                    .lineLimit(1)
+            // Side by side while both fit on one line; the detail under the title once they do
+            // not — a long detail, or a large text size — rather than either being cut short.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) {
+                    titleText
+                    Spacer(minLength: Spacing.sm)
+                    detailText(detail)
+                        .lineLimit(1)
+                }
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    titleText
+                    detailText(detail)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .textCase(nil)
             .accessibilityElement(children: .combine)
@@ -237,6 +251,13 @@ struct SectionHeader: View {
             titleText
                 .textCase(nil)
         }
+    }
+
+    private func detailText(_ detail: String) -> some View {
+        Text(detail)
+            .font(.brand(.caption, weight: .medium))
+            .monospacedDigit()
+            .foregroundStyle(theme.textTertiary)
     }
 
     private var titleText: some View {
@@ -356,22 +377,67 @@ struct IconRowLabel: View {
     var value: String?
     var titleColor: Color?
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         HStack(spacing: Spacing.md) {
             IconTile(systemImage: systemImage, hue: hue)
-            Text(title)
-                .font(.brand(.body))
-                .foregroundStyle(titleColor ?? theme.textPrimary)
-                .lineLimit(2)
-            Spacer(minLength: Spacing.sm)
-            if let value {
-                Text(value)
-                    .font(.brand(.body))
-                    .foregroundStyle(theme.textSecondary)
-                    .lineLimit(1)
+            if let value, dynamicTypeSize.isAccessibilitySize {
+                // At the accessibility sizes the value goes under the title: beside it, the two
+                // would share a line too short for either.
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    titleText
+                    valueText(value)
+                }
+                Spacer(minLength: 0)
+            } else {
+                titleText
+                Spacer(minLength: Spacing.sm)
+                if let value {
+                    valueText(value)
+                        .lineLimit(1)
+                }
             }
         }
         .padding(.vertical, Spacing.xxs)
+    }
+
+    private var titleText: some View {
+        Text(title)
+            .font(.brand(.body))
+            .foregroundStyle(titleColor ?? theme.textPrimary)
+            .dynamicLineLimit(2)
+    }
+
+    private func valueText(_ value: String) -> some View {
+        Text(value)
+            .font(.brand(.body))
+            .foregroundStyle(theme.textSecondary)
+    }
+}
+
+/// A label and its value, as a list row: the value in the palette's secondary text.
+///
+/// `LabeledContent(_:value:)` draws the value in the system's secondary grey, which is about
+/// 3.4:1 on a white card — under AA for words a person came to the screen to read. This is the
+/// same row with the value in a colour `PaletteTests` holds to 4.5:1.
+struct ValueRow: View {
+    @Environment(\.theme) private var theme
+
+    let title: String
+    let value: String
+
+    init(_ title: String, value: String) {
+        self.title = title
+        self.value = value
+    }
+
+    var body: some View {
+        LabeledContent(title) {
+            Text(value)
+                .foregroundStyle(theme.textSecondary)
+                .multilineTextAlignment(.trailing)
+        }
     }
 }
 
@@ -554,7 +620,11 @@ struct ChipButtonStyle: ButtonStyle {
             .padding(.vertical, Spacing.sm)
             .background(fill, in: Capsule())
             .overlay(Capsule().strokeBorder(edge, lineWidth: 1))
-            .contentShape(Capsule())
+            // The capsule is drawn at its own height, but the chip answers a touch across the
+            // full 44 points iOS asks of a target — a strip of small chips is otherwise a row of
+            // near misses for anyone with a less steady hand.
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             .opacity(configuration.isPressed ? 0.75 : 1)
             .animation(.easeOut(duration: 0.12), value: isSelected)
     }
@@ -625,5 +695,69 @@ struct MeterBar: View {
             }
             .frame(height: 6)
             .accessibilityHidden(true)
+    }
+}
+
+// MARK: - The largest text sizes
+
+/// A row that becomes a column at the accessibility text sizes.
+///
+/// A row of a title and something beside it — a pill, a count, a "Change" button — shares one
+/// line between them. At the five accessibility sizes that line holds a word or two of each, and
+/// the title is cut to an ellipsis to make room for the thing beside it. Stacked, each gets the
+/// whole width. Below those sizes it is the `HStack` it replaces, so nothing moves for anyone else.
+///
+/// Switched on the size rather than measured (`ViewThatFits`): a row whose title can wrap always
+/// "fits" on one line, by wrapping into a column of single words.
+struct AdaptiveStack<Content: View>: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var horizontalAlignment: HorizontalAlignment = .leading
+    var verticalAlignment: VerticalAlignment = .center
+    var spacing: CGFloat?
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: horizontalAlignment, spacing: spacing))
+            : AnyLayout(HStackLayout(alignment: verticalAlignment, spacing: spacing))
+        return layout { content() }
+    }
+}
+
+/// A line limit for the standard text sizes, lifted at the accessibility sizes.
+///
+/// Two lines of a matter's title is a tidy list at the default size; at the largest it is three
+/// words and an ellipsis, and the reader who most needs the title is the one who cannot see it.
+/// So the limit holds where it keeps a list scannable, and goes where it would hide the words.
+private struct DynamicLineLimit: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    let limit: Int
+
+    func body(content: Content) -> some View {
+        content.lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : limit)
+    }
+}
+
+extension View {
+    /// `lineLimit(limit)`, except at the accessibility text sizes — see `DynamicLineLimit`.
+    func dynamicLineLimit(_ limit: Int) -> some View {
+        modifier(DynamicLineLimit(limit: limit))
+    }
+}
+
+/// Says something to VoiceOver now — a sign-in that failed, a document that is ready.
+///
+/// For the changes a person waits on and cannot see happen from where VoiceOver's focus is.
+/// Used sparingly: everything announced interrupts whatever was being read.
+///
+/// UIKit's post, which every iOS release has, rather than SwiftUI's `AccessibilityNotification`:
+/// the same announcement, and one less API this layer has to take on trust until CI compiles it.
+@MainActor
+enum VoiceOver {
+    static func announce(_ message: String) {
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        UIAccessibility.post(notification: .announcement, argument: trimmed)
     }
 }

@@ -66,6 +66,27 @@ final class AccountUsageTests: XCTestCase {
         XCTAssertFalse(meter.isIncluded)
         XCTAssertEqual(meter.summary, "Not included")
         XCTAssertNil(meter.fraction)
+        XCTAssertNil(meter.statusLabel, "nothing to run out of")
+    }
+
+    /// A meter's state is said in words as well as drawn in colour, so it reaches VoiceOver and
+    /// anyone who cannot tell the red from the amber — and only when there is something to say.
+    func testAMetersStateIsSaidInWords() throws {
+        let usage = try decode(Self.metered)
+        XCTAssertEqual(meter(usage, .questions)?.statusLabel, "Running low", "812 of 1,000")
+        XCTAssertEqual(meter(usage, .deepThinking)?.statusLabel, "Used up", "150 of 150")
+        XCTAssertNil(meter(usage, .scannedPages)?.statusLabel, "120 of 6,000 is not worth a word")
+        XCTAssertNil(meter(usage, .documents)?.statusLabel, "no limit, so nothing to run low on")
+
+        // The edges: four-fifths is low, one short of the limit is still only low, and past the
+        // limit — a server that let one through — is used up, never something odder.
+        XCTAssertNil(AccountUsage.Meter(kind: .questions, used: 799, limit: 1000).statusLabel)
+        XCTAssertEqual(
+            AccountUsage.Meter(kind: .questions, used: 800, limit: 1000).statusLabel, "Running low")
+        XCTAssertEqual(
+            AccountUsage.Meter(kind: .questions, used: 999, limit: 1000).statusLabel, "Running low")
+        XCTAssertEqual(
+            AccountUsage.Meter(kind: .questions, used: 1001, limit: 1000).statusLabel, "Used up")
     }
 
     /// A field the route stops sending must not cost the screen.

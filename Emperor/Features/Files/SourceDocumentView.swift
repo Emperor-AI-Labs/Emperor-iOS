@@ -109,6 +109,8 @@ struct SourceDocumentView: View {
             // Scanned exhibits are frequently filed as images rather than PDFs.
             ScrollView([.horizontal, .vertical]) {
                 Image(uiImage: image).resizable().scaledToFit()
+                    // Otherwise announced only as "image".
+                    .accessibilityLabel("Scanned page, \(model.displayName)")
             }
         } else if let text = model.textContents {
             ScrollView {

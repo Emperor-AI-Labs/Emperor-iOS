@@ -67,12 +67,16 @@ struct RoleWelcomeView: View {
                 // "Skip for now", said as such.
                 .disabled(chosen == nil)
 
-                Button(RoleWelcome.skipLabel) {
+                Button {
                     onFinish(nil)
+                } label: {
+                    Text(RoleWelcome.skipLabel)
+                        .font(.brand(.subheadline))
+                        .foregroundStyle(theme.textSecondary)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                 }
-                .font(.brand(.subheadline))
-                .foregroundStyle(theme.textSecondary)
-                .padding(.vertical, 8)
+                .padding(.vertical, 2)
             }
             .frame(maxWidth: 560)
             .padding(.horizontal, Spacing.xxl)
@@ -106,7 +110,10 @@ struct RoleWelcomeView: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityHint(isSelected ? "Selected" : "Choose this role")
+        // The choice as a trait — VoiceOver says "Selected" in its own voice, and a test can ask
+        // `isSelected` — rather than as a hint, which is read last and only after a pause.
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .accessibilityHint(isSelected ? "" : "Choose this role")
         .accessibilityIdentifier("role-\(role.rawValue)")
     }
 }

@@ -139,12 +139,12 @@ struct NotificationsView: View {
                               ? Font.brand(.subheadline)
                               : Font.brand(.subheadline, weight: .semibold))
                         .foregroundStyle(theme.textPrimary)
-                        .lineLimit(2)
+                        .dynamicLineLimit(2)
                     if let body = notification.body, !body.isEmpty {
                         Text(body)
                             .font(.brand(.caption))
                             .foregroundStyle(theme.textSecondary)
-                            .lineLimit(3)
+                            .dynamicLineLimit(3)
                     }
                     if let created = notification.createdAt {
                         Text(DisplayText.relative(created))

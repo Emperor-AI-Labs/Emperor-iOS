@@ -750,6 +750,7 @@ private struct LibraryScreen: View {
 /// tile also says which folder it is in.
 private struct FolderTileLabel: View {
     @Environment(\.theme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let folder: FolderSummary
     var location: String?
@@ -760,20 +761,26 @@ private struct FolderTileLabel: View {
         VStack(spacing: Spacing.sm + 2) {
             FolderGlyph()
             VStack(spacing: Spacing.xxs + 1) {
-                Text(folder.displayName)
+                let name = Text(folder.displayName)
                     .font(.brand(.subheadline, weight: .semibold))
                     .foregroundStyle(theme.textPrimary)
                     .multilineTextAlignment(.center)
-                    .lineLimit(2, reservesSpace: true)
+                // At the accessibility sizes the grid is one column, so there is no row of tiles
+                // to keep level and the whole name is shown.
+                if dynamicTypeSize.isAccessibilitySize {
+                    name.lineLimit(nil)
+                } else {
+                    name.lineLimit(2, reservesSpace: true)
+                }
                 Text(folder.contentsSummary)
                     .font(.brand(.caption))
                     .foregroundStyle(theme.textSecondary)
-                    .lineLimit(1)
+                    .dynamicLineLimit(1)
                 if let location {
                     Label(location, systemImage: "folder")
                         .font(.brand(.caption2))
                         .foregroundStyle(theme.textTertiary)
-                        .lineLimit(1)
+                        .dynamicLineLimit(1)
                 }
             }
         }
@@ -850,7 +857,7 @@ private struct MoveDocumentSheet: View {
                                         IconTile(systemImage: "folder", hue: .gold, size: .small)
                                         Text(folder.displayName)
                                             .foregroundStyle(theme.textPrimary)
-                                            .lineLimit(1)
+                                            .dynamicLineLimit(1)
                                         Spacer(minLength: 0)
                                     }
                                     .padding(.leading, CGFloat(depth(of: folder)) * 16)

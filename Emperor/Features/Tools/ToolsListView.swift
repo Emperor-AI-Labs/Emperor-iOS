@@ -103,7 +103,7 @@ struct ToolsListView: View {
                     Text(tool.short)
                         .font(.brand(.caption))
                         .foregroundStyle(theme.textSecondary)
-                        .lineLimit(2)
+                        .dynamicLineLimit(2)
                 }
             }
             .padding(.vertical, Spacing.xxs)

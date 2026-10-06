@@ -77,17 +77,21 @@ struct ToolFormView: View {
     private func field(_ field: ToolField) -> some View {
         switch field.type {
         case .text:
-            TextField(field.placeholder ?? field.label, text: binding(field.key))
+            TextField(field.label, text: binding(field.key), prompt: prompt(for: field))
                 .accessibilityLabel(field.label)
 
         case .textarea:
             VStack(alignment: .leading, spacing: Spacing.xs + 2) {
+                // For the eye. The field below carries the same name for VoiceOver, so the label
+                // is not read twice, once as text and once as the field.
                 Text(field.label)
                     .font(.brand(.caption, weight: .medium))
                     .foregroundStyle(theme.textSecondary)
+                    .accessibilityHidden(true)
                 TextField(
-                    field.placeholder ?? field.label,
+                    field.label,
                     text: binding(field.key),
+                    prompt: prompt(for: field),
                     axis: .vertical)
                     // `big` marks the one field a whole record gets pasted into.
                     .lineLimit(field.big ? 6...14 : 2...6)
@@ -105,6 +109,12 @@ struct ToolFormView: View {
                 }
             }
         }
+    }
+
+    /// The field's example, in the palette's tertiary: the system's placeholder grey is too faint
+    /// on a dark card to read.
+    private func prompt(for field: ToolField) -> Text {
+        Text(verbatim: field.placeholder ?? field.label).foregroundStyle(theme.textTertiary)
     }
 
     private func binding(_ key: String) -> Binding<String> {

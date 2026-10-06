@@ -172,7 +172,7 @@ struct UploadsInFlightBanner: View {
                             Text("\(DisplayText.fileName(notice.fileName)) wasn't uploaded")
                                 .font(.brand(.caption, weight: .semibold))
                                 .foregroundStyle(theme.textPrimary)
-                                .lineLimit(1)
+                                .dynamicLineLimit(1)
                             Text(notice.message)
                                 .font(.brand(.caption))
                                 .foregroundStyle(theme.textSecondary)
@@ -185,9 +185,13 @@ struct UploadsInFlightBanner: View {
                             Image(systemName: "xmark")
                                 .font(.brand(.caption, weight: .semibold))
                                 .foregroundStyle(theme.textTertiary)
+                                // A small cross, but a full-size target.
+                                .frame(minWidth: 44, minHeight: 44)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Dismiss")
+                        .accessibilityHint("Removes this notice")
                     }
                     .accessibilityElement(children: .contain)
                 }
@@ -197,7 +201,7 @@ struct UploadsInFlightBanner: View {
                         Text("Uploading \(upload.fileName)")
                             .font(.brand(.caption))
                             .foregroundStyle(theme.textSecondary)
-                            .lineLimit(1)
+                            .dynamicLineLimit(1)
                         MeterBar(fraction: upload.progress, color: theme.accent)
                     }
                     .accessibilityElement(children: .ignore)
@@ -214,6 +218,10 @@ struct UploadsInFlightBanner: View {
                             .foregroundStyle(theme.textSecondary)
                         MeterBar(fraction: foregroundProgress, color: theme.accent)
                     }
+                    // The bar is drawn for the eye and hidden; the percentage is said instead.
+                    .accessibilityElement(children: .combine)
+                    .accessibilityValue(
+                        foregroundProgress < 1 ? "\(Int(foregroundProgress * 100)) percent" : "")
                 }
             }
             .padding(.horizontal, Spacing.lg)

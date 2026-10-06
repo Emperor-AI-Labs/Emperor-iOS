@@ -135,7 +135,9 @@ struct ComplianceCalendarView: View {
     /// The web's three counts — overdue, next seven days, open — over whatever is filtered.
     private func summaryStrip(_ model: ComplianceCalendarViewModel) -> some View {
         let summary = model.summary
-        return HStack(spacing: Spacing.sm) {
+        // Three abreast, or one under another at the accessibility sizes — a third of the width
+        // holds a large count, but not "Next 7 days" beside it.
+        return AdaptiveStack(spacing: Spacing.sm) {
             countTile(summary.overdue, label: "Overdue", systemImage: "exclamationmark.triangle.fill",
                       color: summary.overdue > 0 ? theme.danger : theme.textTertiary)
             countTile(summary.dueSoon, label: "Next 7 days", systemImage: "clock.fill",
@@ -162,7 +164,7 @@ struct ComplianceCalendarView: View {
             Text(label)
                 .font(.brand(.caption, weight: .medium))
                 .foregroundStyle(theme.textSecondary)
-                .lineLimit(1)
+                .dynamicLineLimit(1)
                 .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -252,7 +254,9 @@ struct ComplianceCalendarView: View {
         -> some View {
         let urgency = model.urgency(of: deadline)
         let done = model.isDone(deadline)
-        return HStack(alignment: .top, spacing: Spacing.md) {
+        // The date leaf beside the words, or above them at the accessibility sizes, where beside
+        // them it would leave the obligation's name a word to a line.
+        return AdaptiveStack(verticalAlignment: .top, spacing: Spacing.md) {
             dateTile(deadline.dueDay, urgency: urgency)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -260,19 +264,21 @@ struct ComplianceCalendarView: View {
                     .font(.brand(.subheadline, weight: .semibold))
                     .foregroundStyle(done ? theme.textSecondary : theme.textPrimary)
                     .strikethrough(done)
-                    .lineLimit(2)
+                    .dynamicLineLimit(2)
 
                 HStack(spacing: 5) {
                     if let category = deadline.category {
+                        // The category is named in the words beside it.
                         Image(systemName: category.systemImage)
+                            .accessibilityHidden(true)
                     }
                     Text(sourceLine(deadline))
-                        .lineLimit(1)
+                        .dynamicLineLimit(1)
                 }
                 .font(.brand(.caption))
                 .foregroundStyle(theme.textSecondary)
 
-                HStack(spacing: 6) {
+                AdaptiveStack(horizontalAlignment: .leading, spacing: 6) {
                     StatusPill(
                         text: urgency.label, tone: tone(urgency.emphasis),
                         systemImage: urgency.isOpenAndPast ? "exclamationmark.triangle" : nil)
@@ -373,13 +379,13 @@ struct ComplianceDeadlineDetailView: View {
 
             Section {
                 if let dueLong = detail.dueLong {
-                    LabeledContent("Next due", value: dueLong)
+                    ValueRow("Next due", value: dueLong)
                 }
                 if let usual = detail.usualSchedule {
-                    LabeledContent("Usual deadline", value: usual)
+                    ValueRow("Usual deadline", value: usual)
                 }
                 if let frequency = detail.frequency {
-                    LabeledContent("Frequency", value: frequency)
+                    ValueRow("Frequency", value: frequency)
                 }
             } header: {
                 SectionHeader(title: "When")
@@ -394,13 +400,13 @@ struct ComplianceDeadlineDetailView: View {
 
             Section {
                 if let regulator = detail.regulator {
-                    LabeledContent("Regulator", value: regulator)
+                    ValueRow("Regulator", value: regulator)
                 }
                 if let category = detail.category {
-                    LabeledContent("Category", value: category.label)
+                    ValueRow("Category", value: category.label)
                 }
                 if let code = detail.code {
-                    LabeledContent("Reference", value: code)
+                    ValueRow("Reference", value: code)
                 }
             } header: {
                 SectionHeader(title: "Who")
@@ -462,6 +468,7 @@ struct ComplianceDeadlineDetailView: View {
                 .font(.brand(.title2, weight: .semibold))
                 .foregroundStyle(theme.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
             HStack(spacing: 6) {
                 StatusPill(text: detail.urgency.label, tone: tone)
                 if detail.differsFromUsualSchedule {

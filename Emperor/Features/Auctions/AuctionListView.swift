@@ -175,13 +175,13 @@ struct AuctionListView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(notice.displayDebtor)
                 .font(.brand(.headline))
-                .lineLimit(2)
+                .dynamicLineLimit(2)
 
             if let assets = notice.natureOfAssets, !assets.isEmpty {
                 Text(assets)
                     .font(.brand(.subheadline))
                     .foregroundStyle(theme.textSecondary)
-                    .lineLimit(2)
+                    .dynamicLineLimit(2)
             }
 
             HStack(spacing: 8) {
@@ -203,8 +203,8 @@ struct AuctionListView: View {
                     Label(DisplayText.longDay(day), systemImage: "calendar")
                 }
                 if let platform = notice.auctionPlatform, !platform.isEmpty {
-                    Text("·")
-                    Text(platform).lineLimit(1)
+                    Text("·").accessibilityHidden(true)
+                    Text(platform).dynamicLineLimit(1)
                 }
             }
             .font(.brand(.caption))

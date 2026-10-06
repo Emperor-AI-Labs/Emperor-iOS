@@ -46,6 +46,18 @@ struct AccountUsage: Equatable, Sendable {
         /// Most of it gone: worth drawing differently before it runs out.
         var isRunningLow: Bool { (fraction ?? 0) >= 0.8 && !isExhausted }
 
+        /// The meter's state in words — "Used up", "Running low" — or `nil` when there is
+        /// nothing to say.
+        ///
+        /// The bar and the figures already change colour, but a colour is not a statement: it
+        /// says nothing to VoiceOver, and little to anyone who cannot tell the danger red from
+        /// the warning amber. So the row also says it.
+        var statusLabel: String? {
+            if isExhausted { return "Used up" }
+            if isRunningLow { return "Running low" }
+            return nil
+        }
+
         var title: String {
             switch kind {
             case .questions: return "Questions"

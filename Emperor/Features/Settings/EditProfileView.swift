@@ -129,6 +129,14 @@ struct EditProfileView: View {
             photoItem = nil
             Task { await readPhoto(item, into: model) }
         }
+        // A failed save, or a photo that could not be used, lands in the form below the control
+        // VoiceOver was on — so it is said as well.
+        .onChange(of: model.saveError) { _, error in
+            if let error { VoiceOver.announce(error) }
+        }
+        .onChange(of: model.photoError) { _, error in
+            if let error { VoiceOver.announce(error) }
+        }
     }
 
     // MARK: - The photo
@@ -141,13 +149,16 @@ struct EditProfileView: View {
                         ProgressView()
                     }
                 }
-            VStack(alignment: .leading, spacing: Spacing.sm) {
+            VStack(alignment: .leading, spacing: 0) {
                 // Borderless, so each answers only its own tap: a list row holding two plain
                 // buttons fires both on one.
+                // Each a line of text to the eye and a 44-point target to the thumb.
                 PhotosPicker(selection: $photoItem, matching: .images) {
                     Text(model.hasPhoto ? "Change photo" : "Add a photo")
                         .font(.brand(.body, weight: .medium))
                         .foregroundStyle(theme.accentText)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
                 .accessibilityIdentifier("profile-photo-pick")
@@ -158,6 +169,8 @@ struct EditProfileView: View {
                         Text("Remove photo")
                             .font(.brand(.subheadline))
                             .foregroundStyle(theme.danger)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.borderless)
                     .accessibilityIdentifier("profile-photo-remove")
@@ -195,7 +208,11 @@ struct EditProfileView: View {
                 .font(.brand(.caption, weight: .medium))
                 .foregroundStyle(theme.textSecondary)
                 .accessibilityHidden(true)
-            TextField(placeholder, text: text)
+            // The example in the palette's tertiary: the system's placeholder grey is about 2.4:1
+            // on a dark card.
+            TextField(
+                label, text: text,
+                prompt: Text(verbatim: placeholder).foregroundStyle(theme.textTertiary))
                 .font(.brand(.body))
                 .foregroundStyle(theme.textPrimary)
                 .textContentType(contentType)

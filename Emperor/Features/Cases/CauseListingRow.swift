@@ -28,7 +28,9 @@ struct CauseListingRow: View {
     }
 
     private func row(_ display: CauseListingDisplay) -> some View {
-        HStack(alignment: .center, spacing: Spacing.md) {
+        // The badge above the words at the accessibility sizes. Beside them, a badge grown for
+        // a large "Item 112" leaves the matter's name a word to a line.
+        AdaptiveStack(spacing: Spacing.md) {
             locationBadge(display)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -44,20 +46,20 @@ struct CauseListingRow: View {
                             .foregroundStyle(theme.accentText)
                     }
                     .font(.brand(.subheadline, weight: .semibold).monospacedDigit())
-                    .lineLimit(1)
+                    .dynamicLineLimit(1)
                 }
 
                 if let forum = display.forum(courtName: listing.courtName) {
                     Text(forum)
                         .font(.brand(.caption2, weight: .semibold))
                         .foregroundStyle(theme.accentText)
-                        .lineLimit(2)
+                        .dynamicLineLimit(2)
                 }
 
                 Text(listing.displayTitle)
                     .font(.brand(.headline))
                     .foregroundStyle(theme.textPrimary)
-                    .lineLimit(2)
+                    .dynamicLineLimit(2)
 
                 // Number, sitting time and counsel — the time only where it has not already led
                 // the row.
@@ -65,14 +67,14 @@ struct CauseListingRow: View {
                     Text(detail)
                         .font(.brand(.caption))
                         .foregroundStyle(theme.textSecondary)
-                        .lineLimit(2)
+                        .dynamicLineLimit(2)
                 }
 
                 if let note = display.note {
                     Text(note)
                         .font(.brand(.caption))
                         .foregroundStyle(theme.textTertiary)
-                        .lineLimit(2)
+                        .dynamicLineLimit(2)
                 }
 
                 if let remarks = listing.remarks {

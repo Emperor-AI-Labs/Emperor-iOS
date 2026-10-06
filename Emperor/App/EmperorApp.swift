@@ -213,7 +213,10 @@ struct RootView: View {
         .environment(\.practice, practice)
         // Dark unless the user has said otherwise — `ThemePreference.default` is `.dark`.
         .preferredColorScheme(theme.colorScheme)
-        .tint(theme.accent)
+        // `accentText`, not `accent`: the tint colours every toolbar button, plain list button
+        // and the selected tab as *text*, and the fill accent is too faint for text on dark
+        // (`PaletteTests.testTheFillAccentIsNotATextColourOnDark`).
+        .tint(theme.accentText)
         .background(theme.canvas.ignoresSafeArea())
         // The app lock, and the cover in the app switcher — over everything, sheets included.
         .appLockShield(theme: theme)

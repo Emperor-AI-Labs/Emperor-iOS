@@ -12,6 +12,7 @@ struct NotificationSettingsView: View {
     @Environment(\.theme) private var theme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var model: NotificationSettingsViewModel?
 
@@ -57,7 +58,17 @@ struct NotificationSettingsView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(theme.canvas)
-        .animation(.default, value: model.isOn)
+        // The reminders' rows slide in when notifications are turned on — or, under Reduce
+        // Motion, are simply there.
+        .animation(reduceMotion ? nil : Animation.default, value: model.isOn)
+        // "Sent", "Saved", "Couldn't reach Emperor": each lands in a section footer, out of
+        // VoiceOver's way, after a tap on a switch or a button somewhere else — so it is said.
+        .onChange(of: model.notice) { _, notice in
+            if let notice { VoiceOver.announce(notice) }
+        }
+        .onChange(of: model.emailNotice) { _, notice in
+            if let notice { VoiceOver.announce(notice) }
+        }
     }
 
     // MARK: - This device

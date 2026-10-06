@@ -38,7 +38,7 @@ struct DuplicateReviewSheet: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(item.fileName)
                                     .font(.brand(.subheadline))
-                                    .lineLimit(1)
+                                    .dynamicLineLimit(1)
                                 if let message = DuplicateCheck.message(
                                     for: item.decision, fileName: item.fileName) {
                                     Text(message)

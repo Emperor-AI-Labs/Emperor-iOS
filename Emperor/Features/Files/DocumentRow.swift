@@ -33,13 +33,13 @@ struct DocumentRowLabel: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(DisplayText.fileName(file.name))
                     .font(.brand(.subheadline, weight: .medium))
-                    .lineLimit(2)
+                    .dynamicLineLimit(2)
                     .foregroundStyle(file.isReadable ? theme.textPrimary : theme.textSecondary)
                 if let location {
                     Label(location, systemImage: "folder")
                         .font(.brand(.caption2))
                         .foregroundStyle(theme.textTertiary)
-                        .lineLimit(1)
+                        .dynamicLineLimit(1)
                 }
                 DocumentStatusLine(file: file, date: date)
             }
@@ -94,11 +94,14 @@ struct DocumentRowLabel: View {
                 systemImage: DocumentKind.symbol(for: file.name),
                 hue: file.isReadable ? DocumentKind.hue(for: file.name) : .graphite)
         case .selection(let isSelected):
+            // For the eye only. The picker's row carries the choice as VoiceOver's own
+            // "Selected" trait (`FileLibraryView`); a label here as well said it twice, and said
+            // "Not selected" on every other row of the list.
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                 .font(.brand(.title3))
                 .foregroundStyle(isSelected ? theme.accentText : theme.textTertiary)
-                .frame(width: 30)
-                .accessibilityLabel(isSelected ? "Selected" : "Not selected")
+                .frame(minWidth: 30)
+                .accessibilityHidden(true)
         }
     }
 }
@@ -129,14 +132,16 @@ struct DocumentStatusLine: View {
             Label(message, systemImage: "clock")
                 .font(.brand(.caption2))
                 .foregroundStyle(theme.textSecondary)
-                .lineLimit(1)
+                .dynamicLineLimit(1)
         case .failed(let reason):
             Label(
                 reason.replacingOccurrences(of: "ERROR: ", with: ""),
                 systemImage: "exclamationmark.triangle")
                 .font(.brand(.caption2))
                 .foregroundStyle(theme.danger)
-                .lineLimit(2)
+                // Why a document failed is the one thing to read on its row, so it is never cut
+                // at the large sizes.
+                .dynamicLineLimit(2)
         }
     }
 
@@ -204,6 +209,10 @@ struct ActionNoticeToast: View {
             .transition(.opacity)
             .onTapGesture { onDismiss() }
             .accessibilityAddTraits(.isStaticText)
+            // It appears away from VoiceOver's focus and is gone in four seconds, so it is said
+            // as it appears — and again when a second notice replaces the first.
+            .onAppear { VoiceOver.announce(notice) }
+            .onChange(of: notice) { _, new in VoiceOver.announce(new) }
             .task(id: notice) {
                 try? await Task.sleep(for: .seconds(4))
                 onDismiss()

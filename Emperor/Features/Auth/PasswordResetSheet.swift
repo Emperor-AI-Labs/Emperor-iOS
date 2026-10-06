@@ -39,7 +39,10 @@ struct PasswordResetSheet: View {
                     .listRowBackground(theme.surface)
                 } else {
                     Section {
-                        TextField("Email", text: $email)
+                        TextField(
+                            "Email", text: $email,
+                            prompt: Text(verbatim: "name@firm.com")
+                                .foregroundStyle(theme.textTertiary))
                             .textContentType(.emailAddress)
                             .keyboardType(.emailAddress)
                             .textInputAutocapitalization(.never)
@@ -84,6 +87,11 @@ struct PasswordResetSheet: View {
                 }
             }
             .onAppear { isFocused = email.isEmpty }
+            // The confirmation replaces the field VoiceOver was on, so it is said, not only drawn.
+            // An error is announced by the sign-in screen beneath, which watches the same flow.
+            .onChange(of: flow.passwordResetSent) { _, sent in
+                if sent { VoiceOver.announce(SignInFlow.passwordResetNotice) }
+            }
         }
     }
 

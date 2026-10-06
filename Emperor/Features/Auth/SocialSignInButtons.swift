@@ -83,7 +83,11 @@ private struct GoogleSignInButton: View {
             }
             .foregroundStyle(theme.textPrimary)
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
+            // At least Apple's button's height, and taller when the text size needs it — a fixed
+            // height would clip the words at the largest sizes. Apple's own button scales its
+            // label inside its frame, so it keeps the fixed one.
+            .padding(.vertical, Spacing.sm)
+            .frame(minHeight: 50)
             .background(theme.surfaceElevated, in: Capsule())
             .overlay(Capsule().strokeBorder(theme.separator, lineWidth: 1))
             .contentShape(Capsule())

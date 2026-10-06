@@ -93,6 +93,6 @@ struct MainTabView: View {
         // tab bar to draw something iOS already draws, and losing the platform's own
         // accessibility and safe-area behaviour with it. The bar's translucent blur over the
         // canvas is what `.ex-mobilenav` asks for anyway, and iOS gives that by default.
-        .tint(theme.accent)
+        .tint(theme.accentText)
     }
 }

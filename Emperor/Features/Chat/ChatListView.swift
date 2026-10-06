@@ -175,11 +175,14 @@ struct ChatListView: View {
     /// reads in, so the eye finds the matter first and the date beside it.
     private func row(for chat: ChatSummary) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+            // The date under the title at the accessibility sizes, where beside it the title
+            // would be cut to a word. Not combined into one element: the tests find a
+            // conversation by its title's text.
+            AdaptiveStack(verticalAlignment: .firstTextBaseline, spacing: Spacing.sm) {
                 Text(chat.displayTitle)
                     .font(.brand(.headline))
                     .foregroundStyle(theme.textPrimary)
-                    .lineLimit(1)
+                    .dynamicLineLimit(1)
                 Spacer(minLength: Spacing.sm)
                 if let updated = chat.updatedAt {
                     Text(updated, format: .relative(presentation: .named))
@@ -193,7 +196,7 @@ struct ChatListView: View {
                 Text(preview)
                     .font(.brand(.subheadline))
                     .foregroundStyle(theme.textSecondary)
-                    .lineLimit(2)
+                    .dynamicLineLimit(2)
             }
         }
         .padding(.vertical, Spacing.xs)

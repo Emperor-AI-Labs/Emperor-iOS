@@ -83,16 +83,23 @@ struct DetailPlaceholder: View {
 /// Drawn here rather than left to the list's own selection highlight, which does not show
 /// through a custom row background, and every row in these lists has one. On a phone nothing is
 /// ever selected, so this is the plain surface the rows always had.
+///
+/// The tint is `Palette.openRowWash`, faint enough that every word and pill on the row stays at
+/// 4.5:1 (`PaletteTests`) — and so faint it would not mark the row by itself, which is what the
+/// bar in the accent at its leading edge is for: a shape, not only a shade.
 struct ListRowCard: View {
     @Environment(\.theme) private var theme
 
     let isSelected: Bool
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .leading) {
             theme.surface
             if isSelected {
-                theme.surfaceAccent
+                Color(theme.palette.openRowWash)
+                Rectangle()
+                    .fill(theme.accent)
+                    .frame(width: 3)
             }
         }
     }

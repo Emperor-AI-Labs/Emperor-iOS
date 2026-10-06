@@ -32,6 +32,7 @@ struct CaseListView: View {
     @Environment(Session.self) private var session
     @Environment(\.navigator) private var navigator
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var model: CaseListViewModel?
     @State private var isSearchingCourts = false
@@ -301,22 +302,27 @@ struct CaseListView: View {
             Text(legalCase.displayTitle)
                 .font(.brand(.headline))
                 .foregroundStyle(theme.textPrimary)
-                .lineLimit(2)
+                .dynamicLineLimit(2)
 
-            HStack(spacing: 6) {
+            // Reference and court on one line, or one over the other at the accessibility sizes,
+            // where one line holds neither.
+            AdaptiveStack(spacing: 6) {
                 if let reference = legalCase.caseReference {
                     Text(reference)
                         .monospacedDigit()
                 }
                 if let court = legalCase.courtName {
-                    Text("·")
-                    Text(court).lineLimit(1)
+                    if !dynamicTypeSize.isAccessibilitySize {
+                        // A separator for the eye; read aloud it is "middle dot".
+                        Text("·").accessibilityHidden(true)
+                    }
+                    Text(court).dynamicLineLimit(1)
                 }
             }
             .font(.brand(.subheadline))
             .foregroundStyle(theme.textSecondary)
 
-            HStack(spacing: Spacing.sm) {
+            AdaptiveStack(spacing: Spacing.sm) {
                 if let hearing = legalCase.nextHearingDate {
                     Label {
                         Text(DisplayText.longDay(WireDate.dayKey(hearing)))
@@ -368,6 +374,7 @@ private struct FilterChipBar: View {
                                 .lineLimit(1)
                             Image(systemName: "xmark")
                                 .imageScale(.small)
+                                .accessibilityHidden(true)
                         }
                         .font(.brand(.footnote, weight: .semibold))
                         .foregroundStyle(theme.accentText)
@@ -375,19 +382,27 @@ private struct FilterChipBar: View {
                         .padding(.vertical, 6)
                         .background(theme.accentWash, in: Capsule())
                         .overlay(Capsule().strokeBorder(theme.accentText.opacity(0.22), lineWidth: 0.5))
-                        .contentShape(Capsule())
+                        // Drawn as a small capsule, answering a touch across the full 44 points.
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Remove filter: \(chip.label)")
                     .accessibilityIdentifier("case-filter-chip-\(chip.id)")
                 }
 
-                Button(CaseListViewModel.Copy.clearAll, action: clearAll)
-                    .font(.brand(.footnote, weight: .semibold))
-                    .foregroundStyle(theme.textSecondary)
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, Spacing.xs)
-                    .accessibilityIdentifier("case-filters-clear-all")
+                // The padding and the 44-point frame inside the label, so the whole of it takes
+                // the tap rather than the words alone.
+                Button(action: clearAll) {
+                    Text(CaseListViewModel.Copy.clearAll)
+                        .font(.brand(.footnote, weight: .semibold))
+                        .foregroundStyle(theme.textSecondary)
+                        .padding(.horizontal, Spacing.xs)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("case-filters-clear-all")
             }
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.sm)

@@ -43,6 +43,8 @@ struct CalendarView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
     @Environment(\.navigator) private var navigator
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var model: CalendarViewModel?
     @State private var isAddingEvent = false
@@ -158,7 +160,9 @@ struct CalendarView: View {
                 .refreshable { await model.load() }
                 // A day opened from outside: back up to the month, the day just below it.
                 .onChange(of: openedDays) { _, _ in
-                    withAnimation { proxy.scrollTo(Self.monthRowID, anchor: .top) }
+                    withAnimation(reduceMotion ? nil : Animation.default) {
+                        proxy.scrollTo(Self.monthRowID, anchor: .top)
+                    }
                 }
             }
         } empty: {
@@ -269,24 +273,36 @@ struct CalendarView: View {
     /// The month's name, as the heading of its own card, with the way back to today and the
     /// two steps beside it — round, as Home's day steps are.
     private func monthHeader(_ model: CalendarViewModel) -> some View {
-        HStack(spacing: Spacing.sm) {
+        // The month over its controls at the accessibility sizes, where beside them its name
+        // would be cut to a word.
+        AdaptiveStack(spacing: Spacing.sm) {
             Text(model.month?.title ?? "")
                 .font(.brand(.headline, weight: .semibold))
                 .foregroundStyle(theme.textPrimary)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: Spacing.sm)
-            // Only once there is somewhere to come back from.
-            if !model.isShowingToday {
-                Button("Today") { model.goToToday() }
-                    .font(.brand(.caption, weight: .semibold))
-                    .foregroundStyle(theme.accentText)
-                    .padding(.horizontal, Spacing.md)
-                    .padding(.vertical, 6)
-                    .background(theme.accentWash, in: Capsule())
+            HStack(spacing: Spacing.sm) {
+                // Only once there is somewhere to come back from. The capsule inside the label,
+                // with a 44-point frame round it, so all of it takes the tap — not the word alone.
+                if !model.isShowingToday {
+                    Button {
+                        model.goToToday()
+                        VoiceOver.announce(model.month?.title ?? "")
+                    } label: {
+                        Text("Today")
+                            .font(.brand(.caption, weight: .semibold))
+                            .foregroundStyle(theme.accentText)
+                            .padding(.horizontal, Spacing.md)
+                            .padding(.vertical, 6)
+                            .background(theme.accentWash, in: Capsule())
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
                     .buttonStyle(.plain)
+                }
+                monthStep("chevron.left", label: "Previous month") { step(model, by: -1) }
+                monthStep("chevron.right", label: "Next month") { step(model, by: 1) }
             }
-            monthStep("chevron.left", label: "Previous month") { model.step(months: -1) }
-            monthStep("chevron.right", label: "Next month") { model.step(months: 1) }
         }
         .textCase(nil)
         .padding(.bottom, Spacing.xs)
@@ -302,10 +318,18 @@ struct CalendarView: View {
                 .frame(width: min(stepSide, 48), height: min(stepSide, 48))
                 .background(theme.surface, in: Circle())
                 .overlay(Circle().strokeBorder(theme.separator, lineWidth: 1))
-                .contentShape(Circle())
+                // The circle is drawn at its size; the target is at least 44 points.
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+    }
+
+    /// The month changes above the control VoiceOver is on, so its name is said as well.
+    private func step(_ model: CalendarViewModel, by months: Int) {
+        model.step(months: months)
+        VoiceOver.announce(model.month?.title ?? "")
     }
 
     private func dayCell(
@@ -340,7 +364,9 @@ struct CalendarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(DisplayText.longDay(day.key))
+        // Today is ringed for the eye; to VoiceOver it is said.
+        .accessibilityLabel(
+            isToday ? "Today, \(DisplayText.longDay(day.key))" : DisplayText.longDay(day.key))
         .accessibilityValue(mark.spoken)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
@@ -423,7 +449,7 @@ struct CalendarView: View {
                     .font(.brand(.title3))
                     .foregroundStyle(event.isDone ? theme.accentText : theme.textTertiary)
                     // A fingertip's worth, though the mark itself is small.
-                    .frame(minWidth: 28, minHeight: 28)
+                    .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -434,18 +460,23 @@ struct CalendarView: View {
                     .font(.brand(.subheadline, weight: .medium))
                     .strikethrough(event.isDone)
                     .foregroundStyle(event.isDone ? theme.textSecondary : theme.textPrimary)
-                    .lineLimit(2)
-                HStack(spacing: 5) {
+                    .dynamicLineLimit(2)
+                // Kind and date one over the other at the accessibility sizes. Not combined into
+                // one element: the tests find an entry by its title's text.
+                AdaptiveStack(spacing: 5) {
                     Label(event.kind.label, systemImage: event.kind.systemImage)
                     if let due = event.dayKey {
-                        Text("·")
+                        if !dynamicTypeSize.isAccessibilitySize {
+                            Text("·").accessibilityHidden(true)
+                        }
                         Text(DisplayText.longDay(due))
                     }
                 }
                 .font(.brand(.caption2))
                 .foregroundStyle(theme.textTertiary)
                 if let notes = event.notes, !notes.isEmpty {
-                    Text(notes).font(.brand(.caption)).foregroundStyle(theme.textSecondary).lineLimit(2)
+                    Text(notes).font(.brand(.caption)).foregroundStyle(theme.textSecondary)
+                        .dynamicLineLimit(2)
                 }
             }
         }

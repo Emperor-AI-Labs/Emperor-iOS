@@ -181,7 +181,9 @@ struct AppLockCoverView: View {
         AppLockCoverContent(lock: lock)
             .environment(\.theme, theme)
             .preferredColorScheme(theme.colorScheme)
-            .tint(theme.accent)
+            // The text accent, as the app's own root uses: the fill accent is under 4.5:1 as
+            // the words of a control on dark.
+            .tint(theme.accentText)
     }
 }
 

@@ -149,6 +149,9 @@ struct CitationStrip: View {
                         .padding(.vertical, 6)
                         .background(theme.surface, in: Capsule())
                         .overlay(Capsule().strokeBorder(theme.separator, lineWidth: 1))
+                        // Drawn as a small capsule, answering a touch across the full 44 points.
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     // Read as one phrase. Separately, VoiceOver announces a filename and a
