@@ -123,6 +123,19 @@ final class ScreenshotTour: XCTestCase {
             }
         }
 
+        // On iPad the docket sits beside the case it opens: a row chosen in it, tinted, with its
+        // case in the column beside.
+        if isPad {
+            let row = app.descendants(matching: .any)
+                .matching(identifier: "case-row-case-hc-delhi").firstMatch
+            if row.waitForExistence(timeout: 5) {
+                row.tap()
+                _ = app.navigationBars["Kapoor Textiles Pvt. Ltd. v. Commissioner of Customs"]
+                    .waitForExistence(timeout: 10)
+                snap("cases-beside-case")
+            }
+        }
+
         // The Calendar opens on today, where the stub lists one matter and one diary entry; the
         // listing then opens its case on the Cases tab, on the overview.
         if app.tab("Calendar").exists {
@@ -134,8 +147,9 @@ final class ScreenshotTour: XCTestCase {
                 listing.tap()
                 let matter = app.navigationBars["Bakshi v. State of Maharashtra"]
                 if matter.waitForExistence(timeout: 10) {
+                    // On iPad, beside the docket, its row tinted — and nothing to back out of.
                     snap("case-overview")
-                    backOut(app)
+                    if !isPad { backOut(app) }
                 }
             }
         }
@@ -157,7 +171,9 @@ final class ScreenshotTour: XCTestCase {
             }
             app.swipeUp()
             snap("conversation-references")
-            backOut(app)
+            // On iPad the conversation is beside the list, which never left: there is no Back,
+            // and the first bar button there is one of the list's own.
+            if !isPad { backOut(app) }
         }
 
         // Everything behind More, each opened and closed from its own Done.
@@ -323,6 +339,10 @@ final class ScreenshotTour: XCTestCase {
     private func tapIfPresent(_ element: XCUIElement) {
         if element.waitForExistence(timeout: 5) { element.tap() }
     }
+
+    /// The iPad lays Cases and Chat out as a list beside what it opens, which changes what there
+    /// is to photograph and what there is to back out of.
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     private func backOut(_ app: XCUIApplication) {
         let back = app.navigationBars.buttons.element(boundBy: 0)

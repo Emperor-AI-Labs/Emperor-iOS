@@ -138,6 +138,9 @@ struct CalendarView: View {
                 systemImage: "calendar",
                 message: "Hearings on your matters, and anything you add here, appear together.")
         }
+        // The conversation's measure on an iPad, so the month is a grid the eye takes in at once
+        // rather than seven columns spread across the display, and a listing reads as one line.
+        .readableColumn()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

@@ -176,6 +176,11 @@ final class EmperorUITests: XCTestCase {
     /// Then the whole way round a second time. The request to open a case is taken once; this is
     /// what notices if it is never cleared (the case would re-open on every visit to Cases) or
     /// never re-armed (the second tap would do nothing).
+    ///
+    /// On iPad the case opens beside the docket rather than over it, so there is no Back to take.
+    /// Another case is chosen in the docket instead — which is also what makes the second request
+    /// visible, since asking for the case already on screen would change nothing to look at — and
+    /// it is that case, not the requested one, that coming back to Cases must find.
     func testACalendarListingOpensItsCaseOnTheCasesTab() {
         let app = signIn(launch())
         XCTAssertTrue(app.tab("Calendar").waitForExistence(timeout: 10))
@@ -204,11 +209,23 @@ final class EmperorUITests: XCTestCase {
                 overview.waitForExistence(timeout: 10),
                 "pass \(pass): the case did not open on its overview")
 
-            // Back lands on the docket, not on whatever Cases showed before.
-            matter.buttons.element(boundBy: 0).tap()
-            XCTAssertTrue(
-                app.navigationBars["Cases"].waitForExistence(timeout: 10),
-                "pass \(pass): back from the case did not land on the docket")
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                // Beside the docket, which never left; then another case, chosen there.
+                XCTAssertTrue(
+                    app.navigationBars["Cases"].exists,
+                    "pass \(pass): the case did not open beside the docket")
+                caseRow(app, "case-hc-delhi").tap()
+                XCTAssertTrue(
+                    app.navigationBars["Kapoor Textiles Pvt. Ltd. v. Commissioner of Customs"]
+                        .waitForExistence(timeout: 10),
+                    "pass \(pass): choosing another case beside the docket did not open it")
+            } else {
+                // Back lands on the docket, not on whatever Cases showed before.
+                matter.buttons.element(boundBy: 0).tap()
+                XCTAssertTrue(
+                    app.navigationBars["Cases"].waitForExistence(timeout: 10),
+                    "pass \(pass): back from the case did not land on the docket")
+            }
 
             app.tab("Calendar").tap()
             XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
@@ -1161,10 +1178,15 @@ final class EmperorUITests: XCTestCase {
 
     /// Scrolls the docket by about a third of the screen, slowly and without a fling, so no
     /// heading can pass from below the screen to above it between two looks.
+    ///
+    /// On iPad the drag is made inside the docket's own list: the middle of the window is in the
+    /// column beside it, where the case opens, and a drag there scrolls nothing in the docket.
     private func nudgeUp(_ app: XCUIApplication) {
-        let window = app.windows.firstMatch
-        let from = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
-        let to = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
+        let docket = app.collectionViews["case-docket"]
+        let surface = UIDevice.current.userInterfaceIdiom == .pad && docket.exists
+            ? docket : app.windows.firstMatch
+        let from = surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+        let to = surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
         from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 0.2)
     }
 
@@ -1285,5 +1307,129 @@ final class EmperorUITests: XCTestCase {
             polls += 1
         }
         XCTAssertEqual(toggle.value as? String, value, "the switch did not turn")
+    }
+
+    // MARK: - iPad layouts
+
+    /// On iPad the docket stays on screen beside the case it opens. Before anything is chosen the
+    /// case's column says what it is for; a row opens its case there, beside the docket and
+    /// marked as the open one; and choosing another row **replaces** the case — the first is
+    /// gone, not pushed under the second.
+    ///
+    /// `/case` answers each docket matter as itself (`UITestSupport.Fixtures.itemBody`), so the
+    /// second case reads differently from the first.
+    func testOnIPadTheDocketStaysBesideTheCaseItOpens() throws {
+        let isPad = UIDevice.current.userInterfaceIdiom == .pad
+        try XCTSkipUnless(isPad, "the docket beside its case is iPad's layout")
+        let app = signIn(launch())
+        openCases(app)
+
+        XCTAssertTrue(
+            app.staticTexts["Choose a case"].waitForExistence(timeout: 10),
+            "with nothing chosen, the case's column does not say what it is for")
+
+        let bakshi = caseRow(app, "case1")
+        let kapoor = caseRow(app, "case-hc-delhi")
+        XCTAssertTrue(bakshi.waitForExistence(timeout: 10), "the docket is not listed")
+        bakshi.tap()
+
+        let bakshiBar = app.navigationBars["Bakshi v. State of Maharashtra"]
+        XCTAssertTrue(bakshiBar.waitForExistence(timeout: 10), "the case did not open")
+        let overview = app.staticTexts.matching(
+            NSPredicate(format: "label ==[c] %@", "Overview")).firstMatch
+        XCTAssertTrue(overview.waitForExistence(timeout: 10), "the case did not open on its overview")
+
+        // Both on screen at once: the docket — its title, its search, its other matters — and,
+        // to the right of it, the case.
+        XCTAssertTrue(app.navigationBars["Cases"].exists, "the docket left the screen")
+        XCTAssertTrue(app.searchFields["Search your cases"].exists, "the docket's search left the screen")
+        XCTAssertTrue(kapoor.exists, "the rest of the docket left the screen")
+        XCTAssertLessThanOrEqual(
+            bakshi.frame.maxX, overview.frame.minX,
+            "the docket and the case are not side by side")
+        XCTAssertFalse(app.staticTexts["Choose a case"].exists, "the placeholder outlived the choice")
+        XCTAssertTrue(becomesSelected(bakshi), "the open case's row is not marked as open")
+
+        kapoor.tap()
+        XCTAssertTrue(
+            app.navigationBars["Kapoor Textiles Pvt. Ltd. v. Commissioner of Customs"]
+                .waitForExistence(timeout: 10),
+            "choosing another case did not open it")
+        XCTAssertTrue(
+            disappears(bakshiBar),
+            "the first case is still on screen — the second was pushed over it, not put in its place")
+        XCTAssertTrue(becomesSelected(kapoor), "the newly open case's row is not marked")
+        XCTAssertFalse(bakshi.isSelected, "two rows are marked as open at once")
+        XCTAssertTrue(app.navigationBars["Cases"].exists, "the docket left the screen")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    /// The same for Chat: a conversation opens beside the list, another replaces it, and a new
+    /// one opens in that same column with the list still there and no row marked — a new
+    /// conversation is in no row until its first turn is stored.
+    ///
+    /// `c2` answers `/messages` with an exchange of its own; `c1`'s carries the work log.
+    func testOnIPadAConversationOpensBesideTheList() throws {
+        let isPad = UIDevice.current.userInterfaceIdiom == .pad
+        try XCTSkipUnless(isPad, "the list beside its conversation is iPad's layout")
+        let app = signIn(launch())
+        XCTAssertTrue(app.tab("Chat").waitForExistence(timeout: 10))
+        app.tab("Chat").tap()
+        XCTAssertTrue(app.navigationBars["Emperor"].waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            app.staticTexts["Choose a conversation"].waitForExistence(timeout: 10),
+            "with nothing chosen, the conversation's column does not say what it is for")
+
+        let first = chatRow(app, "c1")
+        let second = chatRow(app, "c2")
+        XCTAssertTrue(first.waitForExistence(timeout: 10), "the conversations are not listed")
+        first.tap()
+
+        let worked = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch
+        XCTAssertTrue(worked.waitForExistence(timeout: 10), "the conversation did not open")
+        XCTAssertTrue(app.navigationBars["Emperor"].exists, "the list left the screen")
+        XCTAssertTrue(second.exists, "the rest of the list left the screen")
+        XCTAssertLessThanOrEqual(
+            first.frame.maxX, worked.frame.minX,
+            "the list and the conversation are not side by side")
+        XCTAssertTrue(becomesSelected(first), "the open conversation's row is not marked as open")
+
+        second.tap()
+        let secondQuestion = app.staticTexts[
+            "Can the Customs order in Kapoor Textiles be stayed pending the writ?"]
+        XCTAssertTrue(
+            secondQuestion.waitForExistence(timeout: 10),
+            "choosing another conversation did not open it")
+        XCTAssertTrue(
+            disappears(worked),
+            "the first conversation is still on screen — the second was pushed over it")
+        XCTAssertTrue(becomesSelected(second), "the newly open conversation's row is not marked")
+        XCTAssertFalse(first.isSelected, "two rows are marked as open at once")
+
+        // A new conversation, from the list's own button, takes the same column.
+        app.buttons["New chat"].firstMatch.tap()
+        XCTAssertTrue(
+            disappears(secondQuestion), "a new conversation did not take the open one's place")
+        XCTAssertTrue(app.navigationBars["Conversation"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Emperor"].exists, "the list left the screen")
+        XCTAssertFalse(second.isSelected, "a row is still marked for a conversation no longer open")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    /// A conversation in the list, by its id.
+    private func chatRow(_ app: XCUIApplication, _ id: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: "chat-row-\(id)").firstMatch
+    }
+
+    /// Waits for an element to leave the screen — a replaced column is taken down over an
+    /// animation, not at once. Polled, as `becomesSelected` is.
+    private func disappears(_ element: XCUIElement) -> Bool {
+        var polls = 0
+        while element.exists && polls < 40 {
+            Thread.sleep(forTimeInterval: 0.25)
+            polls += 1
+        }
+        return !element.exists
     }
 }

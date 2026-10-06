@@ -164,25 +164,35 @@ struct MoreView: View {
             .background(theme.canvas)
             .navigationTitle("More")
             .sheet(item: $destination) { chosen in
-                switch chosen {
-                case .myFiles: MyFilesView()
-                case .deck: RoleHomeView()
-                case .corporateCalendar: ComplianceCalendarView()
-                case .library: LibraryView()
-                // Read-only while the feature is trialled on the web — no matter can be created
-                // or edited from here. See `ProjectService`.
-                case .projects: ProjectListView()
-                case .tools: ToolsListView()
-                case .fileTools: PDFToolsView()
-                // One screen with an OCR | Translate switch at its head; each row opens it in its
-                // own mode. The web has the one row, "OCR & Translate" (`Sidebar.jsx:289`); here
-                // each is an option of its own, at the product owner's request.
-                case .ocr: OCRView(mode: .ocr)
-                case .translate: OCRView(mode: .translate)
-                case .eAuctions: AuctionListView()
-                case .settings: SettingsView()
-                }
+                // Every destination at the size of a page on iPad, set once here. Each is a whole
+                // screen of its own — a library, a tool, a form that pushes further forms — and
+                // the form sheet iPad gives a sheet by default held each to a small panel with
+                // most of it scrolled out of sight. A phone shows them as it always has.
+                screen(for: chosen)
+                    .pageSizedSheet()
             }
+        }
+    }
+
+    @ViewBuilder
+    private func screen(for destination: Destination) -> some View {
+        switch destination {
+        case .myFiles: MyFilesView()
+        case .deck: RoleHomeView()
+        case .corporateCalendar: ComplianceCalendarView()
+        case .library: LibraryView()
+        // Read-only while the feature is trialled on the web — no matter can be created
+        // or edited from here. See `ProjectService`.
+        case .projects: ProjectListView()
+        case .tools: ToolsListView()
+        case .fileTools: PDFToolsView()
+        // One screen with an OCR | Translate switch at its head; each row opens it in its
+        // own mode. The web has the one row, "OCR & Translate" (`Sidebar.jsx:289`); here
+        // each is an option of its own, at the product owner's request.
+        case .ocr: OCRView(mode: .ocr)
+        case .translate: OCRView(mode: .translate)
+        case .eAuctions: AuctionListView()
+        case .settings: SettingsView()
         }
     }
 

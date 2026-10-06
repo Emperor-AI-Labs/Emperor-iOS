@@ -56,7 +56,7 @@ enum UITestSupport {
 
         override func startLoading() {
             let path = request.url?.path.replacingOccurrences(of: "/api", with: "") ?? ""
-            let body = Fixtures.body(for: path)
+            let body = Fixtures.itemBody(for: request.url) ?? Fixtures.body(for: path)
             let response = HTTPURLResponse(
                 url: request.url!, statusCode: 200,
                 httpVersion: "HTTP/1.1",
@@ -98,8 +98,10 @@ enum UITestSupport {
             // to draw — including one running low and one used up.
             case "/billing/entitlements":
                 return #"{"success":true,"signedIn":true,"planLabel":"Essential","expired":false,"metered":true,"limits":{"matters":-1,"storageGb":10,"documents":-1,"scannedPages":6000,"chatQueries":1000,"deepThinkingQueries":150},"usage":{"resetsAt":"2026-10-31T18:30:00.000Z","chatQueries":812,"deepThinkingQueries":150,"scannedPages":120,"documents":44,"matters":7,"storageUsedBytes":2400000000,"storageAllowanceBytes":10000000000}}"#
+            // Two, so the iPad's list beside its conversation has another row to choose; `c2`
+            // answers `/messages` with an exchange of its own (`itemBody`).
             case "/chats":
-                return #"{"success":true,"chats":[{"id":"c1","title":"Bakshi v. State"}]}"#
+                return #"{"success":true,"chats":[{"id":"c1","title":"Bakshi v. State"},{"id":"c2","title":"Kapoor Textiles — stay"}]}"#
             // One stored exchange shaped like a real answer — headings, a numbered list, a
             // table, a quotation, numbered citations and a References section — so the
             // screenshot tour shows the answer renderer and the citation badges doing their job.
@@ -334,6 +336,49 @@ enum UITestSupport {
                 return #"{"asked":true,"optedIn":\#(on),"pushCount":0,"systemEnabled":true,"notifTime":"08:00"}"#
             }
         }
+
+        // MARK: - Answers that depend on which item was asked for
+
+        /// The answer for one item of a route that is otherwise answered the same for every id —
+        /// or `nil`, and `body(for:)` answers as it always has.
+        ///
+        /// For the iPad's list beside its detail: a test can only tell the detail column was
+        /// replaced when the second item it opens reads differently from the first. So `/case`
+        /// answers each docket matter as itself (`case1` keeps the answer above), and `/messages`
+        /// answers `c2` with an exchange of its own. Every other id, including a conversation
+        /// started in the test, gets exactly what it got before.
+        static func itemBody(for url: URL?) -> String? {
+            guard !isEmpty, let url,
+                  let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+            else { return nil }
+            func value(_ name: String) -> String? { query.first { $0.name == name }?.value }
+            switch url.path.replacingOccurrences(of: "/api", with: "") {
+            case "/case":
+                guard let id = value("id"), id != "case1" else { return nil }
+                return docketCaseBody(id: id)
+            case "/messages":
+                guard value("chatId") == "c2" else { return nil }
+                return secondConversationBody
+            default:
+                return nil
+            }
+        }
+
+        /// One matter of `docketBody`, as `/case` sends a matter: the same object, under `case`.
+        /// Read out of the docket rather than written twice, so the row and its screen agree.
+        private static func docketCaseBody(id: String) -> String? {
+            guard let list = try? JSONSerialization.jsonObject(
+                      with: Data("[\(docketBody())]".utf8)) as? [[String: Any]],
+                  let match = list.first(where: { $0["id"] as? String == id }),
+                  let data = try? JSONSerialization.data(withJSONObject: match),
+                  let object = String(data: data, encoding: .utf8)
+            else { return nil }
+            return #"{"success":true,"case":"# + object + #","events":[],"items":[]}"#
+        }
+
+        /// A second conversation, short and plain — no work log, no table — so it cannot be
+        /// mistaken for the first.
+        private static let secondConversationBody = ###"{"success":true,"messages":[{"id":"k1","role":"user","content":"Can the Customs order in Kapoor Textiles be stayed pending the writ?"},{"id":"k2","role":"assistant","content":"## Stay pending the writ\n\nThe High Court may stay the order where a strong prima facie case, the balance of convenience and irreparable injury are shown together. Offer a deposit of part of the duty demanded; it is the usual condition of an interim stay."}]}"###
 
         /// `nil` means "this route has no distinct empty shape", so the normal body is used.
         private static func emptyBody(for path: String) -> String? {

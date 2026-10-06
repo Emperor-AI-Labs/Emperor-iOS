@@ -97,7 +97,9 @@ struct CaseDetailView: View {
             }
         }
         .sheet(item: $bindable.openDocument) { document in
+            // A page on iPad: an order is a page to read, and a form sheet shrank it to a panel.
             OrderDocumentView(document: document)
+                .pageSizedSheet()
         }
         .alert("Could not save", isPresented: Binding(
             get: { model.writeError != nil },

@@ -75,14 +75,22 @@ struct CauseListView: View {
                 emptyState(model)
             }
         }
+        // One day's hearings are a short list read top to bottom. On an iPad it ran the width
+        // of the screen — the case at one edge, its chevron at the other, the day's steps a
+        // reach away from the day they change — so it keeps the conversation's measure there.
+        .readableColumn()
+        // Pages on iPad, as the same screens are when opened from More.
         .sheet(isPresented: $isShowingSettings) {
             SettingsView()
+                .pageSizedSheet()
         }
         .sheet(isPresented: $isDigitising) {
             OCRView()
+                .pageSizedSheet()
         }
         .sheet(isPresented: $isShowingUpdates) {
             NotificationsView()
+                .pageSizedSheet()
         }
         .task {
             // The badge only. The feed itself is fetched when the sheet opens — this is one row.

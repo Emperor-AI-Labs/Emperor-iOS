@@ -18,10 +18,20 @@ import SwiftUI
 /// and this takes it when it appears or when the request arrives while it is already on screen.
 /// Taking clears it, so it is applied once. The case opens on a fresh `CaseDetailView`, whose
 /// overview leads the screen.
+///
+/// ## On an iPad
+///
+/// At a regular width the docket is a column of its own and the case opens beside it
+/// (`ListBesideDetail`), the chosen row tinted; choosing another row replaces the case rather than
+/// pushing over it. The docket is the same screen — search, chips, sort & filter, Add case — and
+/// so is the case. Both layouts read the one `path`: a phone pushes it, the iPad shows its last
+/// element. So a request from the Calendar opens the case on either by replacing the path, and
+/// what was open survives the screen changing width. A phone never draws the split.
 struct CaseListView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
     @Environment(\.navigator) private var navigator
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var model: CaseListViewModel?
     @State private var isSearchingCourts = false
@@ -31,46 +41,85 @@ struct CaseListView: View {
     private typealias Copy = CaseListViewModel.Copy
 
     var body: some View {
-        NavigationStack(path: $path) {
-            Group {
-                if let model {
-                    content(model)
-                } else {
-                    ProgressView()
-                }
-            }
-            .navigationTitle(Copy.title)
-            .toolbar {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    if let model {
-                        arrangeButton(model)
+        Group {
+            if isBesideDetail {
+                ListBesideDetail(detailID: path.last) {
+                    docketScreen
+                } detail: {
+                    if let route = path.last {
+                        CaseDetailView(caseID: route.caseID)
+                    } else {
+                        DetailPlaceholder(placeholder: ListDetailPath.placeholder(
+                            ListDetailPath.chooseCase, beside: model?.presentation))
                     }
-                    addCaseButton
                 }
-            }
-            .sheet(isPresented: $isSearchingCourts) {
-                CourtSearchView { Task { await model?.load() } }
-            }
-            .sheet(isPresented: $isArranging) {
-                if let model {
-                    CaseArrangementSheet(model: model)
+            } else {
+                NavigationStack(path: $path) {
+                    docketScreen
+                        .navigationDestination(for: CaseRoute.self) { route in
+                            CaseDetailView(caseID: route.caseID)
+                        }
                 }
-            }
-            .navigationDestination(for: CaseRoute.self) { route in
-                CaseDetailView(caseID: route.caseID)
-            }
-            .task {
-                guard model == nil else { return }
-                let created = CaseListViewModel(
-                    service: session.cases, cache: session.cache, store: Self.preferences)
-                model = created
-                await created.load()
             }
         }
         // Both, because either can be first: a tab never shown before is created by the switch
         // the request causes, and one already alive sees the request change instead.
         .onAppear { openRequestedCase() }
         .onChange(of: navigator.pendingCase) { _, _ in openRequestedCase() }
+    }
+
+    /// The docket in a column of its own, with the case beside it — a regular-width screen.
+    private var isBesideDetail: Bool { sizeClass == .regular }
+
+    /// The docket itself, the same in both layouts: its title, toolbar, sheets and model.
+    private var docketScreen: some View {
+        Group {
+            if let model {
+                content(model)
+            } else {
+                ProgressView()
+            }
+        }
+        .navigationTitle(Copy.title)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                if let model {
+                    arrangeButton(model)
+                }
+                addCaseButton
+            }
+        }
+        // A page on iPad, not a form sheet: the lookup pushes a forty-eight-court picker, and
+        // sort & filter is twenty-odd choices — both were a small panel with most of it below
+        // the fold.
+        .sheet(isPresented: $isSearchingCourts) {
+            CourtSearchView { Task { await model?.load() } }
+                .pageSizedSheet()
+        }
+        .sheet(isPresented: $isArranging) {
+            if let model {
+                CaseArrangementSheet(model: model)
+                    .pageSizedSheet()
+            }
+        }
+        .task {
+            guard model == nil else { return }
+            let created = CaseListViewModel(
+                service: session.cases, cache: session.cache, store: Self.preferences)
+            model = created
+            await created.load()
+        }
+    }
+
+    /// The case open beside the docket, as the list's selection. Choosing a row replaces it;
+    /// choosing the row already open leaves it be — `ListDetailPath` has the rules.
+    private var selectedCaseID: Binding<String?> {
+        Binding(
+            get: { ListDetailPath.selection(in: path, id: { $0.caseID }) },
+            set: { chosen in
+                path = ListDetailPath.selecting(
+                    chosen, in: path, id: { $0.caseID }, route: { CaseRoute(caseID: $0) })
+            })
     }
 
     private func openRequestedCase() {
@@ -174,43 +223,77 @@ struct CaseListView: View {
         .refreshable { await model.load() }
     }
 
+    /// The list, bound to the open case on an iPad. Not on a phone, where a row pushes and the
+    /// list has no selection to show.
     private func docket(_ model: CaseListViewModel) -> some View {
-        List {
-            // The active filters, as the list's first row. Not a `safeAreaInset` above the list:
-            // on iOS 26 the navigation bar's scroll-edge effect covers that band, and the chips
-            // were laid out — leaving their gap — but never seen. In the list they scroll away
-            // with it; the filled toolbar icon still says a filter is on.
-            if !model.filterChips.isEmpty {
-                Section {
-                    FilterChipBar(
-                        chips: model.filterChips,
-                        remove: { model.remove($0) },
-                        clearAll: { model.clearFilters() })
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+        Group {
+            if isBesideDetail {
+                List(selection: selectedCaseID) {
+                    docketSections(model)
                 }
-            }
-            ForEach(model.groups) { group in
-                Section {
-                    ForEach(group.cases) { legalCase in
-                        NavigationLink(value: CaseRoute(caseID: legalCase.id)) {
-                            row(legalCase)
-                        }
-                        .accessibilityIdentifier("case-row-\(legalCase.id)")
-                    }
-                } header: {
-                    // Named by key, not by its words: "Supreme Court" is also the start of a
-                    // court's name on a row, and the order test reads headings alone.
-                    SectionHeader(title: group.title, detail: "\(group.cases.count)")
-                        .accessibilityIdentifier("case-group-\(group.key)")
+            } else {
+                List {
+                    docketSections(model)
                 }
-                .listRowBackground(theme.surface)
             }
         }
+        // Named so a UI test on iPad can scroll the docket itself; the middle of that screen is
+        // the case's column.
+        .accessibilityIdentifier("case-docket")
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(theme.canvas)
+    }
+
+    @ViewBuilder
+    private func docketSections(_ model: CaseListViewModel) -> some View {
+        // The active filters, as the list's first row. Not a `safeAreaInset` above the list:
+        // on iOS 26 the navigation bar's scroll-edge effect covers that band, and the chips
+        // were laid out — leaving their gap — but never seen. In the list they scroll away
+        // with it; the filled toolbar icon still says a filter is on.
+        if !model.filterChips.isEmpty {
+            Section {
+                FilterChipBar(
+                    chips: model.filterChips,
+                    remove: { model.remove($0) },
+                    clearAll: { model.clearFilters() })
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+        }
+        ForEach(model.groups) { group in
+            Section {
+                ForEach(group.cases) { legalCase in
+                    let isOpen = isBesideDetail && path.last?.caseID == legalCase.id
+                    caseLink(legalCase)
+                        .accessibilityIdentifier("case-row-\(legalCase.id)")
+                        .accessibilityAddTraits(isOpen ? .isSelected : [])
+                        // On the row rather than the section, so the open case's can differ.
+                        .listRowBackground(ListRowCard(isSelected: isOpen))
+                }
+            } header: {
+                // Named by key, not by its words: "Supreme Court" is also the start of a
+                // court's name on a row, and the order test reads headings alone.
+                SectionHeader(title: group.title, detail: "\(group.cases.count)")
+                    .accessibilityIdentifier("case-group-\(group.key)")
+            }
+        }
+    }
+
+    /// A phone pushes the case's route. Beside the detail the link carries the case's id instead,
+    /// which the list takes as its selection rather than pushing anything.
+    @ViewBuilder
+    private func caseLink(_ legalCase: LegalCase) -> some View {
+        if isBesideDetail {
+            NavigationLink(value: legalCase.id) {
+                row(legalCase)
+            }
+        } else {
+            NavigationLink(value: CaseRoute(caseID: legalCase.id)) {
+                row(legalCase)
+            }
+        }
     }
 
     private func row(_ legalCase: LegalCase) -> some View {

@@ -4,6 +4,7 @@ struct ChatThreadView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
     @Environment(\.practice) private var practice
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var model: ChatViewModel?
     /// Owns the composer's text as well as the rewrite over it — see the type's own note on
@@ -43,6 +44,14 @@ struct ChatThreadView: View {
     /// Absent where there is nothing sensible to replace: a tool form pushes a thread of its
     /// own with no conversation list behind it, and the button is simply not offered there.
     var onStartNewChat: (() -> Void)?
+
+    /// Told when an answer has finished arriving.
+    ///
+    /// For the list beside this conversation on an iPad. A new conversation exists server-side
+    /// only once its first turn is stored, so without this the list next to it never showed it,
+    /// and a conversation already listed kept its old preview and place. On a phone the list is
+    /// not on screen, and nothing is passed.
+    var onTurnFinished: (() -> Void)?
 
     var body: some View {
         Group {
@@ -183,8 +192,9 @@ struct ChatThreadView: View {
                     .padding(.horizontal, Spacing.lg)
                     .padding(.vertical, Spacing.lg)
                     // A readable measure on an iPad or a phone held sideways: an answer set the
-                    // full width of a 13-inch screen is a line nobody can follow back.
-                    .frame(maxWidth: 760)
+                    // full width of a 13-inch screen is a line nobody can follow back. On an
+                    // iPad the composer below keeps the same measure, so the two line up.
+                    .frame(maxWidth: ReadableWidth.measure)
                     .frame(maxWidth: .infinity)
                 }
                 .onChange(of: model.live?.prose) { scrollToBottom(proxy, model) }
@@ -265,6 +275,9 @@ struct ChatThreadView: View {
             Button("OK") { model.citationError = nil }
         } message: {
             Text(model.citationError ?? "")
+        }
+        .onChange(of: model.isStreaming) { _, isStreaming in
+            if !isStreaming { onTurnFinished?() }
         }
     }
 
@@ -586,6 +599,13 @@ struct ChatThreadView: View {
             .padding(.top, Spacing.xs)
             .padding(.bottom, Spacing.sm)
         }
+        // The conversation's measure, centred, so on an iPad the switch, the documents and the
+        // field sit under the answer they belong to rather than running the width of the screen
+        // — the send button a hand's span from the last line read. The bar behind them, and its
+        // hairline, still span the screen. At a regular width only: a phone's composer is as it
+        // was, held sideways too.
+        .frame(maxWidth: ReadableWidth.cap(for: sizeClass))
+        .frame(maxWidth: .infinity)
         .padding(.top, Spacing.sm)
         .background(theme.canvas)
         .overlay(alignment: .top) {
