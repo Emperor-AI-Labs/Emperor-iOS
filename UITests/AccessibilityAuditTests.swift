@@ -445,10 +445,8 @@ final class AccessibilityAuditTests: XCTestCase {
     /// A drag that holds before it lets go leaves nothing to coast, and the header's place is
     /// read until it stops changing.
     ///
-    /// Then no row is left straddling the bar's lower edge: a row half under the bar is neither
-    /// on screen nor off it, and the audit reads it as neither. Such a row is moved up until it is
-    /// wholly behind the bar. Where the list ends first — the last sections of Settings on a
-    /// phone — the header stays where the end of the list leaves it.
+    /// Then no text is left across an edge (`settleClearOfEdges`). Where the list ends first — the
+    /// last sections of Settings on a phone — the header stays where the end of the list leaves it.
     ///
     /// - Returns: `nil` once the header is in place; otherwise what stopped it, for the failure.
     private func bringUnderTheBar(
@@ -483,18 +481,75 @@ final class AccessibilityAuditTests: XCTestCase {
             if let after = top(of: header), abs(after - before) < 2 { break }
         }
 
-        let straddling = rowFrames(onScreenTitled: title, in: app).first { row in
-            row.minX >= bar.minX - 1 && row.maxX <= bar.maxX + 1
-                && row.minY < bar.maxY - 1 && row.maxY > bar.maxY + 1
-        }
-        if let straddling {
-            drag(app, by: -(straddling.maxY - bar.maxY + 2), along: track)
+        settleClearOfEdges(onScreenTitled: title, watching: header, along: track, in: app)
+        // The bar as it is now: a large title folds into the bar as the list moves under it.
+        let barNow = sheet.frame
+        guard let settled = top(of: header) else { return "its header went while it was moved" }
+        return settled >= barNow.minY - 1
+            ? nil
+            : String(format: "its header ended at %.0f, above the bar at %.0f", settled, barNow.minY)
+    }
+
+    /// Moves a list until no text in it lies across an edge: the top of the list, the top or the
+    /// foot of the bar over it, or the foot of the list or screen.
+    ///
+    /// A text across an edge is neither on screen nor off it, and the audit reads it as neither —
+    /// as text cut short, or as text that does not grow — and names no element for it. CI's
+    /// reports of where texts sat against the edges showed every such finding beside one: "View
+    /// plans" across the top of a Settings sheet, "Monthly allowances renew…" across its bar's
+    /// foot. A text wholly behind the bar, or wholly scrolled away, is not one of them.
+    ///
+    /// Measured afresh each time, because the bar changes as a large title folds into it; and a
+    /// few times at most, because each move can bring new text in at the foot.
+    private func settleClearOfEdges(
+        onScreenTitled title: String, watching header: XCUIElement, along track: DragTrack,
+        in app: XCUIApplication
+    ) {
+        for _ in 0..<4 {
+            guard let geometry = listGeometry(onScreenTitled: title, in: app),
+                  let shift = geometry.shiftClearOfEdges()
+            else { return }
+            drag(app, by: -shift, along: track)
             waitUntilStill(header)
         }
-        guard let settled = top(of: header) else { return "its header went while it was moved" }
-        return settled >= bar.maxY
-            ? nil
-            : String(format: "its header ended at %.0f, above the bar's foot at %.0f", settled, bar.maxY)
+    }
+
+    /// A list's edges — the top of the list, the top and foot of the bar over it, the foot of the
+    /// list or screen — and the frames of its texts, in screen points.
+    private struct ListGeometry: Sendable {
+        let edges: [CGFloat]
+        let texts: [CGRect]
+
+        /// How far to move the content up (down, when negative) so that no text lies across an
+        /// edge: of the moves that would clear one text off one edge, the one leaving fewest texts
+        /// across an edge, and of those the shortest. `nil` when none is across one now.
+        func shiftClearOfEdges() -> CGFloat? {
+            guard crossings(after: 0) > 0 else { return nil }
+            var moves: [CGFloat] = []
+            for text in texts {
+                for edge in edges where Self.crosses(text, edge, after: 0) {
+                    moves.append(text.maxY - edge + 2)     // up, until wholly above the edge
+                    moves.append(-(edge - text.minY + 2))  // down, until wholly below it
+                }
+            }
+            return moves.min { a, b in
+                let left = crossings(after: a)
+                let right = crossings(after: b)
+                return left != right ? left < right : abs(a) < abs(b)
+            }
+        }
+
+        private func crossings(after shift: CGFloat) -> Int {
+            var count = 0
+            for text in texts {
+                for edge in edges where Self.crosses(text, edge, after: shift) { count += 1 }
+            }
+            return count
+        }
+
+        private static func crosses(_ text: CGRect, _ edge: CGFloat, after shift: CGFloat) -> Bool {
+            text.minY - shift < edge - 1 && text.maxY - shift > edge + 1
+        }
     }
 
     /// Where a drag runs on screen, in points.
@@ -554,24 +609,28 @@ final class AccessibilityAuditTests: XCTestCase {
         }
     }
 
-    /// The frames of the rows of the list on the screen a navigation bar heads — that screen's own,
-    /// not a screen's behind it — from one snapshot of the app, walked on the main actor where
-    /// XCTest keeps it. Only the frames come out.
-    private func rowFrames(onScreenTitled title: String, in app: XCUIApplication) -> [CGRect] {
-        MainActor.assumeIsolated { () -> [CGRect] in
-            Self.rowFramesOnMain(onScreenTitled: title, in: app)
+    /// The list on the screen a navigation bar heads — that screen's own, not a screen's behind
+    /// it — as the edges that cut it and the frames of its texts, from one snapshot of the app,
+    /// walked on the main actor where XCTest keeps it. Only the numbers come out.
+    private func listGeometry(onScreenTitled title: String, in app: XCUIApplication) -> ListGeometry? {
+        MainActor.assumeIsolated { () -> ListGeometry? in
+            Self.listGeometryOnMain(onScreenTitled: title, in: app)
         }
     }
 
     @MainActor
-    private static func rowFramesOnMain(
+    private static func listGeometryOnMain(
         onScreenTitled title: String, in app: XCUIApplication
-    ) -> [CGRect] {
-        guard let root = try? app.snapshot() else { return [] }
-        // The bar's ancestors, the nearest last.
+    ) -> ListGeometry? {
+        guard let root = try? app.snapshot() else { return nil }
+        // The bar, and its ancestors, the nearest last.
         var path: [any XCUIElementSnapshot] = []
+        var barFrame: CGRect?
         func find(_ node: any XCUIElementSnapshot) -> Bool {
-            if node.elementType == .navigationBar && node.identifier == title { return true }
+            if node.elementType == .navigationBar && node.identifier == title {
+                barFrame = node.frame
+                return true
+            }
             path.append(node)
             for child in node.children {
                 if find(child) { return true }
@@ -579,13 +638,36 @@ final class AccessibilityAuditTests: XCTestCase {
             path.removeLast()
             return false
         }
-        guard find(root) else { return [] }
-        // The bar's own screen: the nearest of them that holds rows.
+        guard find(root), let barFrame else { return nil }
+        // The bar's own screen: the nearest of them that holds a list.
         for ancestor in path.reversed() {
-            let rows = cellFrames(in: ancestor)
-            if !rows.isEmpty { return rows }
+            guard let list = firstList(in: ancestor) else { continue }
+            return ListGeometry(
+                edges: [
+                    list.frame.minY, barFrame.minY, barFrame.maxY,
+                    min(list.frame.maxY, root.frame.maxY),
+                ],
+                texts: textFrames(in: list))
         }
-        return []
+        return nil
+    }
+
+    @MainActor
+    private static func firstList(in node: any XCUIElementSnapshot) -> (any XCUIElementSnapshot)? {
+        if [.collectionView, .table, .scrollView].contains(node.elementType) { return node }
+        for child in node.children {
+            if let list = firstList(in: child) { return list }
+        }
+        return nil
+    }
+
+    @MainActor
+    private static func textFrames(in node: any XCUIElementSnapshot) -> [CGRect] {
+        var frames = node.elementType == .staticText && !node.frame.isEmpty ? [node.frame] : []
+        for child in node.children {
+            frames += textFrames(in: child)
+        }
+        return frames
     }
 
     /// The frames of everything inside a snapshot, at every depth.
@@ -651,14 +733,6 @@ final class AccessibilityAuditTests: XCTestCase {
         String(format: "(%.0f, %.0f) %.0f×%.0f", frame.minX, frame.minY, frame.width, frame.height)
     }
 
-    @MainActor
-    private static func cellFrames(in node: any XCUIElementSnapshot) -> [CGRect] {
-        var frames = node.elementType == .cell ? [node.frame] : []
-        for child in node.children {
-            frames += cellFrames(in: child)
-        }
-        return frames
-    }
 
     /// Turns a switch on. The switch is a child of the row on recent iOS; where it is not, it is
     /// drawn at the row's trailing edge — the row's middle is its label, which does not turn it.
