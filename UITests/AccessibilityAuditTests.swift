@@ -18,7 +18,7 @@ import XCTest
 ///
 /// The screens are grouped into a few tests rather than one each, because each test signs in
 /// afresh — and each carries on past a failed audit, so one run reports every screen's findings
-/// rather than the first screen's.
+/// rather than the first screen's. The main tabs are the exception, a test each: see "The tabs".
 final class AccessibilityAuditTests: XCTestCase {
 
     override func setUp() {
@@ -71,56 +71,64 @@ final class AccessibilityAuditTests: XCTestCase {
 
     // MARK: - The tabs
 
-    /// Home, Cases, the chat list and a conversation, Calendar and More — in the dark theme, the
-    /// app's default.
-    func testTheTabsPassTheAudit() {
-        let app = launch()
-        guard signIn(app) else { return }
-        auditTheTabs(of: app, theme: "")
-    }
+    // Each tab in a test of its own, in each theme. They were one walk, and on a CI iPad the Home
+    // tab's Dynamic Type audit ran out of time and left the app answering nothing, so the four
+    // tabs after it went unaudited. Apart, a tab whose audit cannot finish costs only its own
+    // result. The dark theme is the app's default; the light palette is a different set of
+    // colour pairs, so a colour from outside it can pass on dark and fail there.
 
-    /// The sign-in screen and the same tabs in the light theme. Contrast is a property of a pair
-    /// of colours, and the light palette is a different set of pairs — a colour from outside it
-    /// can pass on dark and fail here.
-    func testTheTabsPassTheAuditInLight() {
+    func testTheHomeTabPassesTheAudit() { auditTab("Home") }
+    func testTheCasesTabPassesTheAudit() { auditTab("Cases") }
+    /// The chat list, and a conversation opened from it.
+    func testTheChatTabPassesTheAudit() { auditTab("Chat") }
+    func testTheCalendarTabPassesTheAudit() { auditTab("Calendar") }
+    func testTheMoreTabPassesTheAudit() { auditTab("More") }
+
+    func testTheSignInScreenPassesTheAuditInLight() {
         let app = launch("-UITestLight")
         guard reached(app.textFields["Email"], "the sign-in screen") else { return }
         audit("light-sign-in", in: app)
-        guard signIn(app) else { return }
-        auditTheTabs(of: app, theme: "light-")
     }
 
-    private func auditTheTabs(of app: XCUIApplication, theme: String) {
+    func testTheHomeTabPassesTheAuditInLight() { auditTab("Home", light: true) }
+    func testTheCasesTabPassesTheAuditInLight() { auditTab("Cases", light: true) }
+    func testTheChatTabPassesTheAuditInLight() { auditTab("Chat", light: true) }
+    func testTheCalendarTabPassesTheAuditInLight() { auditTab("Calendar", light: true) }
+    func testTheMoreTabPassesTheAuditInLight() { auditTab("More", light: true) }
+
+    private func auditTab(_ tab: String, light: Bool = false) {
+        let app = light ? launch("-UITestLight") : launch()
+        guard signIn(app) else { return }
+        let theme = light ? "light-" : ""
         // Each tab's title, and something its stub data puts on screen once it has loaded — so
         // the audit sees the screen a person sees, not its spinner.
-        let tabs: [(tab: String, title: String, loaded: XCUIElement)] = [
-            ("Home", "Home", app.descendants(matching: .any).matching(
+        let landmarks: [String: (title: String, loaded: XCUIElement)] = [
+            "Home": ("Home", app.descendants(matching: .any).matching(
                 NSPredicate(format: "label BEGINSWITH %@", "Item 7, Court 12")).firstMatch),
-            ("Cases", "Cases", app.navigationBars["Cases"]),
-            ("Chat", "Emperor", app.stubConversationRow),
-            ("Calendar", "Calendar", app.buttons["calendar-listing-case1"]),
-            ("More", "More", app.buttons["Settings"]),
+            "Cases": ("Cases", app.navigationBars["Cases"]),
+            "Chat": ("Emperor", app.stubConversationRow),
+            "Calendar": ("Calendar", app.buttons["calendar-listing-case1"]),
+            "More": ("More", app.buttons["Settings"]),
         ]
-        for (tab, title, loaded) in tabs {
-            let button = app.tab(tab)
-            guard reached(button, "the \(tab) tab") else { continue }
-            button.tap()
-            _ = app.navigationBars[title].waitForExistence(timeout: 10)
-            _ = loaded.waitForExistence(timeout: 10)
-            audit(theme + tab.lowercased(), in: app)
+        guard let landmark = landmarks[tab] else {
+            XCTFail("there is no tab named \(tab)")
+            return
+        }
+        let button = app.tab(tab)
+        guard reached(button, "the \(tab) tab") else { return }
+        button.tap()
+        _ = app.navigationBars[landmark.title].waitForExistence(timeout: 10)
+        _ = landmark.loaded.waitForExistence(timeout: 10)
+        audit(theme + tab.lowercased(), in: app)
 
-            if tab == "Chat" {
-                // A conversation: the stub's stored answer, its work log collapsed above it.
-                let conversation = app.stubConversationRow
-                guard reached(conversation, "the stored conversation") else { continue }
-                conversation.tap()
-                _ = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked"))
-                    .firstMatch.waitForExistence(timeout: 10)
-                audit(theme + "conversation", in: app)
-                // Not backed out of. The next tab is a tap away from here on both devices — and on
-                // an iPad, where the conversation sits beside the list, the bar's first button is
-                // the options menu, not a Back, and opening it held the Calendar tab's tap.
-            }
+        if tab == "Chat" {
+            // A conversation: the stub's stored answer, its work log collapsed above it.
+            let conversation = app.stubConversationRow
+            guard reached(conversation, "the stored conversation") else { return }
+            conversation.tap()
+            _ = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked"))
+                .firstMatch.waitForExistence(timeout: 10)
+            audit(theme + "conversation", in: app)
         }
     }
 
@@ -155,6 +163,19 @@ final class AccessibilityAuditTests: XCTestCase {
                     audit("tool-form", in: app, sheet: form)
                     goBack(from: form, named: "the tool's form", to: bar)
                 }
+            }
+            // The list is longer than the sheet on both devices. Its later sections are audited
+            // where a person scrolls them to, each brought up under the sheet's bar.
+            for (header, screen, what) in [
+                ("tools-header-analysis", "tools-analysis", "the Analysis tools"),
+                ("tools-header-registry", "tools-registry", "the full registry"),
+            ] {
+                let heading = app.descendants(matching: .any)[header].firstMatch
+                guard bringUnderTheBar(heading, of: bar, titled: "Tools", in: app) else {
+                    XCTFail("could not bring \(what) up under the bar, so it was not audited")
+                    continue
+                }
+                audit(screen, in: app, sheet: bar)
             }
             close("Tools", in: app)
         }

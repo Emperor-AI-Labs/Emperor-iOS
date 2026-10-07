@@ -1289,6 +1289,31 @@ final class EmperorUITests: XCTestCase {
         }
     }
 
+    /// Taps a control that asks before it acts, and returns the confirmation's button — found in
+    /// whichever form the dialog took: a sheet on iPhone, a popover on iPad, or an alert.
+    ///
+    /// A tap the app did not take is made again, up to three in all. On a CI iPhone one tap on
+    /// "Clear offline copies", centred on a row that had been still for seconds, brought up no
+    /// dialog at all; the code under it had passed on the run before. Tapped again only while
+    /// no dialog has come and the control is still there to tap — a second tap behind an open
+    /// dialog would dismiss it.
+    private func confirmation(
+        _ title: String, afterTapping control: XCUIElement, in app: XCUIApplication
+    ) -> XCUIElement? {
+        for _ in 0..<3 {
+            control.tap()
+            for _ in 0..<20 {
+                let shown = [app.sheets, app.popovers, app.alerts]
+                    .map { $0.buttons[title].firstMatch }
+                    .first { $0.exists }
+                if let shown { return shown }
+                Thread.sleep(forTimeInterval: 0.25)
+            }
+            guard control.exists && control.isHittable else { break }
+        }
+        return nil
+    }
+
     /// Turns a switch and waits for it to read `value`.
     ///
     /// A SwiftUI `Toggle` in a list is one element covering the whole row, and tapping its middle
@@ -1918,11 +1943,7 @@ final class EmperorUITests: XCTestCase {
 
         let clear = app.buttons["offline-storage-clear"].firstMatch
         scrollUntilHittable(clear, in: app)
-        clear.tap()
-        // A confirmation dialog: a sheet on iPhone, a popover on iPad.
-        let confirm = [app.sheets, app.popovers, app.alerts]
-            .map { $0.buttons["Clear offline copies"] }
-            .first { $0.waitForExistence(timeout: 3) }
+        let confirm = confirmation("Clear offline copies", afterTapping: clear, in: app)
         XCTAssertNotNil(confirm, "clearing did not ask first")
         confirm?.tap()
 
