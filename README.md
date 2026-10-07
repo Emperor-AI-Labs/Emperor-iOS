@@ -332,7 +332,10 @@ land away from VoiceOver's focus are said with `VoiceOver.announce`.
 `UITests/AccessibilityAuditTests.swift` runs Xcode's accessibility audit over the main screens on
 iPhone and iPad, in both themes, and photographs the main tabs at the largest text size
 (`a11y-xxxl-*` in the screenshot-tour artifact). A failure names the screen, the issue and the
-element; the few waivers, each with its reason, are listed in that file.
+element; the few waivers, each with its reason, are listed in that file. **For now it runs as
+its own CI step that reports without failing the job** (`continue-on-error`): a handful of
+findings tied to no element, seen only while a scrolled list sits under iOS 26's bar fade, are
+still being identified. It becomes blocking again the first time it passes on both devices.
 
 ## Server-side hardening is still in progress
 

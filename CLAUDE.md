@@ -171,6 +171,8 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   for text, `AdaptiveStack` for a title with something beside it, `.dynamicLineLimit` for
   essential text, `ValueRow` rather than `LabeledContent(_:value:)`, and a label on every
   icon-only control. Add an audit waiver only for something the system draws, with its reason.
+  The audit is a separate, reported CI step for now — read its result on every run, and make it
+  blocking (drop `continue-on-error` in `ci.yml`) once it passes on both devices.
 - The app target compiles `Sources/EmperorCore` directly, so the tested code and the shipped
   code are the same bytes.
 
