@@ -73,9 +73,12 @@ struct OfflineStorageSection: View {
             SectionHeader(title: "Storage")
                 .accessibilityIdentifier("settings-header-storage")
         } footer: {
+            // Its full height at every text size. The longest footer in Settings, and the one the
+            // accessibility audit found neither growing nor fitting when the size changed live.
             Text(OfflineStorageSummary.explanation)
                 .font(.brand(.caption))
                 .foregroundStyle(theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .listRowBackground(theme.surface)
         // Read every time Settings opens: what is kept changes whenever something is opened.

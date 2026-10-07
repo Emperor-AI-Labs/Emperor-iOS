@@ -455,10 +455,7 @@ final class AccessibilityAuditTests: XCTestCase {
     ) -> String? {
         guard sheet.exists else { return "the sheet had gone" }
         let bar = sheet.frame
-        let window = app.windows.firstMatch.frame
-        // Where the drags run: across the middle of the sheet, clear of its bar, and clear of
-        // the home indicator and a sheet's own foot.
-        let track = DragTrack(top: bar.maxY + 16, bottom: window.maxY - 120, x: bar.midX)
+        let track = self.track(across: sheet, in: app)
         // The header's place: below the bar and the strip under it that iOS 26 fades.
         let place = bar.maxY + 28
 
@@ -499,32 +496,52 @@ final class AccessibilityAuditTests: XCTestCase {
     /// plans" across the top of a Settings sheet, "Monthly allowances renew…" across its bar's
     /// foot. A text wholly behind the bar, or wholly scrolled away, is not one of them.
     ///
-    /// Measured afresh each time, because the bar changes as a large title folds into it; and a
-    /// few times at most, because each move can bring new text in at the foot.
+    /// Measured afresh each time, because the bar changes as a large title folds into it. Small
+    /// moves only, a row at most each and two in all: each move brings new text in at an edge,
+    /// and unbounded, four moves that each cut the fewest texts once carried Settings' Security
+    /// header from under the bar to the foot of the screen. Where no small move clears every
+    /// edge, the list stays near where it was put.
     private func settleClearOfEdges(
         onScreenTitled title: String, watching header: XCUIElement, along track: DragTrack,
         in app: XCUIApplication
     ) {
-        for _ in 0..<4 {
+        let rowHeight: CGFloat = 70
+        var drift: CGFloat = 0
+        for _ in 0..<3 {
             guard let geometry = listGeometry(onScreenTitled: title, in: app),
-                  let shift = geometry.shiftClearOfEdges()
+                  let shift = geometry.shiftClearOfEdges(within: rowHeight),
+                  abs(drift + shift) <= rowHeight * 2
             else { return }
             drag(app, by: -shift, along: track)
             waitUntilStill(header)
+            // The list goes no further this way: nothing more a move can do.
+            guard let after = listGeometry(onScreenTitled: title, in: app),
+                  after.texts != geometry.texts
+            else { return }
+            drift += shift
         }
     }
 
     /// A list's edges — the top of the list, the top and foot of the bar over it, the foot of the
     /// list or screen — and the frames of its texts, in screen points.
     private struct ListGeometry: Sendable {
-        let edges: [CGFloat]
+        let listTop: CGFloat
+        let barTop: CGFloat
+        let barFoot: CGFloat
+        /// The foot of the list, or of the screen where the list runs past it. On an iPad a page
+        /// sheet stops short of the screen's foot, and so does its list.
+        let foot: CGFloat
         let texts: [CGRect]
 
-        /// How far to move the content up (down, when negative) so that no text lies across an
-        /// edge: of the moves that would clear one text off one edge, the one leaving fewest texts
-        /// across an edge, and of those the shortest. `nil` when none is across one now.
-        func shiftClearOfEdges() -> CGFloat? {
-            guard crossings(after: 0) > 0 else { return nil }
+        var edges: [CGFloat] { [listTop, barTop, barFoot, foot] }
+
+        /// How far to move the content up (down, when negative), by no more than `limit`, so that
+        /// fewer texts lie across an edge: of the moves that would clear one text off one edge,
+        /// the one leaving fewest across an edge, and of those the shortest. `nil` when none is
+        /// across one now, or when no such move leaves fewer than now.
+        func shiftClearOfEdges(within limit: CGFloat) -> CGFloat? {
+            let now = crossings(after: 0)
+            guard now > 0 else { return nil }
             var moves: [CGFloat] = []
             for text in texts {
                 for edge in edges where Self.crosses(text, edge, after: 0) {
@@ -532,11 +549,13 @@ final class AccessibilityAuditTests: XCTestCase {
                     moves.append(-(edge - text.minY + 2))  // down, until wholly below it
                 }
             }
-            return moves.min { a, b in
+            let best = moves.filter { abs($0) <= limit }.min { a, b in
                 let left = crossings(after: a)
                 let right = crossings(after: b)
                 return left != right ? left < right : abs(a) < abs(b)
             }
+            guard let best, crossings(after: best) < now else { return nil }
+            return best
         }
 
         private func crossings(after shift: CGFloat) -> Int {
@@ -550,6 +569,14 @@ final class AccessibilityAuditTests: XCTestCase {
         private static func crosses(_ text: CGRect, _ edge: CGFloat, after shift: CGFloat) -> Bool {
             text.minY - shift < edge - 1 && text.maxY - shift > edge + 1
         }
+    }
+
+    /// Where to drag a sheet's list: across the middle of the sheet, clear of its bar, and clear
+    /// of the home indicator and a sheet's own foot.
+    private func track(across sheet: XCUIElement, in app: XCUIApplication) -> DragTrack {
+        let bar = sheet.frame
+        let window = app.windows.firstMatch.frame
+        return DragTrack(top: bar.maxY + 16, bottom: window.maxY - 120, x: bar.midX)
     }
 
     /// Where a drag runs on screen, in points.
@@ -643,10 +670,8 @@ final class AccessibilityAuditTests: XCTestCase {
         for ancestor in path.reversed() {
             guard let list = firstList(in: ancestor) else { continue }
             return ListGeometry(
-                edges: [
-                    list.frame.minY, barFrame.minY, barFrame.maxY,
-                    min(list.frame.maxY, root.frame.maxY),
-                ],
+                listTop: list.frame.minY, barTop: barFrame.minY, barFoot: barFrame.maxY,
+                foot: min(list.frame.maxY, root.frame.maxY),
                 texts: textFrames(in: list))
         }
         return nil
@@ -971,11 +996,13 @@ final class AccessibilityAuditTests: XCTestCase {
         let keyboard = app.keyboards.firstMatch
         var sheetFrame: CGRect?
         if let sheet, sheet.exists {
-            // From the sheet's bar to the foot of the window, across the sheet's width — the whole
-            // form sheet on an iPad, everything below the dimmed strip on an iPhone.
+            // From the sheet's bar to its foot, across its width. The foot is where its list ends:
+            // the foot of the screen on an iPhone, but on an iPad a page sheet stops short of it —
+            // 52 points, on CI — and text below that is out of the sheet, not faint in it.
             let bar = sheet.frame
+            let foot = listGeometry(onScreenTitled: sheet.identifier, in: app)?.foot ?? window.maxY
             sheetFrame = CGRect(
-                x: bar.minX, y: bar.minY, width: bar.width, height: max(0, window.maxY - bar.minY))
+                x: bar.minX, y: bar.minY, width: bar.width, height: max(0, foot - bar.minY))
         }
         // The tab bar, found by its own buttons rather than as a tab bar element: on iOS 26 the
         // element's frame is not the floating bar a person sees. On a phone the buttons sit along
@@ -1195,7 +1222,7 @@ private struct AuditLayout: Sendable {
         // leave it straddling the bar's edge. CI measured one there at 1.27:1.
         let behindATopBar = topBars.contains { $0.contains(frame) } && !isInANavigationBar(frame)
         if underATopBar || behindATopBar { return true }
-        let fadeStarts = bottomBarTop.map { $0 - 24 } ?? (window.maxY - 34)
+        let fadeStarts = bottomBarTop.map { $0 - 24 } ?? ((sheet?.maxY ?? window.maxY) - 34)
         return frame.maxY > fadeStarts
     }
 }
