@@ -510,9 +510,10 @@ final class AccessibilityAuditTests: XCTestCase {
     }
 
     /// The top of an element on screen, or `nil` when it is not there — read from a snapshot, so
-    /// an element that goes between two looks is an answer rather than a failed test.
+    /// an element that goes between two looks is an answer rather than a failed test. The
+    /// snapshot stays on the main actor, where XCTest keeps it; only the number comes out.
     private func top(of element: XCUIElement) -> CGFloat? {
-        (try? element.snapshot())?.frame.minY
+        MainActor.assumeIsolated { (try? element.snapshot())?.frame.minY }
     }
 
     /// Waits until an element has stopped moving — in the same place on two looks a quarter of a
@@ -528,8 +529,18 @@ final class AccessibilityAuditTests: XCTestCase {
     }
 
     /// The frames of the rows of the list on the screen a navigation bar heads — that screen's own,
-    /// not a screen's behind it — from one snapshot of the app.
+    /// not a screen's behind it — from one snapshot of the app, walked on the main actor where
+    /// XCTest keeps it. Only the frames come out.
     private func rowFrames(onScreenTitled title: String, in app: XCUIApplication) -> [CGRect] {
+        MainActor.assumeIsolated { () -> [CGRect] in
+            Self.rowFramesOnMain(onScreenTitled: title, in: app)
+        }
+    }
+
+    @MainActor
+    private static func rowFramesOnMain(
+        onScreenTitled title: String, in app: XCUIApplication
+    ) -> [CGRect] {
         guard let root = try? app.snapshot() else { return [] }
         // The bar's ancestors, the nearest last.
         var path: [any XCUIElementSnapshot] = []
@@ -551,7 +562,8 @@ final class AccessibilityAuditTests: XCTestCase {
         return []
     }
 
-    private func cellFrames(in node: any XCUIElementSnapshot) -> [CGRect] {
+    @MainActor
+    private static func cellFrames(in node: any XCUIElementSnapshot) -> [CGRect] {
         var frames = node.elementType == .cell ? [node.frame] : []
         for child in node.children {
             frames += cellFrames(in: child)
@@ -744,7 +756,8 @@ final class AccessibilityAuditTests: XCTestCase {
     /// From one snapshot of the element rather than a question per fact. Each question is a round
     /// trip to the app, made while the audit's own clock is running — six of them for every issue
     /// on a screen with twenty is most of a minute on a CI iPad — and a question the app is too
-    /// busy to answer ends the test. A snapshot that cannot be taken is an element not read.
+    /// busy to answer ends the test. A snapshot that cannot be taken is an element not read. The
+    /// snapshot is read on the main actor, where XCTest keeps it, and only the plain facts come out.
     ///
     /// - Parameter withWords: for a button, also find its words — the first text inside it — so
     ///   a contrast finding can be measured on them rather than on the whole button, whose box
@@ -752,21 +765,25 @@ final class AccessibilityAuditTests: XCTestCase {
     private static func facts(
         about element: XCUIElement?, withWords: Bool = false
     ) -> AuditFinding.Element? {
-        guard let element, let snapshot = try? element.snapshot() else { return nil }
-        var words: CGRect?
-        if withWords, snapshot.elementType == .button {
-            words = firstText(in: snapshot)?.frame
+        guard let element else { return nil }
+        return MainActor.assumeIsolated { () -> AuditFinding.Element? in
+            guard let snapshot = try? element.snapshot() else { return nil }
+            var words: CGRect?
+            if withWords, snapshot.elementType == .button {
+                words = firstText(in: snapshot)?.frame
+            }
+            return AuditFinding.Element(
+                kind: snapshot.elementType,
+                label: snapshot.label,
+                identifier: snapshot.identifier,
+                frame: snapshot.frame,
+                isEnabled: snapshot.isEnabled,
+                wordsFrame: words)
         }
-        return AuditFinding.Element(
-            kind: snapshot.elementType,
-            label: snapshot.label,
-            identifier: snapshot.identifier,
-            frame: snapshot.frame,
-            isEnabled: snapshot.isEnabled,
-            wordsFrame: words)
     }
 
     /// The first text inside an element, in the order a query would find it.
+    @MainActor
     private static func firstText(
         in snapshot: any XCUIElementSnapshot
     ) -> (any XCUIElementSnapshot)? {
