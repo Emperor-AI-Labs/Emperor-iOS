@@ -226,6 +226,23 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
+          # Every 40 seconds, two seconds of what each of the app's threads is doing. On an iPad
+          # the audit's text-size check has timed out with the app's main thread busy for 30 s
+          # and more, on a different screen each run; these say what it was busy with. They go
+          # out with the screenshots.
+          mkdir -p build/screenshots/samples
+          (
+            while true; do
+              pid=$(pgrep -x Emperor | head -1 || true)
+              if [ -n "$pid" ]; then
+                sample "$pid" 2 -mayDie -file "build/screenshots/samples/$(date +%H%M%S).txt" \
+                  >/dev/null 2>&1 || true
+              fi
+              sleep 40
+            done
+          ) &
+          sampler=$!
+          trap 'kill $sampler 2>/dev/null || true' EXIT
           xcodebuild test \
             -project Emperor.xcodeproj \
             -scheme Emperor \

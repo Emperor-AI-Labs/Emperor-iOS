@@ -171,8 +171,8 @@ final class AccessibilityAuditTests: XCTestCase {
                 ("tools-header-registry", "tools-registry", "the full registry"),
             ] {
                 let heading = app.descendants(matching: .any)[header].firstMatch
-                guard bringUnderTheBar(heading, of: bar, titled: "Tools", in: app) else {
-                    XCTFail("could not bring \(what) up under the bar, so it was not audited")
+                if let why = bringUnderTheBar(heading, of: bar, titled: "Tools", in: app) {
+                    XCTFail("could not bring \(what) up under the bar — \(why) — so it was not audited")
                     continue
                 }
                 audit(screen, in: app, sheet: bar)
@@ -266,8 +266,8 @@ final class AccessibilityAuditTests: XCTestCase {
              "the Storage section"),
         ] {
             let heading = app.descendants(matching: .any)[header].firstMatch
-            guard bringUnderTheBar(heading, of: settings, titled: "Settings", in: app) else {
-                XCTFail("could not bring \(what) up under the bar, so it was not audited")
+            if let why = bringUnderTheBar(heading, of: settings, titled: "Settings", in: app) {
+                XCTFail("could not bring \(what) up under the bar — \(why) — so it was not audited")
                 continue
             }
             if reached(app.descendants(matching: .any)[anchor].firstMatch, what) {
@@ -449,11 +449,13 @@ final class AccessibilityAuditTests: XCTestCase {
     /// on screen nor off it, and the audit reads it as neither. Such a row is moved up until it is
     /// wholly behind the bar. Where the list ends first — the last sections of Settings on a
     /// phone — the header stays where the end of the list leaves it.
+    ///
+    /// - Returns: `nil` once the header is in place; otherwise what stopped it, for the failure.
     private func bringUnderTheBar(
         _ header: XCUIElement, of sheet: XCUIElement, titled title: String,
         in app: XCUIApplication
-    ) -> Bool {
-        guard sheet.exists else { return false }
+    ) -> String? {
+        guard sheet.exists else { return "the sheet had gone" }
         let bar = sheet.frame
         let window = app.windows.firstMatch.frame
         // Where the drags run: across the middle of the sheet, clear of its bar, and clear of
@@ -468,11 +470,11 @@ final class AccessibilityAuditTests: XCTestCase {
             drag(app, by: -(track.bottom - track.top) * 0.8, along: track)
             pages += 1
         }
-        guard top(of: header) != nil else { return false }
+        guard top(of: header) != nil else { return "its header was not found in ten pages" }
         waitUntilStill(header)
 
         for _ in 0..<8 {
-            guard let before = top(of: header) else { return false }
+            guard let before = top(of: header) else { return "its header went while it was moved" }
             let off = before - place
             if abs(off) <= 6 { break }
             drag(app, by: -off, along: track)
@@ -489,7 +491,10 @@ final class AccessibilityAuditTests: XCTestCase {
             drag(app, by: -(straddling.maxY - bar.maxY + 2), along: track)
             waitUntilStill(header)
         }
-        return (top(of: header) ?? -1) >= bar.maxY
+        guard let settled = top(of: header) else { return "its header went while it was moved" }
+        return settled >= bar.maxY
+            ? nil
+            : String(format: "its header ended at %.0f, above the bar's foot at %.0f", settled, bar.maxY)
     }
 
     /// Where a drag runs on screen, in points.
@@ -583,6 +588,69 @@ final class AccessibilityAuditTests: XCTestCase {
         return []
     }
 
+    /// The frames of everything inside a snapshot, at every depth.
+    @MainActor
+    private static func descendantFrames(of node: any XCUIElementSnapshot) -> [CGRect] {
+        var frames: [CGRect] = []
+        for child in node.children {
+            frames.append(child.frame)
+            frames += descendantFrames(of: child)
+        }
+        return frames
+    }
+
+    /// For a finding the audit could not name: every text and button on screen that an edge cuts
+    /// or hides — the window's, the list it scrolls in, a navigation bar's — with its frame, so
+    /// the CI log's attachment says which ones the finding can be, rather than nothing at all.
+    private static func edgeReport(of app: XCUIApplication) -> String {
+        MainActor.assumeIsolated { () -> String in
+            guard let root = try? app.snapshot() else { return "The app could not be read." }
+            var bars: [CGRect] = []
+            var lines: [String] = []
+            func findBars(_ node: any XCUIElementSnapshot) {
+                if node.elementType == .navigationBar { bars.append(node.frame) }
+                for child in node.children { findBars(child) }
+            }
+            findBars(root)
+            let window = root.frame
+            for bar in bars { lines.append("navigation bar \(describe(bar))") }
+
+            func walk(_ node: any XCUIElementSnapshot, list: CGRect?, inBar: Bool) {
+                var list = list
+                if [.collectionView, .table, .scrollView].contains(node.elementType) {
+                    list = node.frame
+                    lines.append("list \(describe(node.frame))")
+                }
+                let inBar = inBar || node.elementType == .navigationBar
+                if node.elementType == .staticText || node.elementType == .button {
+                    var notes: [String] = []
+                    if node.frame.isEmpty { notes.append("no size") }
+                    if !window.contains(node.frame) { notes.append("past the window's edge") }
+                    if let list, !inBar, !list.contains(node.frame) {
+                        notes.append(list.intersects(node.frame) ? "cut by its list's edge" : "outside its list")
+                    }
+                    if !inBar, bars.contains(where: { $0.intersects(node.frame) }) {
+                        notes.append(bars.contains { $0.contains(node.frame) }
+                            ? "behind a bar" : "across a bar's edge")
+                    }
+                    if !notes.isEmpty {
+                        let kind = node.elementType == .button ? "button" : "text"
+                        lines.append(
+                            "\(kind) “\(node.label.prefix(60))” \(describe(node.frame)): "
+                                + notes.joined(separator: ", "))
+                    }
+                }
+                for child in node.children { walk(child, list: list, inBar: inBar) }
+            }
+            walk(root, list: nil, inBar: false)
+            return "Window \(describe(window)).\n" + lines.joined(separator: "\n")
+        }
+    }
+
+    private static func describe(_ frame: CGRect) -> String {
+        String(format: "(%.0f, %.0f) %.0f×%.0f", frame.minX, frame.minY, frame.width, frame.height)
+    }
+
     @MainActor
     private static func cellFrames(in node: any XCUIElementSnapshot) -> [CGRect] {
         var frames = node.elementType == .cell ? [node.frame] : []
@@ -670,6 +738,7 @@ final class AccessibilityAuditTests: XCTestCase {
 
         var waived: [String] = []
         var failures = 0
+        var unnamed = 0
         for var finding in findings {
             if finding.kind.contains(.contrast), let element = finding.element, let pixels,
                let box = Waiver.measurableBox(of: element, in: context) {
@@ -679,6 +748,7 @@ final class AccessibilityAuditTests: XCTestCase {
                 waived.append("\(finding.report)\n    waived — \(waiver.reason(for: finding))")
             } else {
                 failures += 1
+                if finding.element == nil { unnamed += 1 }
                 XCTFail("[\(screen)] \(finding.report)", file: file, line: line)
             }
         }
@@ -688,6 +758,12 @@ final class AccessibilityAuditTests: XCTestCase {
             shot.name = "a11y-audit-\(screen)"
             shot.lifetime = .keepAlways
             add(shot)
+        }
+        if unnamed > 0 {
+            let edges = XCTAttachment(string: Self.edgeReport(of: app))
+            edges.name = "a11y-audit-\(screen)-edges"
+            edges.lifetime = .keepAlways
+            add(edges)
         }
         // What was set aside, and why, kept with the run — a waiver that starts swallowing real
         // findings should be visible, not silent.
@@ -840,12 +916,21 @@ final class AccessibilityAuditTests: XCTestCase {
             .filter { $0.exists }
             .map { $0.frame }
         let sheetBar = sheet.flatMap { $0.exists ? $0.frame : nil }
+        // Read from each bar's snapshot on the main actor, where XCTest keeps it; only frames
+        // come out.
+        let barItems = MainActor.assumeIsolated { () -> [CGRect] in
+            app.navigationBars.allElementsBoundByIndex.flatMap { bar -> [CGRect] in
+                guard let snapshot = try? bar.snapshot() else { return [] }
+                return Self.descendantFrames(of: snapshot)
+            }
+        }
         return AuditLayout(
             window: window,
             keyboard: keyboard.exists ? keyboard.frame : nil,
             // Behind a sheet the tab bar is covered, and the sheet's own foot is the screen's.
             bottomBarTop: bottomBarTop,
             navigationBars: navigationBars,
+            barItems: barItems,
             sheet: sheetFrame,
             sheetBar: sheetBar)
     }
@@ -996,6 +1081,10 @@ private struct AuditLayout: Sendable {
     /// are across the top.
     let bottomBarTop: CGFloat?
     let navigationBars: [CGRect]
+    /// The frames of the bars' own elements — titles, buttons and what is inside them — read from
+    /// each bar's hierarchy. Content scrolled up behind a bar lies inside the bar's frame too; this
+    /// is what tells the two apart.
+    let barItems: [CGRect]
     /// The presented sheet's extent, when the screen audited is one.
     let sheet: CGRect?
     /// That sheet's own navigation bar, which its rows scroll up under.
@@ -1009,9 +1098,11 @@ private struct AuditLayout: Sendable {
         return element.frame.minY >= bottomBarTop - 8
     }
 
-    /// Whether an element is inside a navigation bar — its title, or one of its buttons.
+    /// Whether an element is inside a navigation bar — its title, or one of its buttons — rather
+    /// than content scrolled up behind it.
     func isInANavigationBar(_ frame: CGRect) -> Bool {
         navigationBars.contains { $0.contains(frame) }
+            && barItems.contains { $0.insetBy(dx: -1, dy: -1).contains(frame) }
     }
 
     /// Whether an element lies where iOS 26 fades the content at a bar's edge as it scrolls: under
@@ -1026,7 +1117,10 @@ private struct AuditLayout: Sendable {
                 && frame.minY < bar.maxY + 24 && frame.maxY > bar.minY
                 && frame.minX < bar.maxX && frame.maxX > bar.minX
         }
-        if underATopBar { return true }
+        // Scrolled wholly behind a bar: where the audit's own positioning puts a row rather than
+        // leave it straddling the bar's edge. CI measured one there at 1.27:1.
+        let behindATopBar = topBars.contains { $0.contains(frame) } && !isInANavigationBar(frame)
+        if underATopBar || behindATopBar { return true }
         let fadeStarts = bottomBarTop.map { $0 - 24 } ?? (window.maxY - 34)
         return frame.maxY > fadeStarts
     }
