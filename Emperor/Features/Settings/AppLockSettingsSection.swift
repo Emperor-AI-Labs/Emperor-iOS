@@ -46,6 +46,7 @@ struct AppLockSettingsSection: View {
             }
         } header: {
             SectionHeader(title: AppLockCopy.sectionTitle)
+                .accessibilityIdentifier("settings-header-security")
         } footer: {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 if let notice = lock.notice {

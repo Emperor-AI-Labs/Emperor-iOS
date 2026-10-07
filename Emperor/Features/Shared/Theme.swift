@@ -204,6 +204,8 @@ struct StatusPill: View {
         .overlay(Capsule().strokeBorder(foreground.opacity(0.22), lineWidth: 0.5))
         .layoutPriority(1)
         .accessibilityElement(children: .combine)
+        // Named, so the accessibility audit can say which pill it means rather than "this element".
+        .accessibilityIdentifier("status-pill-\(text)")
     }
 
     private var foreground: Color {

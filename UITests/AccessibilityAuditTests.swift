@@ -153,7 +153,7 @@ final class AccessibilityAuditTests: XCTestCase {
                 if reached(form, "the tool's form") {
                     _ = app.buttons["Run"].firstMatch.waitForExistence(timeout: 10)
                     audit("tool-form", in: app, sheet: form)
-                    form.buttons.element(boundBy: 0).tap()
+                    goBack(from: form, named: "the tool's form", to: bar)
                 }
             }
             close("Tools", in: app)
@@ -182,7 +182,7 @@ final class AccessibilityAuditTests: XCTestCase {
 
     /// Settings, and what it holds below the fold or pushes: the role picker; Notifications — off,
     /// as a fresh install finds it, and on, with its reminders showing; Edit profile; and the
-    /// Security and Storage sections, each audited with Settings scrolled to it.
+    /// Security and Storage sections, each brought up under the sheet's bar and audited there.
     func testSettingsAndItsScreensPassTheAudit() {
         let app = launch()
         guard signIn(app), openMore(app) else { return }
@@ -197,7 +197,7 @@ final class AccessibilityAuditTests: XCTestCase {
             if reached(picker, "the role picker") {
                 audit("role-picker", in: app, sheet: picker)
                 // Back, not a row: a row would change the role the other tests expect.
-                picker.buttons.element(boundBy: 0).tap()
+                goBack(from: picker, named: "the role picker", to: settings)
             }
         }
 
@@ -217,7 +217,7 @@ final class AccessibilityAuditTests: XCTestCase {
                         audit("notification-settings-on", in: app, sheet: notifications)
                     }
                 }
-                notifications.buttons.element(boundBy: 0).tap()
+                goBack(from: notifications, named: "Notifications", to: settings)
             }
         }
 
@@ -230,21 +230,26 @@ final class AccessibilityAuditTests: XCTestCase {
             if reached(form, "the Edit profile screen") {
                 _ = app.textFields["profile-name"].firstMatch.waitForExistence(timeout: 10)
                 audit("edit-profile", in: app, sheet: form)
-                form.buttons.element(boundBy: 0).tap()
+                goBack(from: form, named: "Edit profile", to: settings)
             }
         }
 
-        // The app lock's section, then Storage — rows of Settings itself, so Settings is
-        // scrolled until each is on screen and audited as it then stands.
+        // The app lock's section, then Storage — sections of Settings itself, so each is brought
+        // up under the sheet's bar and audited as it then stands (`bringUnderTheBar`).
         _ = settings.waitForExistence(timeout: 10)
-        for (identifier, screen, what) in [
-            ("app-lock-toggle", "settings-security", "the Security section"),
+        for (header, anchor, screen, what) in [
+            ("settings-header-security", "app-lock-toggle", "settings-security",
+             "the Security section"),
             // The size, not "Clear offline copies": that is offered only when something is kept.
-            ("offline-storage-size", "settings-storage", "the Storage section"),
+            ("settings-header-storage", "offline-storage-size", "settings-storage",
+             "the Storage section"),
         ] {
-            let anchor = app.descendants(matching: .any)[identifier].firstMatch
-            scrollUntilHittable(anchor, in: app)
-            if reached(anchor, what) {
+            let heading = app.descendants(matching: .any)[header].firstMatch
+            guard bringUnderTheBar(heading, of: settings, titled: "Settings", in: app) else {
+                XCTFail("could not bring \(what) up under the bar, so it was not audited")
+                continue
+            }
+            if reached(app.descendants(matching: .any)[anchor].firstMatch, what) {
                 audit(screen, in: app, sheet: settings)
             }
         }
@@ -378,6 +383,182 @@ final class AccessibilityAuditTests: XCTestCase {
         }
     }
 
+    /// Leaves a pushed screen by its Back button, and waits until that screen has gone and the one
+    /// under it is showing — tapping again when a tap was not taken. On a CI iPad one Back, made
+    /// as an audit finished, left Edit profile where it was, and every section of Settings after
+    /// it went unreached.
+    @discardableResult
+    private func goBack(
+        from bar: XCUIElement, named name: String, to destination: XCUIElement
+    ) -> Bool {
+        for attempt in 0..<3 {
+            guard bar.exists else { break }
+            // A moment for the screen to settle after an audit — a second before the first tap,
+            // more before another.
+            Thread.sleep(forTimeInterval: attempt == 0 ? 1 : 3)
+            // iOS 26 names the Back button; elsewhere it is the bar's first button.
+            let named = bar.buttons["BackButton"]
+            let back = named.exists ? named : bar.buttons.element(boundBy: 0)
+            // Tapped again only while it can still be: a bar caught leaving holds a button that
+            // is no longer there to tap.
+            guard back.exists, attempt == 0 || back.isHittable else { break }
+            back.tap()
+            var polls = 0
+            while bar.exists && polls < 20 {
+                Thread.sleep(forTimeInterval: 0.25)
+                polls += 1
+            }
+        }
+        if !bar.exists && destination.waitForExistence(timeout: 5) { return true }
+        XCTFail("could not go back from \(name)")
+        return false
+    }
+
+    /// Brings a section of a sheet's list up under the sheet's bar — its header just below the
+    /// bar, with clear space between — as far as the list will scroll, and waits until the list
+    /// is still. Whether the header is then on screen below the bar.
+    ///
+    /// Not by swiping. A swipe leaves the list coasting, and the audit's contrast check, which
+    /// runs first, then reads rows sliding under the bar that its later checks no longer find
+    /// there — "Edit profile" measured at 1.47:1 under the bar while Security was being audited.
+    /// A drag that holds before it lets go leaves nothing to coast, and the header's place is
+    /// read until it stops changing.
+    ///
+    /// Then no row is left straddling the bar's lower edge: a row half under the bar is neither
+    /// on screen nor off it, and the audit reads it as neither. Such a row is moved up until it is
+    /// wholly behind the bar. Where the list ends first — the last sections of Settings on a
+    /// phone — the header stays where the end of the list leaves it.
+    private func bringUnderTheBar(
+        _ header: XCUIElement, of sheet: XCUIElement, titled title: String,
+        in app: XCUIApplication
+    ) -> Bool {
+        guard sheet.exists else { return false }
+        let bar = sheet.frame
+        let window = app.windows.firstMatch.frame
+        // Where the drags run: across the middle of the sheet, clear of its bar, and clear of
+        // the home indicator and a sheet's own foot.
+        let track = DragTrack(top: bar.maxY + 16, bottom: window.maxY - 120, x: bar.midX)
+        // The header's place: below the bar and the strip under it that iOS 26 fades.
+        let place = bar.maxY + 28
+
+        // Found first. A list builds only the rows near what it shows, so it is paged down to.
+        var pages = 0
+        while top(of: header) == nil && pages < 10 {
+            drag(app, by: -(track.bottom - track.top) * 0.8, along: track)
+            pages += 1
+        }
+        guard top(of: header) != nil else { return false }
+        waitUntilStill(header)
+
+        for _ in 0..<8 {
+            guard let before = top(of: header) else { return false }
+            let off = before - place
+            if abs(off) <= 6 { break }
+            drag(app, by: -off, along: track)
+            waitUntilStill(header)
+            // The list goes no further this way.
+            if let after = top(of: header), abs(after - before) < 2 { break }
+        }
+
+        let straddling = rowFrames(onScreenTitled: title, in: app).first { row in
+            row.minX >= bar.minX - 1 && row.maxX <= bar.maxX + 1
+                && row.minY < bar.maxY - 1 && row.maxY > bar.maxY + 1
+        }
+        if let straddling {
+            drag(app, by: -(straddling.maxY - bar.maxY + 2), along: track)
+            waitUntilStill(header)
+        }
+        return (top(of: header) ?? -1) >= bar.maxY
+    }
+
+    /// Where a drag runs on screen, in points.
+    private struct DragTrack {
+        let top: CGFloat
+        let bottom: CGFloat
+        let x: CGFloat
+    }
+
+    /// Moves a list's content by `distance` points — up when negative — with a press, a slow drag
+    /// and a hold before letting go, so nothing is left to coast.
+    ///
+    /// A short move is made as two long ones, out and back: a drag of a few points is not yet a
+    /// scroll, and lifting the finger then could select the row it started on.
+    private func drag(_ app: XCUIApplication, by distance: CGFloat, along track: DragTrack) {
+        let reach = track.bottom - track.top
+        let travel = min(reach, abs(distance))
+        guard travel > 1, reach > 80 else { return }
+        let direction: CGFloat = distance < 0 ? -1 : 1
+        if travel < 40 {
+            stroke(app, by: -direction * 40, along: track)
+            stroke(app, by: direction * (travel + 40), along: track)
+        } else {
+            stroke(app, by: direction * travel, along: track)
+        }
+    }
+
+    /// One press, drag and hold, of `distance` points along the track — up when negative.
+    private func stroke(_ app: XCUIApplication, by distance: CGFloat, along track: DragTrack) {
+        let travel = min(track.bottom - track.top, abs(distance))
+        let from = distance < 0 ? track.top + travel : track.top
+        let to = distance < 0 ? track.top : track.top + travel
+        let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+        origin.withOffset(CGVector(dx: track.x, dy: from)).press(
+            forDuration: 0.05,
+            thenDragTo: origin.withOffset(CGVector(dx: track.x, dy: to)),
+            withVelocity: .slow,
+            thenHoldForDuration: 0.4)
+    }
+
+    /// The top of an element on screen, or `nil` when it is not there — read from a snapshot, so
+    /// an element that goes between two looks is an answer rather than a failed test.
+    private func top(of element: XCUIElement) -> CGFloat? {
+        (try? element.snapshot())?.frame.minY
+    }
+
+    /// Waits until an element has stopped moving — in the same place on two looks a quarter of a
+    /// second apart — or five seconds have passed.
+    private func waitUntilStill(_ element: XCUIElement) {
+        var last = top(of: element)
+        for _ in 0..<20 {
+            Thread.sleep(forTimeInterval: 0.25)
+            let now = top(of: element)
+            if let now, let last, abs(now - last) < 0.5 { return }
+            last = now
+        }
+    }
+
+    /// The frames of the rows of the list on the screen a navigation bar heads — that screen's own,
+    /// not a screen's behind it — from one snapshot of the app.
+    private func rowFrames(onScreenTitled title: String, in app: XCUIApplication) -> [CGRect] {
+        guard let root = try? app.snapshot() else { return [] }
+        // The bar's ancestors, the nearest last.
+        var path: [any XCUIElementSnapshot] = []
+        func find(_ node: any XCUIElementSnapshot) -> Bool {
+            if node.elementType == .navigationBar && node.identifier == title { return true }
+            path.append(node)
+            for child in node.children {
+                if find(child) { return true }
+            }
+            path.removeLast()
+            return false
+        }
+        guard find(root) else { return [] }
+        // The bar's own screen: the nearest of them that holds rows.
+        for ancestor in path.reversed() {
+            let rows = cellFrames(in: ancestor)
+            if !rows.isEmpty { return rows }
+        }
+        return []
+    }
+
+    private func cellFrames(in node: any XCUIElementSnapshot) -> [CGRect] {
+        var frames = node.elementType == .cell ? [node.frame] : []
+        for child in node.children {
+            frames += cellFrames(in: child)
+        }
+        return frames
+    }
+
     /// Turns a switch on. The switch is a child of the row on recent iOS; where it is not, it is
     /// drawn at the row's trailing edge — the row's middle is its label, which does not turn it.
     private func turnOn(_ toggle: XCUIElement) {
@@ -443,10 +624,9 @@ final class AccessibilityAuditTests: XCTestCase {
                         "[\(screen)] the \(AuditFinding.name(of: types)) audit could not run, "
                             + "even retried: " + reason,
                         file: file, line: line)
-                    // Let whatever the audit left running finish before the walk goes on, so the
-                    // next tap is not refused by an app still busy with it.
-                    Thread.sleep(forTimeInterval: 5)
-                    _ = app.windows.firstMatch.frame
+                    // Time for whatever the check left running to finish before the walk asks the
+                    // app anything else. Only a wait — see `persist`.
+                    Thread.sleep(forTimeInterval: 10)
                 }
             }
             if pass == .contrast {
@@ -502,18 +682,18 @@ final class AccessibilityAuditTests: XCTestCase {
     /// One kind of check, tried until it finishes or has had three goes.
     ///
     /// On a CI iPad the text-size checks can run past the audit's own time limit on an ordinary
-    /// screen — Notifications with its reminders on, Home in light — and the run after one that
-    /// gave up can find the app still busy with it. So each try waits longer than the last, and
-    /// first waits for the app to be idle again: reading the window's frame is a snapshot, which
-    /// XCTest takes only once the app has stopped work. A check that cannot finish after three
-    /// goes is still a failure — it is reported, not skipped.
+    /// screen — Home, Notifications with its reminders on — and the app can still be busy with
+    /// the check that gave up when the next one starts. So each try waits longer than the last.
+    /// The waits are only waits: nothing here asks the app anything in between. Asking an app
+    /// that busy — even for the window's frame — is a question it cannot answer in time, and an
+    /// unanswered question ends the whole test, every screen after this one with it. A check
+    /// that cannot finish after three goes is still a failure — it is reported, not skipped.
     private static func persist(
         _ types: XCUIAccessibilityAuditType, on app: XCUIApplication, in context: AuditLayout
     ) -> AuditOutcome {
         var outcome = AuditOutcome.couldNotRun(types, "not tried")
-        for settle in [1.0, 5.0, 10.0] {
+        for settle in [2.0, 5.0, 10.0] {
             Thread.sleep(forTimeInterval: settle)
-            _ = app.windows.firstMatch.frame
             outcome = perform(types, on: app, in: context)
             guard case .couldNotRun = outcome else { return outcome }
         }
@@ -533,13 +713,18 @@ final class AccessibilityAuditTests: XCTestCase {
             var gathered: [AuditFinding] = []
             do {
                 try app.performAccessibilityAudit(for: types) { issue in
-                    let finding = AuditFinding(
+                    let element = Self.facts(
+                        about: issue.element, withWords: issue.auditType.contains(.contrast))
+                    var finding = AuditFinding(
                         kind: issue.auditType,
                         summary: issue.compactDescription,
                         detail: issue.detailedDescription,
-                        element: Self.facts(
-                            about: issue.element,
-                            withWords: issue.auditType.contains(.contrast)))
+                        element: element)
+                    // An element the audit did name, but that could not be read: what XCTest
+                    // calls it is kept, so the report says which element rather than none.
+                    if element == nil, let named = issue.element {
+                        finding.unread = String(describing: named)
+                    }
                     gathered.append(finding)
                     // Handled here (`true`) unless the audit named no element and no waiver
                     // covers it: then XCTest records it too, with its picture of the element.
@@ -556,25 +741,40 @@ final class AccessibilityAuditTests: XCTestCase {
 
     /// The facts about an element the report and the waivers need, read once while it is there.
     ///
+    /// From one snapshot of the element rather than a question per fact. Each question is a round
+    /// trip to the app, made while the audit's own clock is running — six of them for every issue
+    /// on a screen with twenty is most of a minute on a CI iPad — and a question the app is too
+    /// busy to answer ends the test. A snapshot that cannot be taken is an element not read.
+    ///
     /// - Parameter withWords: for a button, also find its words — the first text inside it — so
     ///   a contrast finding can be measured on them rather than on the whole button, whose box
     ///   may hold an avatar or a tile as well.
     private static func facts(
         about element: XCUIElement?, withWords: Bool = false
     ) -> AuditFinding.Element? {
-        guard let element, element.exists else { return nil }
+        guard let element, let snapshot = try? element.snapshot() else { return nil }
         var words: CGRect?
-        if withWords, element.elementType == .button {
-            let text = element.staticTexts.firstMatch
-            words = text.exists ? text.frame : nil
+        if withWords, snapshot.elementType == .button {
+            words = firstText(in: snapshot)?.frame
         }
         return AuditFinding.Element(
-            kind: element.elementType,
-            label: element.label,
-            identifier: element.identifier,
-            frame: element.frame,
-            isEnabled: element.isEnabled,
+            kind: snapshot.elementType,
+            label: snapshot.label,
+            identifier: snapshot.identifier,
+            frame: snapshot.frame,
+            isEnabled: snapshot.isEnabled,
             wordsFrame: words)
+    }
+
+    /// The first text inside an element, in the order a query would find it.
+    private static func firstText(
+        in snapshot: any XCUIElementSnapshot
+    ) -> (any XCUIElementSnapshot)? {
+        for child in snapshot.children {
+            if child.elementType == .staticText { return child }
+            if let inner = firstText(in: child) { return inner }
+        }
+        return nil
     }
 
     /// Where the system's own furniture is on screen as the audit runs.
@@ -656,6 +856,9 @@ private struct AuditFinding: Sendable {
     let summary: String
     let detail: String
     let element: Element?
+    /// What XCTest calls an element the audit named but that could not be read — gone, or not
+    /// answering, by the time it was asked about.
+    var unread: String? = nil
     /// For a contrast finding, the ratio measured from the screen's own pixels inside the
     /// element's box — `ScreenPixels` — when the element is one that can be measured that way.
     var measuredContrast: Double? = nil
@@ -673,7 +876,12 @@ private struct AuditFinding: Sendable {
     }
 
     private var elementDescription: String {
-        guard let element else { return "none named by the audit." }
+        guard let element else {
+            if let unread {
+                return "one the audit named but that could not be read — \(unread)."
+            }
+            return "none named by the audit."
+        }
         var words = AuditFinding.name(of: element.kind)
         if !element.label.isEmpty { words += " “\(element.label)”" }
         if !element.identifier.isEmpty, element.identifier != element.label {

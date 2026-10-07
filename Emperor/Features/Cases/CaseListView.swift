@@ -353,6 +353,9 @@ struct CaseListView: View {
         }
         .padding(.vertical, Spacing.xs)
         .accessibilityElement(children: .combine)
+        // The combined row inside the link is an element of its own to the accessibility audit;
+        // named, so a finding on it says which row it is rather than "this element".
+        .accessibilityIdentifier("case-summary-\(legalCase.id)")
     }
 }
 

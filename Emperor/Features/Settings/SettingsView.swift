@@ -72,11 +72,13 @@ struct SettingsView: View {
                         LabeledContent("Email") {
                             Text(user.email ?? "—").foregroundStyle(theme.textPrimary)
                         }
+                        .accessibilityIdentifier("account-email")
                         if let phone = user.phone, !phone.isEmpty {
                             LabeledContent("Mobile") {
                                 Text("+91 " + IndianMobile.local(phone))
                                     .foregroundStyle(theme.textPrimary)
                             }
+                            .accessibilityIdentifier("account-mobile")
                         }
                         NavigationLink {
                             EditProfileView()
@@ -127,6 +129,7 @@ struct SettingsView: View {
                             title: Disclaimer.title, systemImage: "exclamationmark.shield",
                             hue: .gold)
                     }
+                    .accessibilityIdentifier("settings-disclaimer")
                 } header: {
                     SectionHeader(title: "Important")
                 } footer: {
@@ -144,6 +147,8 @@ struct SettingsView: View {
                             hue: .rose, titleColor: theme.danger)
                     }
                     .accessibilityLabel(Text("Sign out"))
+                    // Its own words, as "View plans" is named: tests find the row by them.
+                    .accessibilityIdentifier("Sign out")
                 } footer: {
                     // What signing out actually does on this device, which is the part a person
                     // handing the phone to someone else needs to know.

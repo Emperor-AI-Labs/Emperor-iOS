@@ -71,6 +71,7 @@ struct OfflineStorageSection: View {
             }
         } header: {
             SectionHeader(title: "Storage")
+                .accessibilityIdentifier("settings-header-storage")
         } footer: {
             Text(OfflineStorageSummary.explanation)
                 .font(.brand(.caption))

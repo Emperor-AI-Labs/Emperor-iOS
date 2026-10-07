@@ -16,9 +16,11 @@ struct PlanUsageSection: View {
 
     var body: some View {
         Section {
+            // Each row named, so the accessibility audit can say which one it means.
             LabeledContent("Plan") {
                 Text(planLabel).foregroundStyle(theme.textPrimary)
             }
+            .accessibilityIdentifier("plan-name")
 
             if let standing = session.standing {
                 standingRow(standing)
@@ -159,6 +161,7 @@ struct UsageMeterRow: View {
         }
         .padding(.vertical, Spacing.xs + 2)
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("usage-meter-\(meter.kind.rawValue)")
     }
 
     private var barColour: Color {
