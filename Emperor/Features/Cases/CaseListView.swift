@@ -304,26 +304,9 @@ struct CaseListView: View {
                 .foregroundStyle(theme.textPrimary)
                 .dynamicLineLimit(2)
 
-            // Reference and court side by side, or one over the other at the accessibility sizes,
-            // where one line holds neither. The court is never cut short: in an iPad's docket
-            // column "Supreme Court of India" came out as "Supreme Court of I…", so it wraps.
-            AdaptiveStack(verticalAlignment: .firstTextBaseline, spacing: 6) {
-                if let reference = legalCase.caseReference {
-                    Text(reference)
-                        .monospacedDigit()
-                }
-                if let court = legalCase.courtName {
-                    if !dynamicTypeSize.isAccessibilitySize {
-                        // Raised off the baseline to the middle of the letters, as a "·" sits.
-                        SeparatorDot()
-                            .alignmentGuide(.firstTextBaseline) { $0[.bottom] + 4 }
-                    }
-                    Text(court)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .font(.brand(.subheadline))
-            .foregroundStyle(theme.textSecondary)
+            referenceAndCourt(legalCase)
+                .font(.brand(.subheadline))
+                .foregroundStyle(theme.textSecondary)
 
             AdaptiveStack(spacing: Spacing.sm) {
                 if let hearing = legalCase.nextHearingDate {
@@ -356,6 +339,52 @@ struct CaseListView: View {
         // The combined row inside the link is an element of its own to the accessibility audit;
         // named, so a finding on it says which row it is rather than "this element".
         .accessibilityIdentifier("case-summary-\(legalCase.id)")
+    }
+
+    /// The case's reference and its court: on one line when both fit whole, otherwise the court
+    /// under the reference — and always one over the other at the accessibility sizes.
+    ///
+    /// Side by side and sharing the width, one of the two was always cut short. First the court
+    /// ("Supreme Court of I…" in an iPad's docket column); then, with the court made to wrap, the
+    /// reference ("Comp. App. (AT) (…"), which is what a litigator reads the row for. Neither is
+    /// ever cut now: each wraps on a line of its own when the pair does not fit.
+    @ViewBuilder
+    private func referenceAndCourt(_ legalCase: LegalCase) -> some View {
+        if let reference = legalCase.caseReference, let court = legalCase.courtName {
+            if dynamicTypeSize.isAccessibilitySize {
+                referenceOverCourt(reference, court: court)
+            } else {
+                // The first that fits at its natural width: one line, or the two stacked.
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(reference)
+                            .monospacedDigit()
+                        // Raised off the baseline to the middle of the letters, as a "·" sits.
+                        SeparatorDot()
+                            .alignmentGuide(.firstTextBaseline) { $0[.bottom] + 4 }
+                        Text(court)
+                    }
+                    referenceOverCourt(reference, court: court)
+                }
+            }
+        } else if let reference = legalCase.caseReference {
+            Text(reference)
+                .monospacedDigit()
+                .fixedSize(horizontal: false, vertical: true)
+        } else if let court = legalCase.courtName {
+            Text(court)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func referenceOverCourt(_ reference: String, court: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(reference)
+                .monospacedDigit()
+                .fixedSize(horizontal: false, vertical: true)
+            Text(court)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
