@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// The app's colours and face, for a process that cannot reach the app's `Theme`.
+/// The app's colours and faces, for a process that cannot reach the app's `Theme`.
 ///
 /// The colours are `TodayWidgetColors`, which `TodaySnapshotTests` holds to the app's `Palette`;
-/// the face is the same bundled Fredoka (`BrandFont`), registered for the widget by its own
-/// `UIAppFonts`. Should the font not register, `Font.custom` falls back to the system face — the
-/// widget still draws, only plainer.
+/// the faces are the same bundled Record faces (`BrandFont`) — Plus Jakarta Sans and Instrument
+/// Serif — registered for the widget by its own `UIAppFonts`. Should a font not register,
+/// `Font.custom` falls back to the system face — the widget still draws, only plainer.
 ///
 /// It follows the phone's appearance: a widget cannot read the app's own Light / Dark choice.
 struct WidgetStyle {
@@ -22,18 +22,23 @@ struct WidgetStyle {
     var accent: Color { color(colors.accent) }
     var accentText: Color { color(colors.accentText) }
 
-    /// The brand face at a size that still follows Dynamic Type, scaled with `style`.
+    /// The interface face at a size that still follows Dynamic Type, scaled with `style`.
     func brand(_ size: CGFloat, _ weight: Font.Weight, relativeTo style: Font.TextStyle) -> Font {
         Font.custom(Self.fontName(weight), size: size, relativeTo: style)
     }
 
-    /// The variable font's named instances, as `BrandFont.Name` lists them.
+    /// The serif, for the numbers people scan for — a day, an item.
+    func display(_ size: CGFloat, relativeTo style: Font.TextStyle) -> Font {
+        Font.custom("InstrumentSerif-Regular", size: size, relativeTo: style)
+    }
+
+    /// The static files' PostScript names, as `BrandFont.Name` lists them.
     private static func fontName(_ weight: Font.Weight) -> String {
         switch weight {
-        case .medium: return "Fredoka-Medium"
-        case .semibold: return "Fredoka-SemiBold"
-        case .bold, .heavy, .black: return "Fredoka-Bold"
-        default: return "Fredoka-Regular"
+        case .medium: return "PlusJakartaSans-Medium"
+        case .semibold: return "PlusJakartaSans-SemiBold"
+        case .bold, .heavy, .black: return "PlusJakartaSans-Bold"
+        default: return "PlusJakartaSans-Regular"
         }
     }
 

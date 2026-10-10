@@ -70,15 +70,21 @@ targets:
         # "View plans" — opens the web app's plans page in the browser. Read by `WebPlans`.
         EmperorWebPlans: $(EMPEROR_WEB_PLANS)
         UILaunchScreen: {}
-        # `--font-brand` in `emperor-ai/src/ui/theme.css`. Bundled rather than fetched: the web
-        # pulls it from Google Fonts by `@import`, which an app cannot do.
+        # The Record faces (Design/record-tokens.json, `font`): Plus Jakarta Sans for the
+        # interface and Instrument Serif for large titles, greetings and the numbers people scan
+        # for. Both SIL OFL 1.1, licences beside them in Resources/Fonts. Bundled rather than
+        # fetched, as an app must.
         #
-        # One file, because it is a **variable** font carrying all five weights as named
-        # instances. Its default instance is Light and its family name is "Fredoka Light", so
-        # `UIFont(name: "Fredoka")` gets Light or nothing — always address a named instance
-        # (`Fredoka-Regular`, `-Medium`, `-SemiBold`, `-Bold`). See `BrandFont`.
+        # Plus Jakarta Sans is four **static** files, not Google Fonts' variable one: that file's
+        # named instances carry no PostScript names, so `UIFont(name:)` could not address a weight
+        # reliably. Each static file has its own (`PlusJakartaSans-Medium`, …). See `BrandFont`.
         UIAppFonts:
-          - Fredoka.ttf
+          - PlusJakartaSans-Regular.ttf
+          - PlusJakartaSans-Medium.ttf
+          - PlusJakartaSans-SemiBold.ttf
+          - PlusJakartaSans-Bold.ttf
+          - InstrumentSerif-Regular.ttf
+          - InstrumentSerif-Italic.ttf
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
@@ -169,9 +175,13 @@ targets:
     sources:
       - path: EmperorWidget
       - path: Sources/EmperorCore/Today
-      # The brand face, registered for the widget by `UIAppFonts` below. The licence ships in
+      # The Record faces, registered for the widget by `UIAppFonts` below. The licences ship in
       # the app that contains it.
-      - path: Emperor/Resources/Fonts/Fredoka.ttf
+      - path: Emperor/Resources/Fonts/PlusJakartaSans-Regular.ttf
+      - path: Emperor/Resources/Fonts/PlusJakartaSans-Medium.ttf
+      - path: Emperor/Resources/Fonts/PlusJakartaSans-SemiBold.ttf
+      - path: Emperor/Resources/Fonts/PlusJakartaSans-Bold.ttf
+      - path: Emperor/Resources/Fonts/InstrumentSerif-Regular.ttf
     info:
       path: EmperorWidget/Info.plist
       properties:
@@ -184,7 +194,11 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
         UIAppFonts:
-          - Fredoka.ttf
+          - PlusJakartaSans-Regular.ttf
+          - PlusJakartaSans-Medium.ttf
+          - PlusJakartaSans-SemiBold.ttf
+          - PlusJakartaSans-Bold.ttf
+          - InstrumentSerif-Regular.ttf
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.emperorailabs.emperor.widget

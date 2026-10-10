@@ -57,8 +57,9 @@ private struct SmallTodayView: View {
             Spacer(minLength: 4)
             switch entry.glance {
             case .today(let day):
+                // A number people scan for, so in the serif, as Record sets item numbers.
                 Text("\(day.total)")
-                    .font(style.brand(34, .semibold, relativeTo: .largeTitle))
+                    .font(style.display(38, relativeTo: .largeTitle))
                     .foregroundStyle(style.textPrimary)
                     .minimumScaleFactor(0.7)
                 Text(day.total == 1 ? "matter listed today" : "matters listed today")

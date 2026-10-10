@@ -9,24 +9,24 @@ import UIKit
 /// silent — the app renders perfectly and is simply wrong.
 final class BundleResourceTests: XCTestCase {
 
-    /// The bundled brand face registered.
+    /// The bundled Record faces registered.
     ///
     /// Three separate mistakes end in "the system font, silently": a missing `UIAppFonts` entry,
     /// a resource that never made it into the bundle, or a PostScript name that does not match
-    /// the font's `fvar` table. SwiftUI substitutes and renders without complaint, so nothing
+    /// the file's `name` table. SwiftUI substitutes and renders without complaint, so nothing
     /// downstream of this notices.
-    func testFredokaRegistered() {
+    func testTheRecordFacesRegistered() {
         XCTAssertTrue(
             BrandFont.isAvailable,
-            "Fredoka did not register — check UIAppFonts, the bundled file, and the names below")
+            "Plus Jakarta Sans did not register — check UIAppFonts, the bundled files, and the names")
+        XCTAssertTrue(
+            BrandFont.isDisplayAvailable,
+            "Instrument Serif did not register — check UIAppFonts, the bundled files, and the names")
     }
 
-    /// Every named instance resolves, not merely the family.
-    ///
-    /// This font is variable and its *default* instance is Light, so a family-name lookup
-    /// "succeeds" while giving the wrong weight everywhere. Each instance is asked for by name.
-    func testEveryWeightResolvesToTheRealFace() {
-        for name in BrandFont.Name.all {
+    /// Every weight and the serif's italic resolve by name, not merely the family.
+    func testEveryFaceResolvesToTheRealFile() {
+        for name in BrandFont.Name.all + BrandFont.Name.displayAll {
             let font = UIFont(name: name, size: 17)
             XCTAssertNotNil(font, "\(name) did not resolve")
             XCTAssertEqual(
@@ -35,26 +35,23 @@ final class BundleResourceTests: XCTestCase {
         }
     }
 
-    /// The weights are actually different.
-    ///
-    /// A variable font whose axis failed to apply returns five identical faces under five names,
-    /// which every check above would pass. Widths differ if the weight axis really moved.
+    /// The weights are actually different files.
     func testTheWeightsDiffer() {
         let text = "Bakshi v. State of Maharashtra" as NSString
         let regular = UIFont(name: BrandFont.Name.regular, size: 17)!
         let bold = UIFont(name: BrandFont.Name.bold, size: 17)!
         let regularWidth = text.size(withAttributes: [.font: regular]).width
         let boldWidth = text.size(withAttributes: [.font: bold]).width
-        XCTAssertGreaterThan(
-            boldWidth, regularWidth,
-            "bold is not wider than regular — the weight axis is not being applied")
+        XCTAssertGreaterThan(boldWidth, regularWidth, "bold is not wider than regular")
     }
 
-    /// The licence ships with the font, which SIL OFL 1.1 requires.
-    func testTheFontLicenceShips() {
-        XCTAssertNotNil(
-            Bundle.main.url(forResource: "OFL", withExtension: "txt"),
-            "the OFL licence must ship alongside the font")
+    /// The licences ship with the fonts, which SIL OFL 1.1 requires.
+    func testTheFontLicencesShip() {
+        for licence in ["PlusJakartaSans-OFL", "InstrumentSerif-OFL"] {
+            XCTAssertNotNil(
+                Bundle.main.url(forResource: licence, withExtension: "txt"),
+                "\(licence).txt must ship alongside its font")
+        }
     }
 
     /// Apple asks for both at submission and rejects for either.

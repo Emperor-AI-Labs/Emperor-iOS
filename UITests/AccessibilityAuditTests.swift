@@ -1372,7 +1372,7 @@ private enum Waiver: CaseIterable {
                 + "design and offers the Large Content Viewer instead (press and hold). The brand "
                 + "titles are capped the same way (`BrandAppearance`)."
         case .brandFace:
-            return "drawn in the brand face (Fredoka) through `Font.custom(_:size:relativeTo:)`, "
+            return "drawn in the brand face (Plus Jakarta Sans) through `Font.custom(_:size:relativeTo:)`, "
                 + "which scales with Dynamic Type — `testTheMainTabsSurviveTheLargestTextSize` "
                 + "photographs it at the largest size — but carries no text-style trait, and that "
                 + "trait is what the audit reads; so it says 'partially'."
