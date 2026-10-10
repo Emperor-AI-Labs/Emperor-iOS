@@ -121,16 +121,8 @@ struct AskHomeView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            HStack(spacing: Spacing.sm) {
-                RecordMarkView(height: 18)
-                Text("Emperor")
-                    .font(.display(size: 20, relativeTo: .headline))
-                    .foregroundStyle(theme.textPrimary)
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Emperor")
-        }
+        // No mark in the leading slot: on iOS 26 a toolbar item is drawn in a round glass button,
+        // which clipped the wordmark beside the mark. The design's iPhone Ask has no logo here.
         ToolbarItemGroup(placement: .primaryAction) {
             Button {
                 isShowingUpdates = true
@@ -397,14 +389,19 @@ private struct NextSittingRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(display.item ?? "—")
-                    .font(.display(size: 20, relativeTo: .title3))
-                    .monospacedDigit()
-                    .foregroundStyle(theme.textPrimary)
-                Text("item")
-                    .font(.brand(.caption2))
-                    .foregroundStyle(theme.textTertiary)
+            // Only when the record has one — a dash over "item" reads as a broken value.
+            if let item = display.item {
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(item)
+                        .font(.display(size: 20, relativeTo: .title3))
+                        .monospacedDigit()
+                        .foregroundStyle(theme.textPrimary)
+                    Text("item")
+                        .font(.brand(.caption2))
+                        .foregroundStyle(theme.textTertiary)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Item \(item)")
             }
         }
         .padding(.horizontal, 14)
