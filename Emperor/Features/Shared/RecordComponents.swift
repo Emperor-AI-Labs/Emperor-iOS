@@ -377,7 +377,7 @@ struct RecordSegmentedControl<Value: Hashable>: View {
                     if isSelected {
                         RoundedRectangle(cornerRadius: 7, style: .continuous)
                             .fill(theme.elevated)
-                            .shadow(color: Color.black.opacity(0.12), radius: 1.5, x: 0, y: 1)
+                            .shadow(color: theme.raisedShadow, radius: 1.5, x: 0, y: 1)
                             .matchedGeometryEffect(id: "segment", in: space)
                     }
                 }
@@ -821,7 +821,10 @@ private struct RecordToast: ViewModifier {
                     .background(.regularMaterial, in: Capsule())
                     .background(theme.chrome, in: Capsule())
                     .overlay(Capsule().strokeBorder(theme.borderStrong, lineWidth: 0.5))
-                    .shadow(color: Color.black.opacity(0.10), radius: 12, x: 0, y: 8)
+                    .shadow(
+                        color: theme.raisedShadow,
+                        radius: CGFloat(RecordTokens.Elevation.level2.blur) / 2,
+                        x: 0, y: CGFloat(RecordTokens.Elevation.level2.y))
                     .padding(.top, Spacing.sm)
                     .padding(.horizontal, Spacing.gutter)
                     .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))

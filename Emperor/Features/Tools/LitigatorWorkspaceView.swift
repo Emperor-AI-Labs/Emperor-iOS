@@ -120,7 +120,7 @@ struct LitigatorWorkspaceView: View {
                 proxy.scrollTo(model.matter.id, anchor: .center)
             }
             .onChange(of: model.matter.id) { _, id in
-                withAnimation(reduceMotion ? nil : Animation.easeOut(duration: 0.2)) {
+                withAnimation(Motion.adaptive(Motion.easeOut(0.2), reduceMotion: reduceMotion)) {
                     proxy.scrollTo(id, anchor: .center)
                 }
             }

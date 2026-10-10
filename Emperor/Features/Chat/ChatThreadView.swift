@@ -640,9 +640,9 @@ struct ChatThreadView: View {
                 startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.12))
                 .ignoresSafeArea(edges: .bottom))
         // The lines above the field slide in and out; under Reduce Motion they are simply there.
-        .animation(reduceMotion ? nil : Animation.easeOut(duration: 0.15), value: composer.canUndo)
+        .animation(Motion.adaptive(Motion.easeOut(0.15), reduceMotion: reduceMotion), value: composer.canUndo)
         .animation(
-            reduceMotion ? nil : Animation.easeOut(duration: 0.15), value: composer.failureNotice)
+            Motion.adaptive(Motion.easeOut(0.15), reduceMotion: reduceMotion), value: composer.failureNotice)
         // A failed rewrite lands above the field, away from the button that asked for it.
         .onChange(of: composer.failureNotice) { _, notice in
             if let notice { VoiceOver.announce(notice) }
@@ -677,7 +677,7 @@ struct ChatThreadView: View {
         let target = model.live != nil ? "live" : model.messages.last?.stableID
         guard let target else { return }
         // Every streamed chunk scrolls; under Reduce Motion it jumps rather than glides.
-        withAnimation(reduceMotion ? nil : Animation.easeOut(duration: 0.15)) {
+        withAnimation(Motion.adaptive(Motion.easeOut(0.15), reduceMotion: reduceMotion)) {
             proxy.scrollTo(target, anchor: .bottom)
         }
     }

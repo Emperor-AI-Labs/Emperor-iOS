@@ -147,6 +147,10 @@ final class Theme {
     var onTile: Color { Color(palette.onTile) }
     /// The faint shadow under a card in light; clear in dark.
     var cardShadow: Color { Color(palette.cardShadow) }
+    /// Elevation 2 — a toast, a raised segment.
+    var raisedShadow: Color { Color(RecordTokens.Elevation.level2.color) }
+    /// A control under the thumb is drawn this much darker (the design's `brightness(.94)`).
+    var pressShade: Color { Color(PaletteColor(0, 0, 0, opacity: 0.06)) }
     var isDark: Bool { palette.isDark }
 }
 
@@ -765,7 +769,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .padding(.vertical, Spacing.sm)
             .frame(minHeight: compact ? Layout.compactButtonHeight : Layout.buttonHeight)
             .background(theme.primaryGradient, in: shape)
-            .overlay(shape.fill(Color.black.opacity(configuration.isPressed ? 0.06 : 0)))
+            .overlay(shape.fill(configuration.isPressed ? theme.pressShade : Color.clear))
             .contentShape(shape)
             .opacity(isEnabled ? 1 : 0.42)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
@@ -815,7 +819,7 @@ struct TonalButtonStyle: ButtonStyle {
             .padding(.vertical, Spacing.xs)
             .frame(minHeight: compact ? Layout.compactButtonHeight : Layout.buttonHeight)
             .background(theme.accentSoft, in: shape)
-            .overlay(shape.fill(Color.black.opacity(configuration.isPressed ? 0.06 : 0)))
+            .overlay(shape.fill(configuration.isPressed ? theme.pressShade : Color.clear))
             .frame(minHeight: Layout.touchTarget)
             .contentShape(Rectangle())
             .opacity(isEnabled ? 1 : 0.42)
