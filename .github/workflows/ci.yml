@@ -305,8 +305,10 @@ jobs:
   unsigned-ipa:
     name: Unsigned .ipa (sideload)
     runs-on: macos-15
-    # Only after the compile is known good — an archive of code that does not build is noise.
-    needs: simulator-tests
+    # After the core and syntax gates, not the simulator tests: the archive compiles the whole app
+    # itself, so code that does not build still fails here, but a UI test that is out of date
+    # (as they are while a redesign lands) no longer blocks the build a tester installs.
+    needs: [core, syntax]
     steps:
       - uses: actions/checkout@v4
 
