@@ -207,7 +207,7 @@ struct RearrangePDFView: View {
                     spacing: 10
                 ) {
                     ForEach(Array(pages.enumerated()), id: \.offset) { position, page in
-                        PageChip(
+                        RearrangePageChip(
                             position: position, page: page, total: pages.count,
                             thumbnails: thumbnails, model: model)
                     }
@@ -274,7 +274,7 @@ struct RearrangePDFView: View {
 ///
 /// The actions rewrite the instruction rather than an edited copy of the order, so the text
 /// above and this grid can never disagree.
-private struct PageChip: View {
+private struct RearrangePageChip: View {
     @Environment(\.theme) private var theme
 
     let position: Int
