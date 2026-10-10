@@ -65,7 +65,7 @@ struct ToolFormView: View {
         }
         .font(.brand(.body))
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         .navigationTitle(tool.title)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $startedChatID) { id in

@@ -391,7 +391,7 @@ private struct LibraryScreen: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         .refreshable { await model.load() }
     }
 
@@ -422,7 +422,7 @@ private struct LibraryScreen: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         .refreshable { await model.load() }
     }
 
@@ -486,7 +486,7 @@ private struct LibraryScreen: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
     }
 
     /// Two tiles across on a phone, as many as fit on an iPad; one at the accessibility text

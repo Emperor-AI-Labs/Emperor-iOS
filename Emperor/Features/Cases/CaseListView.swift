@@ -243,7 +243,7 @@ struct CaseListView: View {
         .accessibilityIdentifier("case-docket")
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
     }
 
     @ViewBuilder
@@ -510,7 +510,7 @@ private struct CaseArrangementSheet: View {
             .accessibilityIdentifier("case-arrangement-form")
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
             .navigationTitle(CaseListViewModel.Copy.arrangeTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

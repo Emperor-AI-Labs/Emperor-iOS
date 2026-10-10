@@ -32,6 +32,22 @@ enum ChatModel: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    /// The mode's name in the Record design's composer and answer-mode sheet.
+    var modeName: String {
+        switch self {
+        case .fast: return "Fast"
+        case .thinking: return "Deep thinking"
+        }
+    }
+
+    /// What the mode is for, under its name in the answer-mode sheet.
+    var modeDescription: String {
+        switch self {
+        case .fast: return "Quick answers from your record. Best for most questions."
+        case .thinking: return "Slower; reasons through long records. Counts against your deep-thinking allowance."
+        }
+    }
+
     /// Omitting `model` server-side defaults to `fast` (`sync-server.js:7779`), but the client
     /// always sends it explicitly rather than relying on that.
     static let `default` = ChatModel.fast

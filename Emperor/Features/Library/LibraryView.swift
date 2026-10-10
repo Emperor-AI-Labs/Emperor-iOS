@@ -207,7 +207,7 @@ struct LibraryView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
         } empty: {
             if model.showsNoSearchResults {
                 NoResultsView(query: model.query)

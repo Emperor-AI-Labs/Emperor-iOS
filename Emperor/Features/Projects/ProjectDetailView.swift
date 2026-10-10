@@ -55,7 +55,7 @@ struct ProjectDetailView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
         } empty: {
             // Unreachable in practice — a load that returns without a project throws instead, so
             // the failure branch catches it. Present because `ListStateView` requires both

@@ -135,7 +135,7 @@ struct ChatListView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
             .refreshable { await model.load() }
         } empty: {
             EmptyStateView(

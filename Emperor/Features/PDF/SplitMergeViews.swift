@@ -123,7 +123,7 @@ struct SplitPDFView: View {
         }
         .font(.brand(.body))
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         .navigationTitle("Split PDF")
         .navigationBarTitleDisplayMode(.inline)
         .fileImporter(
@@ -277,7 +277,7 @@ struct MergePDFView: View {
         }
         .font(.brand(.body))
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         .navigationTitle("Merge PDF")
         .navigationBarTitleDisplayMode(.inline)
         .fileImporter(

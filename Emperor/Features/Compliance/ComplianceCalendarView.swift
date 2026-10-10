@@ -109,7 +109,7 @@ struct ComplianceCalendarView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
             .refreshable { await model.load() }
         } empty: {
             // Only after a load that returned: "the feed has nothing dated", never "we could
@@ -445,7 +445,7 @@ struct ComplianceDeadlineDetailView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         .navigationTitle(detail.code ?? "Deadline")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

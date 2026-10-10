@@ -140,7 +140,7 @@ struct CalendarSubscriptionSheet: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
             // The confirmation lands in a section of its own, away from the dialog's button.
             .onChange(of: model.didReset) { _, didReset in
                 if didReset { VoiceOver.announce(CalendarSubscriptionViewModel.Copy.resetDone) }

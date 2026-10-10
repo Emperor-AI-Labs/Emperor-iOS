@@ -30,7 +30,7 @@ struct RolePickerView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         .navigationTitle("Switch role")
         .navigationBarTitleDisplayMode(.inline)
         .sensoryFeedback(.selection, trigger: practice.role)

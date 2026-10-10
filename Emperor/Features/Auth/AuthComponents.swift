@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The chrome around a sign-in field: an icon, a filled rounded surface, and a ring that
-/// follows focus.
+/// The chrome around a sign-in field, as Record draws a field: the card's surface, a strong
+/// hairline at the control radius, fifty points high — and when focused, the accent's edge with a
+/// soft ring of it.
 ///
 /// A modifier on the field rather than a wrapper view, so each field keeps its own
 /// `textContentType`, keyboard and focus binding — the things that make Password AutoFill and
@@ -9,40 +10,45 @@ import SwiftUI
 struct AuthFieldChrome: ViewModifier {
     @Environment(\.theme) private var theme
 
-    let systemImage: String
+    let systemImage: String?
     var isFocused: Bool
+    var isInvalid = false
 
     /// The glyph's slot, scaled with the text beside it, so a large text size widens the slot
     /// instead of letting the glyph spill into the field.
     @ScaledMetric(relativeTo: .callout) private var glyphWidth: CGFloat = 20
 
     func body(content: Content) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.brand(.callout))
-                .foregroundStyle(isFocused ? theme.accentText : theme.textTertiary)
-                .frame(width: glyphWidth)
-                .accessibilityHidden(true)
+        let shape = RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+        let edge: Color = isInvalid ? theme.danger : (isFocused ? theme.accentText : theme.borderStrong)
+        return HStack(spacing: 12) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.brand(.callout))
+                    .foregroundStyle(isFocused ? theme.accentText : theme.textTertiary)
+                    .frame(width: glyphWidth)
+                    .accessibilityHidden(true)
+            }
             content
                 .font(.brand(.body))
                 .foregroundStyle(theme.textPrimary)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 13)
+        .frame(minHeight: Layout.buttonHeight)
+        .background(theme.surface, in: shape)
+        .overlay(shape.strokeBorder(edge, lineWidth: 1))
+        // The focus ring: three points of the accent's soft wash outside the edge.
         .background(
-            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                .fill(theme.surfaceElevated))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                .strokeBorder(isFocused ? theme.accent : theme.separator,
-                              lineWidth: isFocused ? 1.5 : 1))
-        .animation(.easeOut(duration: 0.15), value: isFocused)
+            RoundedRectangle(cornerRadius: Radius.control + 3, style: .continuous)
+                .fill(isFocused && !isInvalid ? theme.accentSoft : Color.clear)
+                .padding(-3))
+        .animation(Motion.easeOut(0.15), value: isFocused)
     }
 }
 
 extension View {
-    func authField(_ systemImage: String, isFocused: Bool) -> some View {
-        modifier(AuthFieldChrome(systemImage: systemImage, isFocused: isFocused))
+    func authField(_ systemImage: String?, isFocused: Bool, isInvalid: Bool = false) -> some View {
+        modifier(AuthFieldChrome(systemImage: systemImage, isFocused: isFocused, isInvalid: isInvalid))
     }
 }
 
@@ -73,9 +79,6 @@ struct AuthMessage: View {
         .background(
             color.opacity(Palette.Wash.message),
             in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                .strokeBorder(color.opacity(0.25), lineWidth: 1))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(tone == .error ? "Error: \(text)" : text)
     }

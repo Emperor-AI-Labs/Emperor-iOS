@@ -71,7 +71,7 @@ struct CaseDetailView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
         } empty: {
             EmptyStateView("Matter unavailable", systemImage: "questionmark.folder", tone: .neutral)
         }

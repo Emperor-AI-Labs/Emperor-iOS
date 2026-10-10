@@ -68,7 +68,7 @@ struct ProjectListView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
         } empty: {
             // "No search results" belongs **here**, not in the content closure above.
             // `presentation.isEmpty` is measured against the *filtered* list, so a search that

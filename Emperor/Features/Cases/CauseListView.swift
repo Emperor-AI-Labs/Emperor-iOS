@@ -70,7 +70,7 @@ struct CauseListView: View {
                 }
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
-                .background(theme.canvas)
+                .background(theme.groupedBackground)
                 .refreshable { await model.load() }
             } empty: {
                 emptyState(model)

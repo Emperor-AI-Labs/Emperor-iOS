@@ -79,7 +79,7 @@ struct LitigatorWorkspaceView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
             .navigationTitle(PractitionerRole.litigator.label)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

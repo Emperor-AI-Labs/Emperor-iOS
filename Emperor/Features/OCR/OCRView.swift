@@ -71,7 +71,7 @@ struct OCRScreen: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         .navigationTitle((model?.mode ?? mode).title)
         .navigationBarTitleDisplayMode(.inline)
         .task {

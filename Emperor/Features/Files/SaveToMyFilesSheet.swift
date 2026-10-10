@@ -547,7 +547,7 @@ private struct DestinationList: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         .overlay {
             if model.foldersState.isLoading && model.folders.isEmpty {
                 ProgressView()

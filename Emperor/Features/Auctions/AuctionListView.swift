@@ -91,7 +91,7 @@ struct AuctionListView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
         } empty: {
             EmptyStateView(model.emptyTitle, systemImage: "hammer", message: model.emptyDetail) {
                 if model.upcomingOnly {

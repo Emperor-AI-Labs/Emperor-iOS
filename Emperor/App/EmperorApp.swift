@@ -182,6 +182,7 @@ struct RootView: View {
     @Environment(Session.self) private var session
     /// The device's own setting, so a `.system` preference can resolve.
     @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
 
     private let preferences = Preferences()
     @State private var theme = Theme(store: Preferences())
@@ -221,7 +222,12 @@ struct RootView: View {
         .background(theme.canvas.ignoresSafeArea())
         // The app lock, and the cover in the app switcher — over everything, sheets included.
         .appLockShield(theme: theme)
-        .onAppear { recordDeviceAppearance(systemColorScheme) }
+        .onAppear {
+            recordDeviceAppearance(systemColorScheme)
+            theme.increasesContrast = contrast == .increased
+        }
+        // Increase Contrast swaps `border` for `borderStrong` and `textMute` for `textFaint`.
+        .onChange(of: contrast) { _, new in theme.increasesContrast = new == .increased }
         .onChange(of: systemColorScheme) { _, new in recordDeviceAppearance(new) }
         // Also on the way *into* "Match device", not only when the scheme moves. Releasing the
         // override need not change `systemColorScheme` at all — a dark phone held on an explicit

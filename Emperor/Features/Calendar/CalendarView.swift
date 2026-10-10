@@ -156,7 +156,7 @@ struct CalendarView: View {
                 }
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
-                .background(theme.canvas)
+                .background(theme.groupedBackground)
                 .refreshable { await model.load() }
                 // A day opened from outside: back up to the month, the day just below it.
                 .onChange(of: openedDays) { _, _ in
@@ -541,7 +541,7 @@ private struct ComplianceEventSheet: View {
             }
             .font(.brand(.body))
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
             .navigationTitle("Add to diary")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

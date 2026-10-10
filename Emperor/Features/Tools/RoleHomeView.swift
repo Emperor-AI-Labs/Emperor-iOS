@@ -63,7 +63,7 @@ struct RoleHomeView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
             .navigationTitle(practice.role.label)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

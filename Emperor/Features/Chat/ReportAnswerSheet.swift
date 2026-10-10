@@ -62,7 +62,7 @@ struct ReportAnswerSheet: View {
             }
             .font(.brand(.body))
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
             .navigationTitle("Report this answer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

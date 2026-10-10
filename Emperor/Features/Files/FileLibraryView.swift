@@ -270,7 +270,7 @@ struct FileLibraryView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         .overlay(alignment: .bottom) {
             if let notice = model.actionNotice {
                 ActionNoticeToast(notice: notice) { model.dismissActionNotice() }

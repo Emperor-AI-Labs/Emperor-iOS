@@ -161,7 +161,7 @@ struct MoreView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
             .navigationTitle("More")
             .sheet(item: $destination) { chosen in
                 // Every destination at the size of a page on iPad, set once here. Each is a whole

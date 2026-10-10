@@ -55,7 +55,7 @@ struct AuctionDetailView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
         } empty: {
             EmptyStateView(
                 "Notice unavailable",

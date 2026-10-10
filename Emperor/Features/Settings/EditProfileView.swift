@@ -111,7 +111,7 @@ struct EditProfileView: View {
         .font(.brand(.body))
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         .accessibilityIdentifier("profile-form")
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {

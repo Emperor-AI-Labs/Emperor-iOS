@@ -69,7 +69,7 @@ struct DuplicateReviewSheet: View {
             }
             .font(.brand(.body))
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
             .navigationTitle("Already in your library")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -57,7 +57,7 @@ struct NotificationSettingsView: View {
         .font(.brand(.body))
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         // The reminders' rows slide in when notifications are turned on — or, under Reduce
         // Motion, are simply there.
         .animation(reduceMotion ? nil : Animation.default, value: model.isOn)

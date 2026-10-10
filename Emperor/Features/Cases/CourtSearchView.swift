@@ -105,7 +105,7 @@ struct CourtSearchView: View {
         }
         .font(.brand(.body))
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         // A search can hold the screen for most of a minute, and its outcome lands below the
         // button VoiceOver was left on — so the outcome is said, not only drawn.
         .onChange(of: model.notice) { _, notice in
@@ -451,7 +451,7 @@ private struct CourtPicker: View {
         .font(.brand(.body))
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(theme.canvas)
+        .background(theme.groupedBackground)
         // Always shown, not tucked under the bar: forty-eight courts is a list that is searched,
         // not scrolled, and on iPad an automatic placement hides the field behind a toolbar
         // button that is easy to miss.
@@ -596,7 +596,7 @@ private struct CaptchaSheet: View {
             }
             .font(.brand(.body))
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
             .navigationTitle("CAPTCHA")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -66,7 +66,7 @@ struct ToolsListView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(theme.canvas)
+            .background(theme.groupedBackground)
             .navigationTitle("Tools")
             // This is the deepest stack in the app — a tool pushes its form, and running it
             // pushes the conversation. Both of those get a back button for free; the list they

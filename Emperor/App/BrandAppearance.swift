@@ -1,8 +1,13 @@
 import SwiftUI
 import UIKit
 
-/// The brand face in the UIKit chrome SwiftUI does not style: navigation titles, large and
-/// inline, and segmented controls.
+/// The Record faces in the UIKit chrome SwiftUI does not style: navigation titles — the large
+/// title in Instrument Serif, the inline one in Plus Jakarta Sans 17/600 — tab bar labels, and
+/// segmented controls.
+///
+/// The large title is the design's collapsing serif header: iOS already scrolls it under the bar
+/// and fades the inline title in, with the blur and hairline the design asks for, so only the face
+/// is changed.
 ///
 /// Applied once, at launch, through the appearance proxies — so every navigation bar in the app,
 /// including the ones inside sheets and the system's own pushes, takes the same title without a
@@ -36,14 +41,25 @@ enum BrandAppearance {
         let title = titleColor()
 
         let navigationBar = UINavigationBar.appearance()
+        let large = RecordTokens.Typography.largeTitle
         navigationBar.largeTitleTextAttributes = [
-            .font: scaled(BrandFont.Name.semibold, size: 34, style: .largeTitle, maximum: 40),
+            .font: scaled(
+                BrandFont.Name.display, size: CGFloat(large.size), style: .largeTitle, maximum: 48),
+            .kern: CGFloat(large.tracking * large.size),
             .foregroundColor: title,
         ]
         navigationBar.titleTextAttributes = [
             .font: scaled(BrandFont.Name.semibold, size: 17, style: .headline, maximum: 22),
             .foregroundColor: title,
         ]
+
+        // The tab bar's labels: 10.5/600, the unchosen ones in the caption colour. The chosen
+        // one takes the app's tint, set by SwiftUI.
+        let tab = RecordTokens.Typography.tab
+        UITabBarItem.appearance().setTitleTextAttributes(
+            [.font: scaled(BrandFont.Name.semibold, size: CGFloat(tab.size), style: .caption2, maximum: 15)],
+            for: .normal)
+        UITabBar.appearance().unselectedItemTintColor = captionColor()
 
         // The appearance pickers, the My Files sections, the court-search modes. Only the face:
         // the colours stay the system's, which already follow the trait.
@@ -59,6 +75,16 @@ enum BrandAppearance {
     /// Built outside the main actor on purpose. UIKit may resolve a dynamic colour wherever it
     /// is drawing, and a closure formed on the main actor would carry that isolation with it —
     /// which Swift 6 checks at run time, and traps on.
+    /// Record's caption colour (`textMute`), resolved per trait. Nonisolated for the same reason
+    /// as `titleColor`: UIKit may resolve it away from the main actor.
+    nonisolated private static func captionColor() -> UIColor {
+        UIColor { traits in
+            UIColor(traits.userInterfaceStyle == .dark
+                    ? RecordTokens.dark.textMute
+                    : RecordTokens.light.textMute)
+        }
+    }
+
     nonisolated private static func titleColor() -> UIColor {
         UIColor { traits in
             UIColor(traits.userInterfaceStyle == .light
