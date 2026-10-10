@@ -153,20 +153,12 @@ final class AskHomeTests: XCTestCase {
 /// Preferences the Record screens keep on the device.
 final class RecordPreferencesTests: XCTestCase {
 
-    func testTheDefaultModeFollowsTheAccountUntilChosenHere() {
-        let store = InMemoryPreferenceStore()
-        XCTAssertNil(AnswerModeDefault.stored(in: store))
-        XCTAssertEqual(AnswerModeDefault.resolve(stored: nil, account: "thinking"), .thinking)
-        XCTAssertEqual(AnswerModeDefault.resolve(stored: nil, account: nil), .fast)
-
-        AnswerModeDefault.save(.fast, to: store)
-        XCTAssertEqual(AnswerModeDefault.stored(in: store), .fast)
-        XCTAssertEqual(
-            AnswerModeDefault.resolve(stored: AnswerModeDefault.stored(in: store), account: "thinking"),
-            .fast, "the device's choice wins for questions started here")
-
-        AnswerModeDefault.save(nil, to: store)
-        XCTAssertNil(AnswerModeDefault.stored(in: store), "back to following the account")
+    func testNewQuestionsStartOnFastUnlessTheAccountIsOnTheTopPlanTier() {
+        XCTAssertEqual(AnswerModeDefault.starting(plan: "lite"), .fast)
+        XCTAssertEqual(AnswerModeDefault.starting(plan: "premium"), .fast)
+        XCTAssertEqual(AnswerModeDefault.starting(plan: "none"), .fast)
+        XCTAssertEqual(AnswerModeDefault.starting(plan: nil), .fast)
+        XCTAssertEqual(AnswerModeDefault.starting(plan: "ultra"), .thinking)
     }
 
     func testDraftCitationsAreRememberedPerAccount() {

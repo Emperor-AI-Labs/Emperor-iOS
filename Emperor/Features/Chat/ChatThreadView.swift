@@ -87,9 +87,8 @@ struct ChatThreadView: View {
                 files: session.files,
                 uploads: session.uploads,
                 detached: StoredDetachedDocuments(store: Preferences.detachedDocuments),
-                // This device's default answer mode, chosen under You, else the account's.
-                preferredModel: AnswerModeDefault.stored(in: Preferences())?.rawValue
-                    ?? session.currentUser?.preferredModel,
+                // Fast, or deep thinking on the top plan tier — see `AnswerModeDefault`.
+                preferredModel: AnswerModeDefault.starting(plan: session.currentUser?.plan).rawValue,
                 // Kept for reading offline, and read back only when the server cannot be
                 // reached — never sent. See `ChatViewModel.savedCopyAt`.
                 offline: session.offlineCopies?.conversations,

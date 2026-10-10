@@ -152,9 +152,7 @@ struct AskHomeView: View {
     // MARK: - Composer
 
     private var mode: ChatModel {
-        chosenMode ?? AnswerModeDefault.resolve(
-            stored: AnswerModeDefault.stored(in: preferences),
-            account: session.currentUser?.preferredModel)
+        chosenMode ?? AnswerModeDefault.starting(plan: session.currentUser?.plan)
     }
 
     private var canSend: Bool {

@@ -12,9 +12,7 @@ struct YouView: View {
     @Environment(\.practice) private var practice
 
     @State private var tool: ToolDestination?
-    @State private var isChoosingMode = false
     @State private var isConfirmingSignOut = false
-    @State private var defaultMode: ChatModel?
 
     private let preferences = Preferences()
 
@@ -36,18 +34,12 @@ struct YouView: View {
                 }
 
                 Section {
-                    Button {
-                        isChoosingMode = true
-                    } label: {
-                        HStack(spacing: Spacing.sm) {
-                            IconRowLabel(
-                                title: "Default mode", systemImage: "bolt",
-                                value: defaultModeLabel)
-                            RowChevron()
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .accessibilityLabel("Default mode, \(defaultModeLabel)")
+                    // A fact, not a setting: every launch starts on Fast, and deep thinking only on
+                    // the top plan tier. The composer's mode chip switches a single question.
+                    IconRowLabel(
+                        title: "Default mode", systemImage: "bolt",
+                        value: currentDefaultMode.modeName)
+                        .accessibilityElement(children: .combine)
 
                     NavigationLink {
                         RolePickerView()
@@ -60,7 +52,7 @@ struct YouView: View {
                 } header: {
                     SectionHeader(title: "Answers")
                 } footer: {
-                    footnote("The role changes the suggestions on Ask and how answers are written. It is saved to your account, so the web opens in the same role.")
+                    footnote("New questions start on Fast; deep thinking is the default only on the top plan, and any question can be switched from the composer. The role changes the suggestions on Ask and how answers are written, and is saved to your account, so the web opens in the same role.")
                 }
                 .listRowBackground(theme.surface)
 
@@ -166,12 +158,6 @@ struct YouView: View {
                 chosen.screen
                     .pageSizedSheet()
             }
-            .sheet(isPresented: $isChoosingMode) {
-                AnswerModeSheet(selection: currentDefaultMode) { chosen in
-                    AnswerModeDefault.save(chosen, to: preferences)
-                    defaultMode = chosen
-                }
-            }
             .confirmationDialog(
                 "Sign out of Emperor?",
                 isPresented: $isConfirmingSignOut,
@@ -184,7 +170,6 @@ struct YouView: View {
             } message: {
                 Text("Cached matters on this device will be removed.")
             }
-            .onAppear { defaultMode = AnswerModeDefault.stored(in: preferences) }
         }
     }
 
@@ -236,12 +221,9 @@ struct YouView: View {
     // MARK: - Answers
 
     private var currentDefaultMode: ChatModel {
-        AnswerModeDefault.resolve(stored: defaultMode, account: session.currentUser?.preferredModel)
+        AnswerModeDefault.starting(plan: session.currentUser?.plan)
     }
 
-    private var defaultModeLabel: String {
-        defaultMode == nil ? "\(currentDefaultMode.modeName) (account)" : currentDefaultMode.modeName
-    }
 
     private var versionLine: String {
         let info = Bundle.main.infoDictionary ?? [:]

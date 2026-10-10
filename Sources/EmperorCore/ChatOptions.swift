@@ -104,28 +104,19 @@ enum ChatRole: String, CaseIterable, Identifiable, Codable {
     var wireValue: String { rawValue }
 }
 
-/// The answer mode a new question starts in, chosen on this device under You → Default mode.
+/// The answer mode a new question starts in.
 ///
-/// The account has a preferred model of its own (`PreferredModelResponse`), which this client
-/// reads and never writes — a setting that exists in one client and nowhere else is worse than
-/// none. So the choice here is the device's: "Account" (nothing stored) follows the account, and
-/// Fast or Deep thinking wins over it for questions started on this phone.
+/// Fast on every plan and every launch; deep thinking only on the top plan tier (`ultra`, the
+/// server's `PLANS.ultra`). Deliberately ignores the account's stored `preferred_model` and keeps
+/// no choice on the device: the product rule is that the app opens on Fast every time, so a
+/// stored override must not leave a lower-tier account opening every chat in the costly mode.
+/// A question can still be switched to deep thinking from the composer's mode chip.
 enum AnswerModeDefault {
-    static let storageKey = "answer.default-mode.v1"
+    /// The backend capability tier of the top plan.
+    static let topPlanTier = "ultra"
 
-    /// The mode chosen on this device, or `nil` to follow the account.
-    static func stored(in store: any PreferenceStore) -> ChatModel? {
-        store.string(for: storageKey).flatMap(ChatModel.init(rawValue:))
-    }
-
-    /// Saves a choice; `nil` goes back to following the account.
-    static func save(_ model: ChatModel?, to store: any PreferenceStore) {
-        store.setString(model?.rawValue ?? "", for: storageKey)
-    }
-
-    /// The mode to start a question in: this device's choice, else the account's, else Fast.
-    static func resolve(stored: ChatModel?, account: String?) -> ChatModel {
-        stored ?? ChatModel.fromPreference(account)
+    static func starting(plan: String?) -> ChatModel {
+        plan == topPlanTier ? .thinking : .fast
     }
 }
 
