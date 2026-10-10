@@ -258,6 +258,23 @@ final class SignInFlowTests: XCTestCase {
         XCTAssertEqual(flow.step, .signIn)
     }
 
+    /// The Record sign-in asks only for an address before sending a code, and says plainly when
+    /// what was typed cannot be one — but not while the field is still empty.
+    func testACodeNeedsOnlyAPlausibleAddress() async {
+        let (flow, _) = make(FakeAuth())
+        XCTAssertFalse(flow.canRequestCode)
+        XCTAssertNil(flow.emailProblem, "an empty field is not yet wrong")
+        flow.email = "aarti@"
+        XCTAssertFalse(flow.canRequestCode)
+        XCTAssertEqual(flow.emailProblem, SignInFlow.emailProblemText)
+        flow.email = "  aarti@kapoorlaw.in "
+        XCTAssertTrue(flow.canRequestCode)
+        XCTAssertNil(flow.emailProblem)
+        XCTAssertTrue(flow.password.isEmpty, "no password is asked for")
+        await flow.requestCode()
+        XCTAssertEqual(flow.step, .enterCode(email: "aarti@kapoorlaw.in"))
+    }
+
     func testTheServersEmailRuleIsTheScreensEmailRule() {
         for good in ["a@b.in", "first.last@chambers.co.in", "x@y.z", "a@b.c.", "  a@b.in  "] {
             XCTAssertTrue(SignInFlow.isPlausibleEmail(good), good)

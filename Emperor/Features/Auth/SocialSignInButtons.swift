@@ -22,8 +22,8 @@ struct SocialSignInButtons: View {
                     finishApple(result)
                 }
                 .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: 50)
-                .clipShape(Capsule())
+                .frame(height: Layout.buttonHeight)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             }
             if config.offersGoogle, let clientID = config.googleClientID {
                 GoogleSignInButton(clientID: clientID)
@@ -79,7 +79,7 @@ private struct GoogleSignInButton: View {
                         .accessibilityHidden(true)
                 }
                 Text("Continue with Google")
-                    .font(.brand(.subheadline, weight: .semibold))
+                    .font(.brand(.callout, weight: .semibold))
             }
             .foregroundStyle(theme.textPrimary)
             .frame(maxWidth: .infinity)
@@ -87,10 +87,14 @@ private struct GoogleSignInButton: View {
             // height would clip the words at the largest sizes. Apple's own button scales its
             // label inside its frame, so it keeps the fixed one.
             .padding(.vertical, Spacing.sm)
-            .frame(minHeight: 50)
-            .background(theme.surfaceElevated, in: Capsule())
-            .overlay(Capsule().strokeBorder(theme.separator, lineWidth: 1))
-            .contentShape(Capsule())
+            .frame(minHeight: Layout.buttonHeight)
+            .background(
+                theme.surface,
+                in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                    .strokeBorder(theme.borderStrong, lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(isWorking)

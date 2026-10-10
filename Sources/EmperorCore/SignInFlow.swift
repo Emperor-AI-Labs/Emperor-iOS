@@ -118,6 +118,21 @@ final class SignInFlow {
         Self.isPlausibleEmail(email) && !password.isEmpty && !isWorking
     }
 
+    /// The Record sign-in leads with a one-time code: an address is all it needs.
+    var canRequestCode: Bool {
+        Self.isPlausibleEmail(email) && !isWorking
+    }
+
+    /// What is wrong with the address, said under the field in red — or `nil` while it is empty
+    /// or could be an address. The server's own rule (`isPlausibleEmail`), so the screen never
+    /// rejects an address the server would take.
+    var emailProblem: String? {
+        guard !trimmedEmail.isEmpty, !Self.isPlausibleEmail(trimmedEmail) else { return nil }
+        return Self.emailProblemText
+    }
+
+    nonisolated static let emailProblemText = "Enter the email you registered with."
+
     /// Every field the web marks required — name, email, password and its confirmation — and a
     /// mobile number only if one was started. Whether the two passwords match is said on submit,
     /// in the web's words, rather than by a button that will not press.
@@ -174,6 +189,12 @@ final class SignInFlow {
     }
 
     /// Back from a code or an inbox to signing in, keeping the address.
+    /// Clears what was said, when the reader switches between the code and the password.
+    func clearMessages() {
+        error = nil
+        notice = nil
+    }
+
     func backToSignIn() {
         if case .enterCode(let address) = step { email = address }
         if case .checkInbox(let address) = step { email = address }
