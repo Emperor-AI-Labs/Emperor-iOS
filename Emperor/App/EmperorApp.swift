@@ -195,7 +195,23 @@ struct RootView: View {
     /// stored flags are the record; this only redraws.
     @State private var hasAnsweredRoleWelcome = false
 
+    // Split in two: as one chain of modifiers the body is too long for the type checker to
+    // finish in reasonable time, which fails the build rather than warning.
     var body: some View {
+        themedRoot
+            // Also on the way *into* "Match device", not only when the scheme moves. Releasing the
+            // override need not change `systemColorScheme` at all — a dark phone held on an
+            // explicit dark leaves it exactly where it was — and then no change fires and the
+            // recorded value is whatever it last was. This asks the question again at the one
+            // moment the answer starts to matter.
+            .onChange(of: theme.preference) { _, _ in recordDeviceAppearance(systemColorScheme) }
+            .modifier(AccountLifecycle(
+                session: session, practice: practice, accountRoleReading: accountRoleReading,
+                hasAcknowledgedDisclaimer: $hasAcknowledgedDisclaimer, preferences: preferences))
+    }
+
+    /// The gate, the theme and the appearance plumbing.
+    private var themedRoot: some View {
         Group {
             if let acknowledged = hasAcknowledgedDisclaimer {
                 if acknowledged {
@@ -229,58 +245,11 @@ struct RootView: View {
         // Increase Contrast swaps `border` for `borderStrong` and `textMute` for `textFaint`.
         .onChange(of: contrast) { _, new in theme.increasesContrast = new == .increased }
         .onChange(of: systemColorScheme) { _, new in recordDeviceAppearance(new) }
-        // Also on the way *into* "Match device", not only when the scheme moves. Releasing the
-        // override need not change `systemColorScheme` at all — a dark phone held on an explicit
-        // dark leaves it exactly where it was — and then no change fires and the recorded value
-        // is whatever it last was. This asks the question again at the one moment the answer
-        // starts to matter.
-        .onChange(of: theme.preference) { _, _ in recordDeviceAppearance(systemColorScheme) }
-        // The role lives on the account, so every reading of the account — sign-in, launch, a
-        // return to the app — brings this device into line with it, and a role switched here is
-        // written back. See `Practice`.
-        .onChange(of: accountRoleReading, initial: true) { _, reading in
-            guard let reading else { return }
-            practice.link(to: session)
-            practice.reconcile(withAccountRole: reading.role)
-        }
-        // Reminders belong to the account signed in: planned when one signs in or is restored at
-        // launch, and withdrawn the moment it signs out — a reminder naming a client's matter
-        // must not fire on a phone its owner has left. See `AppNotifications`.
-        .onChange(of: session.currentUser?.id) { old, new in
-            Task {
-                if old != nil { await AppNotifications.shared.signedOut() }
-                if new != nil { await AppNotifications.shared.refresh() }
-            }
-        }
-        .task {
-            if hasAcknowledgedDisclaimer == nil {
-                hasAcknowledgedDisclaimer = Disclaimer.hasAcknowledged(preferences)
-            }
-        }
-        // URLs handed to the app, through one handler: the app's own `emperor://` links (the
-        // Today widget's tap, chiefly — see `AppLinks`), then documents another app handed over
-        // ("Open in Emperor"), which arrive as file URLs. One handler rather than one each,
-        // because how SwiftUI treats several `onOpenURL`s on one view is not something to rely on.
-        .onOpenURL { url in
-            if AppLinks.open(url) { return }
-            AppIncomingDocuments.shared.handle(url)
-        }
-        // A case or document tapped in the device's search — see `SpotlightRouting`.
-        .onContinueUserActivity(CSSearchableItemActionType) { activity in
-            AppSpotlight.shared.open(activity)
-        }
-        // Signing out empties the device's search and lets go of any document still waiting to
-        // be filed: both belong to the account that just left.
-        .onChange(of: session.currentUser?.id) { old, new in
-            guard old != nil, new == nil else { return }
-            AppSpotlight.shared.signedOut()
-            AppIncomingDocuments.shared.queue.discardAll()
-        }
     }
 
     /// Who is signed in and the role their account holds, as one value to watch: a different
     /// account with the same role is still a new reading.
-    private struct AccountRoleReading: Equatable {
+    struct AccountRoleReading: Equatable {
         let userID: Int
         let role: String?
     }
@@ -336,5 +305,60 @@ struct RootView: View {
                     .presentsIncomingDocuments()
             }
         }
+    }
+}
+
+/// What follows the signed-in account: the role, reminders, links handed to the app, Spotlight
+/// and incoming documents. Its own modifier so `RootView.body` stays small enough to type-check.
+private struct AccountLifecycle: ViewModifier {
+    let session: Session
+    let practice: Practice
+    let accountRoleReading: RootView.AccountRoleReading?
+    @Binding var hasAcknowledgedDisclaimer: Bool?
+    let preferences: Preferences
+
+    func body(content: Content) -> some View {
+        content
+            // The role lives on the account, so every reading of the account — sign-in, launch, a
+            // return to the app — brings this device into line with it, and a role switched here is
+            // written back. See `Practice`.
+            .onChange(of: accountRoleReading, initial: true) { _, reading in
+                guard let reading else { return }
+                practice.link(to: session)
+                practice.reconcile(withAccountRole: reading.role)
+            }
+            // Reminders belong to the account signed in: planned when one signs in or is restored at
+            // launch, and withdrawn the moment it signs out — a reminder naming a client's matter
+            // must not fire on a phone its owner has left. See `AppNotifications`.
+            .onChange(of: session.currentUser?.id) { old, new in
+                Task {
+                    if old != nil { await AppNotifications.shared.signedOut() }
+                    if new != nil { await AppNotifications.shared.refresh() }
+                }
+            }
+            .task {
+                if hasAcknowledgedDisclaimer == nil {
+                    hasAcknowledgedDisclaimer = Disclaimer.hasAcknowledged(preferences)
+                }
+            }
+            // URLs handed to the app, through one handler: the app's own `emperor://` links (the
+            // Today widget's tap, chiefly — see `AppLinks`), then documents another app handed over
+            // ("Open in Emperor"), which arrive as file URLs. One handler rather than one each,
+            // because how SwiftUI treats several `onOpenURL`s on one view is not something to rely on.
+            .onOpenURL { url in
+                if AppLinks.open(url) { return }
+                AppIncomingDocuments.shared.handle(url)
+            }
+            // A case or document tapped in the device's search — see `SpotlightRouting`.
+            .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                AppSpotlight.shared.open(activity)
+            }
+            // Signing out empties the device's search and lets go of any document still waiting to
+            // be filed: both belong to the account that just left.
+            .onChange(of: session.currentUser?.id) { old, new in
+                guard old != nil, new == nil else { return }
+                AppSpotlight.shared.signedOut()
+                AppIncomingDocuments.shared.queue.discardAll()
+            }
     }
 }
