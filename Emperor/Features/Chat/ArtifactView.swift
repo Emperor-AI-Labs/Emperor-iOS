@@ -1,43 +1,95 @@
 import SwiftUI
 import WebKit
 
-/// Full-page presentation of a drafted document or table.
+/// The draft: a drafted document or table on paper, full screen.
 ///
 /// Drafts arrive as inline-styled HTML fragments — centred headings, underlined court names,
 /// bordered tables of contents. A lawyer needs to see that as it will read on paper, so it is
-/// rendered rather than shown as source.
+/// rendered rather than shown as source, on the paper colour against a recessed ground.
+///
+/// The eye in the bar shows or hides the citation numbers on the page, remembered for the
+/// account on this device (`DraftCitationsPreference`); a draft without any has no eye. Hiding is
+/// a display choice — the stored draft is never rewritten — and the download menu asks again,
+/// for Word and for PDF, whether to carry them.
 struct ArtifactDetailView: View {
     @Environment(\.theme) private var theme
+    @Environment(Session.self) private var session
     let artifact: StreamArtifact
     @Environment(\.dismiss) private var dismiss
 
+    @State private var showsCitations = true
+    private let preferences = Preferences()
+
+    private var hasCitations: Bool { DraftCitations.hasMarkers(artifact.body) }
+
+    private var shownBody: String {
+        showsCitations || !hasCitations ? artifact.body : DraftCitations.withoutMarkers(artifact.body)
+    }
+
     var body: some View {
         NavigationStack {
-            Group {
-                switch artifact.format {
-                case .html:
-                    DocumentWebView(html: artifact.body)
-                case .markdown:
-                    // Not monospaced source: a chronology is a table, and rendering the pipe
-                    // syntax verbatim is a visibly broken answer.
-                    MarkdownArtifactView(markdown: artifact.body)
+            VStack(spacing: 0) {
+                Group {
+                    switch artifact.format {
+                    case .html:
+                        DocumentWebView(html: shownBody)
+                    case .markdown:
+                        // Not monospaced source: a chronology is a table, and rendering the pipe
+                        // syntax verbatim is a visibly broken answer.
+                        MarkdownArtifactView(markdown: shownBody)
+                    }
+                }
+                .background(theme.paper)
+                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .strokeBorder(theme.separator, lineWidth: 1))
+                .shadow(color: theme.cardShadow, radius: 12, x: 0, y: 8)
+                .padding(.horizontal, 14)
+                .padding(.top, Spacing.lg)
+
+                if hasCitations {
+                    Text(showsCitations
+                         ? "Citation numbers point to the references in the answer."
+                         : "Citations hidden on the page. Downloads still ask.")
+                        .font(.brand(size: 12.5, relativeTo: .caption))
+                        .foregroundStyle(theme.textTertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.vertical, Spacing.md)
+                        .padding(.horizontal, Spacing.lg)
                 }
             }
-            .background(theme.canvas)
+            .background(theme.surface2.ignoresSafeArea())
             .navigationTitle(artifact.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    if hasCitations {
+                        Button {
+                            Haptics.selection()
+                            showsCitations.toggle()
+                            DraftCitationsPreference.save(
+                                showsCitations, to: preferences, userID: session.currentUser?.id)
+                        } label: {
+                            Image(systemName: showsCitations ? "eye" : "eye.slash")
+                        }
+                        .accessibilityLabel(showsCitations ? "Hide citations" : "Show citations")
+                    }
                     // Was a share of the raw body, which handed over markup rather than a
                     // document. A drafted pleading is something an advocate files.
                     DocumentExportMenu(
                         content: artifact.body,
                         isHTML: artifact.format == .html,
-                        title: artifact.title)
+                        title: artifact.title,
+                        offersCitationChoice: hasCitations)
                 }
+            }
+            .onAppear {
+                showsCitations = DraftCitationsPreference.showsCitations(
+                    in: preferences, userID: session.currentUser?.id)
             }
         }
     }
@@ -119,49 +171,86 @@ struct CitationStrip: View {
     let mentions: [AnnexureMention]
     var onSelect: (AnnexureMention) -> Void
 
-    private func citationLabel(for mention: AnnexureMention) -> String {
+    /// "Citation 2, AWARD.pdf, page 3" — what VoiceOver says for a source, and the label the
+    /// design gives a citation.
+    static func spokenLabel(number: Int, mention: AnnexureMention) -> String {
         let name = DisplayText.fileName(mention.fileName)
-        guard let pages = mention.pageDescription else { return name }
-        return "\(name), \(pages)"
+        guard let start = mention.startPage else { return "Citation \(number), \(name)" }
+        if let end = mention.endPage, end != start {
+            return "Citation \(number), \(name), pages \(start) to \(end)"
+        }
+        return "Citation \(number), \(name), page \(start)"
     }
 
+    /// The answer's Sources, as the design lists them: the number, the file and its page, and a
+    /// "p. N" chip — each row opening the page it cites, the quoted words marked.
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(mentions) { mention in
-                    Button {
-                        onSelect(mention)
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: "doc.text.magnifyingglass")
-                                .foregroundStyle(theme.accentText)
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Sources")
+                .recordText(RecordTokens.Typography.label)
+                .foregroundStyle(theme.textTertiary)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.bottom, Spacing.xs)
+            ForEach(Array(mentions.enumerated()), id: \.element.id) { index, mention in
+                if index > 0 {
+                    // The design's dashed rule between sources.
+                    Line()
+                        .stroke(theme.separator, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                        .frame(height: 1)
+                        .accessibilityHidden(true)
+                }
+                Button {
+                    Haptics.selection()
+                    VoiceOver.announce("Opening \(DisplayText.fileName(mention.fileName))"
+                        + (mention.startPage.map { ", page \($0)" } ?? ""))
+                    onSelect(mention)
+                } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(verbatim: "\(index + 1)")
+                            .recordText(RecordTokens.Typography.citation)
+                            .monospacedDigit()
+                            .foregroundStyle(theme.accentText)
+                            .frame(minWidth: 20, minHeight: 20)
+                            .background(theme.accentWash, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(DisplayText.fileName(mention.fileName))
+                                .font(.brand(size: 13.5, weight: .semibold, relativeTo: .footnote))
                                 .foregroundStyle(theme.textPrimary)
-                                .lineLimit(1)
-                            if let pages = mention.pageDescription {
-                                Text(pages)
-                                    .monospacedDigit()
-                                    .foregroundStyle(theme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            // The mark the document carries in the record — "Annexure P-3".
+                            if !mention.mark.isEmpty {
+                                Text(mention.mark)
+                                    .font(.brand(size: 13.5, relativeTo: .footnote))
+                                    .foregroundStyle(theme.textFaint)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
-                        .font(.brand(.caption, weight: .medium))
-                        .padding(.horizontal, Spacing.sm + 2)
-                        .padding(.vertical, 6)
-                        .background(theme.surface, in: Capsule())
-                        .overlay(Capsule().strokeBorder(theme.separator, lineWidth: 1))
-                        // Drawn as a small capsule, answering a touch across the full 44 points.
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        PageChip(text: mention.pageDescription ?? "Open")
                     }
-                    .buttonStyle(.plain)
-                    // Read as one phrase. Separately, VoiceOver announces a filename and a
-                    // page number with no relationship between them.
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(citationLabel(for: mention))
-                    .accessibilityHint("Opens the source document at the cited page")
+                    .padding(.vertical, 9)
+                    .frame(minHeight: Layout.touchTarget)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.recordRow)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Self.spokenLabel(number: index + 1, mention: mention))
+                .accessibilityHint("Opens the page it cites")
             }
-            .padding(.vertical, 1)
+        }
+        .padding(.top, 10)
+        .overlay(alignment: .top) {
+            Rectangle().fill(theme.separator).frame(height: 1)
+        }
+    }
+
+    /// A horizontal line, for the dashed rule.
+    private struct Line: Shape {
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+            return path
         }
     }
 }

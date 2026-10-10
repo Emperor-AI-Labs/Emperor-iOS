@@ -16,17 +16,14 @@ struct ChatThreadView: View {
     @State private var isReporting = false
     @State private var editing: ChatMessage?
     @State private var editText = ""
+    /// The reader pressed Stop on the answer now on screen. Cleared when the next question goes.
+    @State private var stoppedByReader = false
+    @State private var isChoosingMode = false
+    @State private var toast: String?
     /// The composer's keyboard. Lowered when a question is sent, so the answer has the screen.
     /// Nothing raises it again: tapping the field does that on its own, which is the behaviour
     /// the platform already gives a focusable field and the one a reader expects.
     @FocusState private var isComposerFocused: Bool
-    /// The composer's round controls and the height of its field, scaled with Dynamic Type so
-    /// the bar keeps its proportions at every text size.
-    @ScaledMetric(relativeTo: .body) private var composerControl: CGFloat = 36
-    /// How far a round control's 44-point target reaches past the circle drawn for it — given
-    /// back with negative padding, so the target grows and the bar does not. Nothing once the
-    /// circle itself is 44 points or more.
-    private var composerSlack: CGFloat { max(0, (44 - composerControl) / 2) }
 
     let chatID: String
     /// An opening message to send as soon as the thread is ready.
@@ -160,8 +157,13 @@ struct ChatThreadView: View {
                                     editing = message
                                     editText = message.content
                                 },
-                                onSelectCitation: { select($0, in: model) })
+                                onSelectCitation: { select($0, in: model) },
+                                onAskAgain: askAgain(after: message, in: model),
+                                followUps: followUps(after: message, in: model),
+                                onFollowUp: { question in send(question, in: model) },
+                                onCopied: { toast = "Copied with its sources" })
                                 .id(message.stableID)
+                                .transition(Motion.rise(reduceMotion: reduceMotion))
                         }
 
                         // Above the answer, as in the web client: it explains the work the
@@ -173,7 +175,8 @@ struct ChatThreadView: View {
                             ReasoningPanel(
                                 snapshot: model.progress,
                                 isStreaming: model.isStreaming,
-                                liveStatus: model.status)
+                                liveStatus: model.status,
+                                answerHasStarted: !(model.live?.prose.isEmpty ?? true))
                         }
 
                         if let live = model.live {
@@ -189,6 +192,13 @@ struct ChatThreadView: View {
                                 icon: "exclamationmark.triangle",
                                 text: "This answer was interrupted before it finished. Nothing above has been lost — send again to have it completed.",
                                 tint: theme.warning)
+                        }
+
+                        if stoppedByReader && !model.isStreaming {
+                            Notice(
+                                icon: "xmark",
+                                text: "Stopped. What was written so far is kept.",
+                                tint: theme.textSecondary)
                         }
 
                         if let busy = model.busyNotice {
@@ -280,6 +290,7 @@ struct ChatThreadView: View {
                 documentsMenu(model)
             }
         }
+        .recordToast($toast)
         .alert("Ask this again?", isPresented: Binding(
             get: { editing != nil },
             set: { if !$0 { editing = nil } }
@@ -320,10 +331,17 @@ struct ChatThreadView: View {
         }
         .onChange(of: model.isStreaming) { _, isStreaming in
             if !isStreaming { onTurnFinished?() }
-            // The answer streams in above the composer VoiceOver was left on, so its end is
-            // said. A failure or a refusal says itself, below.
-            if !isStreaming, model.errorMessage == nil, model.refusal == nil {
-                VoiceOver.announce("Answer finished")
+            // The answer streams in above the composer VoiceOver was left on, so its end is said
+            // — once, at the end, never while it streams. A failure or a refusal says itself.
+            guard !isStreaming, model.errorMessage == nil, model.refusal == nil else { return }
+            if stoppedByReader {
+                VoiceOver.announce("Stopped")
+            } else {
+                Haptics.answerComplete()
+                let sources = model.messages.last.map { StreamContent.parse($0.content).mentions.count } ?? 0
+                VoiceOver.announce(sources == 0
+                    ? "Answer ready"
+                    : "Answer ready, \(sources) \(sources == 1 ? "source" : "sources")")
             }
         }
         .onChange(of: model.errorMessage) { _, error in
@@ -332,6 +350,36 @@ struct ChatThreadView: View {
         .onChange(of: model.refusal) { _, refusal in
             if let refusal { VoiceOver.announce(DisplayText.title(for: refusal)) }
         }
+    }
+
+    /// "Ask again" on an answer: the question before it, re-asked through the same confirmation
+    /// an edit uses, which says how much of the conversation the new answer replaces.
+    private func askAgain(after message: ChatMessage, in model: ChatViewModel) -> (() -> Void)? {
+        guard message.role != .user, !model.isStreaming,
+              let index = model.messages.firstIndex(where: { $0.stableID == message.stableID }),
+              let question = model.messages[..<index].last(where: { $0.role == .user }),
+              model.canEdit(question)
+        else { return nil }
+        return {
+            editing = question
+            editText = question.content
+        }
+    }
+
+    /// The follow-up questions the model suggested — under the last answer only, once it is in.
+    private func followUps(after message: ChatMessage, in model: ChatViewModel) -> [String] {
+        guard message.role != .user, !model.isStreaming,
+              message.stableID == model.messages.last?.stableID
+        else { return [] }
+        return Array(StreamContent.parse(message.content).followUps.prefix(3))
+    }
+
+    /// Sends a question from the transcript — a follow-up tapped.
+    private func send(_ question: String, in model: ChatViewModel) {
+        guard model.sendBlockedReason == nil, !model.isStreaming else { return }
+        stoppedByReader = false
+        isComposerFocused = false
+        model.send(question)
     }
 
     /// Presents an optional message as an alert, and clears it when the alert is dismissed by
@@ -400,7 +448,7 @@ struct ChatThreadView: View {
     /// The conversation's less-used settings: searching the web, and reporting an answer.
     ///
     /// Quick and Thinking are not here — they sit in the composer, where they are always in
-    /// sight (`AnswerModeSwitch`). Nor is a role: a conversation is asked for in the role the
+    /// sight (`ModeChip`). Nor is a role: a conversation is asked for in the role the
     /// user practises in, set as it opens, and Settings is the one place that role is chosen.
     private func optionsMenu(_ model: ChatViewModel) -> some View {
         Menu {
@@ -508,181 +556,74 @@ struct ChatThreadView: View {
                 .padding(.horizontal)
             }
 
-            // The documents this question is about to carry, named until it has been asked.
+            // The Record composer: the documents this question is about to carry (named until it
+            // has been asked — from then on the toolbar's document button is where they live),
+            // the field, attach, the answer mode, the rewrite, and Send ↔ Stop.
             //
-            // Gated on `openingAttachments`, which empties on the first send — see its note for
-            // why the strip earns its line here and stops earning it immediately afterwards.
-            // From then on the toolbar's document button is where they live.
-            if !model.openingAttachments.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(model.openingAttachments, id: \.self) { attachment in
-                            Button {
-                                model.detach(attachment)
-                            } label: {
-                                HStack(spacing: 5) {
-                                    Image(systemName: "doc.text")
-                                        .foregroundStyle(theme.accentText)
-                                    Text(DisplayText.fileName(attachment.name))
-                                        .foregroundStyle(theme.textPrimary)
-                                        .lineLimit(1)
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(theme.textTertiary)
-                                }
-                                .font(.brand(.caption, weight: .medium))
-                                .padding(.horizontal, Spacing.sm + 2)
-                                .padding(.vertical, 6)
-                                .background(theme.surfaceElevated, in: Capsule())
-                                .overlay(Capsule().strokeBorder(theme.separator, lineWidth: 1))
-                                // Drawn as a small capsule, answering a touch across 44 points.
-                                .frame(minHeight: 44)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(
-                                "Remove \(DisplayText.fileName(attachment.name)) from this question")
+            // The mode is per conversation, seeded from the default, and never plan-gated: a Lite
+            // account may choose Deep thinking, which the platform is explicit about being a
+            // default rather than a restriction.
+            RecordComposer(
+                text: $composer.text,
+                placeholder: "Ask a follow-up…",
+                attachments: model.openingAttachments.map { DisplayText.fileName($0.name) },
+                onRemoveAttachment: { index in
+                    let opening = model.openingAttachments
+                    guard opening.indices.contains(index) else { return }
+                    model.detach(opening[index])
+                },
+                model: model.model,
+                onChooseMode: { isChoosingMode = true },
+                isStreaming: model.isStreaming,
+                canSend: canSend(model, composer),
+                isDisabled: composer.isEnhancing,
+                onAttach: { isBrowsingFiles = true },
+                onSend: {
+                    guard canSend(model, composer) else { return }
+                    // Lowered as the question goes, not when the answer finishes: the answer
+                    // starts arriving at once, and the keyboard would cover where it lands.
+                    isComposerFocused = false
+                    stoppedByReader = false
+                    model.send(composer.text)
+                    composer.clear()
+                },
+                onStop: {
+                    stoppedByReader = true
+                    model.stop()
+                },
+                focus: $isComposerFocused
+            ) {
+                // Dictation and a thumb keyboard both produce exactly the rough prompts this
+                // rewrites, which is why it earns a place in a crowded bar on a phone.
+                Button {
+                    composer.attachments = model.attachments
+                    composer.enhance()
+                } label: {
+                    Group {
+                        if composer.isEnhancing {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "wand.and.sparkles")
+                                .font(.system(size: 17, weight: .medium))
                         }
                     }
-                    .padding(.horizontal)
-                }
-            }
-
-            // Next to the field, so the choice is in sight as the question is written and the
-            // send button is pressed. Per conversation, seeded from the account's preferred
-            // model, and never plan-gated: a Lite account may select Thinking, which the
-            // platform is explicit about being a default rather than a restriction.
-            //
-            // Aligned with the attach button below it, so the switch and the bar read as one
-            // composer rather than a control floating above it.
-            AnswerModeSwitch(selection: model.model, onSelect: { model.model = $0 })
-                .disabled(model.isStreaming)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.md)
-
-            HStack(alignment: .bottom, spacing: Spacing.sm) {
-                // Straight to the picker rather than a menu. Attaching from the library is what
-                // the button is for in nearly every case, and the menu charged a tap for that to
-                // offer scanning beside it — which the library already offers, under "Digitise
-                // or translate".
-                //
-                // The one thing that changes: a scan used to land on the turn directly, and now
-                // lands in the library to be picked from. A round trip, but through the screen
-                // that was going to be opened anyway.
-                Button {
-                    isBrowsingFiles = true
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.brand(.body, weight: .semibold))
-                        .foregroundStyle(theme.textSecondary)
-                        .frame(width: composerControl, height: composerControl)
-                        .background(theme.surfaceElevated, in: Circle())
-                        .overlay(Circle().strokeBorder(theme.separator, lineWidth: 1))
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
+                    .foregroundStyle(theme.textFaint)
+                    .frame(minWidth: Layout.touchTarget, minHeight: Layout.touchTarget)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .padding(-composerSlack)
-                .accessibilityLabel("Attach a document")
-                .disabled(model.isStreaming)
-                .opacity(model.isStreaming ? 0.5 : 1)
-
-                // The field and the rewrite button share one rounded well, as a message field
-                // does — the wand acts on what is typed, so it sits with it.
-                HStack(alignment: .bottom, spacing: Spacing.xs) {
-                    TextField("Ask about this matter…", text: $composer.text, axis: .vertical)
-                        .lineLimit(1...5)
-                        .textFieldStyle(.plain)
-                        .font(.brand(.body))
-                        .foregroundStyle(theme.textPrimary)
-                        .focused($isComposerFocused)
-                        .disabled(composer.isEnhancing)
-                        .padding(.vertical, Spacing.sm)
-                        .padding(.leading, Spacing.md + 2)
-
-                    // Dictation and a thumb keyboard both produce exactly the rough prompts this
-                    // rewrites, which is why it earns a place in a crowded bar on a phone.
-                    Button {
-                        composer.attachments = model.attachments
-                        composer.enhance()
-                    } label: {
-                        Group {
-                            if composer.isEnhancing {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Image(systemName: "wand.and.sparkles")
-                                    .font(.brand(.body, weight: .medium))
-                            }
-                        }
-                        .foregroundStyle(theme.accentText)
-                        .frame(width: composerControl, height: composerControl)
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(-composerSlack)
-                    .accessibilityLabel(
-                        composer.isEnhancing
-                            ? PromptEnhancerViewModel.Copy.running
-                            : PromptEnhancerViewModel.Copy.button)
-                    .disabled(!composer.canEnhance || model.isStreaming)
-                    .opacity(!composer.canEnhance || model.isStreaming ? 0.4 : 1)
-                    .padding(.trailing, Spacing.xxs)
-                }
-                .frame(minHeight: composerControl)
-                .background(
-                    theme.surfaceElevated,
-                    in: RoundedRectangle(cornerRadius: composerControl / 2, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: composerControl / 2, style: .continuous)
-                        .strokeBorder(
-                            isComposerFocused ? theme.accentMuted : theme.separator,
-                            lineWidth: 1))
-
-                if model.isStreaming {
-                    Button {
-                        model.stop()
-                    } label: {
-                        Image(systemName: "stop.fill")
-                            .font(.brand(.footnote, weight: .bold))
-                            .foregroundStyle(theme.onAccent)
-                            .frame(width: composerControl, height: composerControl)
-                            .background(theme.accent, in: Circle())
-                            .frame(minWidth: 44, minHeight: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(-composerSlack)
-                    .accessibilityLabel("Stop this answer")
-                } else {
-                    let canSend = !(composer.isEnhancing
-                        || model.sendBlockedReason != nil
-                        || composer.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    Button {
-                        // Lowered as the question goes, not when the answer finishes. The answer
-                        // starts arriving at once and streams for seconds; on a phone the
-                        // keyboard covers about half of where it lands, so waiting for the end
-                        // would hide exactly the part the reader is waiting to read.
-                        isComposerFocused = false
-                        model.send(composer.text)
-                        composer.clear()
-                    } label: {
-                        Image(systemName: "arrow.up")
-                            .font(.brand(.body, weight: .bold))
-                            .foregroundStyle(canSend ? theme.onAccent : theme.textTertiary)
-                            .frame(width: composerControl, height: composerControl)
-                            .background(canSend ? theme.accent : theme.surfaceElevated, in: Circle())
-                            .frame(minWidth: 44, minHeight: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(-composerSlack)
-                    .accessibilityLabel("Send")
-                    .disabled(!canSend)
-                }
+                .accessibilityLabel(
+                    composer.isEnhancing
+                        ? PromptEnhancerViewModel.Copy.running
+                        : PromptEnhancerViewModel.Copy.button)
+                .disabled(!composer.canEnhance || model.isStreaming)
+                .opacity(!composer.canEnhance || model.isStreaming ? 0.4 : 1)
             }
             .padding(.horizontal, Spacing.md)
-            .padding(.top, Spacing.xs)
             .padding(.bottom, Spacing.sm)
+            .sheet(isPresented: $isChoosingMode) {
+                AnswerModeSheet(selection: model.model) { model.model = $0 }
+            }
         }
         // The conversation's measure, centred, so on an iPad the switch, the documents and the
         // field sit under the answer they belong to rather than running the width of the screen
@@ -692,10 +633,12 @@ struct ChatThreadView: View {
         .frame(maxWidth: ReadableWidth.cap(for: sizeClass))
         .frame(maxWidth: .infinity)
         .padding(.top, Spacing.sm)
-        .background(theme.canvas)
-        .overlay(alignment: .top) {
-            Rectangle().fill(theme.separator).frame(height: 0.5)
-        }
+        // The dock: the canvas fading in over the last lines of the answer, as the design draws it.
+        .background(
+            LinearGradient(
+                colors: [theme.canvas.opacity(0), theme.canvas],
+                startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.12))
+                .ignoresSafeArea(edges: .bottom))
         // The lines above the field slide in and out; under Reduce Motion they are simply there.
         .animation(reduceMotion ? nil : Animation.easeOut(duration: 0.15), value: composer.canUndo)
         .animation(
@@ -718,6 +661,14 @@ struct ChatThreadView: View {
         }
     }
 
+    /// Whether the composer's words can go: something typed, no rewrite running, nothing in the
+    /// way. The words stay in the composer when they cannot.
+    private func canSend(_ model: ChatViewModel, _ composer: PromptEnhancerViewModel) -> Bool {
+        !(composer.isEnhancing
+            || model.sendBlockedReason != nil
+            || composer.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
     private func select(_ mention: AnnexureMention, in model: ChatViewModel) {
         Task { await model.showSource(mention) }
     }
@@ -734,114 +685,6 @@ struct ChatThreadView: View {
 
 // MARK: - Pieces
 
-/// Quick or Thinking, just above the composer's field.
-///
-/// It used to be the first thing in the toolbar's menu, behind an icon — a reader had to know it
-/// was there to find it, and it is the one setting that changes every answer. The web keeps its
-/// own switch just above its composer as well (`ToolWorkspace.jsx:2131-2145`).
-///
-/// Two segments in one capsule rather than the system's segmented control: this sits among the
-/// bar's round controls and rounded field, and a full-width segmented strip would outweigh the
-/// question beneath it. The chosen segment is filled with the accent and the fill slides to the
-/// other on a tap; the unchosen one is plain.
-///
-/// One control to VoiceOver, "Answer mode", whose options are buttons with the chosen one marked
-/// selected — so the choice is heard rather than inferred from a colour.
-private struct AnswerModeSwitch: View {
-    @Environment(\.theme) private var theme
-    @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Namespace private var selectionSpace
-    /// A segment's drawn height, scaled with its words — enough to know how far a 44-point target
-    /// reaches past it at each text size. On the generous side, so the target never spills far
-    /// past the track.
-    @ScaledMetric(relativeTo: .footnote) private var segmentHeight: CGFloat = 30
-
-    let selection: ChatModel
-    let onSelect: (ChatModel) -> Void
-
-    var body: some View {
-        HStack(spacing: Spacing.sm) {
-            track
-                // Measured first, so the caption gets only what is left.
-                .layoutPriority(1)
-
-            // What the chosen mode does, while there is room for it. On a narrow phone at a
-            // large text size the caption goes — never the switch. The fallback is a real
-            // zero-size view rather than `EmptyView`, which a builder may drop altogether and
-            // so leave the caption as the only, and therefore chosen, candidate.
-            ViewThatFits(in: .horizontal) {
-                Text(selection.detail)
-                    .font(.brand(.caption))
-                    .foregroundStyle(theme.textTertiary)
-                    .lineLimit(1)
-                Color.clear.frame(width: 0, height: 0)
-            }
-            .accessibilityHidden(true)
-        }
-        .opacity(isEnabled ? 1 : 0.5)
-    }
-
-    private var track: some View {
-        HStack(spacing: 0) {
-            ForEach(ChatModel.allCases) { choice in
-                segment(choice)
-            }
-        }
-        .padding(3)
-        .background(theme.surfaceElevated, in: Capsule())
-        .overlay(Capsule().strokeBorder(theme.separator, lineWidth: 1))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Answer mode")
-        .accessibilityIdentifier("answer-mode")
-    }
-
-    private func segment(_ choice: ChatModel) -> some View {
-        let isSelected = choice == selection
-        return Button {
-            guard !isSelected else { return }
-            withAnimation(reduceMotion ? nil : Animation.easeOut(duration: 0.18)) {
-                onSelect(choice)
-            }
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: Self.symbol(for: choice))
-                    .imageScale(.small)
-                Text(choice.label)
-                    .lineLimit(1)
-            }
-            .font(.brand(.footnote, weight: .semibold))
-            .foregroundStyle(isSelected ? theme.onAccent : theme.textSecondary)
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, 6)
-            .background {
-                if isSelected {
-                    Capsule()
-                        .fill(theme.accent)
-                        .matchedGeometryEffect(id: "selection", in: selectionSpace)
-                }
-            }
-            // Drawn as a slim pill; a 44-point target. The negative padding hands the extra back,
-            // so the track keeps its height and the composer does not grow.
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.vertical, -max(0, (44 - segmentHeight) / 2))
-        .accessibilityLabel(choice.label)
-        .accessibilityHint(choice == .fast ? "Faster answers" : "Deeper reasoning; takes longer")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    /// A bolt for speed; a brain for Thinking, which is the web's own icon for it.
-    private static func symbol(for choice: ChatModel) -> String {
-        switch choice {
-        case .fast: return "bolt.fill"
-        case .thinking: return "brain"
-        }
-    }
-}
-
 private struct MessageBubble: View {
     @Environment(\.theme) private var theme
     let message: ChatMessage
@@ -849,8 +692,21 @@ private struct MessageBubble: View {
     var canEdit = false
     var onEdit: () -> Void = {}
     var onSelectCitation: (AnnexureMention) -> Void = { _ in }
+    /// Re-asks the question before this answer — `nil` where that cannot be done.
+    var onAskAgain: (() -> Void)?
+    /// The questions the model suggested next, under the last answer.
+    var followUps: [String] = []
+    var onFollowUp: (String) -> Void = { _ in }
+    var onCopied: () -> Void = {}
 
     @State private var isReporting = false
+    @State private var sharing: SharedAnswer?
+
+    /// An answer's PDF, ready for the share sheet.
+    private struct SharedAnswer: Identifiable {
+        let id = UUID()
+        let url: URL
+    }
 
     /// The answer as a PDF on disk, ready to share.
     ///
@@ -868,59 +724,81 @@ private struct MessageBubble: View {
 
     var body: some View {
         if message.role == .user {
-            HStack {
-                Spacer(minLength: 48)
-                // The question in the accent's own wash with a hairline of it, so it reads as
-                // the reader's side of the exchange without a slab of colour in a working
-                // document. Corners like a message's, the one at the speaker's side tucked in.
-                Text(message.content)
-                    .font(.brand(.body))
-                    .foregroundStyle(theme.textPrimary)
-                    // Which side of the exchange this is shows only by position and colour; to
-                    // VoiceOver it is said, as the value after the words. Not as a prefix to the
-                    // label: a label longer than the text drawn reads to the audit as text cut off.
-                    .accessibilityValue("Your question")
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(
-                        UnevenRoundedRectangle(
-                            topLeadingRadius: 18, bottomLeadingRadius: 18,
-                            bottomTrailingRadius: 6, topTrailingRadius: 18,
-                            style: .continuous)
-                            .fill(theme.surfaceAccent))
-                    .overlay(
-                        UnevenRoundedRectangle(
-                            topLeadingRadius: 18, bottomLeadingRadius: 18,
-                            bottomTrailingRadius: 6, topTrailingRadius: 18,
-                            style: .continuous)
-                            .stroke(theme.accentMuted, lineWidth: 0.5))
-                    .contextMenu {
-                        if canEdit {
-                            Button {
-                                onEdit()
-                            } label: {
-                                Label("Edit and ask again", systemImage: "pencil")
-                            }
-                        }
-                        Button {
-                            UIPasteboard.general.string = message.content
-                        } label: {
-                            Label("Copy", systemImage: "doc.on.doc")
-                        }
-                    }
-            }
+            question
         } else {
-            // The same spacing the live panel has above a streaming answer, so the panel does not
+            // The same spacing the live card has above a streaming answer, so the card does not
             // shift when the finished turn moves onto its answer.
-            VStack(alignment: .leading, spacing: 16) {
-                // The work log stored with this answer — by this app or the web — collapsed, as
-                // the live panel is once a run has finished. Nothing when none was stored.
+            VStack(alignment: .leading, spacing: 12) {
+                // The work log stored with this answer — by this app or the web — folded, as the
+                // live card is once a run has finished. Nothing when none was stored.
                 if let log = message.storedWorkLog {
                     ReasoningPanel(snapshot: log, isStreaming: false, liveStatus: nil)
                 }
                 answer
+                actions
+                if !followUps.isEmpty {
+                    followUpList
+                }
+            }
+            .sheet(item: $sharing) { shared in
+                ActivityView(url: shared.url) { sharing = nil }
+                    .presentationDetents([.medium, .large])
             }
         }
+    }
+
+    /// The reader's question: in the bubble colour, its corner by the speaker tucked in, the
+    /// files it carried under it.
+    private var question: some View {
+        let radii = Radius.bubble
+        let shape = UnevenRoundedRectangle(
+            topLeadingRadius: radii[0], bottomLeadingRadius: radii[3],
+            bottomTrailingRadius: radii[2], topTrailingRadius: radii[1],
+            style: .continuous)
+        let files = ChatAttachment.list(from: message.attachments)
+        return VStack(alignment: .trailing, spacing: 6) {
+            Text(message.content)
+                .font(.brand(.body))
+                .foregroundStyle(theme.textPrimary)
+                .textSelection(.enabled)
+                // Which side of the exchange this is shows only by position and colour; to
+                // VoiceOver it is said, as the value after the words.
+                .accessibilityValue("Your question")
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(theme.bubble, in: shape)
+                .contextMenu {
+                    if canEdit {
+                        Button {
+                            onEdit()
+                        } label: {
+                            Label("Edit and ask again", systemImage: "pencil")
+                        }
+                    }
+                    Button {
+                        UIPasteboard.general.string = message.content
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
+                }
+            if !files.isEmpty {
+                // Wraps under the bubble rather than running off the edge.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) {
+                        ForEach(files, id: \.self) { file in
+                            AttachmentChip(name: DisplayText.fileName(file.name))
+                        }
+                    }
+                    VStack(alignment: .trailing, spacing: 6) {
+                        ForEach(files, id: \.self) { file in
+                            AttachmentChip(name: DisplayText.fileName(file.name))
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .padding(.leading, 48)
     }
 
     private var answer: some View {
@@ -932,17 +810,14 @@ private struct MessageBubble: View {
             // something the model did not write.
             .contextMenu {
                 Button {
-                    // The parsed prose, not the raw content: the stored message still
-                    // carries `<think>` and `<usage>` tags, and pasting those into an email
-                    // to a client would be its own kind of bad day.
-                    UIPasteboard.general.string = StreamContent.parse(message.content).prose
+                    copy()
                 } label: {
                     Label("Copy", systemImage: "doc.on.doc")
                 }
-                if let url = exportedPDF() {
-                    ShareLink(item: url) {
-                        Label("Export as PDF", systemImage: "square.and.arrow.up")
-                    }
+                Button {
+                    share()
+                } label: {
+                    Label("Export as PDF", systemImage: "square.and.arrow.up")
                 }
                 Button(role: .destructive) {
                     isReporting = true
@@ -953,6 +828,77 @@ private struct MessageBubble: View {
             .sheet(isPresented: $isReporting) {
                 ReportAnswerSheet(chatID: chatID)
             }
+    }
+
+    /// Copy, share, ask again — the row under a finished answer.
+    private var actions: some View {
+        HStack(spacing: 2) {
+            actionButton("doc.on.doc", label: "Copy", action: copy)
+            actionButton("square.and.arrow.up", label: "Share", action: share)
+            if let onAskAgain {
+                actionButton("arrow.clockwise", label: "Ask again", action: onAskAgain)
+            }
+        }
+        .padding(.leading, -10)
+    }
+
+    private func actionButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 17, weight: .regular))
+                .foregroundStyle(theme.textTertiary)
+                .frame(minWidth: Layout.touchTarget, minHeight: Layout.touchTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    /// The questions to ask next, each sent as it is tapped.
+    private var followUpList: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(followUps, id: \.self) { followUp in
+                Button {
+                    onFollowUp(followUp)
+                } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(theme.accentText)
+                            .accessibilityHidden(true)
+                        Text(followUp)
+                            .font(.brand(size: 14.5, relativeTo: .subheadline))
+                            .foregroundStyle(theme.textSecondary)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.sm)
+                    .frame(minHeight: Layout.touchTarget)
+                    .background(theme.surface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                            .strokeBorder(theme.separator, lineWidth: 1))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Asks this next")
+            }
+        }
+        .transition(.opacity)
+    }
+
+    private func copy() {
+        // The parsed prose, not the raw content: the stored message still carries `<think>` and
+        // `<usage>` tags, and pasting those into an email to a client would be its own kind of
+        // bad day. The References the prose carries come with it.
+        UIPasteboard.general.string = StreamContent.parse(message.content).prose
+        onCopied()
+    }
+
+    private func share() {
+        if let url = exportedPDF() { sharing = SharedAnswer(url: url) }
     }
 }
 
@@ -1007,39 +953,54 @@ private struct AnswerView: View {
     }
 }
 
-/// Drafts and chronologies are delivered as separate documents rather than inline prose,
-/// so they get their own surface instead of being flattened into the transcript.
+/// Drafts and chronologies are delivered as separate documents rather than inline prose, so
+/// they get their own card instead of being flattened into the transcript: a page's thumbnail,
+/// its title, and what it is.
 private struct ArtifactCard: View {
     @Environment(\.theme) private var theme
     let artifact: StreamArtifact
 
     var body: some View {
         HStack(spacing: Spacing.md) {
-            // The same tile a document wears in Your drafts, so a draft looks like itself in
-            // both places.
-            IconTile(
-                systemImage: artifact.kind == .canvas ? "doc.text" : "tablecells",
-                hue: artifact.kind == .canvas ? .indigo : .teal,
-                size: .large)
+            // A page in miniature: a title line in the accent, then lines of text.
+            VStack(alignment: .leading, spacing: 3) {
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(theme.accent.opacity(0.6))
+                    .frame(width: 22, height: 3)
+                ForEach(0..<5, id: \.self) { line in
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(theme.borderStrong)
+                        .frame(width: line == 4 ? 18 : 30, height: 2)
+                }
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 7)
+            .frame(width: 44, height: 56, alignment: .topLeading)
+            .background(theme.paper, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .strokeBorder(theme.borderStrong, lineWidth: 1))
+            .accessibilityHidden(true)
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(artifact.title)
-                    .font(.brand(.subheadline, weight: .semibold))
+                    .font(.brand(.body, weight: .medium))
                     .foregroundStyle(theme.textPrimary)
                     .dynamicLineLimit(2)
-                Text(artifact.kind == .canvas ? "Document" : "Table")
-                    .font(.brand(.caption))
-                    .foregroundStyle(theme.textSecondary)
+                Text(artifact.kind == .canvas ? "Draft · opens full screen" : "Table · opens full screen")
+                    .font(.brand(.footnote))
+                    .foregroundStyle(theme.textTertiary)
             }
             Spacer(minLength: 0)
             RowChevron()
         }
         .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .panel(radius: Radius.control)
+        .panel(radius: Radius.card)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "\(artifact.kind == .canvas ? "Document" : "Table"): \(artifact.title)")
+            "\(artifact.kind == .canvas ? "Draft" : "Table"): \(artifact.title)")
         .accessibilityHint("Opens full screen")
     }
 }
@@ -1055,16 +1016,13 @@ private struct Notice: View {
             Text(text)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .font(.brand(.footnote))
+        .font(.brand(.footnote, weight: .medium))
         .foregroundStyle(tint)
         .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             tint.opacity(0.08),
-            in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                .strokeBorder(tint.opacity(0.25), lineWidth: 1))
+            in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(text)
     }

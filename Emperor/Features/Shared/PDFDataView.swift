@@ -9,21 +9,38 @@ import PDFKit
 /// whole point of the fetch in the other.
 struct PDFDataView: UIViewRepresentable {
     let data: Data
-    /// The cited page, **1-based**. `SourceDocumentViewModel.pageIndex` converts and clamps it.
+    /// The 1-based page to show. When it changes the view moves to it — the cited page's Prev
+    /// and Next — and on first load it is where the document opens.
     var page: Int?
+    /// One page at a time, moved only by `page` — the cited-page sheet, whose "Page N of M" must
+    /// always be the page on screen. Otherwise the pages scroll continuously.
+    var pagesOneAtATime = false
+
+    final class Coordinator {
+        /// The page last moved to, so a redraw for any other reason does not move the reader.
+        var shownPage: Int?
+        var hasShown = false
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> PDFView {
         let view = PDFView()
         view.autoScales = true
-        view.displayMode = .singlePageContinuous
+        view.displayMode = pagesOneAtATime ? .singlePage : .singlePageContinuous
         view.displayDirection = .vertical
         view.usePageViewController(false, withViewOptions: nil)
         return view
     }
 
     func updateUIView(_ view: PDFView, context: Context) {
-        guard view.document == nil, let document = PDFDocument(data: data) else { return }
-        view.document = document
+        if view.document == nil, let document = PDFDocument(data: data) {
+            view.document = document
+        }
+        guard let document = view.document else { return }
+        guard !context.coordinator.hasShown || context.coordinator.shownPage != page else { return }
+        context.coordinator.hasShown = true
+        context.coordinator.shownPage = page
 
         guard let index = SourceDocumentViewModel.pageIndex(
             for: page, pageCount: document.pageCount),

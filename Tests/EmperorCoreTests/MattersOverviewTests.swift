@@ -179,3 +179,25 @@ final class RecordPreferencesTests: XCTestCase {
         XCTAssertTrue(DraftCitationsPreference.showsCitations(in: store, userID: 7))
     }
 }
+
+/// Hiding a draft's citation numbers is a display choice that never rewrites the draft.
+final class DraftCitationsTests: XCTestCase {
+
+    func testMarkersAreFound() {
+        XCTAssertTrue(DraftCitations.hasMarkers("EESL is a joint venture [1]."))
+        XCTAssertTrue(DraftCitations.hasMarkers("<p>Allowed in full<sup class=\"dc\">5</sup></p>"))
+        XCTAssertFalse(DraftCitations.hasMarkers("Section 34 [of the Act] applies; 2023 [SC] 1."))
+        XCTAssertFalse(DraftCitations.hasMarkers("A clean draft."))
+    }
+
+    func testMarkersAreTakenOutCleanly() {
+        XCTAssertEqual(
+            DraftCitations.withoutMarkers("EESL is a joint venture [1]. It appointed A-One [2, 3]."),
+            "EESL is a joint venture. It appointed A-One.")
+        XCTAssertEqual(
+            DraftCitations.withoutMarkers("<p>Allowed in full<sup class=\"dc\">5</sup>.</p>"),
+            "<p>Allowed in full.</p>")
+        XCTAssertEqual(DraftCitations.withoutMarkers("Pages [3–5] show it"), "Pages show it")
+        XCTAssertEqual(DraftCitations.withoutMarkers("No markers here."), "No markers here.")
+    }
+}

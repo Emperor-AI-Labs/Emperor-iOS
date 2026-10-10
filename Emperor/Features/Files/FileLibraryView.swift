@@ -86,7 +86,8 @@ struct FileLibraryView: View {
                 SourceDocumentView(
                     attachment: item.file.attachment,
                     mention: AnnexureMention(
-                        fileName: item.file.name, mark: "", startPage: nil, endPage: nil))
+                        fileName: item.file.name, mark: "", startPage: nil, endPage: nil),
+                    isCitation: false)
             }
             .sheet(item: $duplicateReview) { review in
                 DuplicateReviewSheet(
