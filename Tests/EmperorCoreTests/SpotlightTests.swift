@@ -137,20 +137,20 @@ final class SpotlightTests: XCTestCase {
         XCTAssertEqual(inbox.tapCount, 1, "an identifier this build did not write is ignored")
     }
 
-    /// A case result opens the case on the Cases tab, through the same request the Calendar uses.
+    /// A case result opens the case on the Matters tab, through the same request the Calendar uses.
     func testACaseResultOpensTheCase() async {
-        let navigator = AppNavigator(selectedTab: .chat)
+        let navigator = AppNavigator(selectedTab: .files)
         navigator.open(.caseDetail(id: "case1"))
-        XCTAssertEqual(navigator.selectedTab, .cases)
+        XCTAssertEqual(navigator.selectedTab, .matters)
         XCTAssertEqual(navigator.takePendingCaseStack()?.map(\.caseID), ["case1"])
     }
 
     /// A document result leaves the tab alone — My Files is shown over it — and is taken once.
     func testADocumentResultWaitsForMyFiles() async {
-        let navigator = AppNavigator(selectedTab: .chat)
+        let navigator = AppNavigator(selectedTab: .you)
         navigator.open(.document(path: "/Bakshi/Orders/Interim_Order.pdf"))
 
-        XCTAssertEqual(navigator.selectedTab, .chat)
+        XCTAssertEqual(navigator.selectedTab, .you)
         let route = navigator.takePendingDocument()
         XCTAssertEqual(route?.path, "Bakshi/Orders/Interim_Order.pdf")
         XCTAssertNil(navigator.takePendingDocument())

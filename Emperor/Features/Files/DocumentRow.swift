@@ -32,7 +32,7 @@ struct DocumentRowLabel: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(DisplayText.fileName(file.name))
-                    .font(.brand(.subheadline, weight: .medium))
+                    .font(.brand(.body, weight: .medium))
                     .dynamicLineLimit(2)
                     .foregroundStyle(file.isReadable ? theme.textPrimary : theme.textSecondary)
                 if let location {
@@ -50,6 +50,9 @@ struct DocumentRowLabel: View {
                 ProgressView().controlSize(.small)
             } else {
                 HStack(spacing: Spacing.sm) {
+                    if case .kind = leading {
+                        DocumentStatusBadge(file: file)
+                    }
                     offlineMark
                     if file.favorite == true {
                         Image(systemName: "star.fill")
@@ -87,12 +90,8 @@ struct DocumentRowLabel: View {
     private var leadingMark: some View {
         switch leading {
         case .kind:
-            // The kind's own tile — rose for a PDF, steel for Word, as a file manager colours
-            // them — and grey while the document cannot be used yet, so a row still being read
-            // looks it at a glance.
-            IconTile(
-                systemImage: DocumentKind.symbol(for: file.name),
-                hue: file.isReadable ? DocumentKind.hue(for: file.name) : .graphite)
+            // The kind as Record draws it: the extension in small capitals on a recessed tile.
+            DocumentTile(kind: DocumentKind.label(for: file.name))
         case .selection(let isSelected):
             // For the eye only. The picker's row carries the choice as VoiceOver's own
             // "Selected" trait (`FileLibraryView`); a label here as well said it twice, and said
@@ -120,24 +119,27 @@ struct DocumentStatusLine: View {
         case .ready:
             if let readyLine {
                 Text(readyLine)
-                    .font(.brand(.caption2))
+                    .font(.brand(.footnote))
                     .foregroundStyle(theme.textTertiary)
             }
         case .scanned:
             // Worth saying plainly: this is usable, just by a different route.
-            Label("Scanned — read as images", systemImage: "eye")
-                .font(.brand(.caption2))
-                .foregroundStyle(theme.textSecondary)
+            Text([readyLine, "scanned"].compactMap { $0 }.joined(separator: " · "))
+                .font(.brand(.footnote))
+                .foregroundStyle(theme.textTertiary)
         case .inProgress(let message):
-            Label(message, systemImage: "clock")
-                .font(.brand(.caption2))
-                .foregroundStyle(theme.textSecondary)
-                .dynamicLineLimit(1)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(message)
+                    .font(.brand(.footnote))
+                    .foregroundStyle(theme.textSecondary)
+                    .dynamicLineLimit(1)
+                // The design's thin bar while pages are read. The server reports no count the
+                // row can rely on, so it runs as the indeterminate bar.
+                IndeterminateBar()
+            }
         case .failed(let reason):
-            Label(
-                reason.replacingOccurrences(of: "ERROR: ", with: ""),
-                systemImage: "exclamationmark.triangle")
-                .font(.brand(.caption2))
+            Text(reason.replacingOccurrences(of: "ERROR: ", with: ""))
+                .font(.brand(.footnote))
                 .foregroundStyle(theme.danger)
                 // Why a document failed is the one thing to read on its row, so it is never cut
                 // at the large sizes.
@@ -155,9 +157,68 @@ struct DocumentStatusLine: View {
     }
 }
 
+/// Where a document stands, at the end of its row: Ready, Searchable (a scan), Reading, or
+/// Couldn't read — green only for ready, red only for failed.
+struct DocumentStatusBadge: View {
+    let file: FileNode.StoredFile
+
+    var body: some View {
+        switch file.state {
+        case .ready:
+            StatusPill(text: "Ready", tone: .success, systemImage: "checkmark")
+        case .scanned:
+            StatusPill(text: "Searchable", tone: .accent, systemImage: "doc.viewfinder")
+        case .inProgress:
+            StatusPill(text: "Reading", tone: .warning)
+        case .failed:
+            StatusPill(text: "Couldn't read", tone: .danger)
+        }
+    }
+}
+
+/// The design's indeterminate progress: a short bar sliding along a soft track, 1.3 s, eased —
+/// still, half-filled, under Reduce Motion.
+struct IndeterminateBar: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var travelled = false
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            Capsule()
+                .fill(theme.accentText)
+                .frame(width: width * 0.35)
+                .offset(x: reduceMotion ? 0 : (travelled ? width : -width * 0.35))
+                .onAppear {
+                    guard !reduceMotion else { return }
+                    withAnimation(Motion.easeInOut(1.3).repeatForever(autoreverses: false)) {
+                        travelled = true
+                    }
+                }
+        }
+        .frame(height: 3)
+        .background(theme.accentSoft, in: Capsule())
+        .clipShape(Capsule())
+        .accessibilityHidden(true)
+    }
+}
+
 /// The symbol and tile for a document's kind, read off its extension — the only signal a
 /// listing has.
 enum DocumentKind {
+    /// The extension as the tile prints it: "PDF", "DOC", "IMG".
+    static func label(for fileName: String) -> String {
+        switch fileExtension(fileName) {
+        case "pdf": return "PDF"
+        case "docx", "doc", "odt", "rtf": return "DOC"
+        case "csv": return "CSV"
+        case "png", "jpg", "jpeg", "heic": return "IMG"
+        case "txt": return "TXT"
+        default: return "FILE"
+        }
+    }
+
     static func symbol(for fileName: String) -> String {
         switch fileExtension(fileName) {
         case "pdf": return "doc.richtext"

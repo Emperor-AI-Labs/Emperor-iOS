@@ -41,6 +41,13 @@ struct ChatThreadView: View {
     /// `TransactionTooLargeException`; a Swift `String` held in a view is just memory.
     var seed: String?
 
+    /// The documents a new conversation's first question is about — chosen in Ask's composer, or
+    /// a folder from Files. Attached before the seed is sent.
+    var initialAttachments: [ChatAttachment] = []
+
+    /// The answer mode the first question was asked in, chosen in Ask's composer.
+    var initialModel: ChatModel?
+
     /// Leaves this conversation and opens a fresh one.
     ///
     /// The caller does it rather than this view, because only the caller knows what the new
@@ -68,6 +75,8 @@ struct ChatThreadView: View {
         }
         .navigationTitle("Conversation")
         .navigationBarTitleDisplayMode(.inline)
+        // A pushed screen: the tab bar goes, as the design asks.
+        .toolbar(.hidden, for: .tabBar)
         // The connection came or went: show the saved copy, or reload over it.
         .onReceive(NotificationCenter.default.publisher(for: .emperorConnectivityChanged)) { _ in
             guard let model else { return }
@@ -81,7 +90,9 @@ struct ChatThreadView: View {
                 files: session.files,
                 uploads: session.uploads,
                 detached: StoredDetachedDocuments(store: Preferences.detachedDocuments),
-                preferredModel: session.currentUser?.preferredModel,
+                // This device's default answer mode, chosen under You, else the account's.
+                preferredModel: AnswerModeDefault.stored(in: Preferences())?.rawValue
+                    ?? session.currentUser?.preferredModel,
                 // Kept for reading offline, and read back only when the server cannot be
                 // reached — never sent. See `ChatViewModel.savedCopyAt`.
                 offline: session.offlineCopies?.conversations,
@@ -104,6 +115,10 @@ struct ChatThreadView: View {
             // And only while the screen is still there. The history is read to the end even if
             // this task is cancelled (`uncancelledRead`), so a tool's prompt would otherwise go
             // out — and count against the plan — after the person had already backed out.
+            if !initialAttachments.isEmpty, created.messages.isEmpty {
+                created.setAttachments(initialAttachments)
+            }
+            if let initialModel { created.model = initialModel }
             if let seed, !seed.isEmpty, !Task.isCancelled {
                 created.send(seed)
             }

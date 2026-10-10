@@ -129,7 +129,7 @@ struct CaseListView: View {
     }
 
     /// Where the sort, grouping and filters are remembered between launches.
-    private static var preferences: any PreferenceStore {
+    static var preferences: any PreferenceStore {
         #if DEBUG
         if UITestSupport.isActive { return uiTestPreferences }
         #endif
@@ -393,7 +393,7 @@ struct CaseListView: View {
 /// The filters that are on, under the search bar, each removable on its own, with a way to clear
 /// them all. Scrolls sideways rather than wrapping, so however many are on it takes one line and
 /// leaves the docket where it was.
-private struct FilterChipBar: View {
+struct FilterChipBar: View {
     @Environment(\.theme) private var theme
 
     let chips: [CaseFilterChip]
@@ -464,7 +464,7 @@ private struct FilterChipBar: View {
 /// iPad a detent turns the sheet into a small panel with the grouping and every filter below the
 /// fold — the screen shows its first section and looks like a sort menu. The standard sheet is
 /// the whole list on a phone and a form sheet on iPad.
-private struct CaseArrangementSheet: View {
+struct CaseArrangementSheet: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
 

@@ -4,18 +4,18 @@ import XCTest
 /// Cross-tab navigation: the Calendar asking the Cases tab to open a matter.
 final class AppNavigatorTests: XCTestCase {
 
-    /// Asking for a case switches to Cases and leaves the request for that tab to take.
+    /// Asking for a case switches to Matters and leaves the request for that tab to take.
     func testOpeningACaseSwitchesToCasesAndLeavesTheRequest() async {
         await onMain {
-            let navigator = AppNavigator(selectedTab: .calendar)
+            let navigator = AppNavigator(selectedTab: .you)
             navigator.openCase("case1")
 
-            XCTAssertEqual(navigator.selectedTab, .cases)
+            XCTAssertEqual(navigator.selectedTab, .matters)
             XCTAssertEqual(navigator.pendingCase?.caseID, "case1")
         }
     }
 
-    /// The Cases tab's stack becomes just that case — replaced, not appended to — so Back from it
+    /// The Matters tab's stack becomes just that case — replaced, not appended to — so Back from it
     /// lands on the docket rather than on whatever was open before.
     func testTheStackBecomesJustTheCase() async {
         await onMain {
@@ -28,7 +28,7 @@ final class AppNavigatorTests: XCTestCase {
         }
     }
 
-    /// Taken once. The Cases tab takes the request both when it appears and when the request
+    /// Taken once. The Matters tab takes the request both when it appears and when the request
     /// changes; coming back to the tab later must not push the case a second time.
     func testTheRequestIsTakenOnce() async {
         await onMain {
@@ -71,14 +71,34 @@ final class AppNavigatorTests: XCTestCase {
         }
     }
 
+    /// "Ask about it" switches to Ask with the question in the composer and the documents on it
+    /// — taken once, the latest winning, and never with nothing to ask.
+    func testAskingFromAnotherTabFillsTheComposerOnce() async {
+        await onMain {
+            let navigator = AppNavigator(selectedTab: .matters)
+            navigator.ask("  ")
+            XCTAssertNil(navigator.pendingQuestion)
+            XCTAssertEqual(navigator.selectedTab, .matters)
+
+            let file = ChatAttachment(name: "AWARD.pdf", folderName: "EESL")
+            navigator.ask("What is listed?")
+            navigator.ask(" Summarise this folder ", about: [file])
+            XCTAssertEqual(navigator.selectedTab, .ask)
+            let question = navigator.takePendingQuestion()
+            XCTAssertEqual(question?.prompt, "Summarise this folder")
+            XCTAssertEqual(question?.attachments, [file])
+            XCTAssertNil(navigator.takePendingQuestion(), "taken once")
+        }
+    }
+
     /// A row without a case cannot be opened, and asking does not move the user off the tab
     /// they are on.
     func testAnEmptyCaseIsIgnored() async {
         await onMain {
-            let navigator = AppNavigator(selectedTab: .calendar)
+            let navigator = AppNavigator(selectedTab: .you)
             navigator.openCase("  ")
 
-            XCTAssertEqual(navigator.selectedTab, .calendar)
+            XCTAssertEqual(navigator.selectedTab, .you)
             XCTAssertNil(navigator.pendingCase)
         }
     }

@@ -316,11 +316,12 @@ struct AccountAvatar: View {
         }
     }
 
+    /// The monogram in the serif on the primary gradient — the Record avatar.
     private var initial: some View {
         Text(monogram)
-            .font(.custom(BrandFont.name(for: .semibold), fixedSize: size * 0.42))
+            .font(.custom(BrandFont.Name.display, fixedSize: size * 0.42))
             .foregroundStyle(theme.onAccent)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(theme.accent)
+            .background(theme.primaryGradient)
     }
 }

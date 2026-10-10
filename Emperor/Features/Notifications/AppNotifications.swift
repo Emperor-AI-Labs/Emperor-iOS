@@ -282,7 +282,7 @@ struct NotificationTapRouting: ViewModifier {
             if Task.isCancelled { return }
         }
         guard navigator.takeUpdatesRequest() else { return }
-        navigator.selectedTab = .home
+        navigator.selectedTab = .ask
         isShowingUpdates = true
     }
 }

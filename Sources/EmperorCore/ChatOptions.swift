@@ -103,3 +103,47 @@ enum ChatRole: String, CaseIterable, Identifiable, Codable {
     ///   way to take the default, which is what a `nil` here produces.
     var wireValue: String { rawValue }
 }
+
+/// The answer mode a new question starts in, chosen on this device under You → Default mode.
+///
+/// The account has a preferred model of its own (`PreferredModelResponse`), which this client
+/// reads and never writes — a setting that exists in one client and nowhere else is worse than
+/// none. So the choice here is the device's: "Account" (nothing stored) follows the account, and
+/// Fast or Deep thinking wins over it for questions started on this phone.
+enum AnswerModeDefault {
+    static let storageKey = "answer.default-mode.v1"
+
+    /// The mode chosen on this device, or `nil` to follow the account.
+    static func stored(in store: any PreferenceStore) -> ChatModel? {
+        store.string(for: storageKey).flatMap(ChatModel.init(rawValue:))
+    }
+
+    /// Saves a choice; `nil` goes back to following the account.
+    static func save(_ model: ChatModel?, to store: any PreferenceStore) {
+        store.setString(model?.rawValue ?? "", for: storageKey)
+    }
+
+    /// The mode to start a question in: this device's choice, else the account's, else Fast.
+    static func resolve(stored: ChatModel?, account: String?) -> ChatModel {
+        stored ?? ChatModel.fromPreference(account)
+    }
+}
+
+/// Whether a draft shows its citation numbers, remembered per account on this device.
+///
+/// A display choice only: the stored draft is never rewritten by it, and every download asks
+/// again whether to carry them (`DocumentExportMenu`).
+enum DraftCitationsPreference {
+    static func key(forUser userID: Int?) -> String {
+        "draft.show-citations.v1.\(userID.map(String.init) ?? "anonymous")"
+    }
+
+    /// On unless this account has turned them off here.
+    static func showsCitations(in store: any PreferenceStore, userID: Int?) -> Bool {
+        store.string(for: key(forUser: userID)) != "off"
+    }
+
+    static func save(_ shows: Bool, to store: any PreferenceStore, userID: Int?) {
+        store.setString(shows ? "on" : "off", for: key(forUser: userID))
+    }
+}

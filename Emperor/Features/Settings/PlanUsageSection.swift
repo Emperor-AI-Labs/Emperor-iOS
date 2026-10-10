@@ -164,9 +164,10 @@ struct UsageMeterRow: View {
         .accessibilityIdentifier("usage-meter-\(meter.kind.rawValue)")
     }
 
-    private var barColour: Color {
+    /// Red when used up, amber when running low; otherwise `nil`, the primary gradient.
+    private var barColour: Color? {
         if meter.isExhausted { return theme.danger }
         if meter.isRunningLow { return theme.warning }
-        return theme.accent
+        return nil
     }
 }

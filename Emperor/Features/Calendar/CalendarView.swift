@@ -54,6 +54,9 @@ struct CalendarView: View {
     /// Counts days opened from outside, each of which scrolls back up to the month.
     @State private var openedDays = 0
 
+    /// Closes the Calendar, which is presented over Matters rather than being a tab.
+    var onDone: (() -> Void)?
+
     /// The month grid's row, which a day opened from outside scrolls to.
     private static let monthRowID = "calendar-month"
 
@@ -74,6 +77,12 @@ struct CalendarView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Subscribe") { isSubscribing = true }
                         .accessibilityHint("Adds your hearings and diary to the Calendar app")
+                }
+                // Presented over Matters, so it carries its own way out.
+                if let onDone {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done", action: onDone)
+                    }
                 }
             }
             .sheet(isPresented: $isSubscribing) {

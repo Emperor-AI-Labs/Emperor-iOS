@@ -17,8 +17,10 @@ struct ChatListView: View {
     /// Registering two destinations for the same type — which `String` was — makes SwiftUI warn
     /// about a duplicate and lets one shadow the other.
     @State private var path: [String] = []
-    @State private var isShowingSettings = false
     @State private var isShowingDrafts = false
+
+    /// Closes the list when it is presented — from Ask's History — rather than a tab of its own.
+    var onDone: (() -> Void)?
 
     var body: some View {
         if isBesideDetail {
@@ -77,7 +79,7 @@ struct ChatListView: View {
                 ProgressView()
             }
         }
-        .navigationTitle("Emperor")
+        .navigationTitle("Conversations")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -86,11 +88,9 @@ struct ChatListView: View {
                     Label("New chat", systemImage: "square.and.pencil")
                 }
             }
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    isShowingSettings = true
-                } label: {
-                    Label("Settings", systemImage: "person.crop.circle")
+            if let onDone {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done", action: onDone)
                 }
             }
             ToolbarItem(placement: .primaryAction) {
@@ -102,10 +102,6 @@ struct ChatListView: View {
                     Label("Your drafts", systemImage: "doc.text")
                 }
             }
-        }
-        .sheet(isPresented: $isShowingSettings) {
-            SettingsView()
-                .pageSizedSheet()
         }
         .sheet(isPresented: $isShowingDrafts) {
             DraftHistoryView()

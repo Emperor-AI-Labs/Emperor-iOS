@@ -3,7 +3,7 @@ import Foundation
 import Observation
 #endif
 
-/// A matter pushed onto the Cases tab's navigation stack.
+/// A matter pushed onto the Matters tab's navigation stack.
 struct CaseRoute: Hashable, Sendable {
     let caseID: String
     /// Which request pushed it: `0` for a row tapped in the docket itself, otherwise the
@@ -13,6 +13,16 @@ struct CaseRoute: Hashable, Sendable {
     /// screen. A stack whose only element is unchanged is left exactly as it was — scrolled to
     /// whichever section the reader left it on — and the request was to see the matter's
     /// overview.
+    var request: Int = 0
+}
+
+/// A question another tab has asked the Ask tab to start — "Ask about it" on a hearing, "Ask
+/// about this folder".
+struct AskRequest: Hashable, Sendable {
+    /// What goes into the composer. Not sent: the reader reads it, changes it, and sends it.
+    let prompt: String
+    /// The documents the question is about.
+    let attachments: [ChatAttachment]
     var request: Int = 0
 }
 
@@ -63,9 +73,10 @@ struct DocumentRoute: Hashable, Sendable {
 @MainActor
 final class AppNavigator {
 
-    /// The tab bar, in order. The order is the product owner's choice; see `MainTabView`.
+    /// The tab bar, in order — the Record design's four destinations: **Ask · Matters · Files ·
+    /// You**. See `MainTabView` for where everything else went.
     enum Tab: Hashable, Sendable {
-        case home, cases, chat, calendar, more
+        case ask, matters, files, you
     }
 
     var selectedTab: Tab
@@ -76,11 +87,11 @@ final class AppNavigator {
     /// Requests so far. Starts above zero, which is reserved for a row tapped in the docket.
     private var requestCount = 0
 
-    init(selectedTab: Tab = .home) {
+    init(selectedTab: Tab = .ask) {
         self.selectedTab = selectedTab
     }
 
-    /// Shows a case on the Cases tab, opened on its overview.
+    /// Shows a case on the Matters tab, opened on its overview.
     ///
     /// The latest request wins: a second one before the first is taken replaces it, because the
     /// user has since asked for something else.
@@ -88,7 +99,7 @@ final class AppNavigator {
         guard !caseID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         requestCount += 1
         pendingCase = CaseRoute(caseID: caseID, request: requestCount)
-        selectedTab = .cases
+        selectedTab = .matters
     }
 
     /// The Cases tab's new stack, or `nil` when nothing is waiting. Taking the request clears it.
@@ -124,6 +135,27 @@ final class AppNavigator {
         return pendingDocument
     }
 
+    // MARK: - Asking from another tab
+
+    /// A question waiting for the Ask tab, not yet taken.
+    private(set) var pendingQuestion: AskRequest?
+
+    /// Switches to Ask with `prompt` in the composer and `attachments` on it. Nothing is sent:
+    /// the question is the reader's to send. The latest request wins.
+    func ask(_ prompt: String, about attachments: [ChatAttachment] = []) {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty || !attachments.isEmpty else { return }
+        requestCount += 1
+        pendingQuestion = AskRequest(prompt: trimmed, attachments: attachments, request: requestCount)
+        selectedTab = .ask
+    }
+
+    /// The waiting question, once. Taking it clears it.
+    func takePendingQuestion() -> AskRequest? {
+        defer { pendingQuestion = nil }
+        return pendingQuestion
+    }
+
     // MARK: - Search results
 
     /// Opens where a tapped search result leads.
@@ -143,7 +175,19 @@ final class AppNavigator {
     /// appears or when this changes while it is on screen, and cleared by taking.
     private(set) var pendingDay: String?
 
-    /// Shows the Calendar tab, on `day` when that is a real day.
+    /// A request for the Calendar not yet taken, numbered so a second request while the first
+    /// waits is still a change. The Calendar lives on the Matters tab now, presented over it; the
+    /// tab takes this and presents it, and the Calendar takes `pendingDay` itself.
+    private(set) var calendarRequest: Int?
+
+    /// Whether the Calendar was asked for. Taking clears the request.
+    func takeCalendarRequest() -> Bool {
+        guard calendarRequest != nil else { return false }
+        calendarRequest = nil
+        return true
+    }
+
+    /// Shows the Calendar — over the Matters tab — on `day` when that is a real day.
     ///
     /// The day is checked by round trip, as a notification's is (`NotificationTarget`), so a
     /// malformed one cannot open the Calendar somewhere odd; the Calendar then opens on whatever
@@ -152,7 +196,9 @@ final class AppNavigator {
     func openCalendar(on day: String?) {
         pendingDay = day.flatMap { IndianDay.isValid($0) ? $0 : nil }
         updatesRequest = nil
-        selectedTab = .calendar
+        requestCount += 1
+        calendarRequest = requestCount
+        selectedTab = .matters
     }
 
     /// The day the Calendar should select, or `nil` when nothing is waiting. Taking clears it.
@@ -168,7 +214,7 @@ final class AppNavigator {
     ///
     /// **It does not switch tabs.** The screen is a sheet, and something else may be presented
     /// when the request arrives — a half-written diary entry, say. Whoever presents Updates waits
-    /// until nothing is, then switches to Home and shows it (`NotificationTapRouting`); an Updates
+    /// until nothing is, then switches to Ask and shows it (`NotificationTapRouting`); an Updates
     /// screen already open takes the request itself and reloads. Switching tabs now could take
     /// the sheet the person is working in away with it.
     private(set) var updatesRequest: Int?
