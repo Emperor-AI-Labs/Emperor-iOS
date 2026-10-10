@@ -106,17 +106,17 @@ enum ChatRole: String, CaseIterable, Identifiable, Codable {
 
 /// The answer mode a new question starts in.
 ///
-/// Fast on every plan and every launch; deep thinking only on the top plan tier (`ultra`, the
-/// server's `PLANS.ultra`). Deliberately ignores the account's stored `preferred_model` and keeps
-/// no choice on the device: the product rule is that the app opens on Fast every time, so a
-/// stored override must not leave a lower-tier account opening every chat in the costly mode.
-/// A question can still be switched to deep thinking from the composer's mode chip.
+/// Fast on every plan and every launch; deep thinking only on the Partner plan (fee tier
+/// `ultimate`). Deliberately ignores the account's stored `preferred_model` and keeps no choice on
+/// the device, and does not read `plan`: the `ultra` capability tier is shared by Senior Associate
+/// and Partner. A server that does not send the fee tier yet gets Fast. A question can still be
+/// switched to deep thinking from the composer's mode chip.
 enum AnswerModeDefault {
-    /// The backend capability tier of the top plan.
-    static let topPlanTier = "ultra"
+    /// The fee-schedule key of the top plan, Partner.
+    static let topFeeTier = "ultimate"
 
-    static func starting(plan: String?) -> ChatModel {
-        plan == topPlanTier ? .thinking : .fast
+    static func starting(feeTier: String?) -> ChatModel {
+        feeTier == topFeeTier ? .thinking : .fast
     }
 }
 

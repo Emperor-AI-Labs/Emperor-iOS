@@ -153,12 +153,19 @@ final class AskHomeTests: XCTestCase {
 /// Preferences the Record screens keep on the device.
 final class RecordPreferencesTests: XCTestCase {
 
-    func testNewQuestionsStartOnFastUnlessTheAccountIsOnTheTopPlanTier() {
-        XCTAssertEqual(AnswerModeDefault.starting(plan: "lite"), .fast)
-        XCTAssertEqual(AnswerModeDefault.starting(plan: "premium"), .fast)
-        XCTAssertEqual(AnswerModeDefault.starting(plan: "none"), .fast)
-        XCTAssertEqual(AnswerModeDefault.starting(plan: nil), .fast)
-        XCTAssertEqual(AnswerModeDefault.starting(plan: "ultra"), .thinking)
+    func testNewQuestionsStartOnDeepThinkingOnlyOnThePartnerPlan() {
+        XCTAssertEqual(AnswerModeDefault.starting(feeTier: "ultimate"), .thinking)
+        XCTAssertEqual(AnswerModeDefault.starting(feeTier: "premium"), .fast,
+                       "Senior Associate shares the ultra tier with Partner and still starts on Fast")
+        XCTAssertEqual(AnswerModeDefault.starting(feeTier: "essential"), .fast)
+        XCTAssertEqual(AnswerModeDefault.starting(feeTier: "free"), .fast)
+        XCTAssertEqual(AnswerModeDefault.starting(feeTier: "legacy"), .fast)
+        XCTAssertEqual(AnswerModeDefault.starting(feeTier: nil), .fast, "a server that predates feeTier")
+    }
+
+    func testFeeTierDecodesFromTheSignInResponse() throws {
+        let user = try JSONDecoder().decode(User.self, from: Data(#"{"id":7,"plan":"ultra","feeTier":"ultimate"}"#.utf8))
+        XCTAssertEqual(user.feeTier, "ultimate")
     }
 
     func testDraftCitationsAreRememberedPerAccount() {

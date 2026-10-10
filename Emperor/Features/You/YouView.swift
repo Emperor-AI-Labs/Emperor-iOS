@@ -221,7 +221,7 @@ struct YouView: View {
     // MARK: - Answers
 
     private var currentDefaultMode: ChatModel {
-        AnswerModeDefault.starting(plan: session.currentUser?.plan)
+        AnswerModeDefault.starting(feeTier: session.currentUser?.feeTier)
     }
 
 

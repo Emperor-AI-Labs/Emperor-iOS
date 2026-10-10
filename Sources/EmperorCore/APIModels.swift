@@ -107,6 +107,10 @@ struct User: Codable, Equatable, Identifiable, Sendable {
     var preferredModel: String?
     var plan: String?
     var planLabel: String?
+    /// The fee-schedule plan the account holds: `free`, `essential` (Junior Associate), `premium`
+    /// (Senior Associate), `ultimate` (Partner) or `legacy`. Absent from servers that predate it.
+    /// `plan` is only the capability tier, which Senior Associate and Partner share.
+    var feeTier: String?
     /// Set by `/login` when the account has no active plan, so new AI work and uploads will be
     /// refused until it has one. A snapshot from sign-in: a plan bought later on the web is
     /// learned from the next successful request, not from this.
@@ -123,7 +127,7 @@ struct User: Codable, Equatable, Identifiable, Sendable {
         case id, email, name, avatar, title, organization, plan, phone
         case preferredModel = "preferred_model"
         case practiceRole = "practice_role"
-        case planLabel, needsPlan, suspended
+        case planLabel, feeTier, needsPlan, suspended
     }
 }
 

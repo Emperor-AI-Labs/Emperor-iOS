@@ -88,7 +88,7 @@ struct ChatThreadView: View {
                 uploads: session.uploads,
                 detached: StoredDetachedDocuments(store: Preferences.detachedDocuments),
                 // Fast, or deep thinking on the top plan tier — see `AnswerModeDefault`.
-                preferredModel: AnswerModeDefault.starting(plan: session.currentUser?.plan).rawValue,
+                preferredModel: AnswerModeDefault.starting(feeTier: session.currentUser?.feeTier).rawValue,
                 // Kept for reading offline, and read back only when the server cannot be
                 // reached — never sent. See `ChatViewModel.savedCopyAt`.
                 offline: session.offlineCopies?.conversations,
