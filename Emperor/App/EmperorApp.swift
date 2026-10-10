@@ -211,7 +211,8 @@ struct RootView: View {
         }
         .environment(\.theme, theme)
         .environment(\.practice, practice)
-        // Dark unless the user has said otherwise — `ThemePreference.default` is `.dark`.
+        // The device's appearance unless the user has chosen one — `ThemePreference.default` is
+        // `.system`.
         .preferredColorScheme(theme.colorScheme)
         // `accentText`, not `accent`: the tint colours every toolbar button, plain list button
         // and the selected tab as *text*, and the fill accent is too faint for text on dark

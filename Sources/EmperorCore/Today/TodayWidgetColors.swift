@@ -18,14 +18,14 @@ struct TodayWidgetColors: Equatable, Sendable {
     let accentText: UInt32
 
     static let dark = TodayWidgetColors(
-        canvas: 0x0A0B10,
-        textPrimary: 0xF4F6FB, textSecondary: 0xC6CDDB, textTertiary: 0x949CB0,
-        accent: 0x5A64AD, accentText: 0x7C86C9)
+        canvas: 0x14172A,
+        textPrimary: 0xEEF0F8, textSecondary: 0xC3C8DD, textTertiary: 0x8C93B0,
+        accent: 0x4D568F, accentText: 0x8B95CC)
 
     static let light = TodayWidgetColors(
-        canvas: 0xF6F7FB,
-        textPrimary: 0x0C0F17, textSecondary: 0x3C4560, textTertiary: 0x626A83,
-        accent: 0x5A64AD, accentText: 0x5A64AD)
+        canvas: 0xFFFFFF,
+        textPrimary: 0x0F1424, textSecondary: 0x454B63, textTertiary: 0x6B7187,
+        accent: 0x464E85, accentText: 0x464E85)
 
     /// A hex's three channels in 0...1, for `Color(.sRGB, red:green:blue:)`.
     static func components(_ hex: UInt32) -> (red: Double, green: Double, blue: Double) {

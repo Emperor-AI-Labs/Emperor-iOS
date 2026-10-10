@@ -97,8 +97,10 @@ struct ListRowCard: View {
             theme.surface
             if isSelected {
                 Color(theme.palette.openRowWash)
+                // The accent's text colour: on the indigo ground the fill accent is too dark to
+                // read as a mark (`PaletteTests`).
                 Rectangle()
-                    .fill(theme.accent)
+                    .fill(theme.accentText)
                     .frame(width: 3)
             }
         }

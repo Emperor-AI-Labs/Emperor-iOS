@@ -134,19 +134,25 @@ final class PaletteTests: XCTestCase {
         }
     }
 
-    /// The surface ladder has to actually be a ladder, or cards vanish into the canvas.
+    /// The surface ladder has to actually be a ladder, or panels vanish into the card under them.
+    ///
+    /// In light Record draws its cards white on white and tells them apart by their hairline —
+    /// so there the card must differ from the canvas by its border, and in dark by its fill.
     func testSurfacesAreDistinguishableFromEachOther() {
         for (name, palette) in cases {
-            let canvasToSurface = palette.surface.contrastRatio(against: palette.canvas)
-            XCTAssertNotEqual(
-                canvasToSurface, 1.0, accuracy: 0.001,
-                "\(name): a card is indistinguishable from the canvas")
             let surfaceToElevated = palette.surfaceElevated
                 .contrastRatio(against: palette.surface)
             XCTAssertNotEqual(
                 surfaceToElevated, 1.0, accuracy: 0.001,
                 "\(name): an elevated panel is indistinguishable from a card")
         }
+        XCTAssertNotEqual(
+            Palette.dark.surface.contrastRatio(against: Palette.dark.canvas), 1.0, accuracy: 0.001,
+            "dark: a card is indistinguishable from the canvas")
+        XCTAssertEqual(Palette.light.surface, Palette.light.canvas, "light cards are white on white")
+        XCTAssertGreaterThanOrEqual(
+            Palette.light.separator.contrastRatio(against: Palette.light.canvas), 1.2,
+            "light: a card's hairline must be visible on the white ground")
     }
 
     /// Dark must actually be dark and light actually light — a swapped palette would still pass
@@ -174,20 +180,20 @@ final class PaletteTests: XCTestCase {
         }
     }
 
-    /// A tile has to read as a shape on the card and the canvas it sits on, or the row loses its
-    /// landmark. The dark card is the hard case: the web's hues are mid-tones, and deepened too far
-    /// for the glyph they sink into it.
-    func testIconTilesStandOutFromTheirSurfaces() {
+    /// The Record tile — a glyph in the accent's text colour on `accentSoft` — is what every
+    /// row's icon is drawn as. The glyph is a graphic that carries meaning, so it is held to
+    /// WCAG's 3:1 for non-text contrast, on a card and on the canvas, in both appearances.
+    func testRecordTileGlyphsClearTheGraphicsFloor() {
         for (name, palette) in cases {
-            for hue in TileHue.allCases {
-                for (surfaceName, surface) in [
-                    ("canvas", palette.canvas), ("surface", palette.surface),
-                ] {
-                    let ratio = palette.tile(hue).contrastRatio(against: surface)
-                    XCTAssertGreaterThanOrEqual(
-                        ratio, 3.0,
-                        "\(name)/\(hue) on \(surfaceName) is \(String(format: "%.2f", ratio)):1")
-                }
+            for (surfaceName, surface) in [
+                ("canvas", palette.canvas), ("surface", palette.surface),
+                ("elevated", palette.surfaceElevated),
+            ] {
+                let fill = palette.surfaceAccent.composited(over: surface)
+                let ratio = palette.accentText.contrastRatio(against: fill)
+                XCTAssertGreaterThanOrEqual(
+                    ratio, 3.0,
+                    "\(name)/\(surfaceName): a tile's glyph is \(String(format: "%.2f", ratio)):1")
             }
         }
     }
@@ -206,7 +212,7 @@ final class PaletteTests: XCTestCase {
     }
 
     /// Cards lift on light with a faint shadow and do not cast one on dark, where the hairline
-    /// does that job and a shadow on near-black is a smudge.
+    /// does that job and a shadow on the indigo ground is a smudge.
     func testCardsCastAShadowOnlyInLight() {
         XCTAssertEqual(Palette.dark.cardShadow.opacity, 0, accuracy: 0.0001)
         XCTAssertGreaterThan(Palette.light.cardShadow.opacity, 0)
@@ -220,36 +226,116 @@ final class PaletteTests: XCTestCase {
         XCTAssertFalse(Palette.light.isDark)
     }
 
-    // MARK: - Where we deliberately differ from the website
+    // MARK: - Where we deliberately differ from the tokens
 
-    /// The palette is ported from `emperor-ai/src/ui/theme.css`, and three values are
-    /// **deliberately not** the token's. Each was measured and each fails AA if copied, so this
-    /// pins the deviation: someone making the port "more faithful" would reintroduce a real
-    /// contrast failure, and these say so at the point of the change rather than in review.
-    func testTheThreeDeliberateDeviationsFromTheWebTokensHold() {
-        // 1. `--ex-accent: #7c86c9` is the dark fill, and `--ex-accent-ink` on it is white.
+    /// The palette is built from `RecordTokens`, and two of its roles are **deliberately not**
+    /// the token of the same name. Each was measured, and each would fail if copied, so this
+    /// pins the deviation: someone making the mapping "more faithful" would reintroduce the
+    /// failure, and this says so at the point of the change rather than in review.
+    func testTheDeliberateDeviationsFromTheTokensHold() {
+        // 1. The dark `accent` token is a text colour; white on it fails AA as a button label.
         XCTAssertLessThan(
-            PaletteColor(hex: 0xFFFFFF).contrastRatio(against: PaletteColor(hex: 0x7C86C9)),
-            4.5,
-            "the web token still fails — if this now passes, adopt it and delete this test")
-        XCTAssertNotEqual(
-            Palette.dark.accent, PaletteColor(hex: 0x7C86C9),
-            "dark accent must stay the deeper indigo so a white button label clears AA")
+            RecordTokens.dark.onAccent.contrastRatio(against: RecordTokens.dark.accent), 4.5,
+            "the dark accent token now carries a white label — adopt it as the fill")
+        XCTAssertEqual(Palette.dark.accent, RecordTokens.Gradient.primaryDark.start)
+        XCTAssertEqual(Palette.dark.accentText, RecordTokens.dark.accent)
+        XCTAssertEqual(Palette.light.accent, RecordTokens.light.accent)
 
-        // 2. Light `--ex-elevated` is `#ffffff`, identical to `--ex-surface`.
+        // 2. Light `elevated` is `#FFFFFF`, identical to `surface`.
+        XCTAssertEqual(RecordTokens.light.elevated, RecordTokens.light.surface)
         XCTAssertNotEqual(
             Palette.light.surfaceElevated, Palette.light.surface,
             "a raised panel must be distinguishable from the card under it")
+    }
 
-        // 3. The light theme never re-cuts the status hues, so they stay at their dark values.
-        for (label, webToken) in [
-            ("success", PaletteColor(hex: 0x34D399)),
-            ("warning", PaletteColor(hex: 0xFBBF24)),
-            ("danger", PaletteColor(hex: 0xF87171)),
-        ] {
-            XCTAssertLessThan(
-                webToken.contrastRatio(against: Palette.light.canvas), 4.5,
-                "\(label): the web value still fails on light — the deviation is still needed")
+    /// A chosen chip — a suggestion, a filter, the deep-thinking mode — is the accent's text on
+    /// `accentSoft`, as the design draws it. Chips sit on the canvas.
+    func testAChosenChipKeepsItsWordsReadable() {
+        for (name, palette) in cases {
+            let fill = palette.surfaceAccent.composited(over: palette.canvas)
+            let ratio = palette.accentText.contrastRatio(against: fill)
+            XCTAssertGreaterThanOrEqual(
+                ratio, 4.5, "\(name): a chosen chip is \(String(format: "%.2f", ratio)):1")
+        }
+    }
+
+    /// Every other role is the token itself.
+    func testTheRolesAreTheTokens() {
+        for (palette, tokens) in [(Palette.dark, RecordTokens.dark), (Palette.light, RecordTokens.light)] {
+            XCTAssertEqual(palette.canvas, tokens.bg)
+            XCTAssertEqual(palette.surface, tokens.surface)
+            XCTAssertEqual(palette.textPrimary, tokens.text)
+            XCTAssertEqual(palette.textSecondary, tokens.textSoft)
+            XCTAssertEqual(palette.textTertiary, tokens.textMute)
+            XCTAssertEqual(palette.separator, tokens.border)
+            XCTAssertEqual(palette.success, tokens.success)
+            XCTAssertEqual(palette.warning, tokens.warn)
+            XCTAssertEqual(palette.danger, tokens.danger)
+        }
+    }
+
+    /// The label on the primary gradient — the one main action per screen. White clears AA on the
+    /// gradient's first stop in both appearances and on its last in light. The dark gradient's last
+    /// stop is 4.4:1, which is why the label is bold and set at 16 points or more: WCAG's large-text
+    /// allowance is 3:1, and the centre of the button, where the label sits, still clears 4.5.
+    func testThePrimaryGradientCarriesAWhiteLabel() {
+        for (name, palette) in cases {
+            let gradient = palette.primaryGradient
+            let start = palette.onAccent.contrastRatio(against: gradient.start)
+            XCTAssertGreaterThanOrEqual(start, 4.5, "\(name): label on the first stop")
+            let end = palette.onAccent.contrastRatio(against: gradient.end)
+            XCTAssertGreaterThanOrEqual(end, 3.0, "\(name): label on the last stop")
+            let middle = PaletteColor(
+                (gradient.start.red + gradient.end.red) / 2,
+                (gradient.start.green + gradient.end.green) / 2,
+                (gradient.start.blue + gradient.end.blue) / 2)
+            XCTAssertGreaterThanOrEqual(
+                palette.onAccent.contrastRatio(against: middle), 4.5, "\(name): label mid-button")
+        }
+    }
+
+    /// The highlight on a cited passage (`mark`) and the user's bubble keep body text at AA.
+    func testMarkedWordsAndBubblesStayReadable() {
+        for (name, palette) in cases {
+            let marked = palette.record.mark.composited(over: palette.record.paper)
+            XCTAssertGreaterThanOrEqual(
+                palette.record.paperInk.contrastRatio(against: marked), 4.5, "\(name): marked words")
+            XCTAssertGreaterThanOrEqual(
+                palette.textPrimary.contrastRatio(against: palette.record.bubble), 4.5,
+                "\(name): a question in its bubble")
+        }
+    }
+
+    /// Increase Contrast swaps `textMute` for `textFaint` and `border` for `borderStrong`; both
+    /// swaps must actually raise the contrast they are for.
+    func testIncreaseContrastSwapsAreStronger() {
+        for (name, palette) in cases {
+            let surface = palette.surface
+            XCTAssertGreaterThan(
+                palette.record.textFaint.contrastRatio(against: surface),
+                palette.record.textMute.contrastRatio(against: surface), "\(name): text")
+            XCTAssertGreaterThan(
+                palette.record.borderStrong.contrastRatio(against: surface),
+                palette.record.border.contrastRatio(against: surface), "\(name): border")
+        }
+    }
+
+    /// Red is for destructive and failed, and is readable as text on its own wash.
+    func testTheDesignsBadgeWashesKeepTheirWordsReadable() {
+        for (name, palette) in cases {
+            for (tone, colour, wash) in [
+                ("success", palette.success, palette.record.successBg),
+                ("warning", palette.warning, palette.record.warnBg),
+                ("danger", palette.danger, palette.record.dangerBg),
+            ] {
+                for (surfaceName, surface) in [("canvas", palette.canvas), ("surface", palette.surface)] {
+                    let fill = wash.composited(over: surface)
+                    let ratio = colour.contrastRatio(against: fill)
+                    XCTAssertGreaterThanOrEqual(
+                        ratio, 4.5,
+                        "\(name)/\(tone) badge on \(surfaceName) is \(String(format: "%.2f", ratio)):1")
+                }
+            }
         }
     }
 
@@ -315,18 +401,6 @@ final class PaletteTests: XCTestCase {
         }
     }
 
-    /// Why the pill's wash is 8% and not the 10% it was: at 10% the accent pill's caption falls
-    /// under AA on the light canvas. If this ever passes, the palette has changed and the wash
-    /// can be reconsidered.
-    func testAPillWashedAtTenPercentFailsOnTheLightCanvas() {
-        let palette = Palette.light
-        let accent = palette.accentText
-        let tenPercent = PaletteColor(accent.red, accent.green, accent.blue, opacity: 0.10)
-            .composited(over: palette.canvas)
-        XCTAssertLessThan(accent.contrastRatio(against: tenPercent), 4.5)
-        XCTAssertLessThan(Palette.Wash.pill, 0.10, "the pill's wash was deepened again")
-    }
-
     /// A message in the sign-in card: the danger or info colour, on a wash of itself, on the card.
     func testSignInMessagesClearAAOnTheirWash() {
         for (name, palette) in cases {
@@ -358,12 +432,6 @@ final class PaletteTests: XCTestCase {
                 }
             }
         }
-        // At the 12% the banner was drawn with, "Retry" fails on the light canvas.
-        let light = Palette.light
-        let old = PaletteColor(
-            light.warning.red, light.warning.green, light.warning.blue, opacity: 0.12
-        ).composited(over: light.canvas)
-        XCTAssertLessThan(light.accentText.contrastRatio(against: old), 4.5)
     }
 
     /// The row open beside the list on an iPad keeps every word on it legible — its title, its
@@ -391,7 +459,7 @@ final class PaletteTests: XCTestCase {
                     ratio, 4.5,
                     "\(name): the \(tone) pill on the open row is \(String(format: "%.2f", ratio)):1")
             }
-            let bar = palette.accent.contrastRatio(against: palette.surface)
+            let bar = palette.accentText.contrastRatio(against: palette.surface)
             XCTAssertGreaterThanOrEqual(
                 bar, 3.0, "\(name): the open row's bar is \(String(format: "%.2f", bar)):1")
         }
@@ -444,10 +512,11 @@ final class PaletteTests: XCTestCase {
 
     // MARK: - Preference
 
-    /// **Dark is the default.** Not "match the system" — a user who never opens Settings should
-    /// get the intended look.
-    func testDarkIsTheDefault() {
-        XCTAssertEqual(ThemePreference.default, .dark)
+    /// **System is the default** — the Record design is drawn for both grounds, and its You
+    /// screen offers System first.
+    func testSystemIsTheDefault() {
+        XCTAssertEqual(ThemePreference.default, .system)
+        XCTAssertEqual(ThemePreference.allCases.map(\.label), ["System", "Light", "Dark"])
     }
 
     func testResolutionHonoursTheExplicitChoiceOverTheSystem() {
