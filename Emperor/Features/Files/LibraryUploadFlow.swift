@@ -154,12 +154,15 @@ struct UploadsInFlightBanner: View {
     /// The attach picker's own foreground upload, when it is running one.
     var foregroundProgress: Double?
 
-    private var inFlight: [UploadManifest] { BackgroundUploader.shared.inFlight }
-    /// Uploads the server declined and that were stopped, until the person dismisses them.
-    private var refused: [BackgroundUploader.Refused] { BackgroundUploader.shared.refused }
+    private var batch: UploadBatch { BackgroundUploader.shared.batch }
+    /// Uploads the server declined and that were stopped, until the person dismisses them. One
+    /// already in the batch says so on its own row instead.
+    private var refused: [BackgroundUploader.Refused] {
+        BackgroundUploader.shared.refused.filter { !batch.contains($0.id) }
+    }
 
     var body: some View {
-        if !inFlight.isEmpty || !refused.isEmpty || foregroundProgress != nil {
+        if !batch.isEmpty || !refused.isEmpty || foregroundProgress != nil {
             VStack(alignment: .leading, spacing: 8) {
                 // Said here, where the upload was being watched, rather than not at all — which
                 // is what a declined background upload used to amount to.
@@ -179,36 +182,19 @@ struct UploadsInFlightBanner: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 0)
-                        Button {
+                        UploadPanelCloseButton(hint: "Removes this notice") {
                             BackgroundUploader.shared.dismissRefusal(notice.id)
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.brand(.caption, weight: .semibold))
-                                .foregroundStyle(theme.textTertiary)
-                                // A small cross, but a full-size target.
-                                .frame(minWidth: 44, minHeight: 44)
-                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Dismiss")
-                        .accessibilityHint("Removes this notice")
                     }
                     .accessibilityElement(children: .contain)
                 }
 
-                ForEach(inFlight) { upload in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Uploading \(upload.fileName)")
-                            .font(.brand(.caption))
-                            .foregroundStyle(theme.textSecondary)
-                            .dynamicLineLimit(1)
-                        MeterBar(fraction: upload.progress, color: theme.accent)
+                if !batch.isEmpty {
+                    UploadBatchPanel(batch: batch) {
+                        BackgroundUploader.shared.dismissBatch()
                     }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(
-                        "Uploading \(upload.fileName), \(Int(upload.progress * 100)) percent. "
-                        + "This continues if you leave the app.")
                 }
+
                 if let foregroundProgress {
                     // Ingestion runs after the upload's 200, so this stays up until the server
                     // reports the file readable — not until the bytes land.
@@ -231,6 +217,168 @@ struct UploadsInFlightBanner: View {
                 Rectangle().fill(theme.separator).frame(height: 0.5)
             }
         }
+    }
+}
+
+/// The upload panel: what is being sent, how fast, how long is left, and what the server made
+/// of each file — the web's upload tray, laid out for a phone. Every figure and every word comes
+/// from `UploadBatch`; this only places them.
+struct UploadBatchPanel: View {
+    @Environment(\.theme) private var theme
+    let batch: UploadBatch
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(batch.title)
+                        .font(.brand(.subheadline, weight: .semibold))
+                        .foregroundStyle(theme.textPrimary)
+                    Text(batch.subtitle)
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textSecondary)
+                        .monospacedDigit()
+                }
+                .accessibilityElement(children: .combine)
+                Spacer(minLength: 0)
+                // Only once nothing is still being sent or read: closing a running batch would
+                // hide an upload that is still going.
+                if !batch.isActive {
+                    UploadPanelCloseButton(hint: "Clears the finished uploads") {
+                        onDismiss()
+                    }
+                }
+            }
+
+            if let speedLine = batch.speedLine {
+                Text(speedLine)
+                    .font(.brand(.caption))
+                    .foregroundStyle(theme.textSecondary)
+                    .monospacedDigit()
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityHint(UploadProgressFormat.speedExplanation)
+            }
+
+            ForEach(batch.groups) { group in
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "folder")
+                            .font(.brand(.caption2))
+                            .foregroundStyle(theme.textTertiary)
+                            .accessibilityHidden(true)
+                        Text(group.title)
+                            .font(.brand(.caption, weight: .medium))
+                            .foregroundStyle(theme.textSecondary)
+                            .dynamicLineLimit(1)
+                        Spacer(minLength: 0)
+                        Text(group.count)
+                            .font(.brand(.caption2))
+                            .foregroundStyle(theme.textTertiary)
+                            .monospacedDigit()
+                    }
+                    .accessibilityElement(children: .combine)
+
+                    ForEach(group.files) { file in
+                        UploadFileRow(file: file)
+                    }
+                }
+            }
+
+            if batch.isSending {
+                Text("Uploads continue if you leave the app.")
+                    .font(.brand(.caption2))
+                    .foregroundStyle(theme.textTertiary)
+            }
+
+            if let notice = batch.completionNotice {
+                Text(notice)
+                    .font(.brand(.caption, weight: .medium))
+                    .foregroundStyle(theme.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+/// One file in the upload panel: its name, size and estimate, the figure at the end, a bar, and
+/// why it failed when it did.
+struct UploadFileRow: View {
+    @Environment(\.theme) private var theme
+    let file: UploadBatch.File
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(DisplayText.fileName(file.name))
+                .font(.brand(.caption, weight: .medium))
+                .foregroundStyle(theme.textPrimary)
+                .dynamicLineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(file.detail)
+                    .font(.brand(.caption2))
+                    .foregroundStyle(theme.textTertiary)
+                    .monospacedDigit()
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+                Text(file.trailing)
+                    .font(.brand(.caption2, weight: .semibold))
+                    .foregroundStyle(trailingColor)
+                    .monospacedDigit()
+            }
+            // The bar stays once a file has finished, so a finished row keeps the height of a
+            // running one and the list does not reflow as files land.
+            MeterBar(fraction: file.fraction, color: barColor)
+            if let error = file.error {
+                Text(error)
+                    .font(.brand(.caption2))
+                    .foregroundStyle(theme.danger)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        // The bar is for the eye; the row is said as one sentence.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(DisplayText.fileName(file.name))
+        .accessibilityValue(spokenValue)
+    }
+
+    private var spokenValue: String {
+        var parts: [String] = []
+        parts.append(file.isSending ? "\(file.percent) percent" : file.trailing)
+        if !file.detail.isEmpty { parts.append(file.detail) }
+        if let error = file.error { parts.append(error) }
+        return parts.joined(separator: ", ")
+    }
+
+    private var trailingColor: Color {
+        if file.needsAttention { return theme.danger }
+        if file.isSent { return theme.success }
+        return theme.accentText
+    }
+
+    private var barColor: Color {
+        if file.needsAttention { return theme.danger }
+        if file.isSent { return theme.success }
+        return theme.accent
+    }
+}
+
+/// The panel's small cross, with a full-size target.
+struct UploadPanelCloseButton: View {
+    @Environment(\.theme) private var theme
+    let hint: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.brand(.caption, weight: .semibold))
+                .foregroundStyle(theme.textTertiary)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Dismiss")
+        .accessibilityHint(hint)
     }
 }
 
