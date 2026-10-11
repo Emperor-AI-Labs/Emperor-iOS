@@ -27,6 +27,12 @@ final class FileLibraryViewModel {
     }
 
     private(set) var files: [FileNode.StoredFile] = []
+    /// Every folder in the library, empty ones included, in the web's order. Feeds the folder
+    /// list and the "where should this go" choice for an upload.
+    private(set) var folders: [FolderSummary] = []
+    /// Folders the user has opened. Closed by default, like a file browser: a library of fifty
+    /// matters listed open is a wall of documents with no way to find a matter.
+    private(set) var expanded: Set<String> = []
     private(set) var state: LoadState = .idle
     var selected: Set<String> = []
     var query = ""
@@ -120,6 +126,69 @@ final class FileLibraryViewModel {
             .sorted { $0.folder.localizedStandardCompare($1.folder) == .orderedAscending }
     }
 
+    /// The folder list the picker draws: every folder, empty ones included, each with the
+    /// documents directly inside it, then loose files as "Unfiled". While searching, only the
+    /// folders holding a match — and those open, so the match is visible.
+    var folderRows: [FolderGroup] {
+        if isSearching { return grouped }
+        let byFolder = Dictionary(grouping: files, by: \.folderPath)
+        var rows = folders.map { summary in
+            FolderGroup(
+                folder: summary.path,
+                files: (byFolder[summary.path] ?? []).sorted { $0.name < $1.name })
+        }
+        let known = Set(folders.map(\.path))
+        // A file whose folder the tree did not list (or the root) still has to be reachable.
+        for (folder, loose) in byFolder where !known.contains(folder) {
+            rows.append(FolderGroup(folder: folder, files: loose.sorted { $0.name < $1.name }))
+        }
+        return rows.sorted { lhs, rhs in
+            // Unfiled last, the rest in the tree's order.
+            if lhs.folder.isEmpty != rhs.folder.isEmpty { return !lhs.folder.isEmpty }
+            let li = folders.firstIndex { $0.path == lhs.folder } ?? Int.max
+            let ri = folders.firstIndex { $0.path == rhs.folder } ?? Int.max
+            if li != ri { return li < ri }
+            return lhs.folder.localizedStandardCompare(rhs.folder) == .orderedAscending
+        }
+    }
+
+    var isSearching: Bool { !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    func isExpanded(_ folder: String) -> Bool { isSearching || expanded.contains(folder) }
+
+    func toggleExpanded(_ folder: String) {
+        if expanded.contains(folder) { expanded.remove(folder) } else { expanded.insert(folder) }
+    }
+
+    /// How much of a folder is chosen, for its row's checkbox.
+    enum FolderSelection: Equatable { case none, some, all }
+
+    func selection(in group: FolderGroup) -> FolderSelection {
+        let readable = group.files.filter(\.isReadable)
+        guard !readable.isEmpty else { return .none }
+        let chosen = readable.filter { selected.contains($0.path) }.count
+        if chosen == 0 { return .none }
+        return chosen == readable.count ? .all : .some
+    }
+
+    /// Chooses every readable document in the folder, or releases them all if every one was
+    /// already chosen. Unreadable ones are skipped: they cannot be attached yet.
+    func toggleAll(in group: FolderGroup) {
+        let readable = group.files.filter(\.isReadable).map(\.path)
+        if selection(in: group) == .all {
+            selected.subtract(readable)
+        } else {
+            selected.formUnion(readable)
+        }
+    }
+
+    /// Where an upload can go: every folder, plus the default one when it does not exist yet.
+    var uploadDestinations: [String] {
+        var paths = folders.map(\.path)
+        if !paths.contains(Self.uploadFolder) { paths.append(Self.uploadFolder) }
+        return paths
+    }
+
     /// The three-way distinction every list screen owes the user. See `LoadState`.
     var presentation: ListPresentation {
         ListPresentation(state: state, isEmpty: files.isEmpty)
@@ -162,6 +231,7 @@ final class FileLibraryViewModel {
         do {
             let tree = try await service.tree()
             files = FileService.allFiles(in: tree)
+            folders = FileBrowser.allFolders(in: tree)
             reconcileSelection()
             state = .loaded
         } catch {
@@ -225,16 +295,23 @@ final class FileLibraryViewModel {
     /// - Important: rejects a name that would sanitise away to nothing before sending it.
     ///   `create-folder` mkdirs the storage root for `"."` or `"///"` and reports success, so
     ///   the user would see no new folder, no error, and nothing to correct.
-    func createFolder(named name: String) async {
+    /// Creates a folder and returns its path as the server stored it, or `nil` if it was refused
+    /// (the reason is in `actionError`). The path is read back off the refreshed tree.
+    @discardableResult
+    func createFolder(named name: String) async -> String? {
         guard FolderName.isCreatable(name) else {
             actionError = "That folder name has no letters or numbers in it."
-            return
+            return nil
         }
+        actionError = nil
         await perform(on: nil) { manager in
             try await manager.createFolder(named: name)
             return FileEditWording.folderCreated(typed: name)
         }
         await reload()
+        guard actionError == nil else { return nil }
+        let wanted = FolderName.preview(name)
+        return folders.first { $0.path.caseInsensitiveCompare(wanted) == .orderedSame }?.path ?? wanted
     }
 
     /// - Important: recursive and immediate. Every document inside goes with it, along with
@@ -281,6 +358,7 @@ final class FileLibraryViewModel {
         do {
             let tree = try await service.tree()
             files = FileService.allFiles(in: tree)
+            folders = FileBrowser.allFolders(in: tree)
             // A file that was renamed or deleted is no longer selectable under its old path.
             selected = keep.intersection(Set(files.map(\.path)))
             state = .loaded

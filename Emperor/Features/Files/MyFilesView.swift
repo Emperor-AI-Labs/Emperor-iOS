@@ -132,6 +132,16 @@ private struct LibraryScreen: View {
     @State private var newFolderName = ""
     @State private var isImporting = false
     @State private var isPickingPhotos = false
+    /// At the top level an upload asks which folder first; this is the answer, and what the
+    /// next import or photo pick files into. Inside a folder it is that folder.
+    @State private var chosenUploadFolder: String?
+    @State private var isChoosingDestination = false
+    /// Which picker to open once the destination sheet has gone.
+    @State private var pickAfterChoosing: PickAfterChoosing?
+    /// Which picker the menu asked for; only becomes `pickAfterChoosing` once a folder is chosen,
+    /// so Cancel on the destination sheet opens nothing.
+    @State private var requestedPick: PickAfterChoosing = .files
+    private enum PickAfterChoosing { case files, photos }
     @State private var photoSelection: [PhotosPickerItem] = []
     @State private var duplicateReview: DuplicateReview?
     @State private var uploadError: String?
@@ -162,7 +172,19 @@ private struct LibraryScreen: View {
             String(path.split(separator: "/").last ?? "")))
     }
 
-    private var uploadFolder: String { MyFilesViewModel.uploadDestination(for: path) }
+    private var uploadFolder: String {
+        isRoot ? (chosenUploadFolder ?? MyFilesViewModel.uploadDestination(for: path))
+            : MyFilesViewModel.uploadDestination(for: path)
+    }
+
+    /// Every folder an upload from the top level could go to, the default one included.
+    private var uploadDestinations: [String] {
+        var paths = FileBrowser.allFolders(in: model.tree).map(\.path)
+        if !paths.contains(FileLibraryViewModel.uploadFolder) {
+            paths.append(FileLibraryViewModel.uploadFolder)
+        }
+        return paths
+    }
 
     var body: some View {
         alerts(presentations(chrome(content)))
@@ -222,6 +244,29 @@ private struct LibraryScreen: View {
 
     private func presentations<V: View>(_ view: V) -> some View {
         view
+            .sheet(isPresented: $isChoosingDestination, onDismiss: {
+                switch pickAfterChoosing {
+                case .files: isImporting = true
+                case .photos: isPickingPhotos = true
+                case nil: break
+                }
+                pickAfterChoosing = nil
+            }) {
+                UploadDestinationSheet(
+                    destinations: uploadDestinations,
+                    initial: chosenUploadFolder ?? FileLibraryViewModel.uploadFolder,
+                    createFolder: { name in
+                        await model.createFolder(named: name, in: "")
+                        guard model.actionError == nil else { return nil }
+                        let wanted = FolderName.preview(name)
+                        return FileBrowser.allFolders(in: model.tree)
+                            .first { $0.path.caseInsensitiveCompare(wanted) == .orderedSame }?.path ?? wanted
+                    },
+                    onChoose: { folder in
+                        chosenUploadFolder = folder
+                        pickAfterChoosing = requestedPick
+                    })
+            }
             .fileImporter(
                 isPresented: $isImporting,
                 allowedContentTypes: LibraryUploadFlow.importableTypes,
@@ -762,16 +807,34 @@ private struct LibraryScreen: View {
         Menu {
             // Named, because at the top level the answer is not obvious: a document is never
             // filed loose at the root, so it goes to the same folder the attach picker uses.
-            Section("Upload to \(DisplayText.fileName(uploadFolder))") {
-                Button {
-                    isImporting = true
-                } label: {
-                    Label("From Files", systemImage: "doc.badge.plus")
+            if isRoot {
+                // At the top level there is no folder to assume, so the upload asks which one.
+                Section("Upload to a folder") {
+                    Button {
+                        requestedPick = .files
+                        isChoosingDestination = true
+                    } label: {
+                        Label("From Files", systemImage: "doc.badge.plus")
+                    }
+                    Button {
+                        requestedPick = .photos
+                        isChoosingDestination = true
+                    } label: {
+                        Label("From Photos", systemImage: "photo.badge.plus")
+                    }
                 }
-                Button {
-                    isPickingPhotos = true
-                } label: {
-                    Label("From Photos", systemImage: "photo.badge.plus")
+            } else {
+                Section("Upload to \(DisplayText.fileName(uploadFolder))") {
+                    Button {
+                        isImporting = true
+                    } label: {
+                        Label("From Files", systemImage: "doc.badge.plus")
+                    }
+                    Button {
+                        isPickingPhotos = true
+                    } label: {
+                        Label("From Photos", systemImage: "photo.badge.plus")
+                    }
                 }
             }
             Button {

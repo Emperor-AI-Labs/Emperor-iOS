@@ -29,6 +29,68 @@ final class FileLibraryViewModelTests: XCTestCase {
         }
     }
 
+    // MARK: - Folders
+
+    func testFoldersStartClosedAndOpenOneAtATime() async {
+        await withLibrary { files, model in
+            files.tree = Self.tree + [folder("Empty_Matter", [])]
+            await model.load()
+
+            let rows = model.folderRows.map(\.folder)
+            XCTAssertEqual(Set(rows), ["Partition_Suit", "Arbitration", "Empty_Matter", ""])
+            XCTAssertEqual(rows.last, "", "Unfiled goes last")
+            XCTAssertFalse(model.isExpanded("Arbitration"))
+
+            model.toggleExpanded("Arbitration")
+            XCTAssertTrue(model.isExpanded("Arbitration"))
+            XCTAssertFalse(model.isExpanded("Partition_Suit"))
+        }
+    }
+
+    func testSearchingOpensTheFoldersThatMatch() async {
+        await withLibrary { files, model in
+            files.tree = Self.tree
+            await model.load()
+            model.query = "award"
+
+            XCTAssertEqual(model.folderRows.map(\.folder), ["Partition_Suit"])
+            XCTAssertTrue(model.isExpanded("Partition_Suit"))
+        }
+    }
+
+    func testAFoldersCheckboxChoosesAndReleasesEveryDocumentInIt() async {
+        await withLibrary { files, model in
+            files.tree = Self.tree
+            await model.load()
+            guard let suit = model.folderRows.first(where: { $0.folder == "Partition_Suit" }) else {
+                return XCTFail("no Partition_Suit row")
+            }
+
+            XCTAssertEqual(model.selection(in: suit), .none)
+            model.toggleAll(in: suit)
+            XCTAssertEqual(model.selection(in: suit), .all)
+            XCTAssertEqual(model.selected.count, 2)
+
+            model.toggle(suit.files[0])
+            XCTAssertEqual(model.selection(in: suit), .some)
+
+            model.toggleAll(in: suit)
+            model.toggleAll(in: suit)
+            XCTAssertEqual(model.selection(in: suit), .none)
+        }
+    }
+
+    func testUploadsCanGoToAnyFolderOrTheDefaultOne() async {
+        await withLibrary { files, model in
+            files.tree = Self.tree
+            await model.load()
+
+            XCTAssertEqual(
+                Set(model.uploadDestinations),
+                ["Partition_Suit", "Arbitration", FileLibraryViewModel.uploadFolder])
+        }
+    }
+
     /// "No documents yet" while the request is still in flight tells the user something false
     /// about their own account.
     func testEmptyStateIsNotShownWhileLoading() async {

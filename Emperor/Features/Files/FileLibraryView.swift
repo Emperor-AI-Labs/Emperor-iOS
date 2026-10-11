@@ -20,6 +20,12 @@ struct FileLibraryView: View {
     @State private var renameText = ""
     @State private var isNamingFolder = false
     @State private var newFolderName = ""
+    /// Choosing where an upload goes, before the documents are picked.
+    @State private var isChoosingDestination = false
+    /// The folder the next picked documents go into. Set by the destination sheet, read by the
+    /// file importer that opens once that sheet is gone.
+    @State private var uploadDestination: String?
+    @State private var startImportAfterChoosing = false
     /// Non-nil while the user is being asked about documents the library already holds.
     @State private var duplicateReview: DuplicateReview?
     /// The document being read rather than attached.
@@ -68,6 +74,21 @@ struct FileLibraryView: View {
             }
             .sheet(isPresented: $isDigitising) {
                 OCRView()
+            }
+            .sheet(isPresented: $isChoosingDestination, onDismiss: {
+                if startImportAfterChoosing {
+                    startImportAfterChoosing = false
+                    isImporting = true
+                }
+            }) {
+                UploadDestinationSheet(
+                    destinations: model?.uploadDestinations ?? [FileLibraryViewModel.uploadFolder],
+                    initial: uploadDestination ?? FileLibraryViewModel.uploadFolder,
+                    createFolder: { name in await model?.createFolder(named: name) },
+                    onChoose: { folder in
+                        uploadDestination = folder
+                        startImportAfterChoosing = true
+                    })
             }
             .fileImporter(
                 isPresented: $isImporting,
@@ -123,9 +144,9 @@ struct FileLibraryView: View {
     private var addMenu: some View {
         Menu {
             Button {
-                isImporting = true
+                isChoosingDestination = true
             } label: {
-                Label("Add from Files", systemImage: "folder.badge.plus")
+                Label("Upload documents", systemImage: "square.and.arrow.up")
             }
             Button {
                 isDigitising = true
@@ -157,7 +178,7 @@ struct FileLibraryView: View {
         }
         let accepted = picked.filter { LibraryUpload.isAccepted(fileName: $0.fileName) }
         guard !accepted.isEmpty else { return }
-        let folder = FileLibraryViewModel.uploadFolder
+        let folder = uploadDestination ?? FileLibraryViewModel.uploadFolder
         if let review = await LibraryUploadFlow.review(
             accepted, into: folder, duplicates: session.duplicates) {
             duplicateReview = review
@@ -258,20 +279,61 @@ struct FileLibraryView: View {
 
     private func list(_ model: FileLibraryViewModel) -> some View {
         List {
-            ForEach(model.grouped) { group in
-                Section {
-                    ForEach(group.files, id: \.path) { file in
-                        row(for: file, in: model)
+            // Adding sits above the folders, always: the toolbar's right slot becomes Attach as
+            // soon as anything is chosen, and a document that is not in the library yet must
+            // still be uploadable from the screen that asks for it.
+            Section {
+                HStack(spacing: Spacing.sm) {
+                    Button {
+                        isChoosingDestination = true
+                    } label: {
+                        Label("Upload", systemImage: "square.and.arrow.up")
+                            .frame(maxWidth: .infinity)
                     }
-                } header: {
-                    sectionHeader(group)
+                    .buttonStyle(.bordered)
+                    .disabled(model.isUploading)
+
+                    if model.canManage {
+                        Button {
+                            isNamingFolder = true
+                        } label: {
+                            Label("New folder", systemImage: "folder.badge.plus")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
                 }
-                .listRowBackground(theme.surface)
+                .tint(theme.accentText)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             }
+
+            Section {
+                ForEach(model.folderRows) { group in
+                    folderRow(group, in: model)
+                    if model.isExpanded(group.folder) {
+                        if group.files.isEmpty {
+                            Text("No documents in this folder yet.")
+                                .font(.brand(.footnote))
+                                .foregroundStyle(theme.textTertiary)
+                                .padding(.leading, 36)
+                        } else {
+                            ForEach(group.files, id: \.path) { file in
+                                row(for: file, in: model)
+                                    .padding(.leading, 20)
+                            }
+                        }
+                    }
+                }
+            } header: {
+                SectionHeader(title: model.isSearching ? "Matches" : "Folders")
+            }
+            .listRowBackground(theme.surface)
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(theme.groupedBackground)
+        .animation(.easeOut(duration: 0.2), value: model.expanded)
         .overlay(alignment: .bottom) {
             if let notice = model.actionNotice {
                 ActionNoticeToast(notice: notice) { model.dismissActionNotice() }
@@ -280,12 +342,74 @@ struct FileLibraryView: View {
         .animation(.easeOut(duration: 0.15), value: model.actionNotice)
     }
 
-    /// - Note: this header once carried an overflow menu whose only item was "Delete folder".
-    ///   Deleting, and renaming folders, now live in My Files, where the confirmation can say
-    ///   what goes with a folder and the screen is about managing documents rather than picking
-    ///   one. The picker stays a picker.
-    private func sectionHeader(_ group: FileLibraryViewModel.FolderGroup) -> some View {
-        SectionHeader(title: group.title)
+    /// A folder as a file browser draws one: a chevron that opens and closes it, its name and
+    /// how many documents it holds, and a checkbox that chooses everything inside.
+    ///
+    /// Deleting and renaming folders live in My Files, where the confirmation can say what goes
+    /// with a folder. The picker stays a picker.
+    private func folderRow(
+        _ group: FileLibraryViewModel.FolderGroup, in model: FileLibraryViewModel
+    ) -> some View {
+        let open = model.isExpanded(group.folder)
+        let selection = model.selection(in: group)
+        let count = group.files.count
+        return HStack(spacing: Spacing.sm) {
+            Button {
+                model.toggleExpanded(group.folder)
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(theme.textTertiary)
+                        .rotationEffect(.degrees(open ? 90 : 0))
+                        .frame(width: 14)
+                    Image(systemName: open ? "folder.fill" : "folder")
+                        .foregroundStyle(theme.accentText)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(group.title)
+                            .font(.brand(.body, weight: .medium))
+                            .foregroundStyle(theme.textPrimary)
+                            .lineLimit(2)
+                        Text(count == 1 ? "1 document" : "\(count) documents")
+                            .font(.brand(.footnote))
+                            .foregroundStyle(theme.textTertiary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("\(group.title), \(count) documents")
+            .accessibilityValue(open ? "Open" : "Closed")
+            .accessibilityHint(open ? "Closes the folder" : "Opens the folder")
+
+            if group.files.contains(where: \.isReadable) {
+                Button {
+                    model.toggleAll(in: group)
+                } label: {
+                    Image(systemName: selection == .all
+                          ? "checkmark.circle.fill"
+                          : selection == .some ? "minus.circle.fill" : "circle")
+                        .font(.system(size: 22))
+                        .foregroundStyle(selection == .none ? theme.textTertiary : theme.accentText)
+                        .frame(minWidth: Layout.touchTarget, minHeight: Layout.touchTarget)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(selection == .all
+                                    ? "Release every document in \(group.title)"
+                                    : "Choose every document in \(group.title)")
+            }
+        }
+        .contextMenu {
+            Button {
+                uploadDestination = group.folder.isEmpty ? FileLibraryViewModel.uploadFolder : group.folder
+                isImporting = true
+            } label: {
+                Label("Upload to this folder", systemImage: "square.and.arrow.up")
+            }
+        }
     }
 
     private func row(for file: FileNode.StoredFile, in model: FileLibraryViewModel) -> some View {
