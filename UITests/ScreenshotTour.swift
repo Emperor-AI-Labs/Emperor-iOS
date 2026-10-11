@@ -132,8 +132,14 @@ final class ScreenshotTour: XCTestCase {
             hearing.tap()
             Thread.sleep(forTimeInterval: 0.5)
             snap("hearing")
-            app.swipeDown()
-            Thread.sleep(forTimeInterval: 0.5)
+            let close = app.buttons["Close"].firstMatch
+            if close.waitForExistence(timeout: 3), close.isHittable { close.tap() } else { app.swipeDown() }
+            // Gone before the segments behind it are tapped.
+            var polls = 0
+            while close.exists && polls < 20 {
+                Thread.sleep(forTimeInterval: 0.25)
+                polls += 1
+            }
         }
         tapIfPresent(app.buttons["Upcoming"].firstMatch)
         snap("matters-upcoming")
@@ -403,8 +409,10 @@ final class ScreenshotTour: XCTestCase {
         }
     }
 
+    /// Taps a control if it is there to be tapped — present, and not under a sheet that did not
+    /// close — and otherwise goes on, as every step of a tour does.
     private func tapIfPresent(_ element: XCUIElement) {
-        if element.waitForExistence(timeout: 5) { element.tap() }
+        if element.waitForExistence(timeout: 5), element.isHittable { element.tap() }
     }
 
     private func backOut(_ app: XCUIApplication) {

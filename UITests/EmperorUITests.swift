@@ -768,9 +768,10 @@ final class EmperorUITests: XCTestCase {
         let app = signedIn()
         openYou(app)
 
+        // Below the account and its plan, so off screen on a phone until scrolled to.
         let selector = app.buttons["Role selector"].firstMatch
-        XCTAssertTrue(selector.waitForExistence(timeout: 10), "You has no role row")
         app.reveal(selector)
+        XCTAssertTrue(selector.waitForExistence(timeout: 5), "You has no role row")
         selector.tap()
         let corporate = app.buttons["role-corporateCounsel"].firstMatch
         XCTAssertTrue(corporate.waitForExistence(timeout: 10), "the roles were not listed")
@@ -780,6 +781,7 @@ final class EmperorUITests: XCTestCase {
         // expectation: `waitForExpectations` sends the test case across actors, which Swift 6
         // refuses to compile here.
         XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
+        app.reveal(selector)
         XCTAssertTrue(selector.waitForExistence(timeout: 10))
         var polls = 0
         while !selector.label.contains("Corporate Counsel") && polls < 40 {
@@ -1578,8 +1580,8 @@ final class EmperorUITests: XCTestCase {
         openYou(app)
 
         let edit = app.buttons["edit-profile"].firstMatch
-        XCTAssertTrue(edit.waitForExistence(timeout: 10), "You has no Edit profile row")
         app.reveal(edit)
+        XCTAssertTrue(edit.waitForExistence(timeout: 10), "You has no Edit profile row")
         edit.tap()
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 10))
 
