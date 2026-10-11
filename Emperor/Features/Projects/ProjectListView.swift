@@ -2,8 +2,9 @@ import SwiftUI
 
 /// Hand-made matters — the ones typed in rather than scraped.
 ///
-/// The sibling of `CaseListView` and deliberately a separate screen. A case belongs to a team and
-/// is maintained by the court scrapers; a project belongs to one user and is typed in by hand.
+/// The sibling of the docket (`MattersView`) and deliberately a separate screen. A case belongs
+/// to a team and is maintained by the court scrapers; a project belongs to one user and is typed
+/// in by hand.
 /// The web's rail puts them next to each other for the same reason, and merging them would put a
 /// row whose hearing date a registry guarantees beside one whose hearing date somebody
 /// half-remembered, under the same heading.

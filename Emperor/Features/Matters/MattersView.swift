@@ -349,13 +349,29 @@ struct MattersView: View {
         }
         if cases == nil {
             cases = CaseListViewModel(
-                service: session.cases, cache: session.cache, store: CaseListView.preferences)
+                service: session.cases, cache: session.cache, store: Self.docketPreferences)
         }
         let causeList = self.causeList
         let cases = self.cases
         await causeList?.load()
         await cases?.load()
     }
+
+    /// Where the docket's sort, grouping and filters are remembered between launches.
+    static var docketPreferences: any PreferenceStore {
+        #if DEBUG
+        if UITestSupport.isActive { return uiTestDocketPreferences }
+        #endif
+        return Preferences()
+    }
+
+    #if DEBUG
+    /// `UserDefaults` outlives a UI-test launch — the trap `EmperorApp` documents for the
+    /// disclaimer — so a test that filtered the docket would hand its filter to every test after
+    /// it, and a case those tests open would simply not be there. Under test the layout is
+    /// remembered for one launch; across launches it is `CaseListOrganisationTests`' to prove.
+    private static let uiTestDocketPreferences = InMemoryPreferenceStore()
+    #endif
 
     /// Pull to refresh: the cause lists and the docket, then a word on how it went.
     private func refresh() async {

@@ -262,50 +262,6 @@ struct ItemNumberBadge: View {
     }
 }
 
-/// A citation number as a chip: drawn 20 by 18, answering a touch across 44. Tapped, it fills with
-/// the accent for half a second — then the cited page rises.
-struct CitationChip: View {
-    @Environment(\.theme) private var theme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    let number: Int
-    /// "Citation 2, AWARD.pdf, page 3".
-    let accessibilityText: String
-    let action: () -> Void
-
-    @State private var isLit = false
-
-    var body: some View {
-        Button {
-            Haptics.selection()
-            withAnimation(Motion.easeOut(Motion.Duration.fade)) { isLit = true }
-            let delay = reduceMotion ? 0 : 180
-            let open = action
-            let lit = $isLit
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(delay))
-                open()
-                try? await Task.sleep(for: .milliseconds(320))
-                withAnimation(Motion.easeOut(Motion.Duration.fade)) { lit.wrappedValue = false }
-            }
-        } label: {
-            Text(verbatim: "\(number)")
-                .recordText(RecordTokens.Typography.citation)
-                .monospacedDigit()
-                .foregroundStyle(isLit ? theme.onAccent : theme.accentText)
-                .padding(.horizontal, 5)
-                .frame(minWidth: 20, minHeight: 18)
-                .background(
-                    isLit ? theme.accent : theme.accentWash,
-                    in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
-                .frame(minWidth: Layout.touchTarget, minHeight: Layout.touchTarget)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(accessibilityText)
-    }
-}
-
 /// "p. 3" at the end of a source — the way to the page.
 struct PageChip: View {
     @Environment(\.theme) private var theme

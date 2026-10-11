@@ -803,30 +803,6 @@ struct SecondaryButtonStyle: ButtonStyle {
     }
 }
 
-/// A quieter companion inside a card — "Compare plans": the accent on its soft wash.
-struct TonalButtonStyle: ButtonStyle {
-    @Environment(\.theme) private var theme
-    @Environment(\.isEnabled) private var isEnabled
-
-    var compact = true
-
-    func makeBody(configuration: Configuration) -> some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-        return configuration.label
-            .font(.brand(.subheadline, weight: .semibold))
-            .foregroundStyle(theme.accentText)
-            .padding(.horizontal, Spacing.lg)
-            .padding(.vertical, Spacing.xs)
-            .frame(minHeight: compact ? Layout.compactButtonHeight : Layout.buttonHeight)
-            .background(theme.accentSoft, in: shape)
-            .overlay(shape.fill(configuration.isPressed ? theme.pressShade : Color.clear))
-            .frame(minHeight: Layout.touchTarget)
-            .contentShape(Rectangle())
-            .opacity(isEnabled ? 1 : 0.42)
-            .animation(Motion.tap, value: configuration.isPressed)
-    }
-}
-
 /// A text button in the accent — "Send a new code", "See all".
 struct QuietButtonStyle: ButtonStyle {
     @Environment(\.theme) private var theme
@@ -928,16 +904,11 @@ struct ChipLabel: View {
 
 extension ButtonStyle where Self == PrimaryButtonStyle {
     static var primaryAction: PrimaryButtonStyle { PrimaryButtonStyle() }
-    static var compactPrimaryAction: PrimaryButtonStyle { PrimaryButtonStyle(compact: true) }
 }
 
 extension ButtonStyle where Self == SecondaryButtonStyle {
     static var secondaryAction: SecondaryButtonStyle { SecondaryButtonStyle() }
     static var compactSecondaryAction: SecondaryButtonStyle { SecondaryButtonStyle(compact: true) }
-}
-
-extension ButtonStyle where Self == TonalButtonStyle {
-    static var tonalAction: TonalButtonStyle { TonalButtonStyle() }
 }
 
 extension ButtonStyle where Self == QuietButtonStyle {
