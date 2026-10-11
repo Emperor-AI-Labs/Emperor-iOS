@@ -190,6 +190,9 @@ struct LoginView: View {
                     .font(.brand(.caption))
                     .foregroundStyle(theme.textTertiary)
                     .multilineTextAlignment(.center)
+                    // Its full height at any text size: at the foot of the screen, the iPad's
+                    // audit found it given one line's height and cut short.
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity)
             .padding(.top, Spacing.xxl)

@@ -322,11 +322,15 @@ struct RecordSegmentedControl<Value: Hashable>: View {
                 selection = value
             }
         } label: {
+            // One line at the default size; at a larger one the words wrap inside the segment —
+            // "All matters" over two lines — rather than shrinking or ending in an ellipsis,
+            // which the accessibility audit rightly read as text cut short.
             Text(title)
                 .font(.brand(size: 13.5, weight: .semibold, relativeTo: .footnote))
                 .foregroundStyle(isSelected ? theme.textPrimary : theme.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.vertical, 4)
                 .padding(.horizontal, Spacing.sm)
                 .frame(maxWidth: .infinity, minHeight: 30)
                 .background {
@@ -353,12 +357,32 @@ struct RecordSearchField: View {
     @Binding var text: String
     let prompt: String
 
+    @FocusState private var isFocused: Bool
+
     var body: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(theme.textTertiary)
                 .accessibilityHidden(true)
-            TextField(prompt, text: $text, prompt: Text(prompt).foregroundStyle(theme.textTertiary))
+            // Vertical, so a long query or a large text size wraps onto a second line rather than
+            // scrolling out of sight sideways — a one-line field is what the accessibility audit
+            // read as text cut short. A search is one line of words, so Return ends it (the
+            // keyboard's Search key) instead of starting a new line.
+            TextField(
+                prompt, text: Binding(
+                    get: { text },
+                    set: { newValue in
+                        if newValue.contains("\n") {
+                            text = newValue.replacingOccurrences(of: "\n", with: "")
+                            isFocused = false
+                        } else {
+                            text = newValue
+                        }
+                    }),
+                prompt: Text(prompt).foregroundStyle(theme.textTertiary),
+                axis: .vertical)
+                .lineLimit(1...3)
+                .focused($isFocused)
                 .font(.brand(.body))
                 .foregroundStyle(theme.textPrimary)
                 .textInputAutocapitalization(.never)
