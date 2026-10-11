@@ -178,6 +178,32 @@ final class UploadBatchTests: XCTestCase {
         XCTAssertNil(batch.completionNotice)
     }
 
+    func testAFileStillBeingReadWhenPollingStopsIsNotAFailure() {
+        var batch = UploadBatch()
+        batch.add(id: "a", name: "a.pdf", size: 10, folderName: "", at: at(0))
+        batch.markProcessing("a")
+        batch.markUnconfirmed("a", message: "Still processing")
+        XCTAssertFalse(batch.isActive)
+        XCTAssertEqual(batch.title, "Uploads")
+        XCTAssertEqual(batch.files[0].trailing, "Done")
+        XCTAssertEqual(batch.files[0].detail, "10 B · Still processing")
+        XCTAssertNil(batch.completionNotice, "nothing is confirmed searchable")
+    }
+
+    func testALateProgressSentenceDoesNotReopenAFinishedFile() {
+        var batch = UploadBatch()
+        batch.add(id: "a", name: "a.pdf", size: 10, folderName: "", at: at(0))
+        batch.markProcessing("a", message: "Reading page 1 of 2")
+        batch.markDone("a")
+        batch.markProcessing("a", message: "Reading page 2 of 2")
+        XCTAssertEqual(batch.files[0].status, .done)
+        // "a" has finished sending, so "b" starts a batch of its own.
+        batch.add(id: "b", name: "b.pdf", size: 10, folderName: "", at: at(0))
+        batch.markFailed("b", message: "Declined")
+        batch.markProcessing("b")
+        XCTAssertEqual(batch.files.map(\.status), [.failed("Declined")])
+    }
+
     func testDismissOnlyWhenNothingIsActive() {
         var batch = UploadBatch()
         batch.add(id: "a", name: "a.pdf", size: 10, folderName: "", at: at(0))

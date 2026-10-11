@@ -24,6 +24,10 @@ struct UploadBatch: Equatable, Sendable {
         case failed(String)
         /// Uploaded, but the server could not read it.
         case processingFailed(String)
+        /// Uploaded, and the server had not finished reading it when this stopped asking — it
+        /// was taking too long, or the question could not be put. Not a failure: the document
+        /// turns up in the library when it is ready.
+        case unconfirmed(String)
     }
 
     struct File: Identifiable, Equatable, Sendable {
@@ -41,7 +45,7 @@ struct UploadBatch: Equatable, Sendable {
         /// happens to it afterwards.
         var fraction: Double {
             switch status {
-            case .processing, .done, .processingFailed: return 1
+            case .processing, .done, .processingFailed, .unconfirmed: return 1
             default:
                 guard size > 0 else { return 0 }
                 return min(1, Double(loaded) / Double(size))
@@ -53,7 +57,7 @@ struct UploadBatch: Equatable, Sendable {
         /// Its bytes have all landed, whatever the server then made of them.
         var isSent: Bool {
             switch status {
-            case .processing, .done, .processingFailed: return true
+            case .processing, .done, .processingFailed, .unconfirmed: return true
             default: return false
             }
         }
@@ -84,6 +88,8 @@ struct UploadBatch: Equatable, Sendable {
                 if let eta { parts.append(UploadProgressFormat.eta(seconds: eta)) }
             case .processing(let message):
                 parts.append(message ?? "Reading the document…")
+            case .unconfirmed(let message):
+                parts.append(message)
             case .done, .failed, .processingFailed:
                 break
             }
@@ -94,7 +100,7 @@ struct UploadBatch: Equatable, Sendable {
         var trailing: String {
             switch status {
             case .failed, .processingFailed: return "Failed"
-            case .done, .processing: return "Done"
+            case .done, .processing, .unconfirmed: return "Done"
             case .queued, .uploading: return "\(percent)%"
             }
         }
@@ -109,7 +115,7 @@ struct UploadBatch: Equatable, Sendable {
     }
 
     /// A destination's files, under its own heading.
-    struct Group: Identifiable, Equatable, Sendable {
+    struct Destination: Identifiable, Equatable, Sendable {
         let folderName: String
         let files: [File]
 
@@ -189,7 +195,15 @@ struct UploadBatch: Equatable, Sendable {
     }
 
     /// Every byte of the file has landed and the server is reading it.
+    ///
+    /// Ignored once the file has an outcome: a progress sentence from a poll can arrive after
+    /// the poll's own answer, and must not put a finished file back to "reading".
     mutating func markProcessing(_ id: String, message: String? = nil) {
+        guard let file = files.first(where: { $0.id == id }) else { return }
+        switch file.status {
+        case .queued, .uploading, .processing: break
+        default: return
+        }
         update(id) { file in
             file.loaded = file.size
             file.eta = nil
@@ -203,6 +217,15 @@ struct UploadBatch: Equatable, Sendable {
             file.loaded = file.size
             file.eta = nil
             file.status = .done
+        }
+    }
+
+    /// Stopped asking before the server finished reading the file.
+    mutating func markUnconfirmed(_ id: String, message: String) {
+        update(id) { file in
+            file.loaded = file.size
+            file.eta = nil
+            file.status = .unconfirmed(message)
         }
     }
 
@@ -248,14 +271,14 @@ struct UploadBatch: Equatable, Sendable {
         }
     }
 
-    var groups: [Group] {
+    var groups: [Destination] {
         var order: [String] = []
         var byFolder: [String: [File]] = [:]
         for file in files {
             if byFolder[file.folderName] == nil { order.append(file.folderName) }
             byFolder[file.folderName, default: []].append(file)
         }
-        return order.map { Group(folderName: $0, files: byFolder[$0] ?? []) }
+        return order.map { Destination(folderName: $0, files: byFolder[$0] ?? []) }
     }
 
     /// "Uploading", "Finished with errors" or "Uploads".
