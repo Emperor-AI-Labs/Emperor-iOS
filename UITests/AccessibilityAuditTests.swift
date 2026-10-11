@@ -240,7 +240,7 @@ final class AccessibilityAuditTests: XCTestCase {
             selector.tap()
             let picker = app.navigationBars["Switch role"]
             if reached(picker, "the role picker") {
-                audit("role-picker", in: app, sheet: picker)
+                audit("role-picker", in: app, sheet: picker, inATab: true)
                 // Back, not a row: a row would change the role the other tests expect.
                 goBack(from: picker, named: "the role picker", to: settings)
             }
@@ -254,12 +254,12 @@ final class AccessibilityAuditTests: XCTestCase {
             if reached(notifications, "the Notifications screen") {
                 let allow = app.switches["notifications-allow"].firstMatch
                 _ = allow.waitForExistence(timeout: 10)
-                audit("notification-settings", in: app, sheet: notifications)
+                audit("notification-settings", in: app, sheet: notifications, inATab: true)
                 if allow.exists {
                     turnOn(allow)
                     if app.switches["notifications-briefing"].firstMatch
                         .waitForExistence(timeout: 10) {
-                        audit("notification-settings-on", in: app, sheet: notifications)
+                        audit("notification-settings-on", in: app, sheet: notifications, inATab: true)
                     }
                 }
                 goBack(from: notifications, named: "Notifications", to: settings)
@@ -274,7 +274,7 @@ final class AccessibilityAuditTests: XCTestCase {
             let form = app.navigationBars["Edit profile"]
             if reached(form, "the Edit profile screen") {
                 _ = app.textFields["profile-name"].firstMatch.waitForExistence(timeout: 10)
-                audit("edit-profile", in: app, sheet: form)
+                audit("edit-profile", in: app, sheet: form, inATab: true)
                 goBack(from: form, named: "Edit profile", to: settings)
             }
         }
@@ -295,7 +295,7 @@ final class AccessibilityAuditTests: XCTestCase {
                 continue
             }
             if reached(app.descendants(matching: .any)[anchor].firstMatch, what) {
-                audit(screen, in: app, sheet: settings)
+                audit(screen, in: app, sheet: settings, inATab: true)
             }
         }
     }
@@ -823,16 +823,23 @@ final class AccessibilityAuditTests: XCTestCase {
     /// its table and references — could not finish every check inside the audit's own time limit
     /// at once. A pass that runs out of time is tried again, one kind of check at a time.
     ///
-    /// - Parameter sheet: the navigation bar of the sheet being audited, when the screen is
-    ///   presented over another. What lies wholly outside the sheet is the screen it was opened
-    ///   from, dimmed, which has its own audit.
+    /// - Parameters:
+    ///   - sheet: the navigation bar of the sheet being audited, when the screen is presented
+    ///     over another — or of the screen pushed onto a tab's stack. What lies wholly outside the
+    ///     sheet is the screen it was opened from, dimmed, which has its own audit.
+    ///   - inATab: the screen is pushed within a tab (or is a tab's own list scrolled), not
+    ///     presented over it, so the phone's floating tab bar is still on screen along its foot.
+    ///     Without this a pushed screen was measured as if nothing lay over its foot, and a
+    ///     section header behind the tab bar — "YOUR ACCOUNT" in Notifications, at 1.95:1 through
+    ///     the bar's glass — was reported as faint text.
     private func audit(
         _ screen: String, in app: XCUIApplication, sheet: XCUIElement? = nil,
+        inATab: Bool = false,
         file: StaticString = #filePath, line: UInt = #line
     ) {
         // Let a push, a load or a keyboard settle: half a transition is not what a person sees.
         Thread.sleep(forTimeInterval: 1)
-        let context = layout(of: app, sheet: sheet)
+        let context = layout(of: app, sheet: sheet, inATab: inATab)
 
         var findings: [AuditFinding] = []
         var pixels: ScreenPixels?
@@ -996,7 +1003,8 @@ final class AccessibilityAuditTests: XCTestCase {
                 identifier: snapshot.identifier,
                 frame: snapshot.frame,
                 isEnabled: snapshot.isEnabled,
-                wordsFrame: words)
+                wordsFrame: words,
+                hasChildren: !snapshot.children.isEmpty)
         }
     }
 
@@ -1012,8 +1020,31 @@ final class AccessibilityAuditTests: XCTestCase {
         return nil
     }
 
+    /// Every text and button inside a scrolling container, with the part of the screen that
+    /// container shows — its nearest scroll view, list or table.
+    @MainActor
+    private static func scrolledElements(
+        in node: any XCUIElementSnapshot, container: CGRect?
+    ) -> [AuditLayout.Scrolled] {
+        var container = container
+        if [.scrollView, .table, .collectionView].contains(node.elementType) {
+            container = node.frame
+        }
+        var found: [AuditLayout.Scrolled] = []
+        if let container, [.staticText, .button].contains(node.elementType) {
+            found.append(AuditLayout.Scrolled(
+                label: node.label, frame: node.frame, container: container))
+        }
+        for child in node.children {
+            found += scrolledElements(in: child, container: container)
+        }
+        return found
+    }
+
     /// Where the system's own furniture is on screen as the audit runs.
-    private func layout(of app: XCUIApplication, sheet: XCUIElement?) -> AuditLayout {
+    private func layout(
+        of app: XCUIApplication, sheet: XCUIElement?, inATab: Bool = false
+    ) -> AuditLayout {
         let window = app.windows.firstMatch.frame
         let keyboard = app.keyboards.firstMatch
         var sheetFrame: CGRect?
@@ -1034,7 +1065,7 @@ final class AccessibilityAuditTests: XCTestCase {
             .filter { $0.exists }
             .map { $0.frame }
         let bottomTabs = tabButtons.filter { $0.midY > window.midY }
-        let bottomBarTop = sheetFrame == nil ? bottomTabs.map(\.minY).min() : nil
+        let bottomBarTop = sheetFrame == nil || inATab ? bottomTabs.map(\.minY).min() : nil
         let navigationBars = app.navigationBars.allElementsBoundByIndex
             .filter { $0.exists }
             .map { $0.frame }
@@ -1047,9 +1078,14 @@ final class AccessibilityAuditTests: XCTestCase {
                 return Self.descendantFrames(of: snapshot)
             }
         }
+        let scrollers = MainActor.assumeIsolated { () -> [AuditLayout.Scrolled] in
+            guard let root = try? app.snapshot() else { return [] }
+            return Self.scrolledElements(in: root, container: nil)
+        }
         return AuditLayout(
             window: window,
             keyboard: keyboard.exists ? keyboard.frame : nil,
+            scrolled: scrollers,
             // Behind a sheet the tab bar is covered, and the sheet's own foot is the screen's.
             bottomBarTop: bottomBarTop,
             navigationBars: navigationBars,
@@ -1096,6 +1132,9 @@ private struct AuditFinding: Sendable {
         let isEnabled: Bool
         /// A button's words — the first text inside it — when they were looked for.
         var wordsFrame: CGRect? = nil
+        /// Whether the snapshot showed anything inside it. A SwiftUI button whose label is a
+        /// run of words shows nothing: the words are the button.
+        var hasChildren = true
     }
 
     let kind: XCUIAccessibilityAuditType
@@ -1198,8 +1237,18 @@ private struct AuditLayout: Sendable {
         "You": "person.crop.circle",
     ]
 
+    /// A text or button inside a scrolling container, and the part of the screen the container
+    /// shows.
+    struct Scrolled: Sendable {
+        let label: String
+        let frame: CGRect
+        let container: CGRect
+    }
+
     let window: CGRect
     let keyboard: CGRect?
+    /// Every text and button inside a scroll view, list or table, read before the audit ran.
+    let scrolled: [Scrolled]
     /// The top of the tab bar along the foot of a phone's screen; `nil` on an iPad, whose tabs
     /// are across the top.
     let bottomBarTop: CGFloat?
@@ -1228,6 +1277,23 @@ private struct AuditLayout: Sendable {
             && barItems.contains { $0.insetBy(dx: -1, dy: -1).contains(frame) }
     }
 
+    /// Whether an element is mostly scrolled out of its own scroll view — below a fixed footer of
+    /// buttons, say, which the scroll view stops short of. Matched to the reading taken before the
+    /// audit by its words and place; an element not found there is not judged.
+    func isScrolledOutOfView(_ element: AuditFinding.Element) -> Bool {
+        let frame = element.frame
+        guard frame.height > 0,
+              let match = scrolled.first(where: {
+                  $0.label == element.label
+                      && abs($0.frame.minX - frame.minX) < 1 && abs($0.frame.minY - frame.minY) < 1
+                      && abs($0.frame.width - frame.width) < 1
+                      && abs($0.frame.height - frame.height) < 1
+              })
+        else { return false }
+        let shown = match.container.intersection(frame)
+        return shown.isNull || shown.height < frame.height / 2
+    }
+
     /// Whether an element lies where iOS 26 fades the content at a bar's edge as it scrolls: under
     /// a navigation bar or within 24 points below it (the fade reaches past the bar's own frame —
     /// CI measured a sheet's row there at 1.27:1), or near the foot of the screen,
@@ -1244,6 +1310,10 @@ private struct AuditLayout: Sendable {
         // leave it straddling the bar's edge. CI measured one there at 1.27:1.
         let behindATopBar = topBars.contains { $0.contains(frame) } && !isInANavigationBar(frame)
         if underATopBar || behindATopBar { return true }
+        // Scrolled partly off the screen itself — above its top, under the status bar, or below
+        // its foot. CI measured a conversation's question there at 1.08:1: the part of it still
+        // on screen was the status bar's strip, with the list's top fade over it.
+        if frame.minY < window.minY - 1 || frame.maxY > window.maxY + 1 { return true }
         let fadeStarts = bottomBarTop.map { $0 - 24 } ?? ((sheet?.maxY ?? window.maxY) - 34)
         return frame.maxY > fadeStarts
     }
@@ -1339,6 +1409,7 @@ private enum Waiver: CaseIterable {
     case inactiveControl
     case measuredOnScreen
     case atTheScrollEdge
+    case scrolledOutOfView
     case outsideTheSheet
     case tabTitles
     case barItems
@@ -1358,7 +1429,14 @@ private enum Waiver: CaseIterable {
         if element.kind == .staticText { return element.frame }
         guard element.kind == .button else { return nil }
         if let words = element.wordsFrame { return words }
-        return layout.isInANavigationBar(element.frame) ? element.frame : nil
+        if layout.isInANavigationBar(element.frame) { return element.frame }
+        // A text button — "Use a different email", "Create an account": a single line of words
+        // with nothing else inside it, at most a touch target tall. Its box is its words on what
+        // is behind them, as a run of text's is. A row or a card is taller, or shows its parts.
+        if !element.hasChildren, !element.label.isEmpty, element.frame.height <= 50 {
+            return element.frame
+        }
+        return nil
     }
 
     func reason(for finding: AuditFinding) -> String {
@@ -1382,6 +1460,10 @@ private enum Waiver: CaseIterable {
                 + "navigation bar, or near the foot of the screen by the tab bar or home "
                 + "indicator — so it is measured, and partly covered, by the system's fade. "
                 + "Scrolled clear of the edge it is read as anywhere else."
+        case .scrolledOutOfView:
+            return "mostly outside the part of the screen its own scroll view shows — scrolled "
+                + "below a fixed footer, or above the top — so what the check measured was "
+                + "whatever is drawn there instead. Scrolled into view it is read as anywhere else."
         case .outsideTheSheet:
             return "wholly outside the visible part of the sheet being audited — the dimmed screen "
                 + "it was opened from, or a row of the sheet scrolled out of its view. Neither is "
@@ -1464,6 +1546,12 @@ private enum Waiver: CaseIterable {
                 || finding.kind.contains(.textClipped)
             else { return false }
             return !layout.isTab(element) && layout.isAtTheScrollEdge(frame)
+
+        case .scrolledOutOfView:
+            guard finding.kind.contains(.contrast) || finding.kind.contains(.hitRegion)
+                || finding.kind.contains(.textClipped)
+            else { return false }
+            return layout.isScrolledOutOfView(element)
 
         case .outsideTheSheet:
             guard let sheet = layout.sheet, !frame.isEmpty else { return false }
