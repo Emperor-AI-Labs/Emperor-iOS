@@ -53,7 +53,7 @@ final class AccessibilityAuditTests: XCTestCase {
         guard reached(email, "the sign-in screen, again") else { return }
         email.focusForTyping()
         email.typeText("john.doe@firm.com")
-        app.buttons["Sign in with an email code"].tap()
+        app.buttons["Email me a sign-in code"].tap()
 
         let code = app.textFields["Sign-in code"]
         guard reached(code, "the code step") else { return }
@@ -66,23 +66,23 @@ final class AccessibilityAuditTests: XCTestCase {
         audit("role-welcome", in: app)
         litigator.tap()
         app.buttons["Continue"].tap()
-        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10), "choosing a role led nowhere")
+        XCTAssertTrue(app.tab("Ask").waitForExistence(timeout: 10), "choosing a role led nowhere")
     }
 
     // MARK: - The tabs
 
-    // Each tab in a test of its own, in each theme. They were one walk, and on a CI iPad the Home
-    // tab's Dynamic Type audit ran out of time and left the app answering nothing, so the four
-    // tabs after it went unaudited. Apart, a tab whose audit cannot finish costs only its own
-    // result. The dark theme is the app's default; the light palette is a different set of
-    // colour pairs, so a colour from outside it can pass on dark and fail there.
+    // Each tab in a test of its own, in each theme. They were one walk, and on a CI iPad the first
+    // tab's Dynamic Type audit ran out of time and left the app answering nothing, so the tabs
+    // after it went unaudited. Apart, a tab whose audit cannot finish costs only its own result.
+    // The dark theme is the app's default; the light palette is a different set of colour pairs,
+    // so a colour from outside it can pass on dark and fail there.
 
-    func testTheHomeTabPassesTheAudit() { auditTab("Home") }
-    func testTheCasesTabPassesTheAudit() { auditTab("Cases") }
-    /// The chat list, and a conversation opened from it.
-    func testTheChatTabPassesTheAudit() { auditTab("Chat") }
-    func testTheCalendarTabPassesTheAudit() { auditTab("Calendar") }
-    func testTheMoreTabPassesTheAudit() { auditTab("More") }
+    /// Ask, and a conversation opened from its recent ones.
+    func testTheAskTabPassesTheAudit() { auditTab("Ask") }
+    /// Matters, its docket, and the Calendar it opens.
+    func testTheMattersTabPassesTheAudit() { auditTab("Matters") }
+    func testTheFilesTabPassesTheAudit() { auditTab("Files") }
+    func testTheYouTabPassesTheAudit() { auditTab("You") }
 
     func testTheSignInScreenPassesTheAuditInLight() {
         let app = launch("-UITestLight")
@@ -90,25 +90,24 @@ final class AccessibilityAuditTests: XCTestCase {
         audit("light-sign-in", in: app)
     }
 
-    func testTheHomeTabPassesTheAuditInLight() { auditTab("Home", light: true) }
-    func testTheCasesTabPassesTheAuditInLight() { auditTab("Cases", light: true) }
-    func testTheChatTabPassesTheAuditInLight() { auditTab("Chat", light: true) }
-    func testTheCalendarTabPassesTheAuditInLight() { auditTab("Calendar", light: true) }
-    func testTheMoreTabPassesTheAuditInLight() { auditTab("More", light: true) }
+    func testTheAskTabPassesTheAuditInLight() { auditTab("Ask", light: true) }
+    func testTheMattersTabPassesTheAuditInLight() { auditTab("Matters", light: true) }
+    func testTheFilesTabPassesTheAuditInLight() { auditTab("Files", light: true) }
+    func testTheYouTabPassesTheAuditInLight() { auditTab("You", light: true) }
 
     private func auditTab(_ tab: String, light: Bool = false) {
         let app = light ? launch("-UITestLight") : launch()
         guard signIn(app) else { return }
         let theme = light ? "light-" : ""
-        // Each tab's title, and something its stub data puts on screen once it has loaded — so
-        // the audit sees the screen a person sees, not its spinner.
-        let landmarks: [String: (title: String, loaded: XCUIElement)] = [
-            "Home": ("Home", app.descendants(matching: .any).matching(
-                NSPredicate(format: "label BEGINSWITH %@", "Item 7, Court 12")).firstMatch),
-            "Cases": ("Cases", app.navigationBars["Cases"]),
-            "Chat": ("Emperor", app.stubConversationRow),
-            "Calendar": ("Calendar", app.buttons["calendar-listing-case1"]),
-            "More": ("More", app.buttons["Settings"]),
+        // Something each tab's stub data puts on screen once it has loaded — so the audit sees
+        // the screen a person sees, not its spinner. Each tab is titled with its own name.
+        let landmarks: [String: XCUIElement] = [
+            "Ask": app.descendants(matching: .any).matching(
+                NSPredicate(format: "label BEGINSWITH %@", "Item 7, Court 12")).firstMatch,
+            "Matters": app.descendants(matching: .any).matching(
+                NSPredicate(format: "label BEGINSWITH %@", "Item 7, Court 12")).firstMatch,
+            "Files": app.buttons["folder-Bakshi"],
+            "You": app.buttons["edit-profile"],
         ]
         guard let landmark = landmarks[tab] else {
             XCTFail("there is no tab named \(tab)")
@@ -117,28 +116,50 @@ final class AccessibilityAuditTests: XCTestCase {
         let button = app.tab(tab)
         guard reached(button, "the \(tab) tab") else { return }
         button.tap()
-        _ = app.navigationBars[landmark.title].waitForExistence(timeout: 10)
-        _ = landmark.loaded.waitForExistence(timeout: 10)
+        _ = app.navigationBars[tab].waitForExistence(timeout: 10)
+        _ = landmark.waitForExistence(timeout: 10)
         audit(theme + tab.lowercased(), in: app)
 
-        if tab == "Chat" {
-            // A conversation: the stub's stored answer, its work log collapsed above it.
+        if tab == "Ask" {
+            // A conversation: the stub's stored answer, its reading card folded above it.
             let conversation = app.stubConversationRow
             guard reached(conversation, "the stored conversation") else { return }
+            scrollUntilHittable(conversation, in: app)
             conversation.tap()
-            _ = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked"))
+            _ = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Read 1 document"))
                 .firstMatch.waitForExistence(timeout: 10)
             audit(theme + "conversation", in: app)
         }
+
+        if tab == "Matters" {
+            // The docket, then the Calendar, presented over Matters from its bar.
+            let all = app.buttons["All matters"].firstMatch
+            if reached(all, "the docket") {
+                all.tap()
+                _ = app.descendants(matching: .any).matching(identifier: "case-row-case1")
+                    .firstMatch.waitForExistence(timeout: 10)
+                audit(theme + "matters-docket", in: app)
+            }
+            let calendarButton = app.navigationBars["Matters"].buttons["Calendar"]
+            if reached(calendarButton, "the Calendar button") {
+                calendarButton.tap()
+                let calendar = app.navigationBars["Calendar"]
+                if reached(calendar, "the Calendar") {
+                    _ = app.buttons["calendar-listing-case1"].waitForExistence(timeout: 10)
+                    audit(theme + "calendar", in: app, sheet: calendar)
+                    close("Calendar", in: app)
+                }
+            }
+        }
     }
 
-    // MARK: - What More opens
+    // MARK: - What You's Tools open
 
-    /// Each screen More presents, audited as a sheet over More — the Library, the Corporate
-    /// Calendar, the tools and one tool's form, OCR, Translate and the file tools.
-    func testTheScreensMoreOpensPassTheAudit() {
+    /// Each screen You's Tools rows present, audited as a sheet over You — the Library, the
+    /// Corporate Calendar, the tools and one tool's form, OCR, Translate and the file tools.
+    func testTheScreensYouOpensPassTheAudit() {
         let app = launch()
-        guard signIn(app), openMore(app) else { return }
+        guard signIn(app), openYou(app) else { return }
 
         if let bar = present("Library", titled: "Library", from: app) {
             audit("library", in: app, sheet: bar)
@@ -201,18 +222,19 @@ final class AccessibilityAuditTests: XCTestCase {
         }
     }
 
-    /// Settings, and what it holds below the fold or pushes: the role picker; Notifications — off,
-    /// as a fresh install finds it, and on, with its reminders showing; Edit profile; and the
-    /// Security and Storage sections, each brought up under the sheet's bar and audited there.
+    /// You's settings, and what they hold below the fold or push: the role picker; Notifications —
+    /// off, as a fresh install finds it, and on, with its reminders showing; Edit profile; and the
+    /// Security and Storage sections, each brought up under You's bar and audited there.
     func testSettingsAndItsScreensPassTheAudit() {
         let app = launch()
-        guard signIn(app), openMore(app) else { return }
-        guard let settings = present("Settings", titled: "Settings", from: app) else { return }
+        guard signIn(app), openYou(app) else { return }
+        let settings = app.navigationBars["You"]
         _ = app.buttons["Role selector"].firstMatch.waitForExistence(timeout: 10)
-        audit("settings", in: app, sheet: settings)
+        audit("you", in: app)
 
         let selector = app.buttons["Role selector"].firstMatch
         if reached(selector, "the role selector") {
+            scrollUntilHittable(selector, in: app)
             selector.tap()
             let picker = app.navigationBars["Switch role"]
             if reached(picker, "the role picker") {
@@ -255,8 +277,8 @@ final class AccessibilityAuditTests: XCTestCase {
             }
         }
 
-        // The app lock's section, then Storage — sections of Settings itself, so each is brought
-        // up under the sheet's bar and audited as it then stands (`bringUnderTheBar`).
+        // The app lock's section, then Storage — sections of You itself, so each is brought up
+        // under You's bar and audited as it then stands (`bringUnderTheBar`).
         _ = settings.waitForExistence(timeout: 10)
         for (header, anchor, screen, what) in [
             ("settings-header-security", "app-lock-toggle", "settings-security",
@@ -266,7 +288,7 @@ final class AccessibilityAuditTests: XCTestCase {
              "the Storage section"),
         ] {
             let heading = app.descendants(matching: .any)[header].firstMatch
-            if let why = bringUnderTheBar(heading, of: settings, titled: "Settings", in: app) {
+            if let why = bringUnderTheBar(heading, of: settings, titled: "You", in: app) {
                 XCTFail("could not bring \(what) up under the bar — \(why) — so it was not audited")
                 continue
             }
@@ -274,8 +296,6 @@ final class AccessibilityAuditTests: XCTestCase {
                 audit(screen, in: app, sheet: settings)
             }
         }
-
-        close("Settings", in: app)
     }
 
     // MARK: - The largest text size
@@ -294,14 +314,11 @@ final class AccessibilityAuditTests: XCTestCase {
             return
         }
 
-        for (tab, title) in [
-            ("Home", "Home"), ("Cases", "Cases"), ("Chat", "Emperor"),
-            ("Calendar", "Calendar"), ("More", "More"),
-        ] {
+        for tab in ["Ask", "Matters", "Files", "You"] {
             let button = app.tab(tab)
             guard reached(button, "the \(tab) tab") else { continue }
             button.tap()
-            _ = app.navigationBars[title].waitForExistence(timeout: 10)
+            _ = app.navigationBars[tab].waitForExistence(timeout: 10)
             shoot(tab.lowercased(), app)
             XCTAssertEqual(
                 app.state, .runningForeground, "the app died on \(tab) at the largest text size")
@@ -309,18 +326,27 @@ final class AccessibilityAuditTests: XCTestCase {
 
         // The Library: a sheet with a search bar under a large title, whose text-size audit could
         // not finish on an iPad. Drawn here at the largest size, so a screen that stops answering
-        // there shows as that, and not only as an audit that ran out of time.
+        // there shows as that, and not only as an audit that ran out of time. Opened from You,
+        // the last tab shown above.
         if present("Library", titled: "Library", from: app) != nil {
             shoot("library", app)
             XCTAssertEqual(app.state, .runningForeground)
             close("Library", in: app)
         }
 
-        // One of the sheets, too: Settings carries the most kinds of row.
-        if present("Settings", titled: "Settings", from: app) != nil {
-            shoot("settings", app)
-            XCTAssertEqual(app.state, .runningForeground)
-            close("Settings", in: app)
+        // The Calendar, presented over Matters: the month grid is the densest screen there is.
+        let matters = app.tab("Matters")
+        if reached(matters, "the Matters tab") {
+            matters.tap()
+            let calendarButton = app.navigationBars["Matters"].buttons["Calendar"]
+            if reached(calendarButton, "the Calendar button") {
+                calendarButton.tap()
+                if reached(app.navigationBars["Calendar"], "the Calendar") {
+                    shoot("calendar", app)
+                    XCTAssertEqual(app.state, .runningForeground)
+                    close("Calendar", in: app)
+                }
+            }
         }
     }
 
@@ -333,34 +359,27 @@ final class AccessibilityAuditTests: XCTestCase {
         return app
     }
 
-    /// Signs in through the real login screen, as `EmperorUITests` does. Each control is scrolled
-    /// to first: at the largest text size the button starts below the fold.
+    /// Signs in through the real sign-in screen with an emailed code, as `EmperorUITests` does.
+    /// The address is scrolled to first: at the largest text size the screen starts lower.
     private func signIn(_ app: XCUIApplication) -> Bool {
         let email = app.textFields["Email"]
         guard reached(email, "the sign-in screen") else { return false }
         scrollUntilHittable(email, in: app)
-        email.focusForTyping()
-        email.typeText("john.doe@firm.com")
-
-        let password = app.secureTextFields["Password"]
-        scrollUntilHittable(password, in: app)
-        password.focusForTyping()
-        password.typeText("hunter2")
-
-        let button = app.buttons["Sign in"].firstMatch
-        scrollUntilHittable(button, in: app)
-        button.tap()
-        return reached(app.tab("Home"), "Home, after signing in")
+        guard app.signInWithACode() else {
+            XCTFail("the sign-in screen did not take an emailed code")
+            return false
+        }
+        return reached(app.tab("Ask"), "Ask, after signing in")
     }
 
-    private func openMore(_ app: XCUIApplication) -> Bool {
-        let more = app.tab("More")
-        guard reached(more, "the More tab") else { return false }
-        more.tap()
-        return reached(app.navigationBars["More"], "the More screen")
+    private func openYou(_ app: XCUIApplication) -> Bool {
+        let you = app.tab("You")
+        guard reached(you, "the You tab") else { return false }
+        you.tap()
+        return reached(app.navigationBars["You"], "the You screen")
     }
 
-    /// Opens a row of More and returns the navigation bar of the sheet it presents, or `nil` —
+    /// Opens a row of You and returns the navigation bar of the sheet it presents, or `nil` —
     /// having said so — when the row or the sheet is not there.
     private func present(
         _ row: String, titled title: String, from app: XCUIApplication
@@ -369,14 +388,14 @@ final class AccessibilityAuditTests: XCTestCase {
         // Scrolled to before it is looked for: at the largest text size the lower rows are
         // below the fold, and a list builds only the rows it is showing.
         scrollUntilHittable(button, in: app)
-        guard reached(button, "the \(row) row in More") else { return nil }
+        guard reached(button, "the \(row) row on You") else { return nil }
         button.tap()
         let bar = app.navigationBars[title]
         return reached(bar, "the \(title) screen") ? bar : nil
     }
 
-    /// Closes a sheet from its own Done, and waits until it has gone — More's bar is there behind
-    /// a sheet the whole time, so its presence proves nothing.
+    /// Closes a sheet from its own Done, and waits until it has gone — the bar of the screen under
+    /// it is there the whole time, so its presence proves nothing.
     private func close(_ title: String, in app: XCUIApplication) {
         let done = app.navigationBars[title].buttons["Done"]
         if done.waitForExistence(timeout: 5) { done.tap() } else { app.swipeDown() }
@@ -1172,8 +1191,8 @@ private struct AuditLayout: Sendable {
     /// The tabs, by title, with the SF Symbol each carries as its identifier on iPad — see
     /// `Tabs.swift`.
     static let tabs = [
-        "Home": "house", "Cases": "briefcase", "Chat": "bubble.left.and.bubble.right",
-        "Calendar": "calendar", "More": "ellipsis.circle",
+        "Ask": "text.bubble", "Matters": "scalemass", "Files": "folder",
+        "You": "person.crop.circle",
     ]
 
     let window: CGRect
