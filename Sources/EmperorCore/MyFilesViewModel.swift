@@ -70,6 +70,7 @@ final class MyFilesViewModel {
     }
 
     private(set) var tree: [FileNode] = []
+    private var ingestLatch = IngestPercentLatch()
     private(set) var state: LoadState = .idle
 
     /// The folders first, always — see `openingSection`.
@@ -153,6 +154,8 @@ final class MyFilesViewModel {
     /// A library the server has just sent: shown, kept for next time, and used to let go of the
     /// automatic offline copies of documents no longer in it (`OfflineDocuments.prune`).
     private func adopt(_ fresh: [FileNode]) {
+        // A document's reading percentage never steps back within a stage between two reads.
+        let fresh = ingestLatch.apply(to: fresh)
         tree = fresh
         cachedAt = nil
         cache?.save(fresh, for: .fileTree)

@@ -49,6 +49,8 @@ final class FileLibraryViewModel {
     /// Newest folder first by default; the user can change it for this screen.
     var folderSort: FolderSort = .newest
     private var tree: [FileNode] = []
+    /// Keeps a document's reading percentage from stepping back between two reads.
+    private var ingestLatch = IngestPercentLatch()
     /// Folders the user has opened. Closed by default, like a file browser: a library of fifty
     /// matters listed open is a wall of documents with no way to find a matter.
     private(set) var expanded: Set<String> = []
@@ -266,7 +268,7 @@ final class FileLibraryViewModel {
     func load() async {
         state = .loading
         do {
-            let tree = try await service.tree()
+            let tree = ingestLatch.apply(to: try await service.tree())
             files = FileService.allFiles(in: tree)
             self.tree = tree
             reconcileSelection()
@@ -393,7 +395,7 @@ final class FileLibraryViewModel {
     private func reload() async {
         let keep = selected
         do {
-            let tree = try await service.tree()
+            let tree = ingestLatch.apply(to: try await service.tree())
             files = FileService.allFiles(in: tree)
             self.tree = tree
             // A file that was renamed or deleted is no longer selectable under its old path.

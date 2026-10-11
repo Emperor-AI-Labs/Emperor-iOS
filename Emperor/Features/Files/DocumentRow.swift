@@ -129,13 +129,23 @@ struct DocumentStatusLine: View {
                 .foregroundStyle(theme.textTertiary)
         case .inProgress(let message):
             VStack(alignment: .leading, spacing: 6) {
-                Text(message)
+                // Which step of the server's reading it is at and how far through — "2/4
+                // Extracting data · 45%" — when the listing says; its own sentence otherwise.
+                // The server's longer sentence ("Reading page 3 of 40 — about 2 minutes
+                // left") is said to VoiceOver rather than crowding the row.
+                Text(IngestStage.line(for: file.progress) ?? message)
                     .font(.brand(.footnote))
                     .foregroundStyle(theme.textSecondary)
+                    .monospacedDigit()
                     .dynamicLineLimit(1)
-                // The design's thin bar while pages are read. The server reports no count the
-                // row can rely on, so it runs as the indeterminate bar.
-                IndeterminateBar()
+                    .accessibilityValue(spokenDetail)
+                // A stage that reports a percentage gets a real bar; anything else keeps the
+                // design's indeterminate one, since there is no number to draw.
+                if let fraction = IngestStage.fraction(for: file.progress) {
+                    MeterBar(fraction: fraction, color: theme.accent)
+                } else {
+                    IndeterminateBar()
+                }
             }
         case .failed(let reason):
             Text(reason.replacingOccurrences(of: "ERROR: ", with: ""))
@@ -145,6 +155,12 @@ struct DocumentStatusLine: View {
                 // at the large sizes.
                 .dynamicLineLimit(2)
         }
+    }
+
+    /// The server's own sentence about the reading, when the row shows the stage instead.
+    private var spokenDetail: String {
+        guard IngestStage.line(for: file.progress) != nil else { return "" }
+        return file.progress?.message ?? ""
     }
 
     /// "Today · 2.4 MB", or whichever half exists.
