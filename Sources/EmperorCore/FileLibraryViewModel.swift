@@ -15,21 +15,40 @@ final class FileLibraryViewModel {
     /// directly.
     struct FolderGroup: Identifiable, Equatable {
         let folder: String
+        /// Documents directly in this folder — what opening it lists.
         let files: [FileNode.StoredFile]
+        /// Every document in this folder and the folders inside it — what its count and its
+        /// checkbox cover.
+        var allFiles: [FileNode.StoredFile] = []
+        /// How deep in the tree: 0 for a top-level folder. Draws the indent.
+        var depth: Int = 0
+        /// Whether folders sit inside this one, so it can be opened even with no documents.
+        var hasSubfolders: Bool = false
+        /// Search results are listed by full path, outside the tree.
+        var showsFullPath: Bool = false
 
         var id: String { folder }
 
         /// "Unfiled" rather than a blank heading: loose files at the storage root have an
-        /// empty folder path, and an untitled section reads as a rendering fault.
+        /// empty folder path, and an untitled section reads as a rendering fault. In the tree a
+        /// folder is named by its last part — its parent is drawn above it.
         var title: String {
-            folder.isEmpty ? "Unfiled" : DisplayText.fileName(folder)
+            if folder.isEmpty { return "Unfiled" }
+            if showsFullPath { return DisplayText.fileName(folder) }
+            return DisplayText.fileName(String(folder.split(separator: "/").last ?? Substring(folder)))
         }
+
+        /// Everything the checkbox and count cover; falls back to the direct documents.
+        var coveredFiles: [FileNode.StoredFile] { allFiles.isEmpty ? files : allFiles }
     }
 
     private(set) var files: [FileNode.StoredFile] = []
     /// Every folder in the library, empty ones included, in the web's order. Feeds the folder
     /// list and the "where should this go" choice for an upload.
-    private(set) var folders: [FolderSummary] = []
+    var folders: [FolderSummary] { FileBrowser.allFolders(in: tree, sort: folderSort) }
+    /// Newest folder first by default; the user can change it for this screen.
+    var folderSort: FolderSort = .newest
+    private var tree: [FileNode] = []
     /// Folders the user has opened. Closed by default, like a file browser: a library of fifty
     /// matters listed open is a wall of documents with no way to find a matter.
     private(set) var expanded: Set<String> = []
@@ -126,27 +145,45 @@ final class FileLibraryViewModel {
             .sorted { $0.folder.localizedStandardCompare($1.folder) == .orderedAscending }
     }
 
-    /// The folder list the picker draws: every folder, empty ones included, each with the
-    /// documents directly inside it, then loose files as "Unfiled". While searching, only the
-    /// folders holding a match — and those open, so the match is visible.
+    /// The folder list the picker draws, as a tree: top-level folders first, each folder's
+    /// subfolders indented beneath it and shown only while it is open, then loose files as
+    /// "Unfiled". While searching, the folders holding a match by full path — and those open, so
+    /// the match is visible.
     var folderRows: [FolderGroup] {
-        if isSearching { return grouped }
+        if isSearching {
+            return grouped.map { group in
+                var g = group
+                g.showsFullPath = true
+                return g
+            }
+        }
         let byFolder = Dictionary(grouping: files, by: \.folderPath)
-        var rows = folders.map { summary in
-            FolderGroup(
-                folder: summary.path,
-                files: (byFolder[summary.path] ?? []).sorted { $0.name < $1.name })
+        let paths = folders.map(\.path)
+        var rows: [FolderGroup] = []
+        for path in paths {
+            let parts = path.split(separator: "/").map(String.init)
+            // Hidden unless every folder above it is open.
+            let ancestors = (1..<max(parts.count, 1)).map { parts.prefix($0).joined(separator: "/") }
+            guard ancestors.allSatisfy({ expanded.contains($0) }) else { continue }
+            let prefix = path + "/"
+            rows.append(FolderGroup(
+                folder: path,
+                files: (byFolder[path] ?? []).sorted { $0.name < $1.name },
+                allFiles: files.filter { $0.folderPath == path || $0.folderPath.hasPrefix(prefix) },
+                depth: parts.count - 1,
+                hasSubfolders: paths.contains { $0.hasPrefix(prefix) }))
         }
-        let known = Set(folders.map(\.path))
-        // A file whose folder the tree did not list (or the root) still has to be reachable.
+        // A file whose folder the tree did not list, or the root, still has to be reachable.
+        let known = Set(paths)
         for (folder, loose) in byFolder where !known.contains(folder) {
-            rows.append(FolderGroup(folder: folder, files: loose.sorted { $0.name < $1.name }))
+            rows.append(FolderGroup(folder: folder, files: loose.sorted { $0.name < $1.name },
+                                    showsFullPath: true))
         }
+        // Unfiled last; the tree's own order otherwise (it lists each folder before its children).
         return rows.sorted { lhs, rhs in
-            // Unfiled last, the rest in the tree's order.
             if lhs.folder.isEmpty != rhs.folder.isEmpty { return !lhs.folder.isEmpty }
-            let li = folders.firstIndex { $0.path == lhs.folder } ?? Int.max
-            let ri = folders.firstIndex { $0.path == rhs.folder } ?? Int.max
+            let li = paths.firstIndex(of: lhs.folder) ?? Int.max
+            let ri = paths.firstIndex(of: rhs.folder) ?? Int.max
             if li != ri { return li < ri }
             return lhs.folder.localizedStandardCompare(rhs.folder) == .orderedAscending
         }
@@ -164,7 +201,7 @@ final class FileLibraryViewModel {
     enum FolderSelection: Equatable { case none, some, all }
 
     func selection(in group: FolderGroup) -> FolderSelection {
-        let readable = group.files.filter(\.isReadable)
+        let readable = group.coveredFiles.filter(\.isReadable)
         guard !readable.isEmpty else { return .none }
         let chosen = readable.filter { selected.contains($0.path) }.count
         if chosen == 0 { return .none }
@@ -174,7 +211,7 @@ final class FileLibraryViewModel {
     /// Chooses every readable document in the folder, or releases them all if every one was
     /// already chosen. Unreadable ones are skipped: they cannot be attached yet.
     func toggleAll(in group: FolderGroup) {
-        let readable = group.files.filter(\.isReadable).map(\.path)
+        let readable = group.coveredFiles.filter(\.isReadable).map(\.path)
         if selection(in: group) == .all {
             selected.subtract(readable)
         } else {
@@ -231,7 +268,7 @@ final class FileLibraryViewModel {
         do {
             let tree = try await service.tree()
             files = FileService.allFiles(in: tree)
-            folders = FileBrowser.allFolders(in: tree)
+            self.tree = tree
             reconcileSelection()
             state = .loaded
         } catch {
@@ -358,7 +395,7 @@ final class FileLibraryViewModel {
         do {
             let tree = try await service.tree()
             files = FileService.allFiles(in: tree)
-            folders = FileBrowser.allFolders(in: tree)
+            self.tree = tree
             // A file that was renamed or deleted is no longer selectable under its old path.
             selected = keep.intersection(Set(files.map(\.path)))
             state = .loaded

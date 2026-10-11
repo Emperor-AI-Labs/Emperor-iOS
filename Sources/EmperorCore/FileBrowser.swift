@@ -144,7 +144,7 @@ enum FileBrowser {
         return allFolders(in: tree).first { $0.path == target }
     }
 
-    static func listing(at path: String, in tree: [FileNode]) -> FolderListing? {
+    static func listing(at path: String, in tree: [FileNode], sort: FolderSort = .newest) -> FolderListing? {
         guard let nodes = children(at: path, in: tree) else { return nil }
         var folders: [FolderSummary] = []
         var files: [FileNode.StoredFile] = []
@@ -156,7 +156,7 @@ enum FileBrowser {
         }
         return FolderListing(
             path: normalized(path),
-            folders: sortedFolders(folders),
+            folders: sortedFolders(folders, by: sort),
             files: sortedByName(files))
     }
 
@@ -176,14 +176,14 @@ enum FileBrowser {
 
     /// Every folder in the tree, parents before their children and siblings in browse order —
     /// the shape a "Move to…" list reads naturally in.
-    static func allFolders(in tree: [FileNode]) -> [FolderSummary] {
+    static func allFolders(in tree: [FileNode], sort: FolderSort = .newest) -> [FolderSummary] {
         var out: [FolderSummary] = []
         func walk(_ nodes: [FileNode]) {
             let folders = nodes.compactMap { node -> FileNode.Folder? in
                 if case .folder(let folder) = node { return folder }
                 return nil
             }
-            let ordered = sortedFolders(folders.map(summary(of:)))
+            let ordered = sortedFolders(folders.map(summary(of:)), by: sort)
             for summary in ordered {
                 out.append(summary)
                 if let folder = folders.first(where: { $0.path == summary.path }) {
@@ -294,17 +294,25 @@ enum FileBrowser {
 
     // MARK: - Ordering
 
-    /// Folders newest first, then by name — the order the web's store gives every level of the
-    /// tree (`decorateFolders`, `src/lib/store.js:202-207`).
-    static func sortedFolders(_ folders: [FolderSummary]) -> [FolderSummary] {
-        folders.sorted { a, b in
-            switch (a.created, b.created) {
-            case let (x?, y?) where x != y: return x > y
-            case (_?, nil): return true
-            case (nil, _?): return false
-            default:
-                let order = a.name.localizedStandardCompare(b.name)
-                return order == .orderedSame ? a.path < b.path : order == .orderedAscending
+    /// Folders in the chosen order. The default, newest first then by name, is the order the
+    /// web's store gives every level of the tree (`decorateFolders`, `src/lib/store.js:202-207`).
+    /// A folder the server gave no creation date sorts after every dated one in both date orders.
+    static func sortedFolders(_ folders: [FolderSummary], by sort: FolderSort = .newest) -> [FolderSummary] {
+        func byName(_ a: FolderSummary, _ b: FolderSummary) -> Bool {
+            let order = a.name.localizedStandardCompare(b.name)
+            return order == .orderedSame ? a.path < b.path : order == .orderedAscending
+        }
+        return folders.sorted { a, b in
+            switch sort {
+            case .newest, .oldest:
+                switch (a.created, b.created) {
+                case let (x?, y?) where x != y: return sort == .newest ? x > y : x < y
+                case (_?, nil): return true
+                case (nil, _?): return false
+                default: return byName(a, b)
+                }
+            case .nameAscending: return byName(a, b)
+            case .nameDescending: return byName(b, a)
             }
         }
     }
@@ -405,5 +413,21 @@ enum FileBrowser {
         text.trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
             .replacingOccurrences(of: " ", with: "_")
+    }
+}
+
+/// How folders are ordered. Newest first unless the user picks otherwise.
+enum FolderSort: String, CaseIterable, Identifiable, Sendable {
+    case newest, oldest, nameAscending, nameDescending
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .newest: "Newest first"
+        case .oldest: "Oldest first"
+        case .nameAscending: "Name A–Z"
+        case .nameDescending: "Name Z–A"
+        }
     }
 }

@@ -304,6 +304,7 @@ struct FileLibraryView: View {
                     }
                 }
                 .tint(theme.accentText)
+                .padding(.top, Spacing.sm)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
             }
@@ -312,21 +313,28 @@ struct FileLibraryView: View {
                 ForEach(model.folderRows) { group in
                     folderRow(group, in: model)
                     if model.isExpanded(group.folder) {
-                        if group.files.isEmpty {
+                        let indent = CGFloat(group.depth) * 20 + 20
+                        if group.files.isEmpty && !group.hasSubfolders {
                             Text("No documents in this folder yet.")
                                 .font(.brand(.footnote))
                                 .foregroundStyle(theme.textTertiary)
-                                .padding(.leading, 36)
+                                .padding(.leading, indent + 16)
                         } else {
                             ForEach(group.files, id: \.path) { file in
                                 row(for: file, in: model)
-                                    .padding(.leading, 20)
+                                    .padding(.leading, indent)
                             }
                         }
                     }
                 }
             } header: {
-                SectionHeader(title: model.isSearching ? "Matches" : "Folders")
+                if model.isSearching {
+                    SectionHeader(title: "Matches")
+                } else {
+                    FolderSortHeader(
+                        title: "Folders", sort: model.folderSort,
+                        onSort: { model.folderSort = $0 })
+                }
             }
             .listRowBackground(theme.surface)
         }
@@ -352,7 +360,7 @@ struct FileLibraryView: View {
     ) -> some View {
         let open = model.isExpanded(group.folder)
         let selection = model.selection(in: group)
-        let count = group.files.count
+        let count = group.coveredFiles.count
         return HStack(spacing: Spacing.sm) {
             Button {
                 model.toggleExpanded(group.folder)
@@ -377,6 +385,7 @@ struct FileLibraryView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .padding(.leading, CGFloat(group.depth) * 20)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
@@ -384,7 +393,7 @@ struct FileLibraryView: View {
             .accessibilityValue(open ? "Open" : "Closed")
             .accessibilityHint(open ? "Closes the folder" : "Opens the folder")
 
-            if group.files.contains(where: \.isReadable) {
+            if group.coveredFiles.contains(where: \.isReadable) {
                 Button {
                     model.toggleAll(in: group)
                 } label: {

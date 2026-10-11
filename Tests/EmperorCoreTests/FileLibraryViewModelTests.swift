@@ -47,6 +47,53 @@ final class FileLibraryViewModelTests: XCTestCase {
         }
     }
 
+    func testSubfoldersSitInsideTheirParentAndCountTowardsIt() async {
+        await withLibrary { files, model in
+            files.tree = [
+                folder("Birla", [
+                    folder("Birla/Pleadings", [
+                        .file(readyFile("Birla/Pleadings/Plaint.pdf")),
+                        .file(readyFile("Birla/Pleadings/Reply.pdf")),
+                    ]),
+                ]),
+            ]
+            await model.load()
+
+            XCTAssertEqual(model.folderRows.map(\.folder), ["Birla"], "the subfolder is hidden until Birla opens")
+            let birla = model.folderRows[0]
+            XCTAssertEqual(birla.coveredFiles.count, 2)
+            XCTAssertTrue(birla.hasSubfolders)
+
+            model.toggleExpanded("Birla")
+            XCTAssertEqual(model.folderRows.map(\.folder), ["Birla", "Birla/Pleadings"])
+            XCTAssertEqual(model.folderRows[1].depth, 1)
+            XCTAssertEqual(model.folderRows[1].title, "Pleadings")
+
+            model.toggleAll(in: birla)
+            XCTAssertEqual(model.selected.count, 2, "a parent's checkbox covers its subfolders")
+        }
+    }
+
+    func testFoldersListNewestFirstUnlessSortedOtherwise() async {
+        await withLibrary { files, model in
+            func dated(_ path: String, _ created: String) -> FileNode {
+                .folder(FileNode.Folder(name: path, path: path, created: created, files: []))
+            }
+            files.tree = [
+                dated("Older", "2026-01-05T10:00:00.000Z"),
+                dated("Newest", "2026-09-01T10:00:00.000Z"),
+                dated("Middle", "2026-05-01T10:00:00.000Z"),
+            ]
+            await model.load()
+
+            XCTAssertEqual(model.folderRows.map(\.folder), ["Newest", "Middle", "Older"])
+            model.folderSort = .oldest
+            XCTAssertEqual(model.folderRows.map(\.folder), ["Older", "Middle", "Newest"])
+            model.folderSort = .nameAscending
+            XCTAssertEqual(model.folderRows.map(\.folder), ["Middle", "Newest", "Older"])
+        }
+    }
+
     func testSearchingOpensTheFoldersThatMatch() async {
         await withLibrary { files, model in
             files.tree = Self.tree

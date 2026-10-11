@@ -218,8 +218,11 @@ final class MyFilesViewModel {
     var favorites: [FileNode.StoredFile] { FileBrowser.favorites(in: tree, matching: query) }
 
     /// `nil` when the folder is no longer in the library.
+    /// Newest folder first by default; the user can change it for this session.
+    var folderSort: FolderSort = .newest
+
     func listing(at path: String) -> FolderListing? {
-        FileBrowser.listing(at: path, in: tree)
+        FileBrowser.listing(at: path, in: tree, sort: folderSort)
     }
 
     func folder(at path: String) -> FolderSummary? {

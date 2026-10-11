@@ -126,3 +126,36 @@ struct UploadDestinationSheet: View {
         }
     }
 }
+
+/// A section header with a sort menu at its trailing edge: "Folders · 12" and "Newest first ⌄".
+struct FolderSortHeader: View {
+    @Environment(\.theme) private var theme
+    let title: String
+    var count: Int?
+    let sort: FolderSort
+    let onSort: (FolderSort) -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            SectionHeader(title: title, detail: count.map { "\($0)" })
+            Spacer(minLength: Spacing.sm)
+            Menu {
+                Picker("Sort folders", selection: Binding(get: { sort }, set: onSort)) {
+                    ForEach(FolderSort.allCases) { option in
+                        Text(option.label).tag(option)
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(sort.label)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .font(.brand(.footnote, weight: .medium))
+                .foregroundStyle(theme.accentText)
+                .textCase(nil)
+            }
+            .accessibilityLabel("Sort folders, \(sort.label)")
+        }
+    }
+}

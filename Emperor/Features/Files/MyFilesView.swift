@@ -618,7 +618,9 @@ private struct LibraryScreen: View {
                             folder, location: showsLocations ? FileBrowser.location(of: folder) : nil)
                     }
                 } header: {
-                    SectionHeader(title: isRoot ? "Matters" : "Folders", detail: "\(folders.count)")
+                    FolderSortHeader(
+                        title: isRoot ? "Matters" : "Folders", count: folders.count,
+                        sort: model.folderSort, onSort: { model.folderSort = $0 })
                 }
                 .listRowBackground(theme.surface)
             }
