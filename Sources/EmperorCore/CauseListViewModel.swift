@@ -136,9 +136,6 @@ final class CauseListViewModel {
         )
     }
 
-    /// Every day that actually has a listing, ascending.
-    var listedDays: [String] { Array(Set(listings.map(\.date))).sorted() }
-
     /// The heading for the empty state.
     var emptyTitle: String {
         guard hasAnyListings else { return Copy.nothingAtAll }
@@ -159,27 +156,8 @@ final class CauseListViewModel {
 
     // MARK: - Day navigation
 
-    /// The next day that actually has something listed.
-    ///
-    /// Names a **listed** day rather than stepping the calendar blindly. An empty day is a real
-    /// answer and the arrows never skip one, but a blank screen should still say where the next
-    /// listing is rather than being a dead end.
-    ///
-    /// Exposed as values rather than as `goToNextListedDay()`-style commands: the empty state
-    /// wants to *name* the day in its button before moving to it, which a command cannot do. The
-    /// screen jumps with `select(day:)`.
-    var nextListedDay: String? { listedDays.first { $0 > selectedDay } }
-    var previousListedDay: String? { listedDays.last { $0 < selectedDay } }
-
     func select(day: String) { selectedDay = day }
     func goToToday() { selectedDay = todayKey }
-
-    /// Steps one calendar day, for the plain next/previous arrows.
-    func step(days: Int) {
-        guard let current = WireDate.parseDay(selectedDay) else { return }
-        let stepped = current.addingTimeInterval(TimeInterval(days) * 86_400)
-        selectedDay = WireDate.dayKey(stepped)
-    }
 
     // MARK: - Loading
 

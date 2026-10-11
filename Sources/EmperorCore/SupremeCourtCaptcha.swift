@@ -30,11 +30,6 @@ struct SupremeCourtCaptcha: Equatable, Sendable {
     /// so there is nothing to fetch and nothing to authenticate.
     let image: Data
 
-    /// How long the server keeps the session. Not enforced here — the server is the authority
-    /// and answers `expired` — but the screen uses it to offer a fresh image before the user
-    /// types into one that has already died.
-    static let sessionLifetime: TimeInterval = 8 * 60
-
     /// Pulls the PNG out of a `data:` URI.
     ///
     /// Returns `nil` rather than throwing for anything malformed: this is one field of a

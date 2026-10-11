@@ -75,8 +75,6 @@ enum CourtFamily: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var supportsCaseNumberLookup: Bool { path(for: .caseNumber) != nil }
-
     var name: String {
         switch self {
         case .supremeCourt: return "Supreme Court"

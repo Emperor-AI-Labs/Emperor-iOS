@@ -66,7 +66,6 @@ enum TodayCopy {
 
     static let openApp = "Open Emperor to load your listings"
     static let nothingToday = "Nothing listed today"
-    static let nothingTomorrow = "Nothing listed tomorrow"
     /// Under the listings wherever there is room — `CauseListViewModel.Copy`'s framing, shortened
     /// for a widget.
     static let framing = "Your matters only. Confirm with the court's list."

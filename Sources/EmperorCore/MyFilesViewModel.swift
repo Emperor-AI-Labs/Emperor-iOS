@@ -85,7 +85,7 @@ final class MyFilesViewModel {
     var actionError: String?
     var actionNotice: String?
 
-    /// Non-nil while a confirmation is on screen. Only `confirmDeletion` acts on it.
+    /// Non-nil while a confirmation is on screen. The screen hands it to `confirm(_:)`.
     var pendingDeletion: FileDeletion?
     /// Non-nil once a document's bytes have arrived for the share sheet.
     var sharing: SharedDocument?
@@ -527,22 +527,16 @@ final class MyFilesViewModel {
 
     func cancelDeletion() { pendingDeletion = nil }
 
-    /// Deletes what the confirmation named, then re-reads the library.
-    ///
-    /// - Important: the refetch is unconditional. Both delete routes answer 200 for a path that
-    ///   is not there, so success says nothing about what the library holds; and after a failure
-    ///   the library may still have changed under a folder deletion that stopped part-way.
-    func confirmDeletion() async {
-        guard let plan = pendingDeletion else { return }
-        await confirm(plan)
-    }
-
-    /// Deletes what a confirmation named.
+    /// Deletes what a confirmation named, then re-reads the library.
     ///
     /// Takes the plan rather than reading `pendingDeletion` because of the order an alert works
     /// in: the destructive button's action runs, *then* the alert's binding is cleared — which
     /// clears `pendingDeletion` before a `Task` started by that action has had a chance to read
     /// it. The screen captures the plan synchronously and hands it here.
+    ///
+    /// - Important: the refetch is unconditional. Both delete routes answer 200 for a path that
+    ///   is not there, so success says nothing about what the library holds; and after a failure
+    ///   the library may still have changed under a folder deletion that stopped part-way.
     func confirm(_ plan: FileDeletion) async {
         pendingDeletion = nil
 

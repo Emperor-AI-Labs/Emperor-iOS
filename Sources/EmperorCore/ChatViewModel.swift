@@ -95,8 +95,6 @@ final class ChatViewModel {
     /// A citation that could not be resolved. Kept apart from `errorMessage` because it is a
     /// different failure with different wording, not a failed turn.
     var citationError: String?
-    /// A scan that could not be captured, assembled or ingested.
-    var scanError: String?
 
     /// A question the server refused to start, handed back so the composer can restore it.
     ///
@@ -147,7 +145,6 @@ final class ChatViewModel {
 
     private let service: any ChatProviding
     private let files: (any FileProviding)?
-    private let uploads: (any UploadProviding)?
     /// Where removals are remembered. Absent means they are not — the documents come back on the
     /// next load, which is what this screen did before there was anywhere to write them.
     private let detached: (any DetachedDocuments)?
@@ -170,7 +167,6 @@ final class ChatViewModel {
     ///     The per-request model is what the server honours, so it is sent explicitly on every
     ///     turn regardless of this.
     ///   - files: needed only to resolve a citation against the wider library.
-    ///   - uploads: needed only to attach a scan.
     ///   - detached: where removals are remembered. Without it a removal lasts the session only.
     ///   - offline: where this account keeps conversations for reading offline.
     ///   - connectivity: whether the device is known to have no connection.
@@ -178,7 +174,6 @@ final class ChatViewModel {
         chatID: String,
         service: any ChatProviding,
         files: (any FileProviding)? = nil,
-        uploads: (any UploadProviding)? = nil,
         detached: (any DetachedDocuments)? = nil,
         preferredModel: String? = nil,
         offline: OfflineStore? = nil,
@@ -187,7 +182,6 @@ final class ChatViewModel {
         self.chatID = chatID
         self.service = service
         self.files = files
-        self.uploads = uploads
         self.detached = detached
         self.model = ChatModel.fromPreference(preferredModel)
         self.offline = offline
@@ -729,44 +723,5 @@ final class ChatViewModel {
         else { return false }
         openSource = SourceSelection(attachment: attachment, mention: mention)
         return true
-    }
-
-    // MARK: - Scanning
-
-    /// Uploads a freshly captured scan and attaches it to the turn.
-    ///
-    /// The attachment is added only once ingestion reports the file usable: attaching earlier
-    /// would put a name on the turn that the server cannot yet read, and the refusal that
-    /// follows is far harder to understand than a short wait.
-    func attach(_ document: ScannedDocument) async {
-        guard let uploads else { return }
-        do {
-            for try await event in uploads.upload(
-                data: document.pdfData,
-                fileName: document.suggestedName,
-                folderName: ScannedDocument.folderName
-            ) {
-                guard case .finished(let state) = event else { continue }
-                if state.isUsable {
-                    attachments.append(
-                        ChatAttachment(
-                            // The sanitised name, because that is what the server wrote to
-                            // disk — and annexure citations match on the exact on-disk name.
-                            name: UploadService.sanitize(fileName: document.suggestedName),
-                            folderName: ScannedDocument.folderName))
-                } else if case .failed(let reason) = state {
-                    // Ingestion failures arrive with no HTTP error at all, so this is the only
-                    // place they can surface.
-                    scanError = reason
-                }
-            }
-        } catch {
-            scanError = DisplayText.message(for: error)
-        }
-    }
-
-    /// Reports a capture that never produced a document — a cancelled or failed scan.
-    func reportScanFailure(_ error: Error) {
-        scanError = DisplayText.message(for: error)
     }
 }
