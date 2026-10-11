@@ -69,6 +69,22 @@ final class BackgroundUploader {
         refused.removeAll { $0.id == id }
     }
 
+    /// What the upload panel draws: this batch's files, their progress and the measured speed.
+    ///
+    /// Only observes the transfer. Nothing here changes what is sent or when; it is fed from the
+    /// delegate's byte counts once a second (`sampleProgress`) and from each upload's outcome.
+    /// Memory only — after a relaunch it is rebuilt from the manifests in `resume()`.
+    private(set) var batch = UploadBatch()
+
+    /// Clears a finished batch from the panel.
+    func dismissBatch() {
+        batch.dismiss()
+    }
+
+    /// Wakes once a second while anything is sending, to read the bytes sent and take a speed
+    /// sample. Stops itself when the batch has sent everything.
+    @ObservationIgnored private var ticker: Task<Void, Never>?
+
     /// Set by the app delegate when the system relaunches us to deliver events, and called once
     /// the session says it has finished delivering them. Not calling it makes the system
     /// consider the app unresponsive and stop relaunching it.
@@ -182,6 +198,10 @@ final class BackgroundUploader {
 
         try store.save(manifest)
         inFlight.insert(manifest, at: 0)
+        batch.add(
+            id: manifest.id, name: manifest.fileName, size: manifest.totalBytes,
+            folderName: manifest.folderName, at: Date())
+        startTicker()
 
         try await enqueue(manifest.pending, of: manifest, credentials: credentials)
         return manifest
@@ -201,6 +221,17 @@ final class BackgroundUploader {
 
         let manifests = store.all()
         inFlight = manifests.filter { !$0.isComplete }
+
+        // A relaunched app has an empty batch; put back what is still going so the panel shows
+        // it where it left off.
+        let now = Date()
+        for manifest in manifests where !batch.contains(manifest.id) {
+            batch.add(
+                id: manifest.id, name: manifest.fileName, size: manifest.totalBytes,
+                folderName: manifest.folderName, loaded: manifest.bytesSent,
+                sent: manifest.isComplete, at: now)
+        }
+        startTicker()
 
         guard let client, let credentials = await client.currentCredentials() else { return }
 
@@ -256,6 +287,7 @@ final class BackgroundUploader {
                 // continuing would send chunks that place bytes at the wrong offsets.
                 store.discard(id: manifest.id)
                 inFlight.removeAll { $0.id == manifest.id }
+                batch.markFailed(manifest.id, message: StartError.unreadable.errorDescription ?? "")
                 throw error
             }
 
@@ -305,6 +337,11 @@ final class BackgroundUploader {
                 inFlight[position] = updated
             }
         }
+        if updated.isComplete {
+            batch.markProcessing(id)
+        } else {
+            batch.setLoaded(updated.bytesSent, of: id, at: Date())
+        }
 
         if updated.isComplete { await finish(updated) }
     }
@@ -327,9 +364,64 @@ final class BackgroundUploader {
         }
 
         guard let client else { return }
-        _ = try? await UploadService(client: client).waitForIngestion(
-            fileName: manifest.fileName, folderName: manifest.folderName)
+        let id = manifest.id
+        batch.markProcessing(id)
+        let state = try? await UploadService(client: client).waitForIngestion(
+            fileName: manifest.fileName, folderName: manifest.folderName,
+            // `@Sendable` and hopping explicitly, because the poll runs off the main actor and
+            // the batch lives on it.
+            onProgress: { @Sendable message in
+                Task { @MainActor in
+                    BackgroundUploader.shared.batch.markProcessing(id, message: message)
+                }
+            })
+        switch state {
+        case .some(.ready), .some(.scanned):
+            batch.markDone(id)
+        case .some(.failed(let reason)):
+            batch.markProcessingFailed(
+                id, message: reason.replacingOccurrences(of: "ERROR: ", with: ""))
+        case .some(.inProgress(let message)):
+            batch.markUnconfirmed(id, message: message)
+        case .none:
+            batch.markUnconfirmed(
+                id, message: "Uploaded — it will appear in My Files once it has been read.")
+        }
         NotificationCenter.default.post(name: .emperorUploadDidFinish, object: manifest.id)
+    }
+
+    // MARK: - Progress
+
+    private func startTicker() {
+        guard ticker == nil, batch.isSending else { return }
+        ticker = Task { [self] in
+            while !Task.isCancelled, batch.isSending {
+                try? await Task.sleep(for: .seconds(1))
+                sampleProgress(at: Date())
+            }
+            ticker = nil
+        }
+    }
+
+    /// Reads what the delegate has seen since the last sample: the new bytes, for the speed,
+    /// and how far each chunk in flight has got, for each file's bar.
+    ///
+    /// A chunk's request body carries a few hundred bytes of multipart framing as well as the
+    /// file's bytes, so a file's figure is the chunk's share of its own range rather than the
+    /// raw count. The speed uses the raw count: those bytes left the device too.
+    private func sampleProgress(at now: Date) {
+        let snapshot = delegate.takeProgress()
+        batch.record(sentBytes: snapshot.newBytes)
+        for manifest in inFlight {
+            var loaded = manifest.bytesSent
+            for index in manifest.pending {
+                guard let share = snapshot.fractions[manifest.taskDescription(for: index)]
+                else { continue }
+                loaded += Int(Double(manifest.range(of: index).count) * share)
+            }
+            batch.setLoaded(loaded, of: manifest.id, at: now)
+        }
+        batch.tick(at: now)
     }
 
     /// Stops an upload the server has declined: cancels its other chunks, discards the copy of
@@ -343,6 +435,7 @@ final class BackgroundUploader {
         }
         store.discard(id: id)
         inFlight.removeAll { $0.id == id }
+        batch.markFailed(id, message: message)
         // One notice per upload, however many of its chunks came back refused.
         guard !refused.contains(where: { $0.id == id }), let fileName else { return }
         refused.insert(Refused(id: id, fileName: fileName, message: message), at: 0)
@@ -377,6 +470,35 @@ final class BackgroundUploader {
         private let lock = NSLock()
         private var bodies: [Int: Data] = [:]
 
+        /// Bytes sent since the upload panel last asked, across every task.
+        private var newBytes = 0
+        /// How far each chunk in flight has got, 0–1, by its `taskDescription`.
+        private var fractions: [String: Double] = [:]
+
+        /// Hands over the bytes sent since the last call, and where each chunk in flight stands.
+        func takeProgress() -> (newBytes: Int, fractions: [String: Double]) {
+            lock.withLock {
+                let taken = newBytes
+                newBytes = 0
+                return (taken, fractions)
+            }
+        }
+
+        /// Called by the system as a request body goes out. Only counted: nothing about the
+        /// transfer is changed here.
+        func urlSession(
+            _ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64,
+            totalBytesSent: Int64, totalBytesExpectedToSend: Int64
+        ) {
+            guard let key = task.taskDescription else { return }
+            let share = totalBytesExpectedToSend > 0
+                ? min(1, Double(totalBytesSent) / Double(totalBytesExpectedToSend)) : 0
+            lock.withLock {
+                newBytes += Int(max(0, bytesSent))
+                fractions[key] = share
+            }
+        }
+
         func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
             lock.withLock { bodies[dataTask.taskIdentifier, default: Data()].append(data) }
         }
@@ -384,7 +506,10 @@ final class BackgroundUploader {
         func urlSession(
             _ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?
         ) {
-            let body = lock.withLock { bodies.removeValue(forKey: task.taskIdentifier) } ?? Data()
+            let body = lock.withLock { () -> Data? in
+                if let key = task.taskDescription { fractions.removeValue(forKey: key) }
+                return bodies.removeValue(forKey: task.taskIdentifier)
+            } ?? Data()
             guard let parsed = UploadManifest.parseTaskDescription(task.taskDescription) else { return }
             let status = (task.response as? HTTPURLResponse)?.statusCode
             Task { @MainActor in
