@@ -62,7 +62,7 @@ enum RecordTokens {
         text: PaletteColor(hex: 0x0F1424),
         textSoft: PaletteColor(hex: 0x454B63),
         textFaint: PaletteColor(hex: 0x5A6178),
-        textMute: PaletteColor(hex: 0x6B7187),
+        textMute: PaletteColor(hex: 0x62687E),
         accent: PaletteColor(hex: 0x464E85),
         accent2: PaletteColor(hex: 0x547592),
         accentSoft: PaletteColor(hex: 0x6F79BD, opacity: 0.12),
@@ -133,7 +133,7 @@ enum RecordTokens {
         static let primaryLight = GradientStops(
             start: PaletteColor(hex: 0x464E85), end: PaletteColor(hex: 0x547592), angle: 135)
         static let primaryDark = GradientStops(
-            start: PaletteColor(hex: 0x4D568F), end: PaletteColor(hex: 0x5A7C9A), angle: 135)
+            start: PaletteColor(hex: 0x4D568F), end: PaletteColor(hex: 0x567692), angle: 135)
         static let logoLight = GradientStops(
             start: PaletteColor(hex: 0x6F79BD), end: PaletteColor(hex: 0x6F9AC0), angle: 135)
         static let logoDark = GradientStops(

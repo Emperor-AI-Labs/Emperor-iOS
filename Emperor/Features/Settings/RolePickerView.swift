@@ -81,8 +81,8 @@ struct RoleOptionLabel: View {
                 Text(role.tagline)
                     .font(.brand(.caption))
                     .foregroundStyle(theme.textSecondary)
-                // Tertiary on a plain card; secondary on the chosen one, whose wash takes tertiary
-                // under 4.5:1 in light (`PaletteTests.testTertiaryTextIsTooFaintForAChosenRow`).
+                // Tertiary on a plain card; secondary on the chosen one, whose wash leaves tertiary
+                // barely at 4.5:1 in light (`PaletteTests.testAChosenRowsQuietestLineClearsAA`).
                 Text(role.detail)
                     .font(.brand(.caption2))
                     .foregroundStyle(isSelected ? theme.textSecondary : theme.textTertiary)
