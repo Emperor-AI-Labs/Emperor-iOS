@@ -232,9 +232,11 @@ final class AccessibilityAuditTests: XCTestCase {
         _ = app.buttons["Role selector"].firstMatch.waitForExistence(timeout: 10)
         audit("you", in: app)
 
+        // Each row scrolled to before it is looked for: You is a long list, and a list builds only
+        // the rows near what it shows.
         let selector = app.buttons["Role selector"].firstMatch
+        app.reveal(selector)
         if reached(selector, "the role selector") {
-            scrollUntilHittable(selector, in: app)
             selector.tap()
             let picker = app.navigationBars["Switch role"]
             if reached(picker, "the role picker") {
@@ -245,8 +247,8 @@ final class AccessibilityAuditTests: XCTestCase {
         }
 
         let row = app.buttons["notifications-settings"].firstMatch
+        app.reveal(row)
         if reached(row, "the Notifications row") {
-            scrollUntilHittable(row, in: app)
             row.tap()
             let notifications = app.navigationBars["Notifications"]
             if reached(notifications, "the Notifications screen") {
@@ -266,8 +268,8 @@ final class AccessibilityAuditTests: XCTestCase {
 
         // Edit profile — the form as the account fills it. Left by Back, so nothing is saved.
         let profile = app.buttons["edit-profile"].firstMatch
+        app.reveal(profile)
         if reached(profile, "the Edit profile row") {
-            scrollUntilHittable(profile, in: app)
             profile.tap()
             let form = app.navigationBars["Edit profile"]
             if reached(form, "the Edit profile screen") {
@@ -385,8 +387,9 @@ final class AccessibilityAuditTests: XCTestCase {
         _ row: String, titled title: String, from app: XCUIApplication
     ) -> XCUIElement? {
         let button = app.buttons[row].firstMatch
-        // Scrolled to before it is looked for: at the largest text size the lower rows are
-        // below the fold, and a list builds only the rows it is showing.
+        // Scrolled to before it is looked for: the Tools rows are below the fold on a phone, far
+        // below it at the largest text size, and a list builds only the rows it is showing.
+        app.reveal(button)
         scrollUntilHittable(button, in: app)
         guard reached(button, "the \(row) row on You") else { return nil }
         button.tap()
@@ -417,7 +420,7 @@ final class AccessibilityAuditTests: XCTestCase {
     /// shows, and on a phone, or at a large text size, they start below the fold.
     private func scrollUntilHittable(_ element: XCUIElement, in app: XCUIApplication) {
         var swipes = 0
-        while !(element.exists && element.isHittable) && swipes < 6 {
+        while !(element.exists && element.isHittable) && swipes < 12 {
             app.swipeUp()
             swipes += 1
         }
