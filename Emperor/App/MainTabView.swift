@@ -35,25 +35,25 @@ struct MainTabView: View {
             // Outline names: the bar fills each one itself, which is the iOS convention.
             AskHomeView()
                 .tabItem {
-                    tabLabel("Ask", systemImage: "text.bubble")
+                    Label("Ask", systemImage: "text.bubble")
                 }
                 .tag(AppNavigator.Tab.ask)
 
             MattersView()
                 .tabItem {
-                    tabLabel("Matters", systemImage: "scalemass")
+                    Label("Matters", systemImage: "scalemass")
                 }
                 .tag(AppNavigator.Tab.matters)
 
             MyFilesView(isTab: true)
                 .tabItem {
-                    tabLabel("Files", systemImage: "folder")
+                    Label("Files", systemImage: "folder")
                 }
                 .tag(AppNavigator.Tab.files)
 
             YouView()
                 .tabItem {
-                    tabLabel("You", systemImage: "person.crop.circle")
+                    Label("You", systemImage: "person.crop.circle")
                 }
                 .tag(AppNavigator.Tab.you)
         }
@@ -65,17 +65,5 @@ struct MainTabView: View {
         // The chosen tab in the accent's text colour; the others in the caption colour
         // (`BrandAppearance`). iOS switches tabs instantly, as the design asks.
         .tint(theme.accentText)
-    }
-
-    /// A tab's title and symbol, resolved at the default text size.
-    ///
-    /// UIKit's tab bar keeps its titles and symbols at one size whatever the reader's setting —
-    /// pressing and holding a tab shows it large instead (the Large Content Viewer) — so nothing
-    /// a person sees changes. It is so that a change of text size hands the bar nothing new: the
-    /// accessibility audit steps through every size, and on a CI iPad the main thread was sampled
-    /// rebuilding the floating tab bar's items, again and again, until the audit ran out of time.
-    private func tabLabel(_ title: String, systemImage: String) -> some View {
-        Label(title, systemImage: systemImage)
-            .environment(\.dynamicTypeSize, .large)
     }
 }

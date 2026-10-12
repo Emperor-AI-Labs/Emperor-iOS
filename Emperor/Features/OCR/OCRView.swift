@@ -94,11 +94,15 @@ struct OCRScreen: View {
 
             if model.mode.choosesLanguage {
                 Section {
+                    // A list of its own rather than a pop-up menu: two dozen languages are a long
+                    // menu, and the row and the list are then drawn in the app's own type, which
+                    // follows Dynamic Type, rather than by UIKit's menu button.
                     Picker("Translate to", selection: $bindable.language) {
                         ForEach(OCRLanguage.translationTargets, id: \.self) { language in
                             Text(language.label).tag(language)
                         }
                     }
+                    .pickerStyle(.navigationLink)
                     .disabled(model.isRunning)
                 } footer: {
                     Text("The document will be read, then translated into \(model.language.rawValue).")
