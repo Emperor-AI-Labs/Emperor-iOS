@@ -165,7 +165,9 @@ struct RecordRow<Leading: View, Trailing: View>: View {
     let title: String
     var subtitle: String?
     var subtitleColor: Color?
-    var titleLines = 1
+    /// At most this many lines of title at the default text size (`dynamicLineLimit`); `nil` for
+    /// the whole title at every size.
+    var titleLines: Int? = 1
     @ViewBuilder var leading: () -> Leading
     @ViewBuilder var trailing: () -> Trailing
 
@@ -173,10 +175,7 @@ struct RecordRow<Leading: View, Trailing: View>: View {
         HStack(spacing: Spacing.md) {
             leading()
             VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(title)
-                    .font(.brand(.body, weight: .medium))
-                    .foregroundStyle(theme.textPrimary)
-                    .dynamicLineLimit(titleLines)
+                titleText
                 if let subtitle {
                     Text(subtitle)
                         .font(.brand(.footnote))
@@ -192,12 +191,24 @@ struct RecordRow<Leading: View, Trailing: View>: View {
         .frame(minHeight: Layout.listRow)
         .contentShape(Rectangle())
     }
+
+    @ViewBuilder
+    private var titleText: some View {
+        let text = Text(title)
+            .font(.brand(.body, weight: .medium))
+            .foregroundStyle(theme.textPrimary)
+        if let titleLines {
+            text.dynamicLineLimit(titleLines)
+        } else {
+            text.fixedSize(horizontal: false, vertical: true)
+        }
+    }
 }
 
 extension RecordRow where Trailing == RowChevron {
     /// A row that leads somewhere: a chevron at its end.
     init(
-        title: String, subtitle: String? = nil, titleLines: Int = 1,
+        title: String, subtitle: String? = nil, titleLines: Int? = 1,
         @ViewBuilder leading: @escaping () -> Leading
     ) {
         self.init(

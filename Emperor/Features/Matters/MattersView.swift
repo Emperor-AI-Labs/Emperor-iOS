@@ -467,7 +467,9 @@ private struct MatterRow: View {
         RecordRow(
             title: legalCase.displayTitle,
             subtitle: subtitle.isEmpty ? nil : subtitle,
-            titleLines: 2
+            // The whole title, however long: a matter is known by its parties, and the audit
+            // found a title limited to two lines cut short at a larger text size.
+            titleLines: nil
         ) {
             IconTile(systemImage: legalCase.isCourtSynced ? "building.columns" : "scalemass")
         }
