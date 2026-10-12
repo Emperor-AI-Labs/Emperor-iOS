@@ -284,11 +284,19 @@ struct AccountAvatar: View {
 
     let photo: ProfilePhoto.Source?
     let monogram: String
+    /// The side at the default text size.
     var size: CGFloat = 44
+
+    /// The circle grows with the reader's text size, and the monogram with it at the same rate,
+    /// so the letter stays the same share of the circle at any size. A monogram at a fixed size
+    /// was the one text in You that ignored Dynamic Type altogether.
+    @ScaledMetric(relativeTo: .title2) private var scale: CGFloat = 1
+
+    private var side: CGFloat { size * scale }
 
     var body: some View {
         content
-            .frame(width: size, height: size)
+            .frame(width: side, height: side)
             .clipShape(Circle())
             .overlay(Circle().strokeBorder(theme.separator, lineWidth: 0.5))
             .accessibilityHidden(true)
@@ -319,7 +327,7 @@ struct AccountAvatar: View {
     /// The monogram in the serif on the primary gradient — the Record avatar.
     private var initial: some View {
         Text(monogram)
-            .font(.custom(BrandFont.Name.display, fixedSize: size * 0.42))
+            .font(.display(size: size * 0.42, relativeTo: .title2))
             .foregroundStyle(theme.onAccent)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(theme.primaryGradient)
