@@ -180,8 +180,12 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   for text, `AdaptiveStack` for a title with something beside it, `.dynamicLineLimit` for
   essential text, `ValueRow` rather than `LabeledContent(_:value:)`, and a label on every
   icon-only control. Add an audit waiver only for something the system draws, with its reason.
-  The audit is a separate, reported CI step for now — read its result on every run, and make it
-  blocking (drop `continue-on-error` in `ci.yml`) once it passes on both devices.
+  Colours come from `Design/record-tokens.json` (regenerate `RecordTokens.swift` with
+  `node scripts/generate-record-tokens.mjs`, never edit it). The audit is a separate, reported CI
+  step for now — read its result on every run (a finding the audit cannot tie to an element comes
+  with an `-edges` attachment listing everything on screen), and make it blocking (drop
+  `continue-on-error` in `ci.yml`) once it passes on both devices run after run. What is left is
+  noted beside that step.
 - The app target compiles `Sources/EmperorCore` directly, so the tested code and the shipped
   code are the same bytes.
 
