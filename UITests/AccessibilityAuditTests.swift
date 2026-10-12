@@ -196,7 +196,9 @@ final class AccessibilityAuditTests: XCTestCase {
                     XCTFail("could not bring \(what) up under the bar — \(why) — so it was not audited")
                     continue
                 }
-                audit(screen, in: app, sheet: bar)
+                audit(screen, in: app, sheet: bar, watching: heading) {
+                    _ = self.bringUnderTheBar(heading, of: bar, titled: "Tools", in: app)
+                }
             }
             close("Tools", in: app)
         }
@@ -295,7 +297,9 @@ final class AccessibilityAuditTests: XCTestCase {
                 continue
             }
             if reached(app.descendants(matching: .any)[anchor].firstMatch, what) {
-                audit(screen, in: app, sheet: settings, inATab: true)
+                audit(screen, in: app, sheet: settings, inATab: true, watching: heading) {
+                    _ = self.bringUnderTheBar(heading, of: settings, titled: "You", in: app)
+                }
             }
         }
     }
@@ -776,6 +780,26 @@ final class AccessibilityAuditTests: XCTestCase {
         }
     }
 
+    /// Every element in the app's tree with its kind, words and place — for a finding the audit
+    /// could not name, what was there to be named. Text on the screenshot that is missing here
+    /// is text XCTest cannot see, which is where an unnamed finding comes from.
+    private static func inventory(of app: XCUIApplication) -> String {
+        MainActor.assumeIsolated { () -> String in
+            guard let root = try? app.snapshot() else { return "The app could not be read." }
+            var lines: [String] = []
+            func walk(_ node: any XCUIElementSnapshot, depth: Int) {
+                let words = node.label.isEmpty ? "" : " “\(node.label.prefix(50))”"
+                let id = node.identifier.isEmpty ? "" : " id \(node.identifier.prefix(40))"
+                lines.append(String(repeating: " ", count: min(depth, 30))
+                    + AuditFinding.name(of: node.elementType) + words + id + " "
+                    + describe(node.frame))
+                for child in node.children { walk(child, depth: depth + 1) }
+            }
+            walk(root, depth: 0)
+            return lines.joined(separator: "\n")
+        }
+    }
+
     private static func describe(_ frame: CGRect) -> String {
         String(format: "(%.0f, %.0f) %.0f×%.0f", frame.minX, frame.minY, frame.width, frame.height)
     }
@@ -832,9 +856,15 @@ final class AccessibilityAuditTests: XCTestCase {
     ///     Without this a pushed screen was measured as if nothing lay over its foot, and a
     ///     section header behind the tab bar — "YOUR ACCOUNT" in Notifications, at 1.95:1 through
     ///     the bar's glass — was reported as faint text.
+    ///   - watching: on a screen audited scrolled part-way down, the header that was brought up
+    ///     under its bar. Where it is before and after each pass is written down beside any
+    ///     finding the audit names no element for — whether the checks moved the list.
+    ///   - reposition: on such a screen, puts the list back where it was audited from. Called
+    ///     before each pass after the first: the text-size checks resize every row behind the
+    ///     scenes, and the list is not always left where it was found.
     private func audit(
         _ screen: String, in app: XCUIApplication, sheet: XCUIElement? = nil,
-        inATab: Bool = false,
+        inATab: Bool = false, watching: XCUIElement? = nil, reposition: (() -> Void)? = nil,
         file: StaticString = #filePath, line: UInt = #line
     ) {
         // Let a push, a load or a keyboard settle: half a transition is not what a person sees.
@@ -843,7 +873,18 @@ final class AccessibilityAuditTests: XCTestCase {
 
         var findings: [AuditFinding] = []
         var pixels: ScreenPixels?
-        for pass in AuditPass.allCases {
+        var moves: [String] = []
+        func note(_ moment: String) {
+            guard let watching else { return }
+            let place = top(of: watching).map { String(format: "%.0f", $0) } ?? "gone"
+            moves.append("\(moment): header at \(place)")
+        }
+        for (index, pass) in AuditPass.allCases.enumerated() {
+            if index > 0, let reposition {
+                reposition()
+            }
+            note("before the \(pass) pass")
+            defer { note("after the \(pass) pass") }
             for outcome in Self.run(pass.types, on: app, in: context) {
                 switch outcome {
                 case .ran(let found):
@@ -888,7 +929,10 @@ final class AccessibilityAuditTests: XCTestCase {
             add(shot)
         }
         if unnamed > 0 {
-            let edges = XCTAttachment(string: Self.edgeReport(of: app))
+            let report = Self.edgeReport(of: app)
+                + (moves.isEmpty ? "" : "\n\n" + moves.joined(separator: "\n"))
+                + "\n\nEverything on screen:\n" + Self.inventory(of: app)
+            let edges = XCTAttachment(string: report)
             edges.name = "a11y-audit-\(screen)-edges"
             edges.lifetime = .keepAlways
             add(edges)
@@ -1430,10 +1474,13 @@ private enum Waiver: CaseIterable {
         guard element.kind == .button else { return nil }
         if let words = element.wordsFrame { return words }
         if layout.isInANavigationBar(element.frame) { return element.frame }
-        // A text button — "Use a different email", "Create an account": a single line of words
-        // with nothing else inside it, at most a touch target tall. Its box is its words on what
-        // is behind them, as a run of text's is. A row or a card is taller, or shows its parts.
-        if !element.hasChildren, !element.label.isEmpty, element.frame.height <= 50 {
+        // A text button — "Use a different email", "Create an account", a form's "Run": a single
+        // line of words with nothing else inside it, at most a full-size button tall (52 points).
+        // Its box is its words on its fill, as a run of text's is: the commonest colour is the
+        // fill — on the primary gradient, one band of it, every one of which `PaletteTests`
+        // holds to 4.5:1 against the white label — and the furthest is the words. A row or a card
+        // is taller, or shows its parts.
+        if !element.hasChildren, !element.label.isEmpty, element.frame.height <= 56 {
             return element.frame
         }
         return nil
