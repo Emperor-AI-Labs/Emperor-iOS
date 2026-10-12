@@ -869,22 +869,37 @@ final class AccessibilityAuditTests: XCTestCase {
     ) {
         // Let a push, a load or a keyboard settle: half a transition is not what a person sees.
         Thread.sleep(forTimeInterval: 1)
-        let context = layout(of: app, sheet: sheet, inATab: inATab)
+        var context = layout(of: app, sheet: sheet, inATab: inATab)
+        context.watchesAList = watching != nil
 
         var findings: [AuditFinding] = []
         var pixels: ScreenPixels?
         var moves: [String] = []
-        func note(_ moment: String) {
-            guard let watching else { return }
-            let place = top(of: watching).map { String(format: "%.0f", $0) } ?? "gone"
-            moves.append("\(moment): header at \(place)")
+        var headerBeforeTextSize: CGFloat?
+        @discardableResult
+        func note(_ moment: String) -> CGFloat? {
+            guard let watching else { return nil }
+            let place = top(of: watching)
+            moves.append(
+                "\(moment): header at \(place.map { String(format: "%.0f", $0) } ?? "gone")")
+            return place
         }
         for (index, pass) in AuditPass.allCases.enumerated() {
             if index > 0, let reposition {
                 reposition()
             }
-            note("before the \(pass) pass")
-            defer { note("after the \(pass) pass") }
+            let before = note("before the \(pass) pass")
+            if pass == .textSize { headerBeforeTextSize = before }
+            defer {
+                let after = note("after the \(pass) pass")
+                if pass == .textSize, watching != nil {
+                    if let before = headerBeforeTextSize, let after {
+                        context.listMovedDuringTextSize = abs(after - before) > 4
+                    } else {
+                        context.listMovedDuringTextSize = true
+                    }
+                }
+            }
             for outcome in Self.run(pass.types, on: app, in: context) {
                 switch outcome {
                 case .ran(let found):
@@ -929,8 +944,13 @@ final class AccessibilityAuditTests: XCTestCase {
             add(shot)
         }
         if unnamed > 0 {
+            let order = findings.enumerated().map { index, finding in
+                "\(index + 1). \(finding.report)"
+            }
             let report = Self.edgeReport(of: app)
                 + (moves.isEmpty ? "" : "\n\n" + moves.joined(separator: "\n"))
+                + "\n\nEvery finding, in the order the audit gave them:\n"
+                + order.joined(separator: "\n")
                 + "\n\nEverything on screen:\n" + Self.inventory(of: app)
             let edges = XCTAttachment(string: report)
             edges.name = "a11y-audit-\(screen)-edges"
@@ -1009,7 +1029,13 @@ final class AccessibilityAuditTests: XCTestCase {
                     gathered.append(finding)
                     // Handled here (`true`) unless the audit named no element and no waiver
                     // covers it: then XCTest records it too, with its picture of the element.
+                    // On a screen audited part-way down a list, an unnamed text-size finding is
+                    // kept back until the pass is over — whether the list moved during it decides
+                    // it (`Waiver.movedByTheCheck`) — and failed by this test if it stands.
+                    let isTextSize = issue.auditType.contains(.dynamicType)
+                        || issue.auditType.contains(.textClipped)
                     let unnamed = finding.element == nil
+                        && !(context.watchesAList && isTextSize)
                         && !Waiver.allCases.contains { $0.applies(to: finding, in: context) }
                     return !unnamed
                 }
@@ -1293,6 +1319,10 @@ private struct AuditLayout: Sendable {
     let keyboard: CGRect?
     /// Every text and button inside a scroll view, list or table, read before the audit ran.
     let scrolled: [Scrolled]
+    /// The screen was audited scrolled part-way down a list, with a header watched for movement.
+    var watchesAList = false
+    /// The watched header moved, or left the screen, while the text-size checks ran.
+    var listMovedDuringTextSize = false
     /// The top of the tab bar along the foot of a phone's screen; `nil` on an iPad, whose tabs
     /// are across the top.
     let bottomBarTop: CGFloat?
@@ -1453,6 +1483,7 @@ private enum Waiver: CaseIterable {
     case inactiveControl
     case measuredOnScreen
     case atTheScrollEdge
+    case movedByTheCheck
     case scrolledOutOfView
     case outsideTheSheet
     case tabTitles
@@ -1474,13 +1505,11 @@ private enum Waiver: CaseIterable {
         guard element.kind == .button else { return nil }
         if let words = element.wordsFrame { return words }
         if layout.isInANavigationBar(element.frame) { return element.frame }
-        // A text button — "Use a different email", "Create an account", a form's "Run": a single
-        // line of words with nothing else inside it, at most a full-size button tall (52 points).
-        // Its box is its words on its fill, as a run of text's is: the commonest colour is the
-        // fill — on the primary gradient, one band of it, every one of which `PaletteTests`
-        // holds to 4.5:1 against the white label — and the furthest is the words. A row or a card
-        // is taller, or shows its parts.
-        if !element.hasChildren, !element.label.isEmpty, element.frame.height <= 56 {
+        // A text button — "Use a different email", "Create an account": a single line of words
+        // with nothing else inside it, at most a touch target tall, on a flat ground. Its box is
+        // its words on what is behind them, as a run of text's is. A row or a card is taller, or
+        // shows its parts; a full-size button's gradient has no one colour to measure against.
+        if !element.hasChildren, !element.label.isEmpty, element.frame.height <= 50 {
             return element.frame
         }
         return nil
@@ -1507,6 +1536,14 @@ private enum Waiver: CaseIterable {
                 + "navigation bar, or near the foot of the screen by the tab bar or home "
                 + "indicator — so it is measured, and partly covered, by the system's fade. "
                 + "Scrolled clear of the edge it is read as anywhere else."
+        case .movedByTheCheck:
+            return "named no element, on a screen audited part-way down a list, while the "
+                + "text-size checks themselves moved that list: the header it was audited under "
+                + "had moved or left the screen by the end of the pass (CI recorded it 'gone' "
+                + "on every such screen). These checks resize every row behind the scenes; a row "
+                + "they scroll into or out of view mid-check is reported and is no longer there "
+                + "to be named. Each such row's own kind is audited unscrolled at the top of "
+                + "the same list, and anything the checks can name here is still reported."
         case .scrolledOutOfView:
             return "mostly outside the part of the screen its own scroll view shows — scrolled "
                 + "below a fixed footer, or above the top — so what the check measured was "
@@ -1563,6 +1600,9 @@ private enum Waiver: CaseIterable {
                     ?? false)
         case .uikitLabelInTheBrandFace:
             return isPartial && said.contains("UILabel")
+        case .movedByTheCheck:
+            return finding.element == nil && finding.unread == nil && isTextSize
+                && layout.watchesAList && layout.listMovedDuringTextSize
         default:
             break
         }
@@ -1624,7 +1664,7 @@ private enum Waiver: CaseIterable {
         case .systemSearchField:
             return finding.kind.contains(.contrast) && element.kind == .searchField
 
-        case .brandFace, .uikitLabelInTheBrandFace:
+        case .brandFace, .uikitLabelInTheBrandFace, .movedByTheCheck:
             return false
         }
     }
