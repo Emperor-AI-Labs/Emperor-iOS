@@ -398,6 +398,11 @@ final class AccessibilityAuditTests: XCTestCase {
         guard reached(button, "the \(row) row on You") else { return nil }
         button.tap()
         let bar = app.navigationBars[title]
+        // Once more if the first tap was not taken — it can land while the sheet before this
+        // one is still leaving, and then nothing opens.
+        if !bar.waitForExistence(timeout: 5), button.exists, button.isHittable {
+            button.tap()
+        }
         return reached(bar, "the \(title) screen") ? bar : nil
     }
 
