@@ -48,7 +48,10 @@ final class ScreenshotTour: XCTestCase {
 
         tapIfPresent(app.buttons["Create new account"])
         if app.textFields["Full name"].waitForExistence(timeout: 5) { snap("create-account") }
-        tapIfPresent(app.buttons["Sign in instead"])
+        // Full name takes focus on entry, so the keyboard lies over the foot of the form where
+        // "Sign in instead" lives and `tapIfPresent` finds nothing hittable. The nav bar's back
+        // sits above the keyboard and is always there.
+        backOut(app)
 
         // The other way in: the code segment, then the address.
         tapIfPresent(app.buttons["Sign in with code"])
