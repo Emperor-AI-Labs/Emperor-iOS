@@ -44,13 +44,17 @@ final class AccessibilityAuditTests: XCTestCase {
         guard reached(app.textFields["Email"], "the sign-in screen") else { return }
         audit("sign-in", in: app)
 
-        app.buttons["Create an account"].tap()
+        app.buttons["Create new account"].tap()
         guard reached(app.textFields["Full name"], "the create-account step") else { return }
         audit("create-account", in: app)
         app.buttons["Sign in instead"].tap()
 
         let email = app.textFields["Email"]
         guard reached(email, "the sign-in screen, again") else { return }
+        // The password leads; the code is behind its own segment, so swap before typing.
+        app.buttons["Sign in with code"].tap()
+        guard reached(app.buttons["Email me a sign-in code"], "the code segment's button") else { return }
+        audit("sign-in-code", in: app)
         email.focusForTyping()
         email.typeText("john.doe@firm.com")
         app.buttons["Email me a sign-in code"].tap()
@@ -1510,7 +1514,7 @@ private enum Waiver: CaseIterable {
         guard element.kind == .button else { return nil }
         if let words = element.wordsFrame { return words }
         if layout.isInANavigationBar(element.frame) { return element.frame }
-        // A text button — "Use a different email", "Create an account": a single line of words
+        // A text button — "Use a different email", "Create new account": a single line of words
         // with nothing else inside it, at most a touch target tall, on a flat ground. Its box is
         // its words on what is behind them, as a run of text's is. A row or a card is taller, or
         // shows its parts; a full-size button's gradient has no one colour to measure against.

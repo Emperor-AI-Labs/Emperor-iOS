@@ -43,16 +43,16 @@ final class ScreenshotTour: XCTestCase {
         guard app.textFields["Email"].waitForExistence(timeout: 15) else {
             snap("launch-failed"); return
         }
+        // The screen as it opens: the password leading.
         snap("sign-in")
 
-        tapIfPresent(app.buttons["Create an account"])
+        tapIfPresent(app.buttons["Create new account"])
         if app.textFields["Full name"].waitForExistence(timeout: 5) { snap("create-account") }
         tapIfPresent(app.buttons["Sign in instead"])
 
-        // The quieter way in, a password, shown and put away again.
-        tapIfPresent(app.buttons["Sign in with a password"])
-        if app.secureTextFields["Password"].waitForExistence(timeout: 5) { snap("sign-in-password") }
-        tapIfPresent(app.buttons["Email me a code instead"])
+        // The other way in: the code segment, then the address.
+        tapIfPresent(app.buttons["Sign in with code"])
+        if app.buttons["Email me a sign-in code"].waitForExistence(timeout: 5) { snap("sign-in-code") }
 
         let email = app.textFields["Email"]
         if email.waitForExistence(timeout: 5) {
@@ -327,7 +327,7 @@ final class ScreenshotTour: XCTestCase {
         signIn.lifetime = .keepAlways
         add(signIn)
 
-        tapIfPresent(app.buttons["Create an account"])
+        tapIfPresent(app.buttons["Create new account"])
         Thread.sleep(forTimeInterval: 0.8)
         let create = XCTAttachment(screenshot: app.screenshot())
         create.name = "providers-02-create-account"
