@@ -156,8 +156,9 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   `gh run download <run> -n screenshot-tour-ipad`. Look at both after any visible change; an
   iPad turns sheets into form sheets and confirmation dialogs into popovers.
 - **The app's shape (the Record design).** Four tabs — **Ask · Matters · Files · You**
-  (`MainTabView`). Sign-in leads with a one-time code ("Email me a sign-in code"); a password is
-  the secondary way in. Matters holds the cause list and the docket, and opens the Calendar as a
+  (`MainTabView`). Sign-in opens with the password behind a Password | Sign in with code
+  segmented control; the one-time code ("Email me a sign-in code") is the other segment. Matters
+  holds the cause list and the docket, and opens the Calendar as a
   sheet from its bar. Settings and Tools (every tool, the file tools, OCR, Translate, the
   Corporate Calendar, Library) live under You. UI tests sign in through the shared
   `signInWithACode` helper and reach tabs through `app.tab(_:)`, both in `UITests/Tabs.swift`.

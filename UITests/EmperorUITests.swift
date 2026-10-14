@@ -70,14 +70,17 @@ final class EmperorUITests: XCTestCase {
 
     // MARK: - Ways in
 
-    /// The way in the screen leads with: an address and a six-digit code — no password. A full
-    /// code goes on without a tap, as code fields do elsewhere on the phone.
+    /// The code way in: chosen from its segment, an address, and a six-digit code. A full code
+    /// goes on without a tap, as code fields do elsewhere on the phone.
     func testSigningInWithAnEmailCode() {
         let app = launch()
         let email = app.textFields["Email"]
         XCTAssertTrue(email.waitForExistence(timeout: 10))
-        // No password is asked for until it is chosen.
-        XCTAssertFalse(app.secureTextFields["Password"].exists, "the code is the first way in")
+        // The screen opens with the password; choosing the code must ask for no password.
+        app.buttons["Sign in with code"].tap()
+        // The field fades out with the swap; ask only once the transition has landed.
+        Thread.sleep(forTimeInterval: 0.8)
+        XCTAssertFalse(app.secureTextFields["Password"].exists, "the code asks for no password")
         email.focusForTyping()
         email.typeText("john.doe@firm.com")
 
@@ -94,7 +97,7 @@ final class EmperorUITests: XCTestCase {
             "a complete code did not sign in")
     }
 
-    /// A password is still a way in, one tap away as the quieter option.
+    /// The password, as the screen opens with it: address, password, sign in.
     func testSigningInWithAPassword() {
         let app = launch()
         let email = app.textFields["Email"]
@@ -102,9 +105,8 @@ final class EmperorUITests: XCTestCase {
         email.focusForTyping()
         email.typeText("john.doe@firm.com")
 
-        app.buttons["Sign in with a password"].tap()
         let password = app.secureTextFields["Password"]
-        XCTAssertTrue(password.waitForExistence(timeout: 5), "choosing a password offered no field")
+        XCTAssertTrue(password.waitForExistence(timeout: 5), "the screen does not open with a password")
         password.focusForTyping()
         password.typeText("hunter2")
         app.buttons["Sign in"].firstMatch.tap()
@@ -119,7 +121,7 @@ final class EmperorUITests: XCTestCase {
     func testCreatingAnAccountAsksForConfirmation() {
         let app = launch()
         XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 10))
-        app.buttons["Create an account"].tap()
+        app.buttons["Create new account"].tap()
 
         let name = app.textFields["Full name"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
