@@ -241,11 +241,12 @@ struct LoginView: View {
         .multilineTextAlignment(.center)
     }
 
-    /// "We sent a 6-digit code to **aarti@kapoorlaw.in**."
-    private func codeSentLine(_ email: String) -> Text {
+    /// "We sent a 6-digit code to **aarti@kapoorlaw.in**. It works for 10 minutes." — the
+    /// lifetime the server gave, or "a few minutes" when it gave none.
+    private func codeSentLine(_ email: String, minutes: Int?) -> Text {
         Text("We sent a \(SignInFlow.codeLength)-digit code to ")
             + Text(email).foregroundStyle(theme.textPrimary).fontWeight(.semibold)
-            + Text(". It works for a few minutes.")
+            + Text(minutes.map { ". It works for \($0) minutes." } ?? ". It works for a few minutes.")
     }
 
     private func sendCode(_ flow: SignInFlow) {
@@ -367,7 +368,7 @@ struct LoginView: View {
                 .recordText(RecordTokens.Typography.largeTitle)
                 .foregroundStyle(theme.textPrimary)
                 .accessibilityAddTraits(.isHeader)
-            codeSentLine(email)
+            codeSentLine(email, minutes: flow.codeLifetimeMinutes)
                 .font(.brand(.subheadline))
                 .foregroundStyle(theme.textFaint)
                 .fixedSize(horizontal: false, vertical: true)
@@ -391,6 +392,8 @@ struct LoginView: View {
                 }
             }
 
+            // No notice under the boxes: the only one this step gets is "We've emailed a code",
+            // which the line under the title already says. VoiceOver still hears it announced.
             Group {
                 if flow.isWorking {
                     HStack(spacing: Spacing.sm) {
@@ -405,11 +408,6 @@ struct LoginView: View {
                         .foregroundStyle(theme.danger)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityLabel("Error: \(error)")
-                } else if let notice = flow.notice {
-                    Text(notice)
-                        .font(.brand(.footnote))
-                        .foregroundStyle(theme.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(.top, Spacing.md)
