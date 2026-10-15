@@ -19,7 +19,8 @@ struct ChatListView: View {
     @State private var path: [String] = []
     @State private var isShowingDrafts = false
 
-    /// Closes the list when it is presented — from Ask's History — rather than a tab of its own.
+    /// Closes the list when it is presented — from Ask's History — rather than drawn as the
+    /// History tab, where `onDone` is nil and there is nothing to close.
     var onDone: (() -> Void)?
 
     var body: some View {

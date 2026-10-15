@@ -142,14 +142,14 @@ final class TodayLinksTests: XCTestCase {
 
     // MARK: - The Calendar's day
 
-    /// A day asked for switches to Matters, asks it for the Calendar, and waits there to be
+    /// A day asked for switches to Cases, asks it for the Calendar, and waits there to be
     /// taken — once.
     func testOpeningADaySwitchesToTheCalendarAndIsTakenOnce() async {
         await onMain {
             let navigator = AppNavigator(selectedTab: .ask)
             navigator.openCalendar(on: "2026-10-15")
 
-            XCTAssertEqual(navigator.selectedTab, .matters)
+            XCTAssertEqual(navigator.selectedTab, .cases)
             XCTAssertTrue(navigator.takeCalendarRequest())
             XCTAssertFalse(navigator.takeCalendarRequest(), "presented once")
             XCTAssertEqual(navigator.pendingDay, "2026-10-15")
@@ -164,7 +164,7 @@ final class TodayLinksTests: XCTestCase {
         await onMain {
             let navigator = AppNavigator(selectedTab: .files)
             navigator.openCalendar(on: "2026-02-30")
-            XCTAssertEqual(navigator.selectedTab, .matters)
+            XCTAssertEqual(navigator.selectedTab, .cases)
             XCTAssertTrue(navigator.takeCalendarRequest(), "the Calendar is still shown")
             XCTAssertNil(navigator.pendingDay)
             navigator.openCalendar(on: nil)
@@ -187,10 +187,10 @@ final class TodayLinksTests: XCTestCase {
     /// person is working in must not go with the tab. It waits to be taken, once.
     func testUpdatesWaitWithoutMovingTheTab() async {
         await onMain {
-            let navigator = AppNavigator(selectedTab: .matters)
+            let navigator = AppNavigator(selectedTab: .cases)
             navigator.openUpdates()
 
-            XCTAssertEqual(navigator.selectedTab, .matters)
+            XCTAssertEqual(navigator.selectedTab, .cases)
             XCTAssertNotNil(navigator.updatesRequest)
             XCTAssertTrue(navigator.takeUpdatesRequest())
             XCTAssertNil(navigator.updatesRequest)

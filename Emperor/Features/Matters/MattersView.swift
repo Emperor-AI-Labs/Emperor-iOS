@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Matters tab: the next sitting, what is upcoming, and every matter.
+/// The Cases tab: the next sitting, what is upcoming, and every matter.
 ///
 /// The first two are the cause list (`MattersOverview`), each hearing led by its item number in
 /// the serif and opening its sheet; the third is the docket (`CaseListViewModel`), with its search,
@@ -78,7 +78,7 @@ struct MattersView: View {
             }
             .refreshable { await refresh() }
             .background(theme.canvas)
-            .navigationTitle("Matters")
+            .navigationTitle("Cases")
             .navigationBarTitleDisplayMode(.large)
             .toolbar { toolbar }
             .navigationDestination(for: CaseRoute.self) { route in

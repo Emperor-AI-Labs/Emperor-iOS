@@ -1,17 +1,19 @@
 import SwiftUI
 
-/// The signed-in app: the Record design's four destinations, **Ask · Matters · Files · You**.
+/// The signed-in app: the redesign's five destinations, **Home · Cases · Ask · Files · History**.
 ///
+/// - **Home** is the dashboard: the composer that starts a question, the cause list and the
+///   drafting section as cards, and the recent conversations. The profile button in its bar
+///   opens **You** as a sheet — the account, its plan and allowances, the app's settings — which
+///   left the bar in the redesign, along with **Tools**, which holds everything that is not one
+///   of the five: the role's workspace, every tool, the file tools, OCR and translation, the
+///   Corporate Calendar, Library, drafts and updates.
 /// - **Ask** is where a question starts: the date and a greeting, the composer, suggestions for
-///   the reader's role, the next sitting from the cause list, and recent conversations. Every
-///   conversation is reached from here — the recent ones on the screen, all of them under History.
-/// - **Matters** is the cause list and the docket together: the next sitting, what is upcoming,
+///   the reader's role, the next sitting from the cause list, and recent conversations.
+/// - **Cases** is the cause list and the docket together: the next sitting, what is upcoming,
 ///   and every matter. The Calendar opens from it.
 /// - **Files** is the library.
-/// - **You** is the account, its plan and allowances, the app's settings — and **Tools**, which
-///   holds everything that is not one of the four: the role's workspace, every tool, the file
-///   tools, OCR and translation, the Corporate Calendar, Library, drafts and updates. Nothing that
-///   was in the old More tab has been taken out of the app.
+/// - **History** is every conversation, each pushing its thread.
 ///
 /// Pushed screens — a conversation, a draft, a folder — hide the tab bar (`.toolbar(.hidden,
 /// for: .tabBar)` on each), as the design asks.
@@ -33,17 +35,23 @@ struct MainTabView: View {
             set: { navigator.selectedTab = $0 }
         )) {
             // Outline names: the bar fills each one itself, which is the iOS convention.
-            AskHomeView()
+            HomeView()
                 .tabItem {
-                    Label("Ask", systemImage: "text.bubble")
+                    Label("Home", systemImage: "house")
                 }
-                .tag(AppNavigator.Tab.ask)
+                .tag(AppNavigator.Tab.home)
 
             MattersView()
                 .tabItem {
-                    Label("Matters", systemImage: "scalemass")
+                    Label("Cases", systemImage: "briefcase")
                 }
-                .tag(AppNavigator.Tab.matters)
+                .tag(AppNavigator.Tab.cases)
+
+            AskHomeView()
+                .tabItem {
+                    Label("Ask", systemImage: "sparkles")
+                }
+                .tag(AppNavigator.Tab.ask)
 
             MyFilesView(isTab: true)
                 .tabItem {
@@ -51,11 +59,11 @@ struct MainTabView: View {
                 }
                 .tag(AppNavigator.Tab.files)
 
-            YouView()
+            ChatListView()
                 .tabItem {
-                    Label("You", systemImage: "person.crop.circle")
+                    Label("History", systemImage: "clock")
                 }
-                .tag(AppNavigator.Tab.you)
+                .tag(AppNavigator.Tab.history)
         }
         .environment(\.navigator, navigator)
         // A tapped notification opens where it leads — the Calendar, or Updates.

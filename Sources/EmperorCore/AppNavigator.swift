@@ -3,7 +3,7 @@ import Foundation
 import Observation
 #endif
 
-/// A matter pushed onto the Matters tab's navigation stack.
+/// A matter pushed onto the Cases tab's navigation stack.
 struct CaseRoute: Hashable, Sendable {
     let caseID: String
     /// Which request pushed it: `0` for a row tapped in the docket itself, otherwise the
@@ -73,10 +73,11 @@ struct DocumentRoute: Hashable, Sendable {
 @MainActor
 final class AppNavigator {
 
-    /// The tab bar, in order — the Record design's four destinations: **Ask · Matters · Files ·
-    /// You**. See `MainTabView` for where everything else went.
+    /// The tab bar, in order — the redesign's five destinations: **Home · Cases · Ask · Files ·
+    /// History**. You left the bar and opens from Home's profile button. See `MainTabView` for
+    /// where everything else went.
     enum Tab: Hashable, Sendable {
-        case ask, matters, files, you
+        case home, cases, ask, files, history
     }
 
     var selectedTab: Tab
@@ -87,11 +88,11 @@ final class AppNavigator {
     /// Requests so far. Starts above zero, which is reserved for a row tapped in the docket.
     private var requestCount = 0
 
-    init(selectedTab: Tab = .ask) {
+    init(selectedTab: Tab = .home) {
         self.selectedTab = selectedTab
     }
 
-    /// Shows a case on the Matters tab, opened on its overview.
+    /// Shows a case on the Cases tab, opened on its overview.
     ///
     /// The latest request wins: a second one before the first is taken replaces it, because the
     /// user has since asked for something else.
@@ -99,7 +100,7 @@ final class AppNavigator {
         guard !caseID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         requestCount += 1
         pendingCase = CaseRoute(caseID: caseID, request: requestCount)
-        selectedTab = .matters
+        selectedTab = .cases
     }
 
     /// The Cases tab's new stack, or `nil` when nothing is waiting. Taking the request clears it.
@@ -176,7 +177,7 @@ final class AppNavigator {
     private(set) var pendingDay: String?
 
     /// A request for the Calendar not yet taken, numbered so a second request while the first
-    /// waits is still a change. The Calendar lives on the Matters tab now, presented over it; the
+    /// waits is still a change. The Calendar lives on the Cases tab now, presented over it; the
     /// tab takes this and presents it, and the Calendar takes `pendingDay` itself.
     private(set) var calendarRequest: Int?
 
@@ -187,7 +188,7 @@ final class AppNavigator {
         return true
     }
 
-    /// Shows the Calendar — over the Matters tab — on `day` when that is a real day.
+    /// Shows the Calendar — over the Cases tab — on `day` when that is a real day.
     ///
     /// The day is checked by round trip, as a notification's is (`NotificationTarget`), so a
     /// malformed one cannot open the Calendar somewhere odd; the Calendar then opens on whatever
@@ -198,7 +199,7 @@ final class AppNavigator {
         updatesRequest = nil
         requestCount += 1
         calendarRequest = requestCount
-        selectedTab = .matters
+        selectedTab = .cases
     }
 
     /// The day the Calendar should select, or `nil` when nothing is waiting. Taking clears it.

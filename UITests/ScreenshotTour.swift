@@ -77,9 +77,13 @@ final class ScreenshotTour: XCTestCase {
             tapIfPresent(app.buttons["Continue"])
         }
 
-        guard app.tab("Ask").waitForExistence(timeout: 15) else {
+        guard app.tab("Home").waitForExistence(timeout: 15) else {
             snap("sign-in-failed"); return
         }
+        // The dashboard as it opens — the greeting and the profile button for now.
+        snap("home")
+
+        app.tab("Ask").tap()
         snap("ask")
 
         // The updates sheet, from Ask's bell. Its label carries the unread count, so it is found
@@ -126,9 +130,9 @@ final class ScreenshotTour: XCTestCase {
             backOut(app)
         }
 
-        // Matters: the next sitting, what is upcoming, and the docket.
-        app.tab("Matters").tap()
-        snap("matters")
+        // Cases: the next sitting, what is upcoming, and the docket.
+        app.tab("Cases").tap()
+        snap("cases")
         let hearing = app.descendants(matching: .any).matching(
             NSPredicate(format: "label BEGINSWITH %@", "Item 7, Court 12")).firstMatch
         if hearing.waitForExistence(timeout: 5), hearing.isHittable {
@@ -145,9 +149,9 @@ final class ScreenshotTour: XCTestCase {
             }
         }
         tapIfPresent(app.buttons["Upcoming"].firstMatch)
-        snap("matters-upcoming")
+        snap("cases-upcoming")
         tapIfPresent(app.buttons["All matters"].firstMatch)
-        snap("matters-docket")
+        snap("cases-docket")
 
         // The docket's sort & filter sheet, then scrolled to show the filters, and the docket
         // once a court is chosen: its chip under the search field, the toolbar icon filled.
@@ -157,7 +161,7 @@ final class ScreenshotTour: XCTestCase {
             arrange.tap()
             let sheetBar = app.navigationBars["Sort & filter"]
             if sheetBar.waitForExistence(timeout: 5) {
-                snap("matters-sort-filter")
+                snap("cases-sort-filter")
                 // Scrolled inside the sheet's list; a swipe on its bar would move the sheet.
                 let form = app.collectionViews["case-arrangement-form"]
                 if form.exists { form.swipeUp() }
@@ -165,9 +169,9 @@ final class ScreenshotTour: XCTestCase {
                 if highCourts.waitForExistence(timeout: 3), highCourts.isHittable {
                     highCourts.tap()
                 }
-                snap("matters-sort-filter-full")
+                snap("cases-sort-filter-full")
                 tapIfPresent(sheetBar.buttons["Done"])
-                snap("matters-filtered")
+                snap("cases-filtered")
                 tapIfPresent(app.buttons["case-filters-clear-all"])
             }
         }
@@ -182,9 +186,9 @@ final class ScreenshotTour: XCTestCase {
             }
         }
 
-        // The Calendar opens over Matters on today, where the stub lists one matter and one diary
-        // entry; the listing then opens its case on Matters, on the overview.
-        let calendarButton = app.navigationBars["Matters"].buttons["Calendar"]
+        // The Calendar opens over Cases on today, where the stub lists one matter and one diary
+        // entry; the listing then opens its case on Cases, on the overview.
+        let calendarButton = app.navigationBars["Cases"].buttons["Calendar"]
         if calendarButton.waitForExistence(timeout: 5) {
             calendarButton.tap()
             let listing = app.buttons["calendar-listing-case1"]
@@ -214,8 +218,11 @@ final class ScreenshotTour: XCTestCase {
             }
         }
 
-        // You: the account, its settings, and the tools that are not tabs.
-        app.tab("You").tap()
+        // You: the account, its settings, and the tools that are not tabs — opened from Home's
+        // profile button, where the redesign keeps it.
+        app.tab("Home").tap()
+        app.buttons["home-profile"].tap()
+        guard app.navigationBars["You"].waitForExistence(timeout: 10) else { snap("you-missing"); return }
         snap("you")
         // The role selector.
         let selector = app.buttons["Role selector"].firstMatch
@@ -301,10 +308,10 @@ final class ScreenshotTour: XCTestCase {
         app.launchArguments = ["-UITestMode", "-UITestEmpty"] + (light ? ["-UITestLight"] : [])
         app.launch()
         let theme = light ? "light" : "dark"
-        guard app.signInWithACode(), app.tab("Ask").waitForExistence(timeout: 15) else { return }
+        guard app.signInWithACode(), app.tab("Home").waitForExistence(timeout: 15) else { return }
 
         var step = 0
-        for tab in ["Ask", "Matters", "Files"] {
+        for tab in ["Home", "Cases", "Ask", "Files", "History"] {
             let button = app.tab(tab)
             guard button.waitForExistence(timeout: 5) else { continue }
             button.tap()
@@ -363,6 +370,7 @@ final class ScreenshotTour: XCTestCase {
         }
 
         guard app.signInWithACode(), app.tab("Ask").waitForExistence(timeout: 15) else { return }
+        app.tab("Ask").tap()
 
         // Opened once with the signal, which keeps it; then back to Ask and in again, without.
         let conversation = app.stubConversationRow
@@ -382,8 +390,9 @@ final class ScreenshotTour: XCTestCase {
         }
         if bar.waitForExistence(timeout: 5) { bar.buttons.element(boundBy: 0).tap() }
 
-        // You → Storage, scrolled to.
-        app.tab("You").tap()
+        // You → Storage, scrolled to — You opened from Home's profile button.
+        app.tab("Home").tap()
+        app.buttons["home-profile"].tap()
         guard app.navigationBars["You"].waitForExistence(timeout: 5) else { return }
         let size = app.staticTexts["offline-storage-size"].firstMatch
         var swipes = 0
@@ -450,8 +459,11 @@ final class ScreenshotTour: XCTestCase {
         snap("locked")
 
         unlock.tap()
-        guard app.tab("You").waitForExistence(timeout: 10) else { snap("unlock-failed"); return }
-        app.tab("You").tap()
+        guard app.tab("Home").waitForExistence(timeout: 10) else { snap("unlock-failed"); return }
+        app.buttons["home-profile"].tap()
+        guard app.navigationBars["You"].waitForExistence(timeout: 10) else {
+            snap("unlock-failed"); return
+        }
         // Far down You; scrolled until the switch is in view, then raised so the timeout row
         // beneath it is in the picture too — a swipe alone leaves the switch on the bottom edge.
         let toggle = app.switches["app-lock-toggle"].firstMatch
@@ -526,8 +538,8 @@ final class ScreenshotTour: XCTestCase {
             tapIfPresent(app.buttons["incoming-done"].firstMatch)
         }
 
-        guard app.tab("You").waitForExistence(timeout: 10) else { return }
-        app.tab("You").tap()
+        guard app.tab("Home").waitForExistence(timeout: 10) else { return }
+        app.buttons["home-profile"].tap()
         guard app.navigationBars["You"].waitForExistence(timeout: 10) else { return }
         let edit = app.buttons["edit-profile"].firstMatch
         var swipes = 0

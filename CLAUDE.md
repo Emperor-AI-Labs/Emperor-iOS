@@ -155,16 +155,19 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   `screenshot-tour` and `screenshot-tour-ipad` artifacts hold the pictures as plain PNGs —
   `gh run download <run> -n screenshot-tour-ipad`. Look at both after any visible change; an
   iPad turns sheets into form sheets and confirmation dialogs into popovers.
-- **The app's shape (the Record design).** Four tabs — **Ask · Matters · Files · You**
+- **The app's shape (the redesign).** Five tabs — **Home · Cases · Ask · Files · History**
   (`MainTabView`). Sign-in opens with the password behind a Password | Sign in with code
-  segmented control; the one-time code ("Email me a sign-in code") is the other segment. Matters
-  holds the cause list and the docket, and opens the Calendar as a
-  sheet from its bar. Settings and Tools (every tool, the file tools, OCR, Translate, the
-  Corporate Calendar, Library) live under You. UI tests sign in through the shared
+  segmented control; the one-time code ("Email me a sign-in code") is the other segment. Home is
+  the dashboard (first stage: greeting + profile button); its profile button presents **You** as
+  a sheet — the account, its plan, Settings and Tools (every tool, the file tools, OCR, Translate,
+  the Corporate Calendar, Library) — You having left the bar. Cases holds the cause list and the
+  docket, and opens the Calendar as a sheet from its bar; History is every conversation, each
+  pushing its thread. UI tests sign in through the shared
   `signInWithACode` helper and reach tabs through `app.tab(_:)`, both in `UITests/Tabs.swift`.
-- **iPad layouts.** At regular width only History's conversation list (`ChatListView`, a sheet
-  from Ask) shows the list beside what it opens (`ListBesideDetail`, reading one navigation path,
-  `ListDetailPath`); Matters is a single stack on every device. A UI test that taps a
+- **iPad layouts.** At regular width History's conversation list (`ChatListView` — the History
+  tab, and still a sheet from Ask) shows the list beside what it opens (`ListBesideDetail`,
+  reading one navigation path, `ListDetailPath`); Cases is a single stack on every device. A UI
+  test that taps a
   conversation in History and then goes Back must branch on
   `UIDevice.current.userInterfaceIdiom` — on iPad there is no Back. On iPad the tabs are a row
   of buttons across the top, not a tab bar element; `app.tab(_:)` finds them on both. Drag inside

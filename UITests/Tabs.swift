@@ -3,10 +3,11 @@ import XCTest
 extension XCUIApplication {
     /// The SF Symbol each tab is drawn with — on iPad the only identifier its button carries.
     private static let tabSymbols = [
-        "Ask": "text.bubble",
-        "Matters": "scalemass",
+        "Home": "house",
+        "Cases": "briefcase",
+        "Ask": "sparkles",
         "Files": "folder",
-        "You": "person.crop.circle",
+        "History": "clock",
     ]
 
     /// A tab, wherever this device draws the bar.

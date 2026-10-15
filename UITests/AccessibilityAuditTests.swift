@@ -83,10 +83,15 @@ final class AccessibilityAuditTests: XCTestCase {
 
     /// Ask, and a conversation opened from its recent ones.
     func testTheAskTabPassesTheAudit() { auditTab("Ask") }
-    /// Matters, its docket, and the Calendar it opens.
-    func testTheMattersTabPassesTheAudit() { auditTab("Matters") }
+    /// Home, the dashboard shell: its greeting and the profile button that opens You.
+    func testTheHomeTabPassesTheAudit() { auditTab("Home") }
+    /// Cases, its docket, and the Calendar it opens.
+    func testTheCasesTabPassesTheAudit() { auditTab("Cases") }
     func testTheFilesTabPassesTheAudit() { auditTab("Files") }
-    func testTheYouTabPassesTheAudit() { auditTab("You") }
+    /// History, the list of every conversation.
+    func testTheHistoryTabPassesTheAudit() { auditTab("History") }
+    /// You — no longer a tab, opened from Home's profile button.
+    func testTheYouScreenPassesTheAudit() { auditTab("You") }
 
     func testTheSignInScreenPassesTheAuditInLight() {
         let app = launch("-UITestLight")
@@ -95,32 +100,40 @@ final class AccessibilityAuditTests: XCTestCase {
     }
 
     func testTheAskTabPassesTheAuditInLight() { auditTab("Ask", light: true) }
-    func testTheMattersTabPassesTheAuditInLight() { auditTab("Matters", light: true) }
+    func testTheHomeTabPassesTheAuditInLight() { auditTab("Home", light: true) }
+    func testTheCasesTabPassesTheAuditInLight() { auditTab("Cases", light: true) }
     func testTheFilesTabPassesTheAuditInLight() { auditTab("Files", light: true) }
-    func testTheYouTabPassesTheAuditInLight() { auditTab("You", light: true) }
+    func testTheHistoryTabPassesTheAuditInLight() { auditTab("History", light: true) }
+    func testTheYouScreenPassesTheAuditInLight() { auditTab("You", light: true) }
 
     private func auditTab(_ tab: String, light: Bool = false) {
         let app = light ? launch("-UITestLight") : launch()
         guard signIn(app) else { return }
         let theme = light ? "light-" : ""
         // Something each tab's stub data puts on screen once it has loaded — so the audit sees
-        // the screen a person sees, not its spinner. Each tab is titled with its own name.
+        // the screen a person sees, not its spinner.
         let landmarks: [String: XCUIElement] = [
+            "Home": app.buttons["home-profile"],
             "Ask": app.descendants(matching: .any).matching(
                 NSPredicate(format: "label BEGINSWITH %@", "Item 7, Court 12")).firstMatch,
-            "Matters": app.descendants(matching: .any).matching(
+            "Cases": app.descendants(matching: .any).matching(
                 NSPredicate(format: "label BEGINSWITH %@", "Item 7, Court 12")).firstMatch,
             "Files": app.buttons["folder-Bakshi"],
+            "History": app.stubConversationRow,
             "You": app.buttons["edit-profile"],
         ]
         guard let landmark = landmarks[tab] else {
             XCTFail("there is no tab named \(tab)")
             return
         }
-        let button = app.tab(tab)
-        guard reached(button, "the \(tab) tab") else { return }
-        button.tap()
-        _ = app.navigationBars[tab].waitForExistence(timeout: 10)
+        if tab == "You" {
+            // Not a tab any more: Home's profile button presents it as a sheet.
+            guard openYou(app) else { return }
+        } else {
+            let button = app.tab(tab)
+            guard reached(button, "the \(tab) tab") else { return }
+            button.tap()
+        }
         _ = landmark.waitForExistence(timeout: 10)
         audit(theme + tab.lowercased(), in: app)
 
@@ -135,16 +148,16 @@ final class AccessibilityAuditTests: XCTestCase {
             audit(theme + "conversation", in: app)
         }
 
-        if tab == "Matters" {
-            // The docket, then the Calendar, presented over Matters from its bar.
+        if tab == "Cases" {
+            // The docket, then the Calendar, presented over Cases from its bar.
             let all = app.buttons["All matters"].firstMatch
             if reached(all, "the docket") {
                 all.tap()
                 _ = app.descendants(matching: .any).matching(identifier: "case-row-case1")
                     .firstMatch.waitForExistence(timeout: 10)
-                audit(theme + "matters-docket", in: app)
+                audit(theme + "cases-docket", in: app)
             }
-            let calendarButton = app.navigationBars["Matters"].buttons["Calendar"]
+            let calendarButton = app.navigationBars["Cases"].buttons["Calendar"]
             if reached(calendarButton, "the Calendar button") {
                 calendarButton.tap()
                 let calendar = app.navigationBars["Calendar"]
@@ -324,31 +337,48 @@ final class AccessibilityAuditTests: XCTestCase {
             return
         }
 
-        for tab in ["Ask", "Matters", "Files", "You"] {
+        for tab in ["Home", "Cases", "Ask", "Files", "History"] {
             let button = app.tab(tab)
             guard reached(button, "the \(tab) tab") else { continue }
             button.tap()
-            _ = app.navigationBars[tab].waitForExistence(timeout: 10)
+            // Home's greeting and History's list carry their own identity; the others are
+            // titled with the tab's own name.
+            if tab != "Home" && tab != "History" {
+                _ = app.navigationBars[tab].waitForExistence(timeout: 10)
+            } else {
+                Thread.sleep(forTimeInterval: 1)
+            }
             shoot(tab.lowercased(), app)
             XCTAssertEqual(
                 app.state, .runningForeground, "the app died on \(tab) at the largest text size")
         }
 
+        // You, opened from Home's profile button — it left the tab bar. Drawn the same way the
+        // tabs above were, so its layout at this size is photographed too.
+        let youIsOpen = openYou(app)
+        if youIsOpen {
+            shoot("you", app)
+            XCTAssertEqual(app.state, .runningForeground, "the app died on You at the largest size")
+        }
+
         // The Library: a sheet with a search bar under a large title, whose text-size audit could
         // not finish on an iPad. Drawn here at the largest size, so a screen that stops answering
         // there shows as that, and not only as an audit that ran out of time. Opened from You,
-        // the last tab shown above.
-        if present("Library", titled: "Library", from: app) != nil {
+        // opened just above.
+        if youIsOpen, present("Library", titled: "Library", from: app) != nil {
             shoot("library", app)
             XCTAssertEqual(app.state, .runningForeground)
             close("Library", in: app)
         }
 
-        // The Calendar, presented over Matters: the month grid is the densest screen there is.
-        let matters = app.tab("Matters")
-        if reached(matters, "the Matters tab") {
-            matters.tap()
-            let calendarButton = app.navigationBars["Matters"].buttons["Calendar"]
+        // You is a sheet now, so it is left before the tabs are used again.
+        if youIsOpen { close("You", in: app) }
+
+        // The Calendar, presented over Cases: the month grid is the densest screen there is.
+        let cases = app.tab("Cases")
+        if reached(cases, "the Cases tab") {
+            cases.tap()
+            let calendarButton = app.navigationBars["Cases"].buttons["Calendar"]
             if reached(calendarButton, "the Calendar button") {
                 calendarButton.tap()
                 if reached(app.navigationBars["Calendar"], "the Calendar") {
@@ -383,9 +413,12 @@ final class AccessibilityAuditTests: XCTestCase {
     }
 
     private func openYou(_ app: XCUIApplication) -> Bool {
-        let you = app.tab("You")
-        guard reached(you, "the You tab") else { return false }
-        you.tap()
+        let home = app.tab("Home")
+        guard reached(home, "the Home tab") else { return false }
+        home.tap()
+        let profile = app.buttons["home-profile"]
+        guard reached(profile, "Home's profile button") else { return false }
+        profile.tap()
         return reached(app.navigationBars["You"], "the You screen")
     }
 
@@ -1312,8 +1345,8 @@ private struct AuditLayout: Sendable {
     /// The tabs, by title, with the SF Symbol each carries as its identifier on iPad — see
     /// `Tabs.swift`.
     static let tabs = [
-        "Ask": "text.bubble", "Matters": "scalemass", "Files": "folder",
-        "You": "person.crop.circle",
+        "Home": "house", "Cases": "briefcase", "Ask": "sparkles", "Files": "folder",
+        "History": "clock",
     ]
 
     /// A text or button inside a scrolling container, and the part of the screen the container

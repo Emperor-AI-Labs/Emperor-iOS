@@ -10,9 +10,10 @@ import XCTest
 /// models, decoders and navigation are exercised — only the socket is replaced. A response shape
 /// the decoder cannot read shows up here as an empty screen, exactly as it would in the field.
 ///
-/// The app is the Record design's four tabs — **Ask · Matters · Files · You** (`MainTabView`).
-/// The Calendar opens from Matters, every conversation from Ask, and what was the More tab and
-/// Settings is You, with the tools as rows that present their screens.
+/// The app is the redesign's five tabs — **Home · Cases · Ask · Files · History**
+/// (`MainTabView`). The Calendar opens from Cases, every conversation from Ask or History, and
+/// what was the More tab and Settings is You — reached from Home's profile button — with the
+/// tools as rows that present their screens.
 final class EmperorUITests: XCTestCase {
 
     override func setUp() {
@@ -42,11 +43,22 @@ final class EmperorUITests: XCTestCase {
     /// Launched and signed in, with the tabs on screen.
     private func signedIn(_ extraArguments: String...) -> XCUIApplication {
         let app = signIn(launch(arguments: extraArguments))
-        XCTAssertTrue(app.tab("Ask").waitForExistence(timeout: 15), "signing in did not reach Ask")
+        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 15), "signing in did not reach Home")
         return app
     }
 
     private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+
+    /// You, on its own screen: opened from Home's profile button, where the redesign keeps it —
+    /// it is no longer a tab.
+    private func openYou(_ app: XCUIApplication) {
+        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
+        app.tab("Home").tap()
+        let profile = app.buttons["home-profile"]
+        XCTAssertTrue(profile.waitForExistence(timeout: 10), "Home has no profile button")
+        profile.tap()
+        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10), "You did not open")
+    }
 
     // MARK: - It starts
 
@@ -154,30 +166,43 @@ final class EmperorUITests: XCTestCase {
 
     // MARK: - The tab bar
 
-    /// The Record design's four: Ask · Matters · Files · You, the same for every role. The old
-    /// Home, Cases, Chat, Calendar and More are gone as tabs — the Calendar opens from Matters,
-    /// and More's rows are You's Tools — so none of them may come back by accident.
+    /// The redesign's five: Home · Cases · Ask · Files · History, the same for every role. You
+    /// left the bar (Home's profile button opens it), and the old Chat, Calendar and More never
+    /// come back — the Calendar opens from Cases, and More's rows are You's Tools.
     func testSigningInRevealsTheTabs() {
         let app = signIn(launch())
-        for tab in ["Ask", "Matters", "Files", "You"] {
+        for tab in ["Home", "Cases", "Ask", "Files", "History"] {
             XCTAssertTrue(
                 app.tab(tab).waitForExistence(timeout: 10),
                 "the \(tab) tab is missing")
         }
-        for gone in ["Home", "Cases", "Chat", "Calendar", "More"] {
+        for gone in ["Matters", "You", "Chat", "Calendar", "More"] {
             XCTAssertFalse(app.tab(gone).exists, "\(gone) is not a tab any more")
         }
     }
 
     /// Every tab renders. A tab that crashes on appear takes the app down, and this is what
-    /// notices.
+    /// notices. Each is checked the way it identifies itself: a navigation title where it has
+    /// one, Home's profile button where it has none, and History's list under its own title.
     func testEveryTabOpensAndRendersItsScreen() {
         let app = signedIn()
-        for tab in ["Ask", "Matters", "Files", "You"] {
+        for (tab, title) in [
+            ("Home", nil),
+            ("Cases", "Cases"),
+            ("Ask", "Ask"),
+            ("Files", "Files"),
+            ("History", "Conversations"),
+        ] {
             app.tab(tab).tap()
-            XCTAssertTrue(
-                app.navigationBars[tab].waitForExistence(timeout: 10),
-                "tapping \(tab) did not show a screen titled \(tab)")
+            if let title {
+                XCTAssertTrue(
+                    app.navigationBars[title].waitForExistence(timeout: 10),
+                    "tapping \(tab) did not show a screen titled \(title)")
+            } else {
+                XCTAssertTrue(
+                    app.buttons["home-profile"].waitForExistence(timeout: 10),
+                    "tapping Home did not show the dashboard")
+            }
             XCTAssertEqual(app.state, .runningForeground, "the app died on the \(tab) tab")
         }
     }
@@ -188,6 +213,7 @@ final class EmperorUITests: XCTestCase {
     /// is what a litigator scans a list for. The row is one accessibility element saying so.
     func testAHomeListingLeadsWithItsItemAndCourt() {
         let app = signedIn()
+        app.tab("Ask").tap()
         let row = app.descendants(matching: .any).matching(
             NSPredicate(format: "label BEGINSWITH %@", "Item 7, Court 12")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10), "the listing does not lead with item and court")
@@ -196,26 +222,26 @@ final class EmperorUITests: XCTestCase {
 
     // MARK: - Calendar
 
-    /// Opens the Calendar from the Matters tab's bar, where it lives now.
+    /// Opens the Calendar from the Cases tab's bar, where it lives now.
     private func openTheCalendar(_ app: XCUIApplication) {
-        XCTAssertTrue(app.tab("Matters").waitForExistence(timeout: 10))
-        app.tab("Matters").tap()
-        let matters = app.navigationBars["Matters"]
-        XCTAssertTrue(matters.waitForExistence(timeout: 10))
-        matters.buttons["Calendar"].tap()
+        XCTAssertTrue(app.tab("Cases").waitForExistence(timeout: 10))
+        app.tab("Cases").tap()
+        let cases = app.navigationBars["Cases"]
+        XCTAssertTrue(cases.waitForExistence(timeout: 10))
+        cases.buttons["Calendar"].tap()
         XCTAssertTrue(
             app.navigationBars["Calendar"].waitForExistence(timeout: 10), "the Calendar did not open")
     }
 
     /// The day's listing is on the Calendar, led by its sitting time, and tapping it closes the
-    /// Calendar and lands on the **Matters** tab with that matter open on its overview — the
+    /// Calendar and lands on the **Cases** tab with that matter open on its overview — the
     /// stub's `/cause-list`, `/cases` and `/case` all describe `case1`, listed today, which is
     /// the day the Calendar opens on.
     ///
     /// Then the whole way round a second time. The request to open a case is taken once; this is
-    /// what notices if it is never cleared (the case would re-open on every visit to Matters) or
+    /// what notices if it is never cleared (the case would re-open on every visit to Cases) or
     /// never re-armed (the second tap would do nothing).
-    func testACalendarListingOpensItsCaseOnTheMattersTab() {
+    func testACalendarListingOpensItsCaseOnTheCasesTab() {
         let app = signedIn()
 
         for pass in 1...2 {
@@ -239,29 +265,29 @@ final class EmperorUITests: XCTestCase {
                 overview.waitForExistence(timeout: 10),
                 "pass \(pass): the case did not open on its overview")
 
-            // Back lands on Matters, not on whatever it showed before.
+            // Back lands on Cases, not on whatever it showed before.
             matter.buttons.element(boundBy: 0).tap()
             XCTAssertTrue(
-                app.navigationBars["Matters"].waitForExistence(timeout: 10),
-                "pass \(pass): back from the case did not land on Matters")
+                app.navigationBars["Cases"].waitForExistence(timeout: 10),
+                "pass \(pass): back from the case did not land on Cases")
             // Asked here rather than over the case, which hides the tab bar.
             XCTAssertTrue(
-                becomesSelected(app.tab("Matters")),
-                "pass \(pass): the case opened somewhere other than the Matters tab")
+                becomesSelected(app.tab("Cases")),
+                "pass \(pass): the case opened somewhere other than the Cases tab")
         }
 
-        // And coming back to Matters does not open the case again by itself.
+        // And coming back to Cases does not open the case again by itself.
         app.tab("Ask").tap()
         XCTAssertTrue(app.navigationBars["Ask"].waitForExistence(timeout: 10))
-        app.tab("Matters").tap()
-        XCTAssertTrue(app.navigationBars["Matters"].waitForExistence(timeout: 10))
+        app.tab("Cases").tap()
+        XCTAssertTrue(app.navigationBars["Cases"].waitForExistence(timeout: 10))
         XCTAssertFalse(
             app.navigationBars["Bakshi v. State of Maharashtra"].exists,
             "an old request re-opened the case")
 
         // The day's diary entry follows its listings, in a section of its own. Scrolled to, as
         // it sits below the month and the listing: a list only builds the rows it is showing.
-        app.navigationBars["Matters"].buttons["Calendar"].tap()
+        app.navigationBars["Cases"].buttons["Calendar"].tap()
         XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
         let diary = app.staticTexts["File written statement"]
         var swipes = 0
@@ -271,9 +297,9 @@ final class EmperorUITests: XCTestCase {
         }
         XCTAssertTrue(diary.waitForExistence(timeout: 5), "the day's diary entry is missing")
 
-        // Presented over Matters, so it closes from its own Done.
+        // Presented over Cases, so it closes from its own Done.
         app.navigationBars["Calendar"].buttons["Done"].tap()
-        XCTAssertTrue(app.navigationBars["Matters"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Cases"].waitForExistence(timeout: 10))
     }
 
     // MARK: - Corporate Calendar
@@ -327,13 +353,6 @@ final class EmperorUITests: XCTestCase {
     }
 
     // MARK: - You's Tools
-
-    /// Opens the You tab, on its own screen.
-    private func openYou(_ app: XCUIApplication) {
-        XCTAssertTrue(app.tab("You").waitForExistence(timeout: 10))
-        app.tab("You").tap()
-        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10), "You did not open")
-    }
 
     /// Taps one of You's rows by its name, scrolled to first: You is a long list, and on a phone
     /// the Tools rows start below the fold.
@@ -517,11 +536,11 @@ final class EmperorUITests: XCTestCase {
 
     // MARK: - Court search
 
-    /// Opens the court lookup from Matters' "Add a matter".
+    /// Opens the court lookup from Cases' "Add a matter".
     private func openTheCourtLookup(_ app: XCUIApplication) {
-        XCTAssertTrue(app.tab("Matters").waitForExistence(timeout: 10))
-        app.tab("Matters").tap()
-        XCTAssertTrue(app.navigationBars["Matters"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tab("Cases").waitForExistence(timeout: 10))
+        app.tab("Cases").tap()
+        XCTAssertTrue(app.navigationBars["Cases"].waitForExistence(timeout: 10))
         app.buttons["Add a matter"].firstMatch.tap()
         XCTAssertTrue(
             app.navigationBars["Find a case"].waitForExistence(timeout: 10),
@@ -661,9 +680,15 @@ final class EmperorUITests: XCTestCase {
     func testEmptyStatesRenderRatherThanBlankScreens() {
         let app = signedIn("-UITestEmpty")
 
-        for tab in ["Ask", "Matters", "Files"] {
+        // (tab, navigation title) — Home has none, and is checked by its profile button.
+        for (tab, title) in [("Cases", "Cases"), ("Ask", "Ask"), ("Files", "Files"),
+                             ("History", "Conversations"), ("Home", nil)] {
             app.tab(tab).tap()
-            XCTAssertTrue(app.navigationBars[tab].waitForExistence(timeout: 10))
+            if let title {
+                XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 10))
+            } else {
+                XCTAssertTrue(app.buttons["home-profile"].waitForExistence(timeout: 10))
+            }
             // An empty state renders as static text; any of it is enough to prove the empty
             // branch drew something.
             let hasCopy = app.staticTexts.count > 0
@@ -1068,15 +1093,15 @@ final class EmperorUITests: XCTestCase {
         XCTAssertFalse(modes.buttons["OCR"].isSelected)
     }
 
-    // MARK: - Matters: court headings, sort & filter, and the docket's own search
+    // MARK: - Cases: court headings, sort & filter, and the docket's own search
 
-    /// Opens Matters on "All matters" — the docket.
+    /// Opens Cases on "All matters" — the docket.
     private func openTheDocket(_ app: XCUIApplication) {
-        XCTAssertTrue(app.tab("Matters").waitForExistence(timeout: 10))
-        app.tab("Matters").tap()
-        XCTAssertTrue(app.navigationBars["Matters"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tab("Cases").waitForExistence(timeout: 10))
+        app.tab("Cases").tap()
+        XCTAssertTrue(app.navigationBars["Cases"].waitForExistence(timeout: 10))
         let all = app.buttons["All matters"].firstMatch
-        XCTAssertTrue(all.waitForExistence(timeout: 10), "Matters has no All matters")
+        XCTAssertTrue(all.waitForExistence(timeout: 10), "Cases has no All matters")
         all.tap()
         XCTAssertTrue(becomesSelected(all), "All matters did not open")
     }
@@ -1701,7 +1726,7 @@ final class EmperorUITests: XCTestCase {
     // MARK: - Opening a day from outside: the Today widget, links and notification taps
 
     /// `emperor://calendar?day=…` — what the Today widget opens, and the path a tapped hearing
-    /// reminder takes — opens the Calendar over Matters **on that day**: its cell selected and its
+    /// reminder takes — opens the Calendar over Cases **on that day**: its cell selected and its
     /// listing below. Two days ahead, where the stub's docket lists the Delhi matter. Then a bare
     /// `emperor://calendar` moves it back to today.
     ///
@@ -1734,12 +1759,12 @@ final class EmperorUITests: XCTestCase {
             XCTAssertFalse(cell.isSelected, "the day the first link named is still selected")
         }
 
-        // The Calendar was opened over Matters, where it lives.
+        // The Calendar was opened over Cases, where it lives.
         app.navigationBars["Calendar"].buttons["Done"].tap()
         XCTAssertTrue(
-            app.navigationBars["Matters"].waitForExistence(timeout: 10),
-            "the Calendar was not opened over Matters")
-        XCTAssertTrue(becomesSelected(app.tab("Matters")), "the Matters tab is not selected")
+            app.navigationBars["Cases"].waitForExistence(timeout: 10),
+            "the Calendar was not opened over Cases")
+        XCTAssertTrue(becomesSelected(app.tab("Cases")), "the Cases tab is not selected")
     }
 
     /// A day's cell in the Calendar's month. Today's is read out as "Today, …" — so it is found by

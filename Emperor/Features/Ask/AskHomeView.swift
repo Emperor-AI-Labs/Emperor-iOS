@@ -249,7 +249,7 @@ struct AskHomeView: View {
                 RecordSectionLabel(
                     title: "Next sitting · \(overview.dayLabel(day.key))",
                     actionTitle: "See all",
-                    action: { navigator.selectedTab = .matters })
+                    action: { navigator.selectedTab = .cases })
                 VStack(spacing: 0) {
                     ForEach(Array(day.listings.prefix(4).enumerated()), id: \.element.id) { index, listing in
                         if index > 0 { RecordDivider(inset: 0) }
