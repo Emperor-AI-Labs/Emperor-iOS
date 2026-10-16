@@ -189,17 +189,19 @@ struct AskHomeView: View {
         chosenMode = nil
     }
 
-    /// Puts a question in the composer — a suggestion, or one asked for from another tab.
-    private func fill(_ prompt: String, attachments chosen: [ChatAttachment]) {
+    /// Puts a question in the composer — a suggestion, one asked for from another tab, or Home's
+    /// own composer sending its words across with the answer mode chosen beside them.
+    private func fill(_ prompt: String, attachments chosen: [ChatAttachment], model: ChatModel? = nil) {
         text = prompt
         if !chosen.isEmpty { attachments = chosen }
+        chosenMode = model
         path = []
         composerFocused = true
     }
 
     private func takeQuestion() {
         guard let question = navigator.takePendingQuestion() else { return }
-        fill(question.prompt, attachments: question.attachments)
+        fill(question.prompt, attachments: question.attachments, model: question.model)
     }
 
     @ViewBuilder

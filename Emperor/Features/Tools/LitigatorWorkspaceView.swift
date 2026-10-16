@@ -25,6 +25,10 @@ struct LitigatorWorkspaceView: View {
     /// to, the same store as the role and the appearance.
     @State private var model = LitigatorWorkspaceModel(store: Preferences())
 
+    /// The matter to open on, from Home's Precedents Vault chips — Civil, Tax, Criminal, IPR.
+    /// `nil` opens on the matter last chosen, which the model remembers.
+    var initialMatterID: String?
+
     var body: some View {
         NavigationStack {
             List {
@@ -85,6 +89,14 @@ struct LitigatorWorkspaceView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
+                }
+            }
+            .onAppear {
+                // A vault chip asked for a specific matter. Selecting remembers it, as the web
+                // remembers the matter last worked on — so the next open starts where this left.
+                if let initialMatterID,
+                   let matter = model.matters.first(where: { $0.id == initialMatterID }) {
+                    model.select(matter)
                 }
             }
             .navigationDestination(for: String.self) { toolID in

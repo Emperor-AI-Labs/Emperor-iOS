@@ -1396,7 +1396,7 @@ final class EmperorUITests: XCTestCase {
 
     // MARK: - iPad layouts
 
-    /// On iPad, History — every conversation, from Ask's bar — shows a conversation beside the
+    /// On iPad, History — every conversation, as its own tab — shows a conversation beside the
     /// list: one opens there, another replaces it, and a new one opens in that same column with
     /// the list still there and no row marked — a new conversation is in no row until its first
     /// turn is stored.
@@ -1405,18 +1405,15 @@ final class EmperorUITests: XCTestCase {
     func testOnIPadAConversationOpensBesideTheList() throws {
         try XCTSkipUnless(isPad, "the list beside its conversation is iPad's layout")
         let app = signedIn()
-        let history = app.navigationBars["Ask"].buttons["History"]
-        XCTAssertTrue(history.waitForExistence(timeout: 10), "Ask has no History")
+        let history = app.tab("History")
+        XCTAssertTrue(history.waitForExistence(timeout: 10), "there is no History tab")
         history.tap()
-        let all = app.buttons["All conversations"].firstMatch
-        XCTAssertTrue(all.waitForExistence(timeout: 5), "History's menu did not open")
-        all.tap()
         XCTAssertTrue(app.navigationBars["Conversations"].waitForExistence(timeout: 10))
-        try XCTSkipUnless(
+        XCTAssertTrue(
             app.staticTexts["Choose a conversation"].waitForExistence(timeout: 10),
-            "History's sheet is drawn at a compact width here, so the list is not beside the conversation")
+            "the list is not beside its conversation")
 
-        // In History's own list: Ask's recent rows, behind the sheet, carry the same identifiers.
+        // History's own list.
         let list = app.collectionViews.containing(.any, identifier: "chat-row-c2").firstMatch
         let first = list.descendants(matching: .any).matching(identifier: "chat-row-c1").firstMatch
         let second = list.descendants(matching: .any).matching(identifier: "chat-row-c2").firstMatch

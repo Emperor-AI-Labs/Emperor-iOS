@@ -17,12 +17,15 @@ struct CaseRoute: Hashable, Sendable {
 }
 
 /// A question another tab has asked the Ask tab to start — "Ask about it" on a hearing, "Ask
-/// about this folder".
+/// about this folder", or Home's own composer sending its words across.
 struct AskRequest: Hashable, Sendable {
     /// What goes into the composer. Not sent: the reader reads it, changes it, and sends it.
+    /// Empty only for a fresh composer (`AppNavigator.startNewQuestion`).
     let prompt: String
     /// The documents the question is about.
     let attachments: [ChatAttachment]
+    /// The answer mode chosen with the question, or `nil` for the reader's default.
+    var model: ChatModel? = nil
     var request: Int = 0
 }
 
@@ -143,11 +146,20 @@ final class AppNavigator {
 
     /// Switches to Ask with `prompt` in the composer and `attachments` on it. Nothing is sent:
     /// the question is the reader's to send. The latest request wins.
-    func ask(_ prompt: String, about attachments: [ChatAttachment] = []) {
+    func ask(_ prompt: String, about attachments: [ChatAttachment] = [], model: ChatModel? = nil) {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty || !attachments.isEmpty else { return }
         requestCount += 1
-        pendingQuestion = AskRequest(prompt: trimmed, attachments: attachments, request: requestCount)
+        pendingQuestion = AskRequest(
+            prompt: trimmed, attachments: attachments, model: model, request: requestCount)
+        selectedTab = .ask
+    }
+
+    /// Switches to Ask with a fresh composer: no question carried over, whatever was left in the
+    /// box cleared. The way Home's "New chat" shortcut starts a conversation.
+    func startNewQuestion() {
+        requestCount += 1
+        pendingQuestion = AskRequest(prompt: "", attachments: [], model: nil, request: requestCount)
         selectedTab = .ask
     }
 
@@ -155,6 +167,29 @@ final class AppNavigator {
     func takePendingQuestion() -> AskRequest? {
         defer { pendingQuestion = nil }
         return pendingQuestion
+    }
+
+    // MARK: - Docket refresh
+
+    /// A matter pinned from outside the Cases tab — the court lookup, offered from Home. Numbered
+    /// like the other requests so a second pin before the first is taken is still a change.
+    ///
+    /// The docket is loaded once per session and kept, so a matter added from Home's lookup would
+    /// not appear on Cases until its next cold load. Cases takes this and reloads.
+    private(set) var docketRefreshRequest: Int?
+
+    /// Asks the Cases tab to reload its docket. Does not switch tabs: the lookup sheet says it
+    /// has saved, and the docket is ready whenever the tab is opened.
+    func requestDocketRefresh() {
+        requestCount += 1
+        docketRefreshRequest = requestCount
+    }
+
+    /// Whether the docket was asked to reload. Taking clears the request, so it is applied once.
+    func takeDocketRefreshRequest() -> Bool {
+        guard docketRefreshRequest != nil else { return false }
+        docketRefreshRequest = nil
+        return true
     }
 
     // MARK: - Search results

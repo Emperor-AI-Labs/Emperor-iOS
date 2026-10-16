@@ -117,12 +117,14 @@ struct MattersView: View {
         .onAppear {
             openRequestedCase()
             openRequestedCalendar()
+            openRequestedDocketRefresh()
         }
         .onChange(of: navigator.pendingCase) { _, _ in
             isShowingCalendar = false
             openRequestedCase()
         }
         .onChange(of: navigator.calendarRequest) { _, _ in openRequestedCalendar() }
+        .onChange(of: navigator.docketRefreshRequest) { _, _ in openRequestedDocketRefresh() }
     }
 
     private var overview: MattersOverview? {
@@ -393,6 +395,14 @@ struct MattersView: View {
     private func openRequestedCalendar() {
         guard navigator.takeCalendarRequest() else { return }
         isShowingCalendar = true
+    }
+
+    /// A matter pinned from Home's court lookup: the docket behind this screen is kept across
+    /// the session, so it reloads rather than missing the matter that was just added.
+    private func openRequestedDocketRefresh() {
+        guard navigator.takeDocketRefreshRequest() else { return }
+        let cases = self.cases
+        Task { await cases?.load() }
     }
 }
 

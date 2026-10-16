@@ -83,7 +83,7 @@ final class AccessibilityAuditTests: XCTestCase {
 
     /// Ask, and a conversation opened from its recent ones.
     func testTheAskTabPassesTheAudit() { auditTab("Ask") }
-    /// Home, the dashboard shell: its greeting and the profile button that opens You.
+    /// Home, the dashboard: its bar of pills, the composer, the cards and the profile button.
     func testTheHomeTabPassesTheAudit() { auditTab("Home") }
     /// Cases, its docket, and the Calendar it opens.
     func testTheCasesTabPassesTheAudit() { auditTab("Cases") }

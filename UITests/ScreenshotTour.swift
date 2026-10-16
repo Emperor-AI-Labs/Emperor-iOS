@@ -80,15 +80,12 @@ final class ScreenshotTour: XCTestCase {
         guard app.tab("Home").waitForExistence(timeout: 15) else {
             snap("sign-in-failed"); return
         }
-        // The dashboard as it opens — the greeting and the profile button for now.
+        // The dashboard as it opens: the bar of pills, the composer and the two cards.
         snap("home")
 
-        app.tab("Ask").tap()
-        snap("ask")
-
-        // The updates sheet, from Ask's bell. Its label carries the unread count, so it is found
-        // by how it starts.
-        let updates = app.navigationBars["Ask"].buttons.matching(
+        // The updates sheet, from Home's bell — the design's path. Its label carries the unread
+        // count, so it is found by how it starts.
+        let updates = app.buttons.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Updates")).firstMatch
         if updates.waitForExistence(timeout: 5) {
             updates.tap()
@@ -98,19 +95,18 @@ final class ScreenshotTour: XCTestCase {
             }
         }
 
-        // Every conversation, under History.
-        let history = app.navigationBars["Ask"].buttons["History"]
-        if history.waitForExistence(timeout: 5) {
-            history.tap()
-            tapIfPresent(app.buttons["All conversations"].firstMatch)
-            if app.navigationBars["Conversations"].waitForExistence(timeout: 10) {
-                snap("history")
-                tapIfPresent(app.navigationBars["Conversations"].buttons["Done"])
-            }
+        app.tab("Ask").tap()
+        snap("ask")
+
+        // Every conversation, from History's own tab.
+        app.tab("History").tap()
+        if app.navigationBars["Conversations"].waitForExistence(timeout: 10) {
+            snap("history")
         }
 
-        // A conversation: the stub serves a stored answer with headings, a table and citations,
-        // and the work log it was stored with, folded above it.
+        // A conversation, from Ask's recent ones: the stub serves a stored answer with headings,
+        // a table and citations, and the work log it was stored with, folded above it.
+        app.tab("Ask").tap()
         let conversation = app.stubConversationRow
         if conversation.waitForExistence(timeout: 10) {
             app.reveal(conversation)
