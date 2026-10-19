@@ -26,6 +26,7 @@ struct MattersView: View {
     @State private var isAddingMatter = false
     @State private var isArranging = false
     @State private var isShowingCalendar = false
+    @State private var isShowingTeams = false
     @State private var toast: String?
 
     var body: some View {
@@ -109,6 +110,9 @@ struct MattersView: View {
                 CalendarView(onDone: { isShowingCalendar = false })
                     .pageSizedSheet()
             }
+            .sheet(isPresented: $isShowingTeams) {
+                TeamsSheet()
+            }
         }
         .recordToast($toast)
         .task { await loadOnce() }
@@ -145,6 +149,16 @@ struct MattersView: View {
             }
             .accessibilityLabel("Calendar")
             .accessibilityHint("Your hearings day by day, and your diary")
+        }
+        // The web's "Team" button, beside its Matters title: who shares the tracked cases.
+        ToolbarItem(placement: .topBarLeading) {
+            Button {
+                isShowingTeams = true
+            } label: {
+                Image(systemName: "person.2")
+            }
+            .accessibilityLabel("Teams")
+            .accessibilityHint("Make a team, or add someone to one")
         }
         ToolbarItemGroup(placement: .primaryAction) {
             if segment == .all, let cases {
