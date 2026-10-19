@@ -264,6 +264,24 @@ Full detail in `README.md`. The short list:
 30. **A request made with no signal does not fail for ten minutes** (`waitsForConnectivity`,
     600 s timeout). Screens that keep offline copies ask the network monitor first; a saved copy
     is never posted back — see `OfflineReading`.
+31. **A photo is stored as a PDF.** Since the searchable-PDF change, a PNG or JPEG sent to
+    `/upload-chunk` is converted on arrival and the image never reaches storage; the completing
+    chunk's answer names the file (`storedName`, `convertedFrom`). Poll, attach and open by that
+    name — asked about the image, `/upload-status` reads "Reading…" for as long as it is asked.
+    See `StoredUpload`.
+32. **A matter's conversations and drafts carry `project_id`** and are scoped to the matter: a
+    turn sent without `projectId` drops the matter's attachments. Until this client opens a
+    matter's own conversations, rows with a `project_id` stay out of its lists
+    (`ChatListViewModel.ownConversations`); `ChatService.send(…projectID:)` is the plumbing.
+33. **The matter writes keep what they are not sent.** Every `/project-*` save creates without
+    an `id` and edits with one, changing only the fields present — so a blank is omitted, never
+    sent as `""` or `null`. `POST /project-from-case` is idempotent per user and case.
+    `POST /project-attach` is the only way a document enters a matter (a copy from My Files;
+    uploads into `_projects/…` are refused), and `/project-case-refresh` answers 429 with
+    `retryAfter` inside five minutes of the last ask.
+34. **`POST /court/lookup` saves nothing and needs a verified sign-in.** It takes the same card
+    `/save-case` does, nested under `card` (`CourtSearchResult.cardFields` builds both), answers
+    honest status codes with a `code`, and caches a record for ten minutes. See `CourtLookup`.
 
 ## Runtime connectivity
 

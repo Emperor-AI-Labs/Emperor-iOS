@@ -334,6 +334,7 @@ final class EmperorUITests: XCTestCase {
             ("My Files", "My Files"),
             ("Corporate Calendar", "Corporate Calendar"),
             ("Library", "Library"),
+            ("Fetch Orders", "Fetch Orders"),
             ("Matter workspaces", "Matter workspaces"),
             ("All tools", "Tools"),
             ("File tools", "File tools"),

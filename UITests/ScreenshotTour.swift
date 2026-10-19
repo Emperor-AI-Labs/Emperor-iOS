@@ -180,7 +180,7 @@ final class ScreenshotTour: XCTestCase {
         app.tab("More").tap()
         snap("more")
         // eAuctions is hidden for now; see `MoreView`.
-        for row in ["My Files", "Corporate Calendar", "Library", "Matter workspaces", "Your workspace",
+        for row in ["My Files", "Corporate Calendar", "Library", "Fetch Orders", "Matter workspaces", "Your workspace",
                     "All tools", "File tools", "OCR", "Translate", "Settings"] {
             let button = app.buttons[row].firstMatch
             guard button.waitForExistence(timeout: 5) else { continue }
