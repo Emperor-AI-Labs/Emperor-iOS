@@ -1,0 +1,127 @@
+{
+ "web": {
+  "id": "web",
+  "label": "Web search",
+  "icon": "Search"
+ },
+ "sections": [
+  "Jurisdictions",
+  "Repositories"
+ ],
+ "jurisdictions": [
+  {
+   "id": "in",
+   "label": "India",
+   "flag": "🇮🇳",
+   "icon": null
+  },
+  {
+   "id": "us",
+   "label": "United States",
+   "flag": "🇺🇸",
+   "icon": null
+  },
+  {
+   "id": "ca",
+   "label": "Canada",
+   "flag": "🇨🇦",
+   "icon": null
+  },
+  {
+   "id": "br",
+   "label": "Brazil",
+   "flag": "🇧🇷",
+   "icon": null
+  },
+  {
+   "id": "ae",
+   "label": "United Arab Emirates",
+   "flag": "🇦🇪",
+   "icon": null
+  },
+  {
+   "id": "uk",
+   "label": "United Kingdom",
+   "flag": "🇬🇧",
+   "icon": null
+  },
+  {
+   "id": "eu",
+   "label": "European Union",
+   "flag": "🇪🇺",
+   "icon": null
+  },
+  {
+   "id": "sa",
+   "label": "Saudi Arabia",
+   "flag": "🇸🇦",
+   "icon": null
+  },
+  {
+   "id": "sg",
+   "label": "Singapore",
+   "flag": "🇸🇬",
+   "icon": null
+  },
+  {
+   "id": "jp",
+   "label": "Japan",
+   "flag": "🇯🇵",
+   "icon": null
+  }
+ ],
+ "repositories": [
+  {
+   "id": "corporate",
+   "label": "Corporate law",
+   "flag": null,
+   "icon": "Building2"
+  },
+  {
+   "id": "securities",
+   "label": "Securities law",
+   "flag": null,
+   "icon": "LineChart"
+  },
+  {
+   "id": "rbi",
+   "label": "Reserve Bank of India",
+   "flag": null,
+   "icon": "Landmark"
+  },
+  {
+   "id": "cci",
+   "label": "Competition Commission (CCI)",
+   "flag": null,
+   "icon": "ShieldCheck"
+  },
+  {
+   "id": "income-tax",
+   "label": "Income tax",
+   "flag": null,
+   "icon": "Receipt"
+  },
+  {
+   "id": "canada-sc",
+   "label": "Canada SC — memorandums & facta",
+   "flag": "🇨🇦",
+   "icon": null
+  },
+  {
+   "id": "tas-cas",
+   "label": "TAS / CAS arbitral awards",
+   "flag": null,
+   "icon": "Gavel"
+  },
+  {
+   "id": "nepal-sc",
+   "label": "Nepal Supreme Court",
+   "flag": null,
+   "icon": "Landmark"
+  }
+ ],
+ "defaultSelection": {
+  "web": true,
+  "in": true
+ }
+}

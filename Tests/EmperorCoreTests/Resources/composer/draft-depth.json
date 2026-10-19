@@ -1,0 +1,34 @@
+{
+ "default": "detailed",
+ "workspaceFallback": "detailed",
+ "depths": [
+  {
+   "id": "short",
+   "label": "Short",
+   "hint": "A tight, concise draft",
+   "icon": "AlignLeft"
+  },
+  {
+   "id": "detailed",
+   "label": "Detailed",
+   "hint": "A thorough, comprehensive draft",
+   "icon": "AlignJustify"
+  }
+ ],
+ "lengthLine": {
+  "short": "\n\nLENGTH — VERY CONCISE (HARD LIMIT): Keep the ENTIRE response to a MAXIMUM of 2–3 pages (roughly 900–1,300 words). Include only the essential components and the core reasoning, expressed crisply. Omit padding, repetition, background recital and over-elaboration. Keep every mandatory part of this document type, but state each point briefly. Do NOT exceed 3 pages under any circumstance.",
+  "otherwise": "\n\nLENGTH — COMPREHENSIVE: Produce a thorough, exhaustive draft with NO length limit — use as many pages as the matter genuinely needs. Develop every issue fully, include all relevant components, clauses/paragraphs, reasoning and supporting detail, and leave nothing material unaddressed."
+ },
+ "promptOrder": [
+  "tool.buildPrompt(values2)",
+  "recordLine",
+  "lengthLine",
+  "ctxLine",
+  "adjLine",
+  "plgLine",
+  "stuLine",
+  "ngoLine",
+  "devilLine",
+  "NO_PREAMBLE"
+ ]
+}

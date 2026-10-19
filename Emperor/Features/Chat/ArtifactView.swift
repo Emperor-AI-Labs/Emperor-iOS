@@ -83,6 +83,7 @@ struct ArtifactDetailView: View {
                         }
                         .accessibilityLabel(showsCitations ? "Hide citations" : "Show citations")
                     }
+                    ArtifactFeedbackButton(artifact: artifact, chatID: chatID)
                     // Was a share of the raw body, which handed over markup rather than a
                     // document. A drafted pleading is something an advocate files.
                     DocumentExportMenu(

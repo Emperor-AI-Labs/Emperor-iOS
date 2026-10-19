@@ -14,6 +14,8 @@ struct YouView: View {
     @State private var tool: ToolDestination?
     @State private var isConfirmingSignOut = false
     @State private var isReportingBug = false
+    /// The draft length a tool starts on — read here, changed here or on any tool's form.
+    @State private var draftDepth = DraftDepth.default
 
     private let preferences = Preferences()
 
@@ -42,6 +44,17 @@ struct YouView: View {
                         value: currentDefaultMode.modeName)
                         .accessibilityElement(children: .combine)
 
+                    RecordSegmentedControl(
+                        label: "Draft length",
+                        options: DraftDepth.allCases.map { (value: $0, title: $0.label) },
+                        selection: Binding(
+                            get: { draftDepth },
+                            set: { chosen in
+                                draftDepth = chosen
+                                chosen.save(to: preferences, userID: session.currentUser?.id)
+                            }))
+                        .listRowInsets(EdgeInsets(top: Spacing.sm, leading: Spacing.md, bottom: Spacing.sm, trailing: Spacing.md))
+
                     NavigationLink {
                         RolePickerView()
                     } label: {
@@ -53,7 +66,7 @@ struct YouView: View {
                 } header: {
                     SectionHeader(title: "Answers")
                 } footer: {
-                    footnote("New questions start on Fast; deep thinking is the default only on the top plan, and any question can be switched from the composer. The role changes the suggestions on Ask and how answers are written, and is saved to your account, so the web opens in the same role.")
+                    footnote("New questions start on Fast; deep thinking is the default only on the top plan, and any question can be switched from the composer. Draft length is how long a tool's draft runs — Short keeps it to two or three pages — and each tool's form can change it. The role changes the suggestions on Ask and how answers are written, and is saved to your account, so the web opens in the same role.")
                 }
                 .listRowBackground(theme.surface)
 
@@ -165,6 +178,10 @@ struct YouView: View {
             .background(theme.groupedBackground)
             .navigationTitle("You")
             .navigationBarTitleDisplayMode(.large)
+            // Re-read on each appearance: a tool's form may have changed it since.
+            .onAppear {
+                draftDepth = DraftDepth.stored(in: preferences, userID: session.currentUser?.id)
+            }
             .sheet(item: $tool) { chosen in
                 chosen.screen
                     .pageSizedSheet()

@@ -14,43 +14,40 @@ import UIKit
 /// this needs: hand it markup, get back bytes.
 enum AnswerPDF {
 
-    /// Paper the output is laid out for.
-    ///
-    /// A4 for India, and it is the default for that reason — Letter exists because the
-    /// artifact viewer already offers both and the two must not disagree.
-    enum Paper: String, CaseIterable, Identifiable {
-        case a4 = "A4"
-        case letter = "Letter"
+    /// The page an answer is laid out on when no page setup is given: A4, with a margin wide
+    /// enough to survive a stapler and a registry's hole punch. A drafted document is laid out
+    /// on the account's own `DocumentPageSetup` instead — what the web's print path does with
+    /// its canvas page setup, and what it does without one is keep its fixed default, as here.
+    private static let defaultPaper = CGSize(width: 595.2, height: 841.8)
+    private static let defaultMargin: CGFloat = 36
 
-        var id: String { rawValue }
-
-        /// In points, at 72 per inch, which is what UIKit's print system measures in.
-        var size: CGSize {
-            switch self {
-            case .a4: return CGSize(width: 595.2, height: 841.8)
-            case .letter: return CGSize(width: 612, height: 792)
-            }
-        }
-    }
-
-    /// A margin wide enough to survive a stapler and a registry's hole punch.
-    private static let margin: CGFloat = 36
-
-    /// Renders `html` onto `paper`.
+    /// Renders `html` onto the page `pageSetup` describes — its size, orientation and margins —
+    /// or onto the fixed A4 default when there is none.
     ///
     /// - Important: the markup is wrapped by `ArtifactDocument.html(wrapping:)` first, which is
     ///   the same wrapper the artifact viewer uses — so an exported answer and an answer on
     ///   screen cannot drift apart in styling.
-    static func render(html fragment: String, paper: Paper = .a4) -> Data {
+    static func render(html fragment: String, pageSetup: DocumentPageSetup? = nil) -> Data {
+        let paperSize: CGSize
+        let insets: UIEdgeInsets
+        if let pageSetup {
+            paperSize = CGSize(width: pageSetup.widthPoints, height: pageSetup.heightPoints)
+            let m = pageSetup.marginPoints
+            insets = UIEdgeInsets(top: m.top, left: m.left, bottom: m.bottom, right: m.right)
+        } else {
+            paperSize = defaultPaper
+            insets = UIEdgeInsets(
+                top: defaultMargin, left: defaultMargin, bottom: defaultMargin, right: defaultMargin)
+        }
+
         let renderer = UIPrintPageRenderer()
         let formatter = UIMarkupTextPrintFormatter(
             markupText: ArtifactDocument.html(wrapping: fragment))
-        formatter.perPageContentInsets = UIEdgeInsets(
-            top: margin, left: margin, bottom: margin, right: margin)
+        formatter.perPageContentInsets = insets
         renderer.addPrintFormatter(formatter, startingAtPageAt: 0)
 
-        let paperRect = CGRect(origin: .zero, size: paper.size)
-        let printable = paperRect.insetBy(dx: margin, dy: margin)
+        let paperRect = CGRect(origin: .zero, size: paperSize)
+        let printable = paperRect.inset(by: insets)
         // These two are read by `UIPrintPageRenderer` through KVC, not properties — it has no
         // public setter for either, and without them it lays out at zero size and returns a
         // single blank page.

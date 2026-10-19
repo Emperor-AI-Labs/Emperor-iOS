@@ -53,6 +53,16 @@ enum ImagePDFLayout {
     ///   - imageWidth, imageHeight: the image's upright pixel size.
     static func placement(imageWidth: Double, imageHeight: Double, on page: PageSize) -> Placement {
         let (pageWidth, pageHeight) = page.points
+        return placement(
+            imageWidth: imageWidth, imageHeight: imageHeight,
+            pageWidth: pageWidth, pageHeight: pageHeight)
+    }
+
+    /// The same fit on a sheet of any size, in points — a filing package's photographs go on the
+    /// page its draft is set up for (`DocumentPageSetup`), which may be none of `PageSize`.
+    static func placement(
+        imageWidth: Double, imageHeight: Double, pageWidth: Double, pageHeight: Double
+    ) -> Placement {
         let usableWidth = pageWidth - margin * 2
         let usableHeight = pageHeight - margin * 2
         let scale = min(usableWidth / imageWidth, usableHeight / imageHeight)

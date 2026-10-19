@@ -138,6 +138,15 @@ private working in front of a client.
 **Attachments must be sent twice** — the top-level array and the last message are read by
 different passes, so both must carry them or the model sees an incomplete set.
 
+**`searchMode: "web"` asks for a search; it does not switch one on or off.** The server also
+searches whenever the question contains one of its keywords, and skips the search on any turn
+that carries attachments, asked for or not. So "Always search the web" promises only that this
+client asked. The web's research Sources (jurisdictions, repositories) reach no request at all.
+
+**`/draft-feedback` answers in `ok`, not `success`.** `200 {ok: true, id}` when stored;
+`400 {ok: false, error: "Pick a rating or write a comment"}` when there is neither. A long
+comment or draft is trimmed (5,000 characters, 500 KB), never refused.
+
 ### Accounts, plans and refusals
 
 **Creating an account does not sign anyone in.** `/register` emails a confirmation link and
@@ -530,6 +539,29 @@ modules and `registry.js` run under Node (`scripts/generate-role-card-fixtures.m
 writes `RoleCards.swift`). The guardrail is cut from `ToolWorkspace.jsx` and evaluated the same
 way. The web adds a role guardrail for Arbitrators & Judges, Paralegal, Student and Legal Aid
 too; those four are not added here yet.
+
+### Composer and export options
+
+Four of the web's composer and document options, each held to the web's own file by a generated
+fixture (`Resources/composer/`):
+- **Draft length.** Short or Detailed on every tool's form and under You → Answers, kept for the
+  account on this device (`DraftDepth`). The web's exact length sentence is appended after the
+  tool's prompt — to tool drafts only, as the web does; a plain question never carries it.
+- **Research sources.** Conversation menu → Research sources: Web search, ten jurisdictions and
+  eight repositories (`ResearchSources`). Web search is the same switch as "Always search the
+  web", now remembered from one conversation to the next; it starts off here although the web's
+  row starts on, because only on this client does it change the request. The rest are remembered
+  and sent nowhere, which the sheet says.
+- **Page setup.** A draft's download menu → Page setup: A4, Letter, Legal, A3 or A5, portrait or
+  landscape, and the four margins in millimetres (`DocumentPageSetup`, the web's
+  `pageSetup.js`). Word gets the sheet and margins in its section properties, landscape as a wide
+  page; the PDF, the filing-ready packages and their photographs are laid out on it too. The
+  default is the web's: A4 portrait, 25/20/25/25 mm.
+- **Feedback on a draft.** Thumbs under every answer, Report, and a Feedback button in the draft
+  viewer open the web's feedback sheet: Good or Needs work, six categories, a comment
+  (`DraftFeedbackViewModel`, `POST /draft-feedback`). When the feedback is about a draft, the
+  draft's HTML goes with it, as on the web, and the sheet says so before the tap. The draft's
+  saved id is not known to this client, so `documentId` is sent as null.
 
 ### Built and deliberately held back
 These exist, are tested, and have no caller. Each is marked at its definition. **Do not wire one

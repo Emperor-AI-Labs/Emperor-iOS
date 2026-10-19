@@ -1,0 +1,644 @@
+{
+ "sizes": [
+  {
+   "id": "a4",
+   "label": "A4",
+   "width": 210,
+   "height": 297
+  },
+  {
+   "id": "letter",
+   "label": "Letter",
+   "width": 215.9,
+   "height": 279.4
+  },
+  {
+   "id": "legal",
+   "label": "Legal",
+   "width": 215.9,
+   "height": 355.6
+  },
+  {
+   "id": "a3",
+   "label": "A3",
+   "width": 297,
+   "height": 420
+  },
+  {
+   "id": "a5",
+   "label": "A5",
+   "width": 148,
+   "height": 210
+  }
+ ],
+ "orientations": [
+  {
+   "id": "portrait",
+   "label": "Portrait"
+  },
+  {
+   "id": "landscape",
+   "label": "Landscape"
+  }
+ ],
+ "defaultMargins": {
+  "top": 25,
+  "right": 20,
+  "bottom": 25,
+  "left": 25
+ },
+ "defaultSetup": {
+  "size": "a4",
+  "orientation": "portrait",
+  "margins": {
+   "top": 25,
+   "right": 20,
+   "bottom": 25,
+   "left": 25
+  }
+ },
+ "pxPerMm": 3.7795275590551185,
+ "mmTwip": [
+  {
+   "mm": 0,
+   "twip": 0
+  },
+  {
+   "mm": 1,
+   "twip": 57
+  },
+  {
+   "mm": 10,
+   "twip": 567
+  },
+  {
+   "mm": 12.5,
+   "twip": 709
+  },
+  {
+   "mm": 20,
+   "twip": 1134
+  },
+  {
+   "mm": 25,
+   "twip": 1417
+  },
+  {
+   "mm": 25.4,
+   "twip": 1440
+  },
+  {
+   "mm": 38.1,
+   "twip": 2160
+  },
+  {
+   "mm": 148,
+   "twip": 8391
+  },
+  {
+   "mm": 210,
+   "twip": 11906
+  },
+  {
+   "mm": 215.9,
+   "twip": 12240
+  },
+  {
+   "mm": 279.4,
+   "twip": 15840
+  },
+  {
+   "mm": 297,
+   "twip": 16838
+  },
+  {
+   "mm": 355.6,
+   "twip": 20160
+  },
+  {
+   "mm": 420,
+   "twip": 23811
+  }
+ ],
+ "cases": [
+  {
+   "input": null,
+   "normalized": {
+    "size": "a4",
+    "orientation": "portrait",
+    "margins": {
+     "top": 25,
+     "right": 20,
+     "bottom": 25,
+     "left": 25
+    }
+   },
+   "dimensions": {
+    "width": 210,
+    "height": 297
+   },
+   "contentMm": {
+    "width": 165,
+    "height": 247
+   },
+   "px": {
+    "width": 793.7007874015749,
+    "height": 1122.5196850393702,
+    "contentWidth": 623.6220472440946,
+    "contentHeight": 933.5433070866143
+   },
+   "label": "A4 · Portrait",
+   "docx": {
+    "width": 11906,
+    "height": 16838,
+    "orientation": "portrait",
+    "margins": {
+     "top": 1417,
+     "right": 1134,
+     "bottom": 1417,
+     "left": 1417
+    }
+   }
+  },
+  {
+   "input": {},
+   "normalized": {
+    "size": "a4",
+    "orientation": "portrait",
+    "margins": {
+     "top": 25,
+     "right": 20,
+     "bottom": 25,
+     "left": 25
+    }
+   },
+   "dimensions": {
+    "width": 210,
+    "height": 297
+   },
+   "contentMm": {
+    "width": 165,
+    "height": 247
+   },
+   "px": {
+    "width": 793.7007874015749,
+    "height": 1122.5196850393702,
+    "contentWidth": 623.6220472440946,
+    "contentHeight": 933.5433070866143
+   },
+   "label": "A4 · Portrait",
+   "docx": {
+    "width": 11906,
+    "height": 16838,
+    "orientation": "portrait",
+    "margins": {
+     "top": 1417,
+     "right": 1134,
+     "bottom": 1417,
+     "left": 1417
+    }
+   }
+  },
+  {
+   "input": {
+    "size": "a4"
+   },
+   "normalized": {
+    "size": "a4",
+    "orientation": "portrait",
+    "margins": {
+     "top": 25,
+     "right": 20,
+     "bottom": 25,
+     "left": 25
+    }
+   },
+   "dimensions": {
+    "width": 210,
+    "height": 297
+   },
+   "contentMm": {
+    "width": 165,
+    "height": 247
+   },
+   "px": {
+    "width": 793.7007874015749,
+    "height": 1122.5196850393702,
+    "contentWidth": 623.6220472440946,
+    "contentHeight": 933.5433070866143
+   },
+   "label": "A4 · Portrait",
+   "docx": {
+    "width": 11906,
+    "height": 16838,
+    "orientation": "portrait",
+    "margins": {
+     "top": 1417,
+     "right": 1134,
+     "bottom": 1417,
+     "left": 1417
+    }
+   }
+  },
+  {
+   "input": {
+    "size": "letter",
+    "orientation": "landscape"
+   },
+   "normalized": {
+    "size": "letter",
+    "orientation": "landscape",
+    "margins": {
+     "top": 25,
+     "right": 20,
+     "bottom": 25,
+     "left": 25
+    }
+   },
+   "dimensions": {
+    "width": 279.4,
+    "height": 215.9
+   },
+   "contentMm": {
+    "width": 234.39999999999998,
+    "height": 165.9
+   },
+   "px": {
+    "width": 1056,
+    "height": 816.0000000000001,
+    "contentWidth": 885.9212598425197,
+    "contentHeight": 627.0236220472442
+   },
+   "label": "Letter · Landscape",
+   "docx": {
+    "width": 15840,
+    "height": 12240,
+    "orientation": "landscape",
+    "margins": {
+     "top": 1417,
+     "right": 1134,
+     "bottom": 1417,
+     "left": 1417
+    }
+   }
+  },
+  {
+   "input": {
+    "size": "legal",
+    "orientation": "portrait"
+   },
+   "normalized": {
+    "size": "legal",
+    "orientation": "portrait",
+    "margins": {
+     "top": 25,
+     "right": 20,
+     "bottom": 25,
+     "left": 25
+    }
+   },
+   "dimensions": {
+    "width": 215.9,
+    "height": 355.6
+   },
+   "contentMm": {
+    "width": 170.9,
+    "height": 305.6
+   },
+   "px": {
+    "width": 816.0000000000001,
+    "height": 1344.0000000000002,
+    "contentWidth": 645.9212598425198,
+    "contentHeight": 1155.0236220472443
+   },
+   "label": "Legal · Portrait",
+   "docx": {
+    "width": 12240,
+    "height": 20160,
+    "orientation": "portrait",
+    "margins": {
+     "top": 1417,
+     "right": 1134,
+     "bottom": 1417,
+     "left": 1417
+    }
+   }
+  },
+  {
+   "input": {
+    "size": "a3",
+    "orientation": "landscape",
+    "margins": {
+     "top": 10,
+     "right": 12.5,
+     "bottom": 10,
+     "left": 30
+    }
+   },
+   "normalized": {
+    "size": "a3",
+    "orientation": "landscape",
+    "margins": {
+     "top": 10,
+     "right": 12.5,
+     "bottom": 10,
+     "left": 30
+    }
+   },
+   "dimensions": {
+    "width": 420,
+    "height": 297
+   },
+   "contentMm": {
+    "width": 377.5,
+    "height": 277
+   },
+   "px": {
+    "width": 1587.4015748031497,
+    "height": 1122.5196850393702,
+    "contentWidth": 1426.7716535433071,
+    "contentHeight": 1046.9291338582677
+   },
+   "label": "A3 · Landscape",
+   "docx": {
+    "width": 23811,
+    "height": 16838,
+    "orientation": "landscape",
+    "margins": {
+     "top": 567,
+     "right": 709,
+     "bottom": 567,
+     "left": 1701
+    }
+   }
+  },
+  {
+   "input": {
+    "size": "a5",
+    "margins": {
+     "top": 0,
+     "right": 0,
+     "bottom": 0,
+     "left": 0
+    }
+   },
+   "normalized": {
+    "size": "a5",
+    "orientation": "portrait",
+    "margins": {
+     "top": 0,
+     "right": 0,
+     "bottom": 0,
+     "left": 0
+    }
+   },
+   "dimensions": {
+    "width": 148,
+    "height": 210
+   },
+   "contentMm": {
+    "width": 148,
+    "height": 210
+   },
+   "px": {
+    "width": 559.3700787401575,
+    "height": 793.7007874015749,
+    "contentWidth": 559.3700787401575,
+    "contentHeight": 793.7007874015749
+   },
+   "label": "A5 · Portrait",
+   "docx": {
+    "width": 8391,
+    "height": 11906,
+    "orientation": "portrait",
+    "margins": {
+     "top": 0,
+     "right": 0,
+     "bottom": 0,
+     "left": 0
+    }
+   }
+  },
+  {
+   "input": {
+    "size": "tabloid",
+    "orientation": "sideways"
+   },
+   "normalized": {
+    "size": "a4",
+    "orientation": "portrait",
+    "margins": {
+     "top": 25,
+     "right": 20,
+     "bottom": 25,
+     "left": 25
+    }
+   },
+   "dimensions": {
+    "width": 210,
+    "height": 297
+   },
+   "contentMm": {
+    "width": 165,
+    "height": 247
+   },
+   "px": {
+    "width": 793.7007874015749,
+    "height": 1122.5196850393702,
+    "contentWidth": 623.6220472440946,
+    "contentHeight": 933.5433070866143
+   },
+   "label": "A4 · Portrait",
+   "docx": {
+    "width": 11906,
+    "height": 16838,
+    "orientation": "portrait",
+    "margins": {
+     "top": 1417,
+     "right": 1134,
+     "bottom": 1417,
+     "left": 1417
+    }
+   }
+  },
+  {
+   "input": {
+    "size": "A4",
+    "orientation": "Landscape"
+   },
+   "normalized": {
+    "size": "a4",
+    "orientation": "portrait",
+    "margins": {
+     "top": 25,
+     "right": 20,
+     "bottom": 25,
+     "left": 25
+    }
+   },
+   "dimensions": {
+    "width": 210,
+    "height": 297
+   },
+   "contentMm": {
+    "width": 165,
+    "height": 247
+   },
+   "px": {
+    "width": 793.7007874015749,
+    "height": 1122.5196850393702,
+    "contentWidth": 623.6220472440946,
+    "contentHeight": 933.5433070866143
+   },
+   "label": "A4 · Portrait",
+   "docx": {
+    "width": 11906,
+    "height": 16838,
+    "orientation": "portrait",
+    "margins": {
+     "top": 1417,
+     "right": 1134,
+     "bottom": 1417,
+     "left": 1417
+    }
+   }
+  },
+  {
+   "input": {
+    "orientation": "landscape",
+    "margins": {
+     "top": -5,
+     "right": "20",
+     "bottom": null,
+     "left": 15
+    }
+   },
+   "normalized": {
+    "size": "a4",
+    "orientation": "landscape",
+    "margins": {
+     "top": 25,
+     "right": 20,
+     "bottom": 25,
+     "left": 15
+    }
+   },
+   "dimensions": {
+    "width": 297,
+    "height": 210
+   },
+   "contentMm": {
+    "width": 262,
+    "height": 160
+   },
+   "px": {
+    "width": 1122.5196850393702,
+    "height": 793.7007874015749,
+    "contentWidth": 990.236220472441,
+    "contentHeight": 604.724409448819
+   },
+   "label": "A4 · Landscape",
+   "docx": {
+    "width": 16838,
+    "height": 11906,
+    "orientation": "landscape",
+    "margins": {
+     "top": 1417,
+     "right": 1134,
+     "bottom": 1417,
+     "left": 850
+    }
+   }
+  },
+  {
+   "input": {
+    "margins": {
+     "top": 200,
+     "right": 120,
+     "bottom": 200,
+     "left": 120
+    }
+   },
+   "normalized": {
+    "size": "a4",
+    "orientation": "portrait",
+    "margins": {
+     "top": 200,
+     "right": 120,
+     "bottom": 200,
+     "left": 120
+    }
+   },
+   "dimensions": {
+    "width": 210,
+    "height": 297
+   },
+   "contentMm": {
+    "width": 0,
+    "height": 0
+   },
+   "px": {
+    "width": 793.7007874015749,
+    "height": 1122.5196850393702,
+    "contentWidth": 0,
+    "contentHeight": 0
+   },
+   "label": "A4 · Portrait",
+   "docx": {
+    "width": 11906,
+    "height": 16838,
+    "orientation": "portrait",
+    "margins": {
+     "top": 11339,
+     "right": 6803,
+     "bottom": 11339,
+     "left": 6803
+    }
+   }
+  },
+  {
+   "input": {
+    "size": "letter",
+    "margins": {
+     "left": 38.1
+    }
+   },
+   "normalized": {
+    "size": "letter",
+    "orientation": "portrait",
+    "margins": {
+     "top": 25,
+     "right": 20,
+     "bottom": 25,
+     "left": 38.1
+    }
+   },
+   "dimensions": {
+    "width": 215.9,
+    "height": 279.4
+   },
+   "contentMm": {
+    "width": 157.8,
+    "height": 229.39999999999998
+   },
+   "px": {
+    "width": 816.0000000000001,
+    "height": 1056,
+    "contentWidth": 596.4094488188978,
+    "contentHeight": 867.0236220472441
+   },
+   "label": "Letter · Portrait",
+   "docx": {
+    "width": 12240,
+    "height": 15840,
+    "orientation": "portrait",
+    "margins": {
+     "top": 1417,
+     "right": 1134,
+     "bottom": 1417,
+     "left": 2160
+    }
+   }
+  }
+ ]
+}

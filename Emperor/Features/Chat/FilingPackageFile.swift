@@ -10,7 +10,10 @@ import UIKit
 /// - **PDF:** the draft and every typed copy laid out by `AnswerPDF`, the same renderer as a
 ///   draft's own PDF; each original PDF merged after its heading, page for page, by the Merge
 ///   tool's code — so its text stays selectable and any OCR layer survives; a photograph placed on
-///   an A4 page as the Image to PDF tool places it.
+///   a page as the Image to PDF tool places it.
+///
+/// Both are laid out on the account's page setup, as the web passes its canvas `pageSetup` to
+/// both filing-ready downloads.
 @MainActor
 enum FilingPackageFile {
 
@@ -23,19 +26,22 @@ enum FilingPackageFile {
         }
     }
 
-    static func render(_ pieces: [FilingPackage.Piece], as format: FilingPackage.Format) throws -> Data {
+    static func render(
+        _ pieces: [FilingPackage.Piece], as format: FilingPackage.Format,
+        pageSetup: DocumentPageSetup = .default
+    ) throws -> Data {
         switch format {
-        case .word: return DocxDocument.make(fromHTML: FilingPackage.wordHTML(pieces))
-        case .pdf: return try pdf(pieces)
+        case .word: return DocxDocument.make(fromHTML: FilingPackage.wordHTML(pieces), pageSetup: pageSetup)
+        case .pdf: return try pdf(pieces, pageSetup: pageSetup)
         }
     }
 
-    private static func pdf(_ pieces: [FilingPackage.Piece]) throws -> Data {
+    private static func pdf(_ pieces: [FilingPackage.Piece], pageSetup: DocumentPageSetup) throws -> Data {
         var documents: [PDFDocument] = []
         for segment in FilingPackage.pdfSegments(pieces) {
             switch segment {
             case .html(let html):
-                if let document = PDFDocument(data: AnswerPDF.render(html: html)) {
+                if let document = PDFDocument(data: AnswerPDF.render(html: html, pageSetup: pageSetup)) {
                     documents.append(document)
                 }
             case .pdf(let data):
@@ -43,7 +49,7 @@ enum FilingPackageFile {
                 guard !document.isLocked else { throw Failure.lockedOriginal }
                 documents.append(document)
             case .image(let data):
-                if let document = imagePage(data) { documents.append(document) }
+                if let document = imagePage(data, pageSetup: pageSetup) { documents.append(document) }
             }
         }
         guard let data = try PDFTools.merged(documents).dataRepresentation() else {
@@ -52,14 +58,14 @@ enum FilingPackageFile {
         return data
     }
 
-    /// One picture, fitted inside the margins of an A4 page.
-    private static func imagePage(_ data: Data) -> PDFDocument? {
+    /// One picture, fitted inside the Image to PDF tool's margin on the package's page.
+    private static func imagePage(_ data: Data, pageSetup: DocumentPageSetup) -> PDFDocument? {
         guard let image = UIImage(data: data) else { return nil }
-        let page = ImagePDFLayout.PageSize.a4
-        let (width, height) = page.points
+        let width = pageSetup.widthPoints, height = pageSetup.heightPoints
         let placement = ImagePDFLayout.placement(
             imageWidth: Double(image.size.width * image.scale),
-            imageHeight: Double(image.size.height * image.scale), on: page)
+            imageHeight: Double(image.size.height * image.scale),
+            pageWidth: width, pageHeight: height)
         let bytes = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: width, height: height))
             .pdfData { context in
                 context.beginPage()
