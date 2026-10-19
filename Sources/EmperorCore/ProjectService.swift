@@ -38,6 +38,22 @@ protocol ProjectProviding: Sendable {
     func linkCase(projectID: String, caseID: String?) async throws -> Project
     /// Asks the court again for the linked case. At most once in five minutes per case.
     func refreshLinkedCase(projectID: String) async throws
+
+    // MARK: The workspace's AI, conversations, banner and deletion
+
+    /// Puts a conversation into the matter (or, with `attached: false`, takes it out).
+    func attachChat(projectID: String, chatID: String, attached: Bool) async throws
+    /// Reads the matter's documents — all of them, or `files` — and proposes dated events.
+    /// Proposals only: nothing is saved.
+    func extractChronology(projectID: String, files: [ChatAttachment]?) async throws -> ChronologyExtraction
+    /// The uploaded banner picture, or `nil` when the matter has none.
+    func bannerImage(projectID: String) async throws -> Data?
+    /// Stores a banner picture, given as a data URL (`BannerImage.dataURL`).
+    func uploadBanner(projectID: String, dataURL: String) async throws
+    /// Removes the banner picture; the matter falls back to its preset.
+    func deleteBanner(projectID: String) async throws
+    /// Deletes the matter and everything in it. `confirm` must be its exact name.
+    func deleteProject(id: String, confirm: String) async throws
 }
 
 extension ProjectProviding {
@@ -59,6 +75,12 @@ extension ProjectProviding {
     func attach(projectID: String, files: [ChatAttachment], subfolder: String?) async throws -> [AttachedFile] { throw notOffered }
     func linkCase(projectID: String, caseID: String?) async throws -> Project { throw notOffered }
     func refreshLinkedCase(projectID: String) async throws { throw notOffered }
+    func attachChat(projectID: String, chatID: String, attached: Bool) async throws { throw notOffered }
+    func extractChronology(projectID: String, files: [ChatAttachment]?) async throws -> ChronologyExtraction { throw notOffered }
+    func bannerImage(projectID: String) async throws -> Data? { throw notOffered }
+    func uploadBanner(projectID: String, dataURL: String) async throws { throw notOffered }
+    func deleteBanner(projectID: String) async throws { throw notOffered }
+    func deleteProject(id: String, confirm: String) async throws { throw notOffered }
 }
 
 /// One matter and everything hanging off it.
@@ -74,11 +96,14 @@ struct ProjectDetail: Equatable, Sendable {
     var ledger: [LedgerEntry]
     var people: [ProjectPerson]
     var totals: LedgerTotals
+    /// The matter's own conversations, as the server lists them.
+    var chats: [ProjectChatRow]
 
     init(
         project: Project, updates: [ProjectUpdate], courtHistory: [CaseItem],
         linkedCase: LinkedCaseSummary? = nil, tasks: [ProjectTask] = [],
-        ledger: [LedgerEntry] = [], people: [ProjectPerson] = [], totals: LedgerTotals = .zero
+        ledger: [LedgerEntry] = [], people: [ProjectPerson] = [], totals: LedgerTotals = .zero,
+        chats: [ProjectChatRow] = []
     ) {
         self.project = project
         self.updates = updates
@@ -88,6 +113,7 @@ struct ProjectDetail: Equatable, Sendable {
         self.ledger = ledger
         self.people = people
         self.totals = totals
+        self.chats = chats
     }
 
     /// The most recent update, which is what the list screen's "last activity" refers to. The
@@ -174,7 +200,8 @@ struct ProjectService: ProjectProviding {
                 tasks: response.tasks ?? [],
                 ledger: response.ledger ?? [],
                 people: response.people ?? [],
-                totals: response.totals ?? .zero)
+                totals: response.totals ?? .zero,
+                chats: (response.chats ?? []).filter { !$0.id.isEmpty })
         } catch let error as APIError {
             throw Self.rewriting(error, status: 404, as: Self.projectGoneMessage)
         }
@@ -283,16 +310,20 @@ struct ProjectService: ProjectProviding {
 
     func deletePerson(id: String) async throws { try await delete("/project-person", id: id) }
 
-    /// `POST /project-update`. Always `source: manual` from here — the court's and the AI's
-    /// entries are stamped by the server. Returns the entry's id.
+    /// `POST /project-update`. `source` is the draft's — `manual` unless it says otherwise, and
+    /// `ai` for an extracted event the user accepted, with the page it was read from in
+    /// `sourceRef`. Returns the entry's id.
     func saveUpdate(projectID: String, id: String?, draft: UpdateDraft) async throws -> String {
+        let source = draft.source?.trimmingCharacters(in: .whitespacesAndNewlines)
         var fields: [String: JSONValue] = [
             "projectId": .string(projectID), "kind": .string(draft.kind),
-            "title": .string(draft.title), "source": .string("manual"),
+            "title": .string(draft.title),
+            "source": .string((source?.isEmpty ?? true) ? "manual" : source!),
         ]
         put(&fields, "id", id)
         put(&fields, "body", draft.body)
         put(&fields, "eventDate", draft.eventDate)
+        put(&fields, "sourceRef", draft.sourceRef)
         let request = try await client.makeRequest("POST", "/project-update", body: try await signed(fields))
         let response = try await client.send(request, as: ProjectUpdateWriteResponse.self)
         try CaseService.throwIfUnsuccessful(success: response.success, error: response.error)
@@ -374,6 +405,83 @@ struct ProjectService: ProjectProviding {
             throw APIError.classify(status: http.statusCode, body: data)
         }
         try CaseService.throwIfUnsuccessful(success: decoded?.success, error: decoded?.error)
+    }
+
+    // MARK: - Conversations
+
+    /// `POST /project-chat`. A turn sent with the matter's id already files its conversation
+    /// under the matter; this is the explicit form, for a conversation registered before its
+    /// first question.
+    func attachChat(projectID: String, chatID: String, attached: Bool) async throws {
+        let body = try await signed([
+            "projectId": .string(projectID), "chatId": .string(chatID), "attached": .bool(attached),
+        ])
+        let request = try await client.makeRequest("POST", "/project-chat", body: body)
+        let response = try await client.send(request, as: WriteResponse.self)
+        try CaseService.throwIfUnsuccessful(success: response.success, error: response.error)
+    }
+
+    // MARK: - Chronology from the documents
+
+    /// `POST /project-chronology-extract`. `files` omitted reads every document in the matter;
+    /// otherwise each is named as a turn names it, `{folderName, fileName}`, inside the matter.
+    ///
+    /// It is a set of paid model calls, so a plan refusal (402 `QUERY_LIMIT`) arrives as one,
+    /// worded by `DisplayText`. The route may take minutes on a large matter.
+    func extractChronology(projectID: String, files: [ChatAttachment]?) async throws -> ChronologyExtraction {
+        var fields: [String: JSONValue] = ["projectId": .string(projectID)]
+        if let files, !files.isEmpty {
+            fields["files"] = .array(files.map { file in
+                .object(["folderName": .string(file.folderName ?? ""), "fileName": .string(file.name)])
+            })
+        }
+        var request = try await client.makeRequest(
+            "POST", "/project-chronology-extract", body: try await signed(fields))
+        // The server bounds the whole read at six minutes.
+        request.timeoutInterval = 420
+        let response = try await client.send(request, as: ChronologyExtractResponse.self)
+        try CaseService.throwIfUnsuccessful(success: response.success, error: response.error)
+        return ChronologyExtraction(
+            events: response.events ?? [], files: response.files, skipped: response.skipped ?? [],
+            partial: response.partial ?? false, message: response.message)
+    }
+
+    // MARK: - Banner
+
+    /// `GET /project-banner`: the picture's bytes. A 404 is "no picture", not a failure.
+    func bannerImage(projectID: String) async throws -> Data? {
+        var request = try await client.makeRequest("GET", "/project-banner", query: ["id": projectID])
+        // A new upload keeps the same address, so a cached copy would show the old picture.
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        let (data, http) = try await client.perform(request)
+        if http.statusCode == 404 { return nil }
+        guard (200..<300).contains(http.statusCode) else {
+            throw APIError.classify(status: http.statusCode, body: data)
+        }
+        return data.isEmpty ? nil : data
+    }
+
+    /// `POST /project-banner` with a PNG, JPEG or WebP data URL of at most 2 MB.
+    func uploadBanner(projectID: String, dataURL: String) async throws {
+        let body = try await signed(["projectId": .string(projectID), "dataUrl": .string(dataURL)])
+        var request = try await client.makeRequest("POST", "/project-banner", body: body)
+        request.timeoutInterval = 120
+        let response = try await client.send(request, as: WriteResponse.self)
+        try CaseService.throwIfUnsuccessful(success: response.success, error: response.error)
+    }
+
+    func deleteBanner(projectID: String) async throws { try await delete("/project-banner", id: projectID) }
+
+    // MARK: - Deleting the matter
+
+    /// `DELETE /project`. `confirm` must be the matter's exact stored name — the screen asks for
+    /// it to be typed, and refuses locally before this is reached (`deleteMatter(confirmName:)`).
+    func deleteProject(id: String, confirm: String) async throws {
+        var request = try await client.makeRequest(
+            "DELETE", "/project", query: ["id": id, "confirm": confirm])
+        request.timeoutInterval = 120
+        let response = try await client.send(request, as: WriteResponse.self)
+        try CaseService.throwIfUnsuccessful(success: response.success, error: response.error)
     }
 
     // MARK: - Plumbing

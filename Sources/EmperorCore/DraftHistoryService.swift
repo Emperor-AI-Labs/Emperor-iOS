@@ -99,7 +99,17 @@ struct DraftContentResponse: Codable, Sendable {
 
 protocol DraftHistoryProviding: Sendable {
     func drafts(_ kind: DraftKind) async throws -> [DraftedItem]
+    /// One matter's drafts, or every draft when `projectID` is nil.
+    func drafts(_ kind: DraftKind, projectID: String?) async throws -> [DraftedItem]
     func content(id: String) async throws -> String
+}
+
+extension DraftHistoryProviding {
+    /// For stand-ins that list one set whatever the matter: the caller keeps only the rows whose
+    /// `project_id` is the matter's, so nothing from elsewhere can show inside it.
+    func drafts(_ kind: DraftKind, projectID: String?) async throws -> [DraftedItem] {
+        try await drafts(kind)
+    }
 }
 
 struct DraftHistoryService: DraftHistoryProviding {
@@ -109,10 +119,17 @@ struct DraftHistoryService: DraftHistoryProviding {
     ///   user has ever produced comes back in one response, newest first. Fetch on appear and
     ///   on pull-to-refresh; never poll it.
     func drafts(_ kind: DraftKind) async throws -> [DraftedItem] {
+        try await drafts(kind, projectID: nil)
+    }
+
+    /// With `projectId`, the route lists the drafts made in that matter's conversations.
+    func drafts(_ kind: DraftKind, projectID: String?) async throws -> [DraftedItem] {
+        let project = projectID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let query = project.isEmpty ? [:] : ["projectId": project]
         let response = try await withRetry {
             // `userId` is added by `makeRequest` for GETs. Omitting it is a **500**, not a 400,
             // because the route throws rather than validating.
-            let request = try await client.makeRequest("GET", kind.path)
+            let request = try await client.makeRequest("GET", kind.path, query: query)
             return try await client.send(request, as: DraftListResponse.self)
         }
         try CaseService.throwIfUnsuccessful(success: response.success, error: response.error)

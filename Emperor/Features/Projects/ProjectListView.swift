@@ -57,7 +57,9 @@ struct ProjectListView: View {
                 }
             }
             .navigationDestination(for: String.self) { projectID in
-                ProjectDetailView(projectID: projectID)
+                ProjectDetailView(projectID: projectID) {
+                    Task { await model?.load() }
+                }
             }
             .task {
                 guard model == nil else { return }
