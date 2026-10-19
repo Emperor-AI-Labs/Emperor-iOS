@@ -4,7 +4,8 @@ import Observation
 #endif
 
 /// One matter's workspace: where things stand, what is set up, and the sections the web's
-/// Matters page has — chronology, the court record, tasks, fees, people, files.
+/// Matters page has — its conversations, files, drafts, chronology, the court record, tasks,
+/// fees and people.
 ///
 /// See `ChatViewModel` for why `@Observable` is Apple-only.
 #if canImport(Darwin)
@@ -54,22 +55,22 @@ final class ProjectDetailViewModel {
 
     // MARK: - Sections
 
-    /// The workspace's sections, in the web's order less the two this client does not open
-    /// here (Ask and Drafts — a matter's conversations are scoped to it, see
-    /// `ChatListViewModel.ownConversations`).
+    /// The workspace's sections, in the web's order (`SECTIONS` in the web's projects API).
     enum Section: String, CaseIterable, Identifiable, Sendable {
-        case overview, chronology, court, tasks, fees, people, files
+        case overview, ask, files, drafts, chronology, court, tasks, fees, people
         var id: String { rawValue }
 
         var title: String {
             switch self {
             case .overview: return "Overview"
+            case .ask: return "Ask Emperor"
+            case .files: return "Files"
+            case .drafts: return "Drafts"
             case .chronology: return "Chronology"
             case .court: return "Court"
             case .tasks: return "Tasks"
             case .fees: return "Fees"
             case .people: return "People"
-            case .files: return "Files"
             }
         }
     }
@@ -245,6 +246,148 @@ final class ProjectDetailViewModel {
         let others = folders.map(\.name).filter { !standard.contains($0) }
         return standard + others
     }
+
+    // MARK: - Ask Emperor
+
+    /// The matter's conversations, newest first.
+    var chats: [ProjectChatRow] { ProjectChatRow.newestFirst(detail?.chats ?? []) }
+
+    /// An id for a new conversation in this matter — the same scheme every new conversation in
+    /// the app uses, so the first turn creates it under the matter.
+    nonisolated static func newConversationID() -> String { ChatListViewModel.newChatID() }
+
+    /// The documents a new conversation in this matter starts with: every ready one, as the web
+    /// attaches them. The user can change them before asking. Empty until the files are listed.
+    var readyFiles: [MatterFile] { matterFiles.filter(\.isReady) }
+
+    /// The matter's documents, flattened, as a conversation or the chronology reader names them.
+    var matterFiles: [MatterFile] { MatterFile.flatten(files ?? [], projectID: projectID) }
+
+    static let conversationsLockLine =
+        "Conversations here stay with this matter and read only its files. They are not listed in History."
+
+    // MARK: - Chronology from the documents
+
+    /// A fresh "Build from documents" flow, checked against what the matter already records and
+    /// re-reading the matter once it has saved anything.
+    func chronologyBuilder() -> ChronologyBuildViewModel {
+        ChronologyBuildViewModel(
+            projectID: projectID, service: service, updates: updates, courtHistory: courtHistory,
+            reload: { [weak self] in await self?.load() })
+    }
+
+    // MARK: - Banner
+
+    /// The banner's preset: drawn on its own, or under the picture.
+    var bannerPreset: BannerPreset { BannerPreset.preset(for: project) }
+
+    /// The uploaded picture's bytes, once fetched.
+    private(set) var bannerImage: Data?
+    /// The `updated_at` the picture was fetched for: a matter that has changed since may have a
+    /// new one.
+    private var bannerKey: String?
+    private(set) var isChangingBanner = false
+
+    /// Fetches the picture when the matter has one and it is not already held for this version
+    /// of the matter. A failure leaves the preset showing — a banner is decoration.
+    func loadBanner(force: Bool = false) async {
+        guard let project, project.hasBannerImage else {
+            bannerImage = nil
+            bannerKey = nil
+            return
+        }
+        let key = project.updatedAtRaw ?? ""
+        guard force || bannerImage == nil || bannerKey != key else { return }
+        do {
+            bannerImage = try await service.bannerImage(projectID: projectID)
+            bannerKey = key
+        } catch {
+            // Kept as it was: the preset under it is the fallback.
+        }
+    }
+
+    /// Uploads a picture (already shrunk by the view) as the banner, then re-reads the matter.
+    @discardableResult
+    func uploadBanner(data: Data, mime: String) async -> Bool {
+        let dataURL: String
+        do {
+            dataURL = try BannerImage.dataURL(data: data, mime: mime)
+        } catch {
+            writeError = DisplayText.message(for: error)
+            return false
+        }
+        return await changeBanner { try await self.service.uploadBanner(projectID: self.projectID, dataURL: dataURL) }
+    }
+
+    /// Takes the picture off; the preset shows again.
+    @discardableResult
+    func removeBanner() async -> Bool {
+        await changeBanner { try await self.service.deleteBanner(projectID: self.projectID) }
+    }
+
+    private func changeBanner(_ action: () async throws -> Void) async -> Bool {
+        guard !isChangingBanner else { return false }
+        isChangingBanner = true
+        writeError = nil
+        defer { isChangingBanner = false }
+        do {
+            try await action()
+            await load()
+            await loadBanner(force: true)
+            return true
+        } catch {
+            writeError = DisplayText.message(for: error)
+            return false
+        }
+    }
+
+    // MARK: - Deleting the matter
+
+    private(set) var isDeleting = false
+    /// Why the last delete was refused or failed.
+    var deleteError: String?
+
+    /// Whether what was typed is the matter's name — surrounding spaces forgiven, nothing else.
+    func deleteConfirmationMatches(_ typed: String) -> Bool {
+        let wanted = (project?.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let given = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !given.isEmpty && given == wanted
+    }
+
+    /// Deletes the matter for good, once its name has been typed. Refused here, with no request,
+    /// unless it matches; the server is sent the stored name. `true` means it is gone and the
+    /// screen should close.
+    func deleteMatter(confirmName typed: String) async -> Bool {
+        guard !isDeleting, let project else { return false }
+        guard deleteConfirmationMatches(typed) else {
+            deleteError = "Type the matter’s name exactly as it appears to delete it."
+            return false
+        }
+        isDeleting = true
+        deleteError = nil
+        defer { isDeleting = false }
+        do {
+            try await service.deleteProject(id: projectID, confirm: project.name ?? "")
+            return true
+        } catch {
+            deleteError = DisplayText.message(for: error)
+            return false
+        }
+    }
+
+    /// What the delete sheet says goes with the matter.
+    var deleteConsequences: [String] {
+        var files = "Its files — they are not kept in My Files or anywhere else."
+        if let count = knownFileCount, count > 0 { files = "Its files (\(count)) — they are not kept in My Files or anywhere else." }
+        let chatCount = detail?.chats.count ?? 0
+        let chats = chatCount > 0
+            ? "Its Ask Emperor conversations (\(chatCount)) and the drafts made in them."
+            : "Its Ask Emperor conversations and the drafts made in them."
+        return [files, chats, "Its chronology, tasks, fees and people."]
+    }
+
+    static let deleteFootnote =
+        "A court case linked to it stays tracked, and is listed under Matters again as a tracked case. This cannot be undone."
 
     // MARK: - Overview
 

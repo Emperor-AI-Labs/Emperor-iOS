@@ -59,8 +59,11 @@ struct Project: Codable, Equatable, Identifiable, Sendable {
     /// Which side the client is on — `petitioner`, `respondent`, … or free text.
     var ourSide: String?
     var oppositeParty: String?
-    /// A banner preset key, or `image` when a picture was uploaded. Carried, not drawn here.
+    /// A banner preset key, or `image` when a picture was uploaded.
     var banner: String?
+    /// The banner is an uploaded picture, fetched from `GET /project-banner`. The preset under
+    /// it (`BannerPreset.preset(for:)`) is drawn while it loads, and if it cannot be shown.
+    var hasBannerImage: Bool { banner == "image" }
     /// `not_filed` when the matter has no court case yet by the user's own say-so — which is
     /// what lets the setup count the court step as done instead of nagging about it.
     var courtStatus: String?
@@ -260,10 +263,10 @@ struct ProjectListResponse: Codable, Sendable {
 ///   (`sync-server.js:9985`). Spelling it `court_history` here decodes to `nil` with no error,
 ///   and the linked case's whole hearing record silently disappears from the screen.
 ///
-///   The response also carries `files` and `chats`. Both are deliberately unmodelled: a project
-///   file cannot be opened without the write routes this client does not call, and a project
-///   chat would need the chat surface to accept a foreign thread. The Android client made the
-///   same cut.
+///   The response also carries `files`, deliberately unmodelled: the matter's documents are
+///   listed by `/project-files`, which is the tree the Files section and the pickers read.
+///   `chats` is modelled — the matter's own conversations, opened from its Ask section with the
+///   matter named on every turn (`ProjectChatRow`).
 struct ProjectDetailResponse: Codable, Sendable {
     var success: Bool?
     var project: Project?
@@ -279,6 +282,8 @@ struct ProjectDetailResponse: Codable, Sendable {
     var ledger: [LedgerEntry]?
     var people: [ProjectPerson]?
     var totals: LedgerTotals?
+    /// The matter's conversations, newest first.
+    var chats: [ProjectChatRow]?
     var error: String?
 }
 

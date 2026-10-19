@@ -397,14 +397,19 @@ struct PersonDraft: Equatable, Sendable {
     var notes: String?
 }
 
-/// A chronology entry. `source` is `manual` from this client; the server stamps `court` and
-/// the AI extraction `ai`.
+/// A chronology entry. `source` is `manual` for one typed in, and `ai` for an event read from
+/// the matter's documents that the user ticked on the review list (`ChronologyBuildViewModel`);
+/// the court's entries are the server's own.
 struct UpdateDraft: Equatable, Sendable {
     var kind: String
     var title: String
     var body: String?
     /// A day in India, `YYYY-MM-DD`; the server also reads a month or a year alone.
     var eventDate: String?
+    /// `nil` sends `manual`.
+    var source: String? = nil
+    /// Where an extracted event was read — "Plaint.pdf, p. 4". Omitted when blank.
+    var sourceRef: String? = nil
 }
 
 /// A new matter: the three things New matter asks for, and the facts the first screen can fill.
