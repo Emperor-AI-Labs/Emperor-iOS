@@ -453,8 +453,16 @@ final class CourtSearchViewModel {
 
     func isSaved(_ result: CourtSearchResult) -> Bool { savedIDs.contains(result.id) }
 
+    /// A case pinned from its record (`CourtLookupViewModel.addToMatters`) rather than from
+    /// this row: the row must show it saved too, or it offers to add it again.
+    func markSaved(_ result: CourtSearchResult) { savedIDs.insert(result.id) }
+
     enum Copy {
         static let title = "Find a case"
+        /// The same search, opened to read a case rather than to add one (Fetch Orders).
+        static let lookupTitle = "Fetch Orders"
+        static let readFirst = "Read it first"
+        static let fetchThisCase = "Fetch this case"
         static let searchButton = "Search the court"
         static let searching = "Asking the court…"
         /// Said out loud because ten seconds of silence reads as a hang.

@@ -309,8 +309,10 @@ final class ProjectDetailViewModel {
         add("Forum", project.forumLabel ?? linkedCase?.courtName)
         add("Practice area", project.practiceAreaLabel)
         add("Stage", project.stage ?? linkedCase?.stage)
-        if let hearing = nextHearingKey {
-            add("Next hearing", DisplayText.longDay(hearing), emphasised: true)
+        // The stored date, whatever today is — a fact the matter states. Whether it is still
+        // ahead is `standing`'s question, not this panel's.
+        if let hearing = project.nextHearingDate ?? linkedCase?.nextHearingDate {
+            add("Next hearing", DisplayText.longDay(WireDate.dayKey(hearing)), emphasised: true)
         }
         if let filed = project.filingDate {
             add("Filed", DisplayText.longDay(WireDate.dayKey(filed)))

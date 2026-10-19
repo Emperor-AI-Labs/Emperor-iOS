@@ -16,7 +16,7 @@ import SwiftUI
 ///   wrong one. So each carries its own "Done" at `.cancellationAction`, and You owns the one
 ///   sheet they are presented in.
 enum ToolDestination: String, Identifiable {
-    case deck, corporateCalendar, library, projects, tools, fileTools, ocr, translate, eAuctions
+    case deck, corporateCalendar, library, fetchOrders, projects, tools, fileTools, ocr, translate, eAuctions
 
     var id: String { rawValue }
 
@@ -26,6 +26,8 @@ enum ToolDestination: String, Identifiable {
         case .deck: return "Your workspace"
         case .corporateCalendar: return "Corporate Calendar"
         case .library: return "Library"
+        // Read any court case — orders, hearings, parties — without adding it.
+        case .fetchOrders: return "Fetch Orders"
         // The tab is Matters; these are the workspaces behind them (the web's Matters page).
         case .projects: return "Matter workspaces"
         case .tools: return "All tools"
@@ -42,6 +44,7 @@ enum ToolDestination: String, Identifiable {
         case .deck: return role.systemImage
         case .corporateCalendar: return "calendar.badge.checkmark"
         case .library: return "books.vertical"
+        case .fetchOrders: return "doc.text.magnifyingglass"
         case .projects: return "folder.badge.gearshape"
         case .tools: return "wrench.and.screwdriver"
         case .fileTools: return "scissors"
@@ -58,6 +61,7 @@ enum ToolDestination: String, Identifiable {
         case .deck: RoleHomeView()
         case .corporateCalendar: ComplianceCalendarView()
         case .library: LibraryView()
+        case .fetchOrders: CourtSearchView(purpose: .lookup, onSaved: {})
         case .projects: ProjectListView()
         case .tools: ToolsListView()
         case .fileTools: PDFToolsView()
@@ -85,6 +89,7 @@ struct ToolsSections: View {
             row(.deck)
             row(.corporateCalendar)
             row(.library)
+            row(.fetchOrders)
             row(.projects)
         } header: {
             SectionHeader(title: "Your practice")

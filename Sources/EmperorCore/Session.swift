@@ -42,6 +42,8 @@ final class Session {
     let courtSearch: CourtSearchService
     /// The dropdown catalogues behind the court search form — which bench, which case type.
     let courtMetadata: CourtMetadataService
+    /// Fetch Orders: a case read from the court's records without being added — see `CourtLookup`.
+    let courtLookup: CourtLookupService
     let fileManagement: FileManagementService
     let drafts: DraftHistoryService
     let auctions: AuctionService
@@ -106,6 +108,7 @@ final class Session {
         self.usage = UsageService(client: client)
         self.courtSearch = CourtSearchService(client: client)
         self.courtMetadata = CourtMetadataService(client: client)
+        self.courtLookup = CourtLookupService(client: client)
         self.fileManagement = FileManagementService(client: client)
         self.drafts = DraftHistoryService(client: client)
         self.auctions = AuctionService(client: client)

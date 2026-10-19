@@ -77,8 +77,13 @@ final class RefusalTests: XCTestCase {
             APIError.classify(status: 500, body: body(#"{"error":"Missing userId"}"#)),
             .server(status: 500, message: "Missing userId"))
         XCTAssertEqual(
+            APIError.classify(status: 500, body: Data()),
+            .server(status: 500, message: "The server returned status 500."))
+        // A bare 502 is not the platform's sentence at all but the gateway's — the platform is
+        // being restarted — and reads as such (`GatewayDownTests`).
+        XCTAssertEqual(
             APIError.classify(status: 502, body: Data()),
-            .server(status: 502, message: "The server returned status 502."))
+            .maintenance(message: APIError.unreachableMessage))
     }
 
     /// The client answers a refusal with silence, not three retries that count against the

@@ -232,23 +232,10 @@ struct CourtSearchService: CourtSearching {
             throw APIError.notAuthenticated
         }
 
-        var body: [String: JSONValue] = ["userId": .string(credentials.userIDString)]
-        func put(_ key: String, _ value: String?) {
-            guard let value, !value.isEmpty else { return }
-            body[key] = .string(value)
-        }
-        put("cnr", result.cnr)
-        put("diaryNumber", result.diaryNumber)
-        put("courtType", result.courtType)
-        put("courtCode", result.courtCode)
-        put("courtName", result.courtName)
-        put("caseType", result.caseType)
-        put("caseNumber", result.caseNumber)
-        put("caseYear", result.caseYear)
-        put("title", result.title)
-        put("parties", result.parties)
-        put("status", result.status)
-        if let scrapeRef = result.scrapeRef { body["scrapeRef"] = scrapeRef }
+        // The card's fields — shared with `/court/lookup`, which takes the same card nested
+        // under `card`, so the two routes cannot drift apart about what identifies a case.
+        var body = result.cardFields
+        body["userId"] = .string(credentials.userIDString)
 
         var request = try await client.makeRequest(
             "POST", "/save-case", body: SavePayload(body: body))

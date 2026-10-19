@@ -7,14 +7,25 @@ import UIKit
 /// only be added from a desktop. It is presented as a sheet from the docket rather than a tab,
 /// because adding a case is something you do occasionally and finish, not somewhere you live.
 struct CourtSearchView: View {
+    /// What the search is for. The form is the same; the result row leads with the answer.
+    enum Purpose {
+        /// Add the case to the docket — the row's first button pins it.
+        case track
+        /// Fetch Orders: read the case first — the row's first button opens its record.
+        case lookup
+    }
+
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
     @Environment(\.dismiss) private var dismiss
 
+    var purpose: Purpose = .track
     /// Called after a case is pinned, so the docket behind this sheet reloads.
     let onSaved: () -> Void
 
     @State private var model: CourtSearchViewModel?
+    /// The result being read without being added (`CourtRecordView`).
+    @State private var reading: CourtSearchResult?
 
     var body: some View {
         NavigationStack {
@@ -25,7 +36,8 @@ struct CourtSearchView: View {
                     ProgressView()
                 }
             }
-            .navigationTitle(CourtSearchViewModel.Copy.title)
+            .navigationTitle(purpose == .lookup
+                             ? CourtSearchViewModel.Copy.lookupTitle : CourtSearchViewModel.Copy.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -38,6 +50,14 @@ struct CourtSearchView: View {
                     service: session.courtSearch,
                     metadata: session.courtMetadata,
                     onSaved: onSaved)
+            }
+            .sheet(item: $reading) { result in
+                CourtRecordView(card: result) { _ in
+                    // Added from the record: the docket behind this sheet has a new row.
+                    onSaved()
+                    model?.markSaved(result)
+                }
+                .pageSizedSheet()
             }
         }
     }
@@ -357,10 +377,40 @@ struct CourtSearchView: View {
                     .foregroundStyle(theme.warning)
             }
 
-            saveButton(model, result)
-                .padding(.top, Spacing.xxs)
+            // Two ways on: read the record first (Fetch Orders), or add it straight away. The
+            // purpose decides which leads.
+            HStack(spacing: Spacing.sm) {
+                if purpose == .lookup {
+                    readButton(result, prominent: true)
+                    saveButton(model, result)
+                } else {
+                    saveButton(model, result)
+                    readButton(result, prominent: false)
+                }
+            }
+            .padding(.top, Spacing.xxs)
         }
         .padding(.vertical, Spacing.xs + 2)
+    }
+
+    /// Opens the case's record from the court — orders, hearings, parties — without adding it.
+    private func readButton(_ result: CourtSearchResult, prominent: Bool) -> some View {
+        Button {
+            reading = result
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "doc.text.magnifyingglass")
+                Text(prominent ? CourtSearchViewModel.Copy.fetchThisCase : CourtSearchViewModel.Copy.readFirst)
+            }
+            .font(.brand(.caption, weight: .semibold))
+            .foregroundStyle(prominent ? theme.accentText : theme.textSecondary)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, 6)
+            .background(prominent ? theme.accentWash : theme.surface2, in: Capsule())
+            .overlay(Capsule().strokeBorder(prominent ? theme.accentMuted : theme.border, lineWidth: 1))
+        }
+        .buttonStyle(.borderless)
+        .accessibilityHint("Reads the case from the court's records without adding it")
     }
 
     @ViewBuilder
