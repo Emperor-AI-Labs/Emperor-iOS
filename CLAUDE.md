@@ -35,7 +35,7 @@ The reference copy is **source only** — no `node_modules`, no `Data/`, no `chr
 | `src/lib/canvasShape.js` | Why artifact format must be sniffed, not trusted |
 | `src/lib/api.js` | The transport layer: `<status>` extraction, chunk holdback |
 | `src/providers/OpenRouterProvider.js` | Model aliases, retries, `<truncate:N/>` |
-| `src/roles/roleConfig.js` | The real role contract. The web has eight roles; this app carries seven — Devil's Advocate is deliberately not one of them |
+| `src/roles/roleConfig.js` | The real role contract. The web has eight roles and this app carries all eight; each card deck is `src/roles/*Cards.js` |
 | `src/lib/citations.js` | Numbered `[1]` citations and the References section — the spec `AnswerCitations` ports |
 | `lib/authFlows.js`, `lib/usageMeter.js`, `lib/planLimits.js` | Sign-up confirmation, one-time codes, and the plan allowances behind every refusal |
 | `lib/filing/index.js` | Filing assembly. Follow `getUserFromRequest` in `sync-server.js` for caller resolution |
@@ -247,7 +247,7 @@ Full detail in `README.md`. The short list:
     signed in. The client keeps no cookies; the bearer token is the only credential.
 26. **The role lives on the account** (`practice_role`, the web's role id — not
     `PractitionerRole.rawValue`). `Practice` keeps the device's copy in step; a role the app
-    does not carry (Devil's Advocate) is never overwritten.
+    does not carry (one the web adds after this build) is never overwritten.
 27. **`POST /notif/test` also opts the account in**, exactly as `/notif/optin` does, and
     `/notif/optout` deletes every browser push subscription the account holds. `/notif/status`
     has no `success` key. See `NotificationOptInService`.

@@ -169,8 +169,8 @@ which no plan changes. App Review restricts links to purchases made outside the 
 **The role is the account's.** `users.practice_role` holds the web's id for it, so switching
 role in Settings switches the web too, and the other way round (`Practice`). The device keeps a
 copy for drawing the toolkit offline; a switch made here that has not reached the account yet
-is sent again rather than overwritten. A role this app does not carry — the web's Devil's
-Advocate — is left alone on the account. Needs the platform's `practice_role` change deployed;
+is sent again rather than overwritten. A role this app does not carry — one the web adds after
+this build — is left alone on the account. Needs the platform's `practice_role` change deployed;
 until then the role stays on the device and nothing breaks.
 
 **A wrong one-time code is a 401 that says nothing about the session.** `APIError.classify`
@@ -485,6 +485,23 @@ plan rows it never reached pending, where the web ticks every row.
   delegate callbacks, and above all the terminate-and-relaunch path, need a physical device. A
   simulator does not evict apps the way a phone under memory pressure does.
   `docs/RELEASING.md` lists what to try, in order.
+
+### Devil's Advocate, the eighth role
+
+The web's eighth role is carried here as the others are: in the role picker, the first-sign-in
+welcome and on the account as `devil`. Its deck is eleven cards under `dadv-`, split by the side
+under attack — The Other Side or Our Own Case, with the shared cards in both. The side is
+remembered on the device, as the web keeps it in the browser, and is named in the guardrail the
+web adds to the end of every tool prompt while the role is active (`DevilsAdvocateMode`,
+`Practice.toolPromptGuardrail`). The Limitation card is not a prompt: it opens the Limitation
+Radar. The role sends `Devil's Advocate` as `role` on `/chat`, its `aiRole` on the web. This is a
+different thing from the server-run Devil's Advocate under Analysis tools.
+
+Every deck, its filters and sections, and every card's prompt come from the platform's own card
+modules and `registry.js` run under Node (`scripts/generate-role-card-fixtures.mjs`, which also
+writes `RoleCards.swift`). The guardrail is cut from `ToolWorkspace.jsx` and evaluated the same
+way. The web adds a role guardrail for Arbitrators & Judges, Paralegal, Student and Legal Aid
+too; those four are not added here yet.
 
 ### Built and deliberately held back
 These exist, are tested, and have no caller. Each is marked at its definition. **Do not wire one
