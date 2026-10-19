@@ -49,6 +49,12 @@ let package = Package(
                 // A company's statutory deadlines, from the platform's `complianceSchedule.js` —
                 // `scripts/generate-compliance-schedule-fixtures.mjs`.
                 .copy("Resources/compliance-schedule"),
+                // The fee receipt and its rupee wording, from the platform's `receipt.js` and
+                // `inr.js` — `scripts/generate-fee-receipt-fixtures.mjs`.
+                .copy("Resources/fee-receipt"),
+                // A matter's merged record, its List of Dates & Events and its Overview timeline,
+                // from the platform's `projectRecord.js` — `scripts/generate-matter-record-fixtures.mjs`.
+                .copy("Resources/matter-record"),
             ]),
     ]
 )
