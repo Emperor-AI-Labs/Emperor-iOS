@@ -484,41 +484,29 @@ final class ProjectServiceWireTests: XCTestCase {
 
 final class ProjectListViewModelTests: XCTestCase {
 
-    /// The route orders by priority, then next hearing, then last update. Re-sorting here would
-    /// put the phone and the browser in disagreement about which matter is most urgent — the one
-    /// thing a priority field exists to settle.
-    func testTheServersOrderIsKeptExactlyAsItArrived() async {
+    /// The list is re-ordered by the Sort menu, as on the web; "Name A–Z" ignores the server's
+    /// order entirely.
+    func testTheNameSortIgnoresTheServersOrder() async {
         await withList { fake, model in
             fake.list = [project("b", name: "B"), project("a", name: "A"), project("c", name: "C")]
             await model.load()
-            XCTAssertEqual(model.visible.map(\.id), ["b", "a", "c"])
+            model.sort = .name
+            XCTAssertEqual(model.visible.map(\.id), ["a", "b", "c"])
         }
     }
 
-    /// Archived matters are excluded in the route's `WHERE` clause, so the rows are not in hand.
-    /// A local filter would show an empty archive to someone who has one — and nothing on screen
-    /// would say why.
-    func testTurningOnArchivedRefetchesRatherThanFiltering() async {
+    /// Archived matters are always fetched — a tracked case is listed only while no matter links
+    /// it, and an archived matter still links its case. The Status menu is a local filter.
+    func testArchivedMattersAreAlwaysFetchedAndFilteredLocally() async {
         await withList { fake, model in
-            fake.list = [project()]
+            fake.list = [project("a", status: "active"), project("z", status: "archived")]
             await model.load()
-            XCTAssertEqual(fake.archivedRequests, [false])
+            XCTAssertEqual(fake.archivedRequests, [true])
+            XCTAssertEqual(model.visible.map(\.id), ["a"])
 
-            await model.setIncludeArchived(true)
-
-            XCTAssertEqual(fake.archivedRequests, [false, true])
-            XCTAssertTrue(model.includeArchived)
-        }
-    }
-
-    /// Setting it to what it already is must not spend a request. The toggle is bound to a
-    /// `Binding` that fires on every read-back, and a screen that re-fetches on redraw is a
-    /// battery bug nobody sees.
-    func testSettingTheFlagToItsCurrentValueIsANoOp() async {
-        await withList { fake, model in
-            await model.load()
-            await model.setIncludeArchived(false)
-            XCTAssertEqual(fake.archivedRequests, [false])
+            model.statusFilter = .archived
+            XCTAssertEqual(model.visible.map(\.id), ["z"])
+            XCTAssertEqual(fake.archivedRequests, [true])
         }
     }
 
@@ -559,32 +547,31 @@ final class ProjectListViewModelTests: XCTestCase {
 
             XCTAssertTrue(model.presentation.showsEmptyState)
             XCTAssertTrue(model.showsNoSearchResults)
-            XCTAssertEqual(model.emptyTitle, "No matters match")
         }
     }
 
-    /// The commonest reason a matter someone remembers is missing is that they archived it. A
-    /// reader not told the filter exists concludes the matter is gone.
-    func testTheFruitlessSearchNamesTheArchivedFilterWhileItIsOff() async {
+    /// A fruitless search says what to try, in the web's words, and names the status scope.
+    func testAFruitlessSearchSaysWhatToTryAndOffersEveryStatus() async {
         await withList { fake, model in
             fake.list = [project()]
             await model.load()
             model.query = "zzzz"
-            XCTAssertTrue(model.emptyDetail.contains("Archived matters are not being shown"))
+            XCTAssertEqual(model.emptyTitle, "No active matter matches “zzzz”")
+            XCTAssertEqual(model.emptyDetail, ProjectListViewModel.Copy.filteringDetail)
+            XCTAssertTrue(model.offersShowAllStatuses)
 
-            await model.setIncludeArchived(true)
-            model.query = "zzzz"
-            XCTAssertFalse(model.emptyDetail.contains("Archived matters are not being shown"))
+            model.showAllStatuses()
+            XCTAssertEqual(model.emptyTitle, "No matter matches “zzzz”")
+            XCTAssertFalse(model.offersShowAllStatuses)
         }
     }
 
-    /// An account with no matters at all is a different sentence from a fruitless search: this
-    /// screen cannot create one, so it has to say where they come from.
-    func testATrulyEmptyAccountIsToldWhereMattersComeFrom() async {
+    /// An account with no matters at all is a different sentence from a fruitless search.
+    func testATrulyEmptyAccountIsToldWhatAMatterHolds() async {
         await withList { _, model in
             await model.load()
             XCTAssertFalse(model.showsNoSearchResults)
-            XCTAssertEqual(model.emptyTitle, "No matters yet")
+            XCTAssertEqual(model.emptyTitle, ProjectListViewModel.Copy.firstMatterTitle)
             XCTAssertEqual(model.emptyDetail, ProjectListViewModel.Copy.openedOnTheWeb)
         }
     }

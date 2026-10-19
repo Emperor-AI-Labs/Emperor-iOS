@@ -91,6 +91,11 @@ struct Project: Codable, Equatable, Identifiable, Sendable {
     var billed: Double?
     var received: Double?
 
+    /// When the row was made. The Matters list's "Recent activity" counts it as the floor of a
+    /// matter's activity, and the oldest of two matters linked to one case is the one a tracked
+    /// case opens.
+    var createdAtRaw: String?
+
     // MARK: - Derived
 
     var displayName: String {
@@ -187,6 +192,7 @@ struct Project: Codable, Equatable, Identifiable, Sendable {
         case openTasks = "open_tasks"
         case nextTaskDueRaw = "next_task_due"
         case billed, received
+        case createdAtRaw = "created_at"
     }
 }
 
