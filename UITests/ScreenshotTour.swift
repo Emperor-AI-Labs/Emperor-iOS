@@ -179,8 +179,8 @@ final class ScreenshotTour: XCTestCase {
         // Everything behind More, each opened and closed from its own Done.
         app.tab("More").tap()
         snap("more")
-        // Projects and eAuctions are hidden for now; see `MoreView`.
-        for row in ["My Files", "Corporate Calendar", "Library", "Your workspace",
+        // eAuctions is hidden for now; see `MoreView`.
+        for row in ["My Files", "Corporate Calendar", "Library", "Matter workspaces", "Your workspace",
                     "All tools", "File tools", "OCR", "Translate", "Settings"] {
             let button = app.buttons[row].firstMatch
             guard button.waitForExistence(timeout: 5) else { continue }

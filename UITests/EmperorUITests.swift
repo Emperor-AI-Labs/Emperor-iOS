@@ -322,8 +322,9 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
         app.tab("More").tap()
 
-        // Hidden for now at the product owner's request; their screens are kept. See the note
-        // at `MoreView`'s rows for how to bring them back.
+        // Hidden for now at the product owner's request; its screen is kept. See the note at
+        // `MoreView`'s rows for how to bring it back. ("Projects" is the old name of the row
+        // that came back as "Matter workspaces".)
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
         for hidden in ["Projects", "eAuctions"] {
             XCTAssertFalse(app.buttons[hidden].exists, "\(hidden) is meant to be hidden")
@@ -333,6 +334,7 @@ final class EmperorUITests: XCTestCase {
             ("My Files", "My Files"),
             ("Corporate Calendar", "Corporate Calendar"),
             ("Library", "Library"),
+            ("Matter workspaces", "Matter workspaces"),
             ("All tools", "Tools"),
             ("File tools", "File tools"),
             ("OCR", "OCR"),

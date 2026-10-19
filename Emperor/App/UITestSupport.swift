@@ -209,6 +209,14 @@ enum UITestSupport {
                 return casesBody()
             case "/case":
                 return caseBody()
+            // One matter workspace, linked to `case1`, with a task, a fee and a person — enough
+            // for the Overview's setup strip, tiles and sections to have something to draw.
+            case "/projects":
+                return #"{"success":true,"projects":[{"id":"prj1","name":"Bakshi v. State of NCT of Delhi","client":"Bakshi Enterprises","practice_area":"criminal","our_side":"petitioner","opposite_party":"State of NCT of Delhi","linked_case_id":"case1","status":"active","priority":"high","next_hearing_date":"2026-10-21","file_count":2,"open_tasks":1,"next_task_due":"2026-10-20","billed":50000,"received":20000}]}"#
+            case "/project":
+                return #"{"success":true,"project":{"id":"prj1","name":"Bakshi v. State of NCT of Delhi","client":"Bakshi Enterprises","practice_area":"criminal","our_side":"petitioner","opposite_party":"State of NCT of Delhi","linked_case_id":"case1","status":"active","priority":"high","next_hearing_date":"2026-10-21"},"updates":[{"id":"u1","kind":"event","title":"FIR registered","event_date":"2026-02-11","source":"ai","source_ref":"FIR.pdf, p. 1"}],"courtHistory":[],"linkedCase":{"id":"case1","title":"Bakshi v. State","court_name":"Delhi High Court","next_hearing_date":"2026-10-21","last_synced_at":"2026-10-19 02:00:00"},"tasks":[{"id":"t1","title":"File reply to the status report","due_date":"2026-10-20","kind":"filing","priority":"high","status":"open"}],"ledger":[{"id":"l1","kind":"fee","title":"Appearance fee","amount":50000,"amount_paise":5000000,"entry_date":"2026-09-01"},{"id":"l2","kind":"payment","amount":20000,"amount_paise":2000000,"entry_date":"2026-09-15","mode":"upi"}],"people":[{"id":"p1","role":"client","name":"Bakshi Enterprises","phone":"+91 98100 00000"}],"totals":{"billed":50000,"received":20000,"outstanding":30000,"expenses":0}}"#
+            case "/project-files":
+                return #"{"success":true,"root":"_projects/prj1","folders":[{"name":"Pleadings","path":"_projects/prj1/Pleadings","type":"folder","files":[{"name":"Bail_Application.pdf","path":"_projects/prj1/Pleadings/Bail_Application.pdf","type":"file","status":"ready"}]}],"files":[]}"#
             // `listings`, not `cases`; `date` and `caseId` are the two keys `CauseListing`
             // requires. Dated today, in India, so Home and the Calendar have a row to draw — with
             // the court, item, coram and time a published list supplies, which is what the row

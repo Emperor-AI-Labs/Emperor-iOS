@@ -23,6 +23,8 @@ struct CaseDetailView: View {
     @State private var model: CaseDetailViewModel?
     @State private var isAddingNote = false
     @State private var isAddingTask = false
+    /// The matter behind this case, once asked for — pushed as its workspace.
+    @State private var openMatter: MatterRoute?
 
     var body: some View {
         Group {
@@ -41,7 +43,8 @@ struct CaseDetailView: View {
                 model = CaseDetailViewModel(
                     caseID: caseID, service: session.cases,
                     offline: session.offlineCopies?.matters,
-                    connectivity: AppConnectivity.current)
+                    connectivity: AppConnectivity.current,
+                    projects: session.projects)
             }
             // Loads when nothing has been loaded yet — including after a load that was cancelled
             // part-way (the model goes back to idle), so the matter is not left unloaded.
@@ -89,6 +92,21 @@ struct CaseDetailView: View {
                     } label: {
                         Label("Add a task", systemImage: "checkmark.circle")
                     }
+                    if model.canOpenMatter {
+                        Divider()
+                        // The web's Matters page for this case: chronology, tasks, fees, people
+                        // and documents. Made on the spot the first time, the same one after.
+                        Button {
+                            Task {
+                                if let id = await model.openMatter() {
+                                    openMatter = MatterRoute(projectID: id)
+                                }
+                            }
+                        } label: {
+                            Label("Open matter workspace", systemImage: "folder.badge.gearshape")
+                        }
+                        .disabled(model.isOpeningMatter)
+                    }
                 } label: {
                     Label("Add", systemImage: "plus")
                 }
@@ -96,6 +114,18 @@ struct CaseDetailView: View {
                 // behind it.
                 .disabled(!model.canWrite)
             }
+        }
+        .navigationDestination(item: $openMatter) { route in
+            ProjectDetailView(projectID: route.projectID)
+                .toolbar(.hidden, for: .tabBar)
+        }
+        .alert("Could not open the workspace", isPresented: Binding(
+            get: { model.matterError != nil },
+            set: { if !$0 { model.matterError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(model.matterError ?? "")
         }
         .sheet(isPresented: $isAddingNote) {
             CaseWriteSheet(kind: .note) { title, body, _ in
@@ -319,4 +349,11 @@ private struct OrderDocumentView: View {
                 }
         }
     }
+}
+
+/// A matter's workspace pushed from its case. A value type, so `navigationDestination(item:)`
+/// can present it and asking again for the same matter is a new presentation.
+struct MatterRoute: Hashable, Identifiable {
+    let projectID: String
+    var id: String { projectID }
 }

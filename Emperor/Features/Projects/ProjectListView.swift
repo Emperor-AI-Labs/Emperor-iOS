@@ -8,10 +8,8 @@ import SwiftUI
 /// row whose hearing date a registry guarantees beside one whose hearing date somebody
 /// half-remembered, under the same heading.
 ///
-/// - Important: **read-only.** Nothing here creates or edits a matter. The write routes exist, and
-///   the shape of a project is still moving on the web while the feature is trialled there — see
-///   `ProjectService` for the full reasoning. That is also why the empty state has to say where
-///   matters come from: there is no "+" to reach for.
+/// `+` starts a matter from a name alone, as the web's New matter does; everything else is
+/// filled in from the workspace it opens. A tracked case opens its own workspace from its page.
 ///
 /// - Important: owns its own `NavigationStack`, because `MoreView` **presents** rather than
 ///   pushes. Pushing this into that list's stack would nest two and give the screen two
@@ -23,9 +21,12 @@ struct ProjectListView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var model: ProjectListViewModel?
+    @State private var path: [String] = []
+    @State private var isNaming = false
+    @State private var newName = ""
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 if let model {
                     content(model)
@@ -34,6 +35,20 @@ struct ProjectListView: View {
                 }
             }
             .navigationTitle(ProjectListViewModel.Copy.title)
+            .alert(ProjectListViewModel.Copy.newMatter, isPresented: $isNaming) {
+                TextField("Name — Helios v. Northgrid", text: $newName)
+                Button("Cancel", role: .cancel) { newName = "" }
+                Button("Create") {
+                    let name = newName
+                    newName = ""
+                    guard let model else { return }
+                    Task {
+                        if let id = await model.create(named: name) { path.append(id) }
+                    }
+                }
+            } message: {
+                Text("A name is all it needs. The court case, the client and the rest are added in the workspace.")
+            }
             // On the root rather than inside `content`, so it is there in every state — including
             // the spinner before the first load returns, and the failure view if it never does.
             .toolbar {
@@ -76,8 +91,14 @@ struct ProjectListView: View {
             // never be reached, and the reader would be shown a blank list with no explanation.
             EmptyStateView(
                 model.emptyTitle, systemImage: "folder.badge.person.crop",
-                message: model.emptyDetail
+                message: model.createError ?? model.emptyDetail
             ) {
+                Button {
+                    isNaming = true
+                } label: {
+                    Label(ProjectListViewModel.Copy.newMatter, systemImage: "plus")
+                }
+                .buttonStyle(.primaryAction)
                 if !model.includeArchived {
                     Button("Include archived matters") {
                         Task { await model.setIncludeArchived(true) }
@@ -89,9 +110,18 @@ struct ProjectListView: View {
         .searchable(text: $bindable.query, prompt: "Filter your matters")
         .refreshable { await model.load() }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
                 filterMenu(model)
+                Button {
+                    isNaming = true
+                } label: {
+                    Label(ProjectListViewModel.Copy.newMatter, systemImage: "plus")
+                }
+                .disabled(model.isCreating)
             }
+        }
+        .onChange(of: model.createError) { _, error in
+            if error != nil { isNaming = false }
         }
     }
 
