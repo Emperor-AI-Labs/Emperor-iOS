@@ -284,6 +284,18 @@ Settings → Storage shows and clears it.
 
 ### Matters and calendars
 
+- **A matter's workspace has the web's sections** — Overview, Ask Emperor, Files, Drafts,
+  Chronology, Court, Tasks, Fees, People. Its conversations are opened from Ask Emperor: every
+  turn names the matter (`ChatViewModel.projectID`), a new conversation starts with the matter's
+  ready documents attached, and the document picker offers only the matter's own files. They
+  stay out of the general conversation list, and the matter's drafts (documents and tables) out
+  of the general drafts list. **Build from documents** asks the server to propose dated events
+  from the matter's documents; each is shown with where it was read, undated ones and ones
+  already on the record start unticked, and only what the user ticks is saved — one at a time,
+  as `source: ai` with its page. The banner is a preset gradient or an uploaded photo (shrunk to
+  1,600 pixels wide and kept under 2 MB before it is sent), and a matter is deleted only once its
+  name has been typed.
+
 - **`court_type` is `'district'` by default** — the `cases` column's default, and what
   `/save-case` writes when no type is sent. `CourtTier` lets a court code or name that says
   otherwise outrank a stored `district`, and reads the code and name whenever the type is
