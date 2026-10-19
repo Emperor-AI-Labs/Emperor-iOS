@@ -1,7 +1,9 @@
 import SwiftUI
 
 /// One matter's workspace — the web's Matters page on a phone: where things stand, what is set
-/// up, and the sections behind a row of chips: Chronology, Court, Tasks, Fees, People, Files.
+/// up, and the sections behind a row of chips: Ask Emperor, Files, Drafts, Chronology, Court,
+/// Tasks, Fees, People. The newer sections are their own views (`MatterAskSection`,
+/// `MatterDraftsSection`, `ChronologyBuildSheet`, `MatterBannerView`, `MatterDeleteSheet`).
 ///
 /// Every rule on this screen lives in `ProjectDetailViewModel`; the view lays it out. Writes are
 /// a sheet each (`MatterWriteSheet`) and every one is followed by a re-read, so a total or a
@@ -14,8 +16,11 @@ struct ProjectDetailView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
     @Environment(\.navigator) private var navigator
+    @Environment(\.dismiss) private var dismiss
 
     let projectID: String
+    /// Told when the matter has been deleted from here, so the list behind it can refresh.
+    var onDeleted: (() -> Void)?
 
     @State private var model: ProjectDetailViewModel?
     @State private var writing: MatterWriteSheet.Kind?
@@ -23,6 +28,11 @@ struct ProjectDetailView: View {
     @State private var attachInto: String = MatterVocabulary.standardFolders[0]
     @State private var isFindingCase = false
     @State private var toast: String?
+    /// The matter's conversation being opened from Ask Emperor.
+    @State private var openChat: MatterChatRoute?
+    /// "Build from documents", while its sheet is up.
+    @State private var chronologyBuild: ChronologyBuildViewModel?
+    @State private var isConfirmingDelete = false
 
     var body: some View {
         Group {
@@ -64,6 +74,8 @@ struct ProjectDetailView: View {
 
                 switch model.section {
                 case .overview: overview(model)
+                case .ask: MatterAskSection(model: model) { openChat = $0 }
+                case .drafts: MatterDraftsSection(projectID: projectID) { model.section = .ask }
                 case .chronology: chronology(model)
                 case .court: court(model)
                 case .tasks: tasks(model)
@@ -129,8 +141,31 @@ struct ProjectDetailView: View {
             if let notice { toast = notice }
         }
         .onChange(of: model.section) { _, section in
-            if section == .files, model.files == nil {
+            // Ask needs the files too: a new conversation starts with the ready ones attached.
+            if section == .files || section == .ask, model.files == nil {
                 Task { await model.loadFiles() }
+            }
+        }
+        .navigationDestination(item: $openChat) { route in
+            ChatThreadView(
+                chatID: route.chatID,
+                initialAttachments: route.isNew ? model.readyFiles.map(\.attachment) : [],
+                onTurnFinished: { Task { await model.load() } },
+                projectID: projectID)
+        }
+        .sheet(isPresented: Binding(
+            get: { chronologyBuild != nil },
+            set: { if !$0 { chronologyBuild = nil } }
+        )) {
+            if let build = chronologyBuild {
+                ChronologyBuildSheet(model: build) { summary in toast = summary }
+                    .pageSizedSheet()
+            }
+        }
+        .sheet(isPresented: $isConfirmingDelete) {
+            MatterDeleteSheet(model: model) {
+                onDeleted?()
+                dismiss()
             }
         }
     }
@@ -192,6 +227,12 @@ struct ProjectDetailView: View {
 
     @ViewBuilder
     private func overview(_ model: ProjectDetailViewModel) -> some View {
+        Section {
+            MatterBannerView(model: model)
+                .listRowInsets(EdgeInsets())
+        }
+        .listRowBackground(Color.clear)
+
         if let standing = model.standing {
             Section {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -259,6 +300,8 @@ struct ProjectDetailView: View {
         .listRowBackground(theme.surface)
 
         facts(model.facts, title: "This matter")
+
+        MatterDeleteRow { isConfirmingDelete = true }
     }
 
     /// One chip per missing step. The ones a tap can settle do it here; the rest open the
@@ -353,6 +396,8 @@ struct ProjectDetailView: View {
 
     @ViewBuilder
     private func chronology(_ model: ProjectDetailViewModel) -> some View {
+        ChronologyBuildRow { chronologyBuild = model.chronologyBuilder() }
+
         if model.updates.isEmpty {
             Section {
                 emptyLine("Nothing on the chronology yet. Add a date, or link the court case and its hearings fill in.")

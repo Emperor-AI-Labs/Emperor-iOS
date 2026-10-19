@@ -62,6 +62,10 @@ struct ChatThreadView: View {
     /// not on screen, and nothing is passed.
     var onTurnFinished: (() -> Void)?
 
+    /// The matter this conversation belongs to, when it was opened from one. Every turn names
+    /// it, and the documents offered are the matter's own rather than My Files.
+    var projectID: String?
+
     var body: some View {
         Group {
             if let model {
@@ -92,7 +96,8 @@ struct ChatThreadView: View {
                 // Kept for reading offline, and read back only when the server cannot be
                 // reached — never sent. See `ChatViewModel.savedCopyAt`.
                 offline: session.offlineCopies?.conversations,
-                connectivity: AppConnectivity.current)
+                connectivity: AppConnectivity.current,
+                projectID: projectID)
             // Asked for in the role the user practises in, and only that: the conversation
             // offers no role of its own to pick, so the one chosen in Settings governs every
             // answer. Without this every conversation would open as a litigator regardless of
@@ -311,8 +316,16 @@ struct ChatThreadView: View {
             }
         }
         .sheet(isPresented: $isBrowsingFiles) {
-            FileLibraryView(alreadyAttached: model.attachments) { chosen in
-                model.setAttachments(chosen)
+            // A matter's conversation reads only the matter's documents, so it is offered those
+            // and never My Files.
+            if let projectID {
+                MatterFilePicker(projectID: projectID, alreadyAttached: model.attachments) { chosen in
+                    model.setAttachments(chosen)
+                }
+            } else {
+                FileLibraryView(alreadyAttached: model.attachments) { chosen in
+                    model.setAttachments(chosen)
+                }
             }
         }
         .sheet(item: $model.openSource) { source in
