@@ -72,6 +72,8 @@ final class Session {
     let calendarFeed: CalendarFeedService
     /// The server-run analysis tools — Doc Index, List of Dates, Devil's Advocate.
     let analysis: AnalysisService
+    /// The List of Annexures under a draft, and the filing-ready package — see `FilingPackage`.
+    let filingAnnexures: FilingAnnexureService
 
     let cache: ResponseCache
 
@@ -125,6 +127,7 @@ final class Session {
         self.complianceCalendar = ComplianceCalendarService(client: client)
         self.calendarFeed = CalendarFeedService(client: client, baseURL: config.baseURL)
         self.analysis = AnalysisService(client: client)
+        self.filingAnnexures = FilingAnnexureService(client: client)
         self.store = store
         self.cache = cache
         self.signInFlow = SignInFlow(auth: auth)
