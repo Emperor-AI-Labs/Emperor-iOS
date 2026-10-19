@@ -293,7 +293,7 @@ struct RootView: View {
             if !hasAnsweredRoleWelcome
                 && RoleWelcome.shouldShow(
                     preferences, isSignedIn: true, accountRole: user.practiceRole) {
-                RoleWelcomeView(name: user.name) { chosen in
+                RoleWelcomeView(user: user) { chosen in
                     if let chosen { practice.select(chosen) }
                     RoleWelcome.finish(choosing: chosen, in: preferences)
                     withAnimation { hasAnsweredRoleWelcome = true }

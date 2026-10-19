@@ -425,6 +425,14 @@ final class EmperorUITests: XCTestCase {
         choice.tap()
         app.buttons["Continue"].tap()
 
+        // The second step: chambers and designation, both optional.
+        let start = app.buttons["Start working"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10), "the details step did not follow the role")
+        XCTAssertTrue(app.textFields["welcome-organization"].exists, "the chambers field is missing")
+        XCTAssertTrue(app.textFields["welcome-title"].exists, "the designation field is missing")
+        XCTAssertTrue(app.buttons["Skip"].exists, "there must be a way past the details")
+        start.tap()
+
         XCTAssertTrue(
             app.tab("Home").waitForExistence(timeout: 10),
             "choosing a role did not lead into the app")
@@ -734,6 +742,8 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(litigator.waitForExistence(timeout: 10), "the role choice did not appear")
         litigator.tap()
         app.buttons["Continue"].tap()
+        let skipDetails = app.buttons["Skip"]
+        if skipDetails.waitForExistence(timeout: 10) { skipDetails.tap() }
 
         XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
         app.tab("More").tap()

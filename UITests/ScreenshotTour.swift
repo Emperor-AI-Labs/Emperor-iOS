@@ -67,6 +67,11 @@ final class ScreenshotTour: XCTestCase {
             snap("role-welcome")
             litigator.tap()
             tapIfPresent(app.buttons["Continue"])
+            let start = app.buttons["Start working"]
+            if start.waitForExistence(timeout: 10) {
+                snap("role-welcome-details")
+                start.tap()
+            }
         }
 
         guard app.tab("Home").waitForExistence(timeout: 15) else {
