@@ -138,12 +138,12 @@ final class ArtifactAndMentionTests: XCTestCase {
         XCTAssertEqual(ChatModel.fromPreference("emperor-executive-6"), .fast)
     }
 
-    /// These three strings are what the web client puts on the wire; matching them keeps
+    /// These four strings are what the web client puts on the wire; matching them keeps
     /// answers identical across the two products.
     func testRoleWireValuesMatchThePlatform() {
         XCTAssertEqual(
             Set(ChatRole.allCases.map(\.wireValue)),
-            ["Litigator", "Corporate Counsel", "Judicial Officer"])
+            ["Litigator", "Corporate Counsel", "Judicial Officer", "Devil's Advocate"])
     }
 
     /// Attachments must serialise into the shape the server reads off a message, or the

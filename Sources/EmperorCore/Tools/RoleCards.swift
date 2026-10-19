@@ -1042,6 +1042,128 @@ let ROLE_CARDS: [RoleCard] = [
         dropdown: ["Translate document (EN ↔ regional)", "Plain-language rewrite", "Regional-language explainer"],
         note: "Translate / plain-language rewrite faithfully; preserve meaning and keep it accessible."
     ),
+    RoleCard(
+        id: "opponents-best-case", role: .devilsAdvocate,
+        title: "Build the Opponent's Best Case",
+        subtitle: nil,
+        section: "The Opponent's Case",
+        output: .document,
+        isSafetyFirst: false,
+        filters: ["opposition"],
+        dropdown: ["Opponent's best case on these facts", "Issues the opponent will run", "Opponent's likely instructions & posture", "Strongest available version of their claim", "Relief the opponent will seek"],
+        note: "Argue the opposing side as its most competent, best-resourced advocate would — not a strawman. Identify who the opponent actually is, what instructions they are likely on, and then set out their case at its strongest: the facts favourable to them, the issues they will run, the authorities they will press, and the relief they will seek. Where the record does not support a strong version of their case, say so plainly rather than inventing one."
+    ),
+    RoleCard(
+        id: "anticipated-attack", role: .devilsAdvocate,
+        title: "Anticipated Attack & Rebuttal",
+        subtitle: nil,
+        section: "Anticipated Attack",
+        output: .document,
+        isSafetyFirst: false,
+        filters: ["opposition"],
+        dropdown: ["Attack → rebuttal → counter (issue-wise)", "Preliminary-objection war", "Anticipated pleas & answers", "Second-line answers to the answer", "Where our rebuttal is weakest"],
+        note: "For each attack the opponent is likely to mount, state the attack at its strongest, then the answer to it, then what defeats the answer — the counter-attack behind the counter-attack. Cover the preliminary objections separately. Do not present a rebuttal the client cannot actually make on the record; where the answer is weak, say it is weak."
+    ),
+    RoleCard(
+        id: "cross-exam", role: .devilsAdvocate,
+        title: "Cross-Examination Plan",
+        subtitle: nil,
+        section: "Cross-Examination & Interrogation",
+        output: .document,
+        isSafetyFirst: false,
+        filters: ["opposition"],
+        dropdown: ["Cross-examination plan (opponent's witnesses)", "Cross on our own witness (what they will be asked)", "Documents to put to a witness", "Contradiction & omission points", "Sequence for a short cross"],
+        note: "Prepare a cross-examination plan: the witness's likely answers, the contradictions and omissions to put, a short sequence of questions that narrows rather than sprawls, the documents to put in the witness's hand, and the traps to avoid (leading, argumentative, and questions the witness can answer with 'I do not recall'). Frame every line so the expected answer is the one that helps."
+    ),
+    RoleCard(
+        id: "authority-attack", role: .devilsAdvocate,
+        title: "Attack the Authorities",
+        subtitle: nil,
+        section: "Authority Under Attack",
+        output: .research,
+        isSafetyFirst: false,
+        filters: ["opposition", "our-side"],
+        dropdown: ["Good-law check on every cited authority", "Subsequent history & what can be done about it", "Contrary authority in a later bench", "Controlling higher authority over our own", "Statutory amendment that undercuts a case"],
+        note: "Take the authorities relied on and try to break them: check each for subsequent history (overruled, distinguished, questioned, doubted, pending), later legislation that amends or subverts them, a contrary holding in a later bench, and a higher authority that controls regardless of what we cite. Report the good-law status of each with real citations; a candid '[Overruled]' is the most valuable output this card can give."
+    ),
+    RoleCard(
+        id: "bench-scrutiny", role: .devilsAdvocate,
+        title: "Questions the Bench Will Ask",
+        subtitle: nil,
+        section: "Bench-Level Scrutiny",
+        output: .document,
+        isSafetyFirst: false,
+        filters: ["opposition"],
+        dropdown: ["Likely questions from the Bench", "Questions we cannot yet answer", "Questions on maintainability & limitation", "Questions on proof & evidence", "How to answer without overstating"],
+        note: "Put yourself in the judge's chair. List the questions the court is most likely to ask on these facts — the ones that go to jurisdiction, limitation, maintainability, proof, and the relief — and for each, the honest answer we would have to give and whether we have one. Flag any question we currently cannot answer from the record."
+    ),
+    RoleCard(
+        id: "weakness-audit", role: .devilsAdvocate,
+        title: "Weakness Audit of Our Case",
+        subtitle: nil,
+        section: "Weakness Audit of Our Case",
+        output: .document,
+        isSafetyFirst: false,
+        filters: ["our-side"],
+        dropdown: ["Ranked weakness audit", "Fatal vs curable flaws", "What each weakness concedes", "Cost of curing each gap", "Our strongest point, tested"],
+        note: "Audit our own case with the hostility of the opposing counsel. For each weakness: how it presents, what it costs us, whether it is curable on the record, at what cost, and what it concedes. Rank by severity. Be blunt — a weakness named here is worth more than a weakness discovered on the other side, and never dress a fatal flaw as a minor one."
+    ),
+    RoleCard(
+        id: "red-team-draft", role: .devilsAdvocate,
+        title: "Red-Team My Draft",
+        subtitle: nil,
+        section: "Red-Team My Draft",
+        output: .document,
+        isSafetyFirst: false,
+        filters: ["our-side"],
+        dropdown: ["Line-by-line red team of my draft", "Propositions that will not survive", "Miscited / unsupported authorities", "Unproven factual assertions", "Rewrite the vulnerable passages"],
+        note: "Red-team the draft supplied: mark every vulnerable sentence, the propositions that will not survive scrutiny, the authorities that are miscited or do not support the proposition drawn from them, the factual assertions the record does not carry, and the passages that read as advocacy rather than as law. Quote the offending line, then give the safer or stronger version of it."
+    ),
+    RoleCard(
+        id: "evidence-gaps", role: .devilsAdvocate,
+        title: "Evidence & Record Gaps",
+        subtitle: nil,
+        section: "Evidence & Record Gaps",
+        output: .document,
+        isSafetyFirst: false,
+        filters: ["our-side", "opposition"],
+        dropdown: ["Proven vs unproven on the record", "Gaps to plug before the next stage", "Admissibility exposure (BSA)", "Documents never put to the opponent", "What is still outstanding"],
+        note: "Audit the evidence under the Bharatiya Sakshya Adhiniyam, 2023: what is on record, what is missing, what is inadmissible or unproven, what the opponent will say was never put to them, and which documents or examinations still have to be obtained. Prioritise by what actually changes the outcome."
+    ),
+    RoleCard(
+        id: "limitation-radar", role: .devilsAdvocate,
+        title: "Limitation Landmine Radar",
+        subtitle: nil,
+        section: "Limitation Period",
+        output: .document,
+        isSafetyFirst: false,
+        filters: ["opposition", "our-side"],
+        dropdown: ["Is the claim time-barred", "Article applied & bare expiry", "Days remaining or days overdue", "Section 14 window & condonation", "What to plead to keep it alive"],
+        note: "Establish whether the limitation period has already shut on this claim, and by how many days, before anything else is argued. State the article applied, the bare expiry date, and whether the time can be saved: a Section 14 window where the other side was prosecuting in the wrong forum, or a Section 5 condonation on sufficient cause. A claim that is barred is worth nothing however well it is argued, and an opponent's barred claim should be met with rejection rather than answered on the merits.",
+        capability: "limitation-radar"
+    ),
+    RoleCard(
+        id: "exposure-floor", role: .devilsAdvocate,
+        title: "Exposure & Settlement Floor",
+        subtitle: nil,
+        section: "Exposure & Settlement Floor",
+        output: .document,
+        isSafetyFirst: false,
+        filters: ["our-side"],
+        dropdown: ["Realistic exposure at each stage", "Settlement floor & its assumptions", "Cost of continuing vs conceding", "Value of the delay we are buying", "Non-monetary interests at stake"],
+        note: "Assess downside honestly: realistic exposure if we lose at each stage, the cost of continuing versus the cost of conceding, the value of the delay we are buying, the client's non-monetary interest in the outcome, and the point below which settlement stops being rational. Give a number and the reasoning behind it, and state clearly what the number assumes."
+    ),
+    RoleCard(
+        id: "adversarial-research", role: .devilsAdvocate,
+        title: "Adversarial Research",
+        subtitle: nil,
+        section: "Adversarial Research",
+        output: .research,
+        isSafetyFirst: false,
+        filters: ["opposition", "our-side"],
+        dropdown: ["Authority for the opposing side", "Research that undercuts our case", "Latest amendment in this area", "What the opponent will cite", "Verify a quotation"],
+        note: "Research the OTHER side of the question — the authority and the material that helps the opponent, or that undercuts us. Cite real, verifiable authorities with their good-law status, say which side each one helps, and flag anything the advocate must verify. A candid gap is preferable to a fabricated citation."
+    ),
 ]
 
 /// The filter each role's card grid offers, in the platform's order.
@@ -1090,6 +1212,10 @@ let ROLE_CARD_FILTERS: [PractitionerRole: [RoleCardFilter]] = [
         RoleCardFilter(id: "beneficiary", label: "Beneficiary Aid"),
         RoleCardFilter(id: "advocacy", label: "Advocacy & Organisation"),
     ],
+    .devilsAdvocate: [
+        RoleCardFilter(id: "opposition", label: "The Other Side"),
+        RoleCardFilter(id: "our-side", label: "Our Own Case"),
+    ],
 ]
 
 /// Section order for the roles whose grids are grouped.
@@ -1097,4 +1223,5 @@ let ROLE_CARD_SECTIONS: [PractitionerRole: [String]] = [
     .adjudicator: ["Case File & Record", "Evidence & Analysis", "Research & Language", "Hearing & Administration", "Award & Adjudicatory Drafting", "Costs & Interest", "Judge-Only Tools"],
     .corporateCounsel: ["Drafting — Commercial & General", "Drafting — Corporate, M&A & Investment", "Drafting — Banking, Finance & Capital Markets", "Drafting — Employment & Labour", "Drafting — IP & Technology", "Drafting — Data Protection & Privacy", "Drafting — Real Estate, Construction & Infrastructure", "Drafting — Sector-Specific Commercial", "Advisory, Governance & Compliance", "Private Client", "Disputes"],
     .legalAid: ["Safety First", "Client Intake & Eligibility", "Know Your Rights", "Application & Form Assistance", "Complaints & Basic Notices", "Referral & Escalation", "PIL & Representations", "Awareness & Legal Education", "NGO Compliance & Governance", "Case Documentation & Impact", "Legal Research Support", "Language & Translation"],
+    .devilsAdvocate: ["The Opponent's Case", "Anticipated Attack", "Cross-Examination & Interrogation", "Authority Under Attack", "Weakness Audit of Our Case", "Red-Team My Draft", "Evidence & Record Gaps", "Limitation Period", "Exposure & Settlement Floor", "Bench-Level Scrutiny", "Adversarial Research"],
 ]

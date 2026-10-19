@@ -77,7 +77,7 @@ final class RoleCardGoldenTests: XCTestCase {
     }
 
     func testTheDeckIsTheSizeThePlatformShips() {
-        XCTAssertEqual(ROLE_CARDS.count, 94)
+        XCTAssertEqual(ROLE_CARDS.count, 105)
         let byRole = Dictionary(grouping: ROLE_CARDS, by: \.role).mapValues(\.count)
         XCTAssertEqual(byRole[.seniorCounsel], 9)
         XCTAssertEqual(byRole[.adjudicator], 11)
@@ -85,6 +85,7 @@ final class RoleCardGoldenTests: XCTestCase {
         XCTAssertEqual(byRole[.student], 8)
         XCTAssertEqual(byRole[.paralegal], 8)
         XCTAssertEqual(byRole[.legalAid], 12)
+        XCTAssertEqual(byRole[.devilsAdvocate], 11)
     }
 
     /// Ids are the platform's, and the prefixes are not interchangeable — `getTool` dispatches on

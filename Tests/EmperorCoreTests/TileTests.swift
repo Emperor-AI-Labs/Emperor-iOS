@@ -56,8 +56,7 @@ final class TileTests: XCTestCase {
         }
     }
 
-    /// Each role's colour is `roleConfig.js`'s. Matched by label, which both sides spell alike;
-    /// the web's eighth role, Devil's Advocate, is not one this app carries.
+    /// Each role's colour is `roleConfig.js`'s. Matched by label, which both sides spell alike.
     func testEveryRoleWearsTheWebsColour() throws {
         let roles = try fixture().roles
         for role in PractitionerRole.allCases {
@@ -74,8 +73,8 @@ final class TileTests: XCTestCase {
             XCTAssertEqual(ids[role.label], role.webID, role.label)
             XCTAssertEqual(PractitionerRole(webID: role.webID), role)
         }
-        // The web's eighth role is not one this app carries, and reading it must say so rather
-        // than guess.
+        // A role the web adds after this build is not one this app carries, and reading it must
+        // say so rather than guess. Today the web has none this app lacks.
         let carried = Set(PractitionerRole.allCases.map(\.webID))
         for (label, id) in ids where !carried.contains(id) {
             XCTAssertNil(PractitionerRole(webID: id), label)

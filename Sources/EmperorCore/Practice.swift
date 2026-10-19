@@ -11,8 +11,8 @@ import FoundationNetworking
 /// App-level rather than per-conversation, which is how the platform treats it: a role scopes the
 /// toolkit and seeds what the model is told, and neither of those is a decision to retake on
 /// every question. A conversation offers no role of its own: each is asked for in this one,
-/// narrowed to the three the model knows — see `PractitionerRole.wireRole` for why those are
-/// different lists.
+/// narrowed to the four identities the web sends — see `PractitionerRole.wireRole` for why those
+/// are different lists.
 ///
 /// ## Two copies, one choice
 ///
@@ -27,14 +27,23 @@ import FoundationNetworking
 ///   the account (`Session.refreshAccount`) and replaces the device's.
 /// - **An account with no role is given this device's**, if a role was ever actually chosen
 ///   here. The default is not a choice and is never sent.
-/// - **A role this app does not carry is left alone** — the web's Devil's Advocate. The device
-///   keeps its own and nothing is written back, so the web stays as its owner set it.
+/// - **A role this app does not carry is left alone** — one added on the web after this build.
+///   The device keeps its own and nothing is written back, so the web stays as its owner set it.
+///
+/// ## Devil's Advocate's side
+///
+/// While the role is Devil's Advocate, which side is under attack (`devilsAdvocateMode`) is a
+/// second, device-only choice: it picks half the deck and is named at the foot of every tool
+/// prompt (`toolPromptGuardrail`). The web keeps it in the browser rather than on the account.
 #if canImport(Darwin)
 @Observable
 #endif
 @MainActor
 final class Practice {
     private(set) var role: PractitionerRole
+    /// The side Devil's Advocate is attacking. Kept whatever the role, so switching away and back
+    /// returns to the same half of the deck.
+    private(set) var devilsAdvocateMode: DevilsAdvocateMode
 
     /// Sends a choice to the account, by its web id. `nil` keeps the role on this device alone.
     var accountWriter: (@Sendable (String) async throws -> Void)?
@@ -52,6 +61,7 @@ final class Practice {
     init(store: any PreferenceStore) {
         self.store = store
         self.role = PractitionerRole.stored(in: store)
+        self.devilsAdvocateMode = DevilsAdvocateMode.stored(in: store)
     }
 
     /// Whether a role has ever been chosen on this device, as opposed to the default applying.
@@ -67,6 +77,33 @@ final class Practice {
         role.save(to: store)
         store.setBool(true, for: Self.unsentKey)
         return send(role)
+    }
+
+    func selectDevilsAdvocateMode(_ mode: DevilsAdvocateMode) {
+        devilsAdvocateMode = mode
+        mode.save(to: store)
+    }
+
+    /// What the web appends to every tool prompt for this role — Devil's Advocate's guardrail,
+    /// naming the side under attack — or nothing.
+    ///
+    /// The web appends a line for Arbitrators & Judges, Paralegal, Student and Legal Aid too;
+    /// this client carries Devil's Advocate's alone so far, and those four are unchanged here.
+    var toolPromptGuardrail: String {
+        role == .devilsAdvocate ? devilsAdvocateMode.guardrail : ""
+    }
+
+    /// The filter a role's deck opens on: Devil's Advocate's last side, every other role's first
+    /// filter (a gated grid has no "all"), or none for a flat grid.
+    var initialCardFilter: String? {
+        role == .devilsAdvocate ? devilsAdvocateMode.rawValue : role.cardFilters.first?.id
+    }
+
+    /// A filter was tapped on the deck. For Devil's Advocate that is the side under attack, and
+    /// it is remembered; for every other role it only filters the grid, which the screen holds.
+    func chooseCardFilter(_ id: String) {
+        guard role == .devilsAdvocate, let mode = DevilsAdvocateMode(rawValue: id) else { return }
+        selectDevilsAdvocateMode(mode)
     }
 
     /// Brings this device into line with the account, as just read. `nil` is an account with no

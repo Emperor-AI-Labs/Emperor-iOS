@@ -130,6 +130,16 @@ enum AskHome {
                 summarise,
                 limitation,
             ]
+        case .devilsAdvocate:
+            return [
+                Suggestion(title: "The other side's best case", systemImage: "person.2",
+                           prompt: "Set out the opposing side's case at its strongest on the attached record: the issues they will run and the authorities they will press."),
+                Suggestion(title: "Audit our weaknesses", systemImage: "exclamationmark.triangle",
+                           prompt: "Audit our case in the attached documents as opposing counsel would, and rank each weakness by severity."),
+                Suggestion(title: "Questions from the Bench", systemImage: "building.columns",
+                           prompt: "List the questions the court is most likely to ask on the attached record, and whether we can answer each one."),
+                limitation,
+            ]
         }
     }
 }

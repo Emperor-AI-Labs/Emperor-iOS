@@ -199,8 +199,10 @@ struct Palette: Sendable {
 /// rather than the work — Settings — which iOS itself draws grey.
 enum TileHue: String, CaseIterable, Sendable {
     case indigo, teal, gold, steel, violet, rose, aqua, copper
-    /// Senior Counsel's role colour, the one role hue outside the tool palette.
+    /// Senior Counsel's role colour, a role hue outside the tool palette.
     case wine
+    /// Devil's Advocate's role colour, the other role hue outside the tool palette.
+    case brick
     case graphite
 
     /// `TOOL_PALETTE`, in the web's order — the order `toolColor` indexes into.
@@ -218,6 +220,7 @@ enum TileHue: String, CaseIterable, Sendable {
         case .aqua: return 0x5F9E9E
         case .copper: return 0xC0996B
         case .wine: return 0x9C6B72
+        case .brick: return 0xB05A4E
         // Not the web's — see the type's note. A slate from the same cool family as the canvas.
         case .graphite: return 0x868BA0
         }
@@ -257,6 +260,7 @@ extension PractitionerRole {
         case .student: return .steel
         case .paralegal: return .violet
         case .legalAid: return .rose
+        case .devilsAdvocate: return .brick
         }
     }
 }

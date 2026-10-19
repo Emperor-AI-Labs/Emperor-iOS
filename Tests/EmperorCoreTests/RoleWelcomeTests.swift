@@ -82,11 +82,11 @@ final class RoleWelcomeTests: XCTestCase {
 
     // MARK: - What it offers
 
-    /// The app's seven roles. Not the web's Devil's Advocate, which is not a role here.
-    func testItOffersTheAppsSevenRolesAndNoOther() {
+    /// The web's eight roles, Devil's Advocate last, as the web's onboarding lists them.
+    func testItOffersTheWebsEightRoles() {
         XCTAssertEqual(RoleWelcome.roles, PractitionerRole.allCases)
-        XCTAssertEqual(RoleWelcome.roles.count, 7)
-        XCTAssertFalse(RoleWelcome.roles.contains { $0.label.localizedCaseInsensitiveContains("devil") })
+        XCTAssertEqual(RoleWelcome.roles.count, 8)
+        XCTAssertEqual(RoleWelcome.roles.last, .devilsAdvocate)
     }
 
     func testTheGreetingUsesTheFirstName() {
