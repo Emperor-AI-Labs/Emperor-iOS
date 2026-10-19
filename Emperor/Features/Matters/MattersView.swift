@@ -30,6 +30,8 @@ struct MattersView: View {
     @State private var isCreatingMatter = false
     @State private var openMatter: MatterRoute?
     @State private var toast: String?
+    /// The docket row whose "Stop tracking" is being confirmed.
+    @State private var removalCandidate: LegalCase?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -85,7 +87,7 @@ struct MattersView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar { toolbar }
             .navigationDestination(for: CaseRoute.self) { route in
-                CaseDetailView(caseID: route.caseID)
+                CaseDetailView(caseID: route.caseID, onRemoved: { stoppedTracking(route.caseID) })
                     .toolbar(.hidden, for: .tabBar)
             }
             .sheet(item: $openHearing) { listing in
@@ -130,6 +132,9 @@ struct MattersView: View {
             }
         }
         .recordToast($toast)
+        .modifier(DocketRemovalPrompts(
+            cases: cases, candidate: $removalCandidate,
+            onRemoved: { toast = "Stopped tracking the case" }))
         .task { await loadOnce() }
         // A matter asked for from elsewhere — the Calendar, a search result. Both, because either
         // can be first: a tab never shown before is created by the switch the request causes.
@@ -342,6 +347,16 @@ struct MattersView: View {
                                     }
                                     .buttonStyle(.recordRow)
                                     .accessibilityIdentifier("case-row-\(legalCase.id)")
+                                    // A long press offers what the case page's menu does.
+                                    .contextMenu {
+                                        if cases.canRemove {
+                                            Button(role: .destructive) {
+                                                removalCandidate = legalCase
+                                            } label: {
+                                                Label(CaseRemovalCopy.action, systemImage: "minus.circle")
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -393,7 +408,8 @@ struct MattersView: View {
         }
         if cases == nil {
             cases = CaseListViewModel(
-                service: session.cases, cache: session.cache, store: CaseListView.preferences)
+                service: session.cases, cache: session.cache, store: CaseListView.preferences,
+                remover: session.cases)
         }
         let causeList = self.causeList
         let cases = self.cases
@@ -412,6 +428,15 @@ struct MattersView: View {
         }
     }
 
+    /// The case page stopped tracking a case: close it and read the docket again, rather than
+    /// dropping the row by hand.
+    private func stoppedTracking(_ caseID: String) {
+        path.removeAll { $0.caseID == caseID }
+        toast = "Stopped tracking the case"
+        let cases = self.cases
+        Task { await cases?.load() }
+    }
+
     private func openRequestedCase() {
         guard let stack = navigator.takePendingCaseStack() else { return }
         segment = .all
@@ -421,6 +446,44 @@ struct MattersView: View {
     private func openRequestedCalendar() {
         guard navigator.takeCalendarRequest() else { return }
         isShowingCalendar = true
+    }
+}
+
+/// "Stop tracking" from a docket row: the confirmation, then the removal and the docket read
+/// again (`CaseListViewModel.removeCase`), and the reason when it was refused.
+private struct DocketRemovalPrompts: ViewModifier {
+    let cases: CaseListViewModel?
+    @Binding var candidate: LegalCase?
+    let onRemoved: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .confirmationDialog(
+                CaseRemovalCopy.confirmTitle,
+                isPresented: Binding(
+                    get: { candidate != nil },
+                    set: { if !$0 { candidate = nil } }),
+                titleVisibility: .visible,
+                presenting: candidate
+            ) { legalCase in
+                Button(CaseRemovalCopy.action, role: .destructive) {
+                    let cases = cases
+                    Task {
+                        if await cases?.removeCase(id: legalCase.id) == true { onRemoved() }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { legalCase in
+                Text("\(legalCase.displayTitle)\n\n\(CaseRemovalCopy.confirmMessage)")
+            }
+            .alert(CaseRemovalCopy.failedTitle, isPresented: Binding(
+                get: { cases?.removeError != nil },
+                set: { if !$0 { cases?.removeError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(cases?.removeError ?? "")
+            }
     }
 }
 

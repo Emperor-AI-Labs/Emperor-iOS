@@ -44,13 +44,45 @@ final class CaseDetailViewModel {
         service: any CaseProviding,
         offline: OfflineStore? = nil,
         connectivity: (any ConnectivityReporting)? = nil,
-        projects: (any ProjectProviding)? = nil
+        projects: (any ProjectProviding)? = nil,
+        remover: (any CaseRemoving)? = nil
     ) {
         self.caseID = caseID
         self.service = service
         self.offline = offline
         self.connectivity = connectivity
         self.projects = projects
+        self.remover = remover
+    }
+
+    // MARK: - Stop tracking
+
+    /// The removal route, when the screen offers it. `nil` keeps the action off.
+    private let remover: (any CaseRemoving)?
+    private(set) var isRemoving = false
+    /// Why the last removal failed — for a team case, who can do it instead.
+    var removeError: String?
+
+    /// Offered on the server's copy only: a kept copy cannot say whether the case is still there.
+    var canRemove: Bool { remover != nil && detail != nil && cachedAt == nil && !isRemoving }
+
+    /// Removes the case, and the copy kept on this device. Nothing is patched locally: the caller
+    /// reads the docket again, which is the only proof the case is gone.
+    ///
+    /// - Returns: whether it was removed.
+    func remove() async -> Bool {
+        guard let remover, !isRemoving else { return false }
+        isRemoving = true
+        removeError = nil
+        defer { isRemoving = false }
+        do {
+            try await remover.removeCase(id: caseID)
+            offline?.remove(caseID)
+            return true
+        } catch {
+            removeError = DisplayText.message(for: error)
+            return false
+        }
     }
 
     // MARK: - The matter behind the case
