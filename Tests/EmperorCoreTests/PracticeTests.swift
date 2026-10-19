@@ -125,13 +125,13 @@ final class PracticeTests: XCTestCase {
         XCTAssertEqual(writes.sent, ["counsel"])
     }
 
-    /// The web's Devil's Advocate is not a role here. The device keeps its own, and nothing is
-    /// written back over the account's.
+    /// A role the web adds after this build is not a role here. The device keeps its own, and
+    /// nothing is written back over the account's.
     func testARoleThisAppDoesNotCarryIsLeftAlone() async {
         let store = InMemoryPreferenceStore()
         PractitionerRole.paralegal.save(to: store)
         let (practice, writes) = practice(store)
-        XCTAssertNil(practice.reconcile(withAccountRole: "devil"))
+        XCTAssertNil(practice.reconcile(withAccountRole: "notary-public"))
         XCTAssertEqual(practice.role, .paralegal)
         XCTAssertTrue(writes.sent.isEmpty)
     }
@@ -207,5 +207,6 @@ final class PracticeTests: XCTestCase {
         XCTAssertTrue(RoleWelcome.shouldShow(store, isSignedIn: true, accountRole: ""))
         XCTAssertFalse(RoleWelcome.shouldShow(store, isSignedIn: true, accountRole: "counsel"))
         XCTAssertFalse(RoleWelcome.shouldShow(store, isSignedIn: true, accountRole: "devil"))
+        XCTAssertFalse(RoleWelcome.shouldShow(store, isSignedIn: true, accountRole: "notary-public"))
     }
 }

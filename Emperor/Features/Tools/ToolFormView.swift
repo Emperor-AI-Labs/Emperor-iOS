@@ -13,6 +13,7 @@ import SwiftUI
 /// why `ToolValues.text` takes a fallback rather than returning an empty string.
 struct ToolFormView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.practice) private var practice
 
     let tool: ToolSpec
 
@@ -69,7 +70,10 @@ struct ToolFormView: View {
         .navigationTitle(tool.title)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $startedChatID) { id in
-            ChatThreadView(chatID: id, seed: tool.prompt(ToolValues(values)))
+            // The role's guardrail goes on the end of every tool's prompt, as the web adds it at
+            // generate time — for Devil's Advocate, the side under attack (`Practice`).
+            ChatThreadView(
+                chatID: id, seed: tool.prompt(ToolValues(values)) + practice.toolPromptGuardrail)
         }
     }
 

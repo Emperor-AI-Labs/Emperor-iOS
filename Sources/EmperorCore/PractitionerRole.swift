@@ -2,16 +2,16 @@ import Foundation
 
 /// Who the user practises as — the platform's organising principle.
 ///
-/// ## Seven of these, three on the wire
+/// ## Eight of these, four on the wire
 ///
-/// The web's `roleConfig.js` defines seven roles and each carries an `aiRole` field, which is the
-/// value the model is actually told. Four of the seven — Senior Counsel, Student, Paralegal and
-/// Legal Aid — all send `Litigator`. That is not a mistake to be tidied up: the system prompt
-/// only knows three identities, and the other four differ in **what the app offers them**, not in
-/// what the model is told it is.
+/// The web's `roleConfig.js` defines eight roles and each carries an `aiRole` field, which is the
+/// value the model is actually told. Four of the eight — Senior Counsel, Student, Paralegal and
+/// Legal Aid — all send `Litigator`. That is not a mistake to be tidied up: those four differ in
+/// **what the app offers them**, not in what the model is told it is. Devil's Advocate sends its
+/// own name, as the web does.
 ///
-/// This app already had `ChatRole`, which is the three wire values. It keeps that job. This type
-/// is the layer above it, and `wireRole` is the same narrowing `aiRole` does on the web.
+/// This app already had `ChatRole`, which is the wire values. It keeps that job. This type is the
+/// layer above it, and `wireRole` is the same narrowing `aiRole` does on the web.
 ///
 /// ## What a role is for
 ///
@@ -34,6 +34,7 @@ enum PractitionerRole: String, CaseIterable, Identifiable, Codable, Sendable {
     case student
     case paralegal
     case legalAid
+    case devilsAdvocate
 
     var id: String { rawValue }
 
@@ -52,11 +53,12 @@ enum PractitionerRole: String, CaseIterable, Identifiable, Codable, Sendable {
         case .student: return "student"
         case .paralegal: return "paralegal"
         case .legalAid: return "ngo"
+        case .devilsAdvocate: return "devil"
         }
     }
 
-    /// The role the web calls `webID`, or `nil` for one this app does not carry — the web's
-    /// Devil's Advocate (`devil`), or a role added there after this build.
+    /// The role the web calls `webID`, or `nil` for one this app does not carry — a role added
+    /// there after this build.
     init?(webID: String?) {
         guard let webID, let role = Self.allCases.first(where: { $0.webID == webID }) else {
             return nil
@@ -73,6 +75,7 @@ enum PractitionerRole: String, CaseIterable, Identifiable, Codable, Sendable {
         case .student: return "Student / Academic"
         case .paralegal: return "Paralegal"
         case .legalAid: return "Legal Aid / NGO"
+        case .devilsAdvocate: return "Devil's Advocate"
         }
     }
 
@@ -85,6 +88,7 @@ enum PractitionerRole: String, CaseIterable, Identifiable, Codable, Sendable {
         case .student: return "Learning and research"
         case .paralegal: return "Legal support"
         case .legalAid: return "Public interest and access to justice"
+        case .devilsAdvocate: return "Adversarial stress-testing"
         }
     }
 
@@ -104,6 +108,8 @@ enum PractitionerRole: String, CaseIterable, Identifiable, Codable, Sendable {
             return "Routine drafts, filings and bundles, document summaries and research support — all as drafts for advocate review."
         case .legalAid:
             return "Beneficiary aid — intake, rights, forms and referrals — and advocacy: PIL support, awareness material and NGO compliance."
+        case .devilsAdvocate:
+            return "Argue the other side at its strongest, red-team your own drafts and evidence, and stress-test every authority before it reaches the court."
         }
     }
 
@@ -116,17 +122,19 @@ enum PractitionerRole: String, CaseIterable, Identifiable, Codable, Sendable {
         case .student: return "graduationcap"
         case .paralegal: return "doc.on.doc"
         case .legalAid: return "heart.text.square"
+        case .devilsAdvocate: return "bolt.shield"
         }
     }
 
     /// What the model is told it is.
     ///
-    /// The narrowing the web calls `aiRole`. Four roles answer `.litigator` here, which is the
-    /// contract rather than an approximation — `clerk_identity.js` knows three identities.
+    /// The narrowing the web calls `aiRole`. Five roles answer `.litigator` here, which is the
+    /// contract rather than an approximation: the web sends `Litigator` for each of them.
     var wireRole: ChatRole {
         switch self {
         case .corporateCounsel: return .corporateCounsel
         case .adjudicator: return .judicialOfficer
+        case .devilsAdvocate: return .devilsAdvocate
         case .litigator, .seniorCounsel, .student, .paralegal, .legalAid: return .litigator
         }
     }
@@ -167,6 +175,11 @@ enum PractitionerRole: String, CaseIterable, Identifiable, Codable, Sendable {
             ] + Self.common
         case .legalAid:
             return ["know-your-rights", "pil-template", "research"] + Self.common
+        case .devilsAdvocate:
+            return [
+                "brief-workup", "draft-review", "arguments", "blind-spots", "research",
+                "doc-index",
+            ] + Self.common
         }
     }
 

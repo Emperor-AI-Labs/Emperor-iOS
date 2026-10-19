@@ -5,8 +5,9 @@ import Foundation
 /// The platform's Home is a deck of these, and each one resolves to a **synthetic tool** —
 /// `registry.js` builds a form and a prompt from the card rather than holding a config per card.
 /// So a card is data and the framing around it is a function of the role, which is exactly the
-/// split kept here: `ROLE_CARDS` is generated from the platform's modules, and the six card
-/// branches of `toolSpec` below are the ported resolvers. Litigator's branch hands over to the
+/// split kept here: `ROLE_CARDS` is generated from the platform's modules
+/// (`scripts/generate-role-card-fixtures.mjs`), and the seven card branches of `toolSpec` below
+/// are the ported resolvers. Litigator's branch hands over to the
 /// drafting taxonomy (`LitigatorDrafting`), which is that role's Home instead of a deck.
 ///
 /// The prompts are the feature. Every one of them is pinned by a golden fixture generated from
@@ -30,8 +31,11 @@ struct RoleCard: Identifiable, Sendable {
     ///
     /// Empty for every Corporate card, and that is the platform's own shape rather than missing
     /// data: `resolveCorpTool` builds its prompt from the title, the section and the chosen
-    /// document type, and never reads a note. All 48 other cards carry one.
+    /// document type, and never reads a note. Every other card carries one.
     let note: String
+    /// The app screen a `kind: 'capability'` card opens instead of a prompt — the web routes such
+    /// a card to `/w/<tool>`, a page of its own. `nil` for a card that is a prompt.
+    var capability: String? = nil
 
     /// The id the tool is reached by, which is the platform's `<prefix><cardId>`.
     var toolID: String { "\(Self.prefix(for: role))\(id)" }
@@ -47,10 +51,21 @@ struct RoleCard: Identifiable, Sendable {
         case .paralegal: return "pdoc-"
         case .legalAid: return "ndoc-"
         case .litigator: return "ldoc-"
+        case .devilsAdvocate: return "dadv-"
         }
     }
 
+    /// The screen this card opens rather than a form, where the app has that screen.
+    var opensScreen: RoleCardScreen? { capability.flatMap(RoleCardScreen.init(rawValue:)) }
+
     private var isResearch: Bool { output == .research }
+}
+
+/// A screen of the app's own that a card opens instead of a prompt, by the web's tool id for it.
+enum RoleCardScreen: String, Sendable {
+    /// Devil's Advocate's Limitation card: whether the claim is already time-barred is a date
+    /// computation, not a drafting prompt, so the web sends it to the Limitation Radar.
+    case limitationRadar = "limitation-radar"
 }
 
 /// One option on a card grid's filter — a mode, a tag, a level or a context.
@@ -75,6 +90,7 @@ extension RoleCard {
         case .paralegal: return paralegalSpec
         case .legalAid: return legalAidSpec
         case .litigator: return litigatorSpec
+        case .devilsAdvocate: return devilSpec
         }
     }
 
@@ -108,6 +124,44 @@ extension RoleCard {
 
                 FACTS / BRIEF / QUESTION:
                 \(v.text("material", "(none typed — work from the attached brief, or state what is needed)"))
+                """
+            })
+    }
+
+    // MARK: - Devil's Advocate
+
+    /// One-sided by construction: the prompt asks for the argument that defeats the case, and
+    /// `ADVERSARIAL_SCOPE` is written into every card's. The role-wide guardrail is added on top
+    /// when the tool is run — see `DevilsAdvocateMode.guardrail`.
+    private var devilSpec: ToolSpec {
+        let other = DevilsAdvocateMode.opposition.label
+        return ToolSpec(
+            id: toolID, title: title, short: section ?? title, blurb: dropdownBlurb,
+            output: output,
+            inputs: [
+                ToolField(key: "task", label: "What do you need", type: .select,
+                          placeholder: chooseFrom, options: dropdown),
+                ToolField(key: "matter", label: "Matter / parties", type: .text,
+                          placeholder: "e.g. Sterling Infra Pvt. Ltd. v. NHAI (optional)"),
+                ToolField(key: "position", label: "Whose case is under attack", type: .select,
+                          options: DevilsAdvocateMode.allCases.map(\.label)),
+                ToolField(key: "material", label: "Draft, facts or question", type: .textarea,
+                          placeholder: "Paste the draft to red-team, or set out the facts and the question — or attach the material above.",
+                          big: true),
+            ],
+            build: { v, _ in
+                let matter = v.has("matter") ? " in \(v.text("matter", ""))" : ""
+                return """
+                As a devil's advocate, prepare: "\(v.text("task", title))" (\(title))\(matter).
+
+                Attacking: \(v.text("position", other)).
+
+                \(note) \(DevilsAdvocateMode.adversarialScope)
+
+                Cite authorities with their current standing [Settled] / [Doubted] / [Overruled] / [Pending]; do not fabricate a citation or a fact — a candid gap is preferable. Where the position is genuinely sound, say so plainly and state what would still be needed to break it.
+
+                DRAFT / FACTS / QUESTION:
+                \(v.text("material", "(none typed — work from the attached material, or state what is needed)"))
                 """
             })
     }
@@ -321,7 +375,8 @@ extension PractitionerRole {
     var usesDraftingTaxonomy: Bool { self == .litigator }
 
     /// The filter this role's grid offers — modes, tags, levels or contexts. Empty where the
-    /// grid is flat, which is Senior Counsel alone.
+    /// grid is flat, which is Senior Counsel alone. Devil's Advocate's is the side under attack,
+    /// and the one that also changes what every tool is told — see `Practice.devilsAdvocateMode`.
     var cardFilters: [RoleCardFilter] { ROLE_CARD_FILTERS[self] ?? [] }
 
     /// Section order for the grids that are grouped.

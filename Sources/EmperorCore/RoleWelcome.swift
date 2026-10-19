@@ -20,8 +20,7 @@ import Foundation
 ///   (`Practice`), so someone who chose one on the web, or on another phone, has answered —
 ///   even when it is one this app does not carry.
 ///
-/// The roles are this app's seven. The web's onboarding also offers "Devil's Advocate"; that
-/// role is not part of this app.
+/// The roles are the web's eight, Devil's Advocate included, in the web's order.
 enum RoleWelcome {
     static let pendingKey = "practitioner.role.welcome.pending.v1"
     static let completedKey = "practitioner.role.welcome.completed.v1"

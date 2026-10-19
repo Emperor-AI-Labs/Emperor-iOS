@@ -67,12 +67,20 @@ enum ChatModel: String, CaseIterable, Identifiable, Codable {
 /// - Warning: **this enum is the entire allowed set.** The value reaches the model's leading
 ///   instructions, so it must never be populated from free text or from anything a user typed.
 ///
-/// The platform's seven UI roles collapse to these three on the wire
-/// (`src/roles/roleConfig.js:10-107`), so matching them keeps answers identical to the web app.
+/// The platform's eight UI roles collapse to these four on the wire (each role's `aiRole` in
+/// `src/roles/roleConfig.js`), so matching them keeps answers identical to the web app.
+///
+/// `Devil's Advocate` is a wire value of its own because the web sends it: `ToolWorkspace.jsx`
+/// puts the role's `aiRole` on every `/chat` as `role`, and `getLeadingIdentity` in
+/// `src/lib/clerk_identity.js` writes whatever it is given into "a top-tier, highly experienced
+/// <role>". There is no list of known identities on the server — the three older values are
+/// simply the ones the other roles happen to send — so sending `Litigator` for this role instead
+/// would tell the model something different from what the web tells it for the same account.
 enum ChatRole: String, CaseIterable, Identifiable, Codable {
     case litigator = "Litigator"
     case corporateCounsel = "Corporate Counsel"
     case judicialOfficer = "Judicial Officer"
+    case devilsAdvocate = "Devil's Advocate"
 
     var id: String { rawValue }
 
@@ -81,6 +89,7 @@ enum ChatRole: String, CaseIterable, Identifiable, Codable {
         case .litigator: return "Litigator"
         case .corporateCounsel: return "Corporate Counsel"
         case .judicialOfficer: return "Arbitrator or Judge"
+        case .devilsAdvocate: return "Devil's Advocate"
         }
     }
 
@@ -89,6 +98,7 @@ enum ChatRole: String, CaseIterable, Identifiable, Codable {
         case .litigator: return "Advocate handling cases"
         case .corporateCounsel: return "In-house and corporate advisory"
         case .judicialOfficer: return "Neutral adjudication"
+        case .devilsAdvocate: return "Adversarial stress-testing"
         }
     }
 

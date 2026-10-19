@@ -1,7 +1,7 @@
 import XCTest
 @testable import EmperorCore
 
-/// The seven roles the platform offers, and the three identities the model knows.
+/// The eight roles the platform offers, and the four identities they send.
 final class PractitionerRoleTests: XCTestCase {
 
     /// **The one that would rot silently.** A tool id here is a string, and nothing else checks
@@ -19,21 +19,23 @@ final class PractitionerRoleTests: XCTestCase {
         }
     }
 
-    /// Seven roles, three wire values. Four of them send `Litigator`, which is the contract and
-    /// not an approximation — the system prompt knows three identities, and the other four
-    /// differ in what the app offers, not in what the model is told it is.
-    func testSevenRolesNarrowToThreeWireValues() {
-        XCTAssertEqual(PractitionerRole.allCases.count, 7)
+    /// Eight roles, four wire values. Five of them send `Litigator`, which is the contract and
+    /// not an approximation — the web's `aiRole` for each is `Litigator`, and they differ in what
+    /// the app offers, not in what the model is told it is. Devil's Advocate sends its own name.
+    func testEightRolesNarrowToFourWireValues() {
+        XCTAssertEqual(PractitionerRole.allCases.count, 8)
 
         XCTAssertEqual(PractitionerRole.corporateCounsel.wireRole, .corporateCounsel)
         XCTAssertEqual(PractitionerRole.adjudicator.wireRole, .judicialOfficer)
+        XCTAssertEqual(PractitionerRole.devilsAdvocate.wireRole, .devilsAdvocate)
+        XCTAssertEqual(PractitionerRole.devilsAdvocate.wireRole.wireValue, "Devil's Advocate")
         for role in [
             PractitionerRole.litigator, .seniorCounsel, .student, .paralegal, .legalAid,
         ] {
             XCTAssertEqual(role.wireRole, .litigator, "\(role.label) is a litigator on the wire")
         }
 
-        XCTAssertEqual(Set(PractitionerRole.allCases.map(\.wireRole)).count, 3)
+        XCTAssertEqual(Set(PractitionerRole.allCases.map(\.wireRole)).count, 4)
     }
 
     /// A blank drafting surface belongs to everybody — `COMMON_TOOLS` on the web.
