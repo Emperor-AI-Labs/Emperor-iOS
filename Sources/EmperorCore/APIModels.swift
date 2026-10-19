@@ -499,7 +499,18 @@ struct UploadStatusResponse: Codable {
     let status: String?
 }
 
+/// What `/upload-chunk` answers. Only the completing chunk's answer says anything beyond
+/// `success`: it names the file as it was **stored**, which since the searchable-PDF change is not
+/// always the name that was sent — a photo is converted to a one-page PDF on arrival and the image
+/// itself never reaches storage. See `StoredUpload`.
 struct UploadChunkResponse: Codable {
     let success: Bool?
     let message: String?
+    /// The stored name, as the server has always spelled it.
+    var filename: String?
+    /// The stored name, as the searchable-PDF change spells it. The two agree when both are sent.
+    var storedName: String?
+    /// The sanitised name of the image the stored PDF was made from, when it was.
+    var convertedFrom: String?
+    var folder: String?
 }

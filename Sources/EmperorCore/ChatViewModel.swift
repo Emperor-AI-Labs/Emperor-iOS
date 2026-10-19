@@ -741,18 +741,21 @@ final class ChatViewModel {
     func attach(_ document: ScannedDocument) async {
         guard let uploads else { return }
         do {
+            // The name the server stored it under: sanitised, and for a photo the PDF it was
+            // made into. Annexure citations match on the exact on-disk name, so this — never
+            // the name that was sent — is what the attachment carries.
+            var storedName = UploadService.sanitize(fileName: document.suggestedName)
             for try await event in uploads.upload(
                 data: document.pdfData,
                 fileName: document.suggestedName,
                 folderName: ScannedDocument.folderName
             ) {
+                if case .stored(let stored) = event { storedName = stored.name }
                 guard case .finished(let state) = event else { continue }
                 if state.isUsable {
                     attachments.append(
                         ChatAttachment(
-                            // The sanitised name, because that is what the server wrote to
-                            // disk — and annexure citations match on the exact on-disk name.
-                            name: UploadService.sanitize(fileName: document.suggestedName),
+                            name: storedName,
                             folderName: ScannedDocument.folderName))
                 } else if case .failed(let reason) = state {
                     // Ingestion failures arrive with no HTTP error at all, so this is the only

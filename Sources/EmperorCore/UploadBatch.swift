@@ -39,6 +39,10 @@ struct UploadBatch: Equatable, Sendable {
         fileprivate(set) var status: Status
         /// Seconds left, once there is evidence enough to say.
         fileprivate(set) var eta: Int?
+        /// The name the server stored it under when that differs from `name` — a photo that
+        /// came back as a PDF. Said on the row, because the document the person looks for in
+        /// My Files afterwards has this name, not the one they sent.
+        fileprivate(set) var savedAs: String?
         fileprivate var estimator = UploadETAEstimator()
 
         /// Share of the file's bytes that have left. A sent file counts as whole whatever
@@ -90,7 +94,9 @@ struct UploadBatch: Equatable, Sendable {
                 parts.append(message ?? "Reading the document…")
             case .unconfirmed(let message):
                 parts.append(message)
-            case .done, .failed, .processingFailed:
+            case .done:
+                if let savedAs { parts.append("Saved as \(savedAs)") }
+            case .failed, .processingFailed:
                 break
             }
             return parts.joined(separator: " · ")
@@ -212,11 +218,15 @@ struct UploadBatch: Equatable, Sendable {
     }
 
     /// The server finished reading the file and it can be asked about.
-    mutating func markDone(_ id: String) {
+    ///
+    /// - Parameter savedAs: the stored name, when the server changed it — a photo that is now
+    ///   a PDF (`StoredUpload`). Shown under the row; `nil` when the name is the one sent.
+    mutating func markDone(_ id: String, savedAs: String? = nil) {
         update(id) { file in
             file.loaded = file.size
             file.eta = nil
             file.status = .done
+            if let savedAs, savedAs != file.name { file.savedAs = savedAs }
         }
     }
 

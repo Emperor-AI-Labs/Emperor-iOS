@@ -52,6 +52,9 @@ struct UploadService: UploadProviding {
 
     enum UploadEvent {
         case progress(sent: Int, total: Int)
+        /// Every byte has landed and the server has said what it stored. Sent once, before the
+        /// first `processing`. A photo comes back as a PDF — see `StoredUpload`.
+        case stored(StoredUpload)
         case processing(String)
         case finished(IngestState)
     }
@@ -98,13 +101,14 @@ struct UploadService: UploadProviding {
                     let total = data.count
                     let chunkCount = max(1, Int(ceil(Double(total) / Double(chunkSize))))
 
+                    var lastAnswer: UploadChunkResponse?
                     for index in 0..<chunkCount {
                         try Task.checkCancellation()
                         let start = index * chunkSize
                         let end = min(start + chunkSize, total)
                         let chunk = data.subdata(in: start..<end)
 
-                        try await sendChunk(
+                        lastAnswer = try await sendChunk(
                             chunk, index: index, chunkCount: chunkCount, chunkSize: chunkSize,
                             totalBytes: total, fileName: fileName, folderName: folderName,
                             uploadID: uploadID, credentials: credentials)
@@ -112,9 +116,15 @@ struct UploadService: UploadProviding {
                         continuation.yield(.progress(sent: end, total: total))
                     }
 
+                    // The completing chunk's answer names the file as stored, which for a photo
+                    // is a PDF. Everything from here on — the poll, the attachment the caller
+                    // makes — must use that name, or it asks after a file that does not exist.
+                    let stored = StoredUpload.resolve(requested: fileName, response: lastAnswer)
+                    continuation.yield(.stored(stored))
+
                     // The upload is only half the job — ingestion runs after the response closed.
                     let state = try await waitForIngestion(
-                        fileName: fileName, folderName: folderName,
+                        fileName: stored.name, folderName: folderName,
                         onProgress: { continuation.yield(.processing($0)) })
                     continuation.yield(.finished(state))
                     continuation.finish()
@@ -131,7 +141,7 @@ struct UploadService: UploadProviding {
     private func sendChunk(
         _ chunk: Data, index: Int, chunkCount: Int, chunkSize: Int, totalBytes: Int,
         fileName: String, folderName: String, uploadID: String, credentials: Credentials
-    ) async throws {
+    ) async throws -> UploadChunkResponse {
         var request = try await client.makeRequest("POST", "/upload-chunk", requiresAuth: true)
         let boundary = MultipartChunk.boundary()
         request.setValue(MultipartChunk.contentType(boundary: boundary),
@@ -155,7 +165,7 @@ struct UploadService: UploadProviding {
         request.httpBody = MultipartChunk.body(chunk: chunk, fields: fields, boundary: boundary)
 
         do {
-            _ = try await client.send(request, as: UploadChunkResponse.self)
+            return try await client.send(request, as: UploadChunkResponse.self)
         } catch let error as APIError {
             // Over the cap the server destroys the socket rather than replying, so a reset
             // mid-chunk means "too large" even though no 413 arrived.

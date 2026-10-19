@@ -116,7 +116,7 @@ final class FileLibraryViewModel {
                 switch event {
                 case .progress(let sent, let total):
                     uploadProgress = total > 0 ? Double(sent) / Double(total) : 0
-                case .processing:
+                case .stored, .processing:
                     uploadProgress = 1
                 case .finished(let state):
                     // A 200 on the last chunk means "bytes received", not "file ready" — so the
