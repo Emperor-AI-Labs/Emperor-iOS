@@ -294,6 +294,7 @@ final class SignInFlowTests: XCTestCase {
         await flow.requestCode()
         XCTAssertEqual(flow.step, .enterCode(email: "a@b.in"))
         XCTAssertEqual(flow.notice, "We've emailed a 6-digit code to a@b.in. It works for 10 minutes.")
+        XCTAssertEqual(flow.codeLifetimeMinutes, 10, "the code screen's own line says how long it works")
 
         flow.setCode("48 29-13 7")
         XCTAssertEqual(flow.code, "482913", "pasted with spaces and a dash, kept as six digits")

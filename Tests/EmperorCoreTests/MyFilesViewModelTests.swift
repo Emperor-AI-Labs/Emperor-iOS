@@ -320,7 +320,7 @@ final class MyFilesViewModelTests: XCTestCase {
             model.requestDeletion(of: file("Bakshi/Plaint.pdf"))
             XCTAssertNotNil(model.pendingDeletion)
             model.cancelDeletion()
-            await model.confirmDeletion()
+            XCTAssertNil(model.pendingDeletion)
             XCTAssertTrue(manager.calls.isEmpty)
         }
     }
@@ -331,7 +331,7 @@ final class MyFilesViewModelTests: XCTestCase {
         await withMyFiles { files, manager, model in
             let before = files.treeCallCount
             model.requestDeletion(of: file("Bakshi/Plaint.pdf"))
-            await model.confirmDeletion()
+            await model.confirm(model.pendingDeletion!)
 
             XCTAssertEqual(manager.deleted.map(\.name), ["Plaint.pdf"])
             XCTAssertEqual(manager.deleted.first?.folder, "Bakshi")
@@ -345,7 +345,7 @@ final class MyFilesViewModelTests: XCTestCase {
     func testALooseDocumentIsSentWithNoFolder() async {
         await withMyFiles(tree: [.file(file("Loose.pdf"))]) { _, manager, model in
             model.requestDeletion(of: file("Loose.pdf"))
-            await model.confirmDeletion()
+            await model.confirm(model.pendingDeletion!)
             XCTAssertEqual(manager.deleted.first?.folder, "")
         }
     }
@@ -354,7 +354,7 @@ final class MyFilesViewModelTests: XCTestCase {
         await withMyFiles { files, manager, model in
             let before = files.treeCallCount
             model.requestDeletion(of: model.folder(at: "Bakshi/2025")!)
-            await model.confirmDeletion()
+            await model.confirm(model.pendingDeletion!)
 
             XCTAssertEqual(manager.deletedFolders, ["Bakshi/2025"])
             XCTAssertEqual(files.treeCallCount, before + 1)
@@ -395,7 +395,6 @@ final class MyFilesViewModelTests: XCTestCase {
                 documentCount: 4, subfolderCount: 3, childFolderCount: 2)
             model.requestDeletion(of: root)
             XCTAssertNil(model.pendingDeletion)
-            await model.confirmDeletion()
             XCTAssertTrue(manager.calls.isEmpty)
         }
     }
@@ -407,7 +406,7 @@ final class MyFilesViewModelTests: XCTestCase {
             manager.failure = APIError.server(status: 403, message: "You do not have access to that account’s data")
             let before = files.treeCallCount
             model.requestDeletion(of: file("Bakshi/Plaint.pdf"))
-            await model.confirmDeletion()
+            await model.confirm(model.pendingDeletion!)
 
             XCTAssertEqual(model.actionError, "You do not have access to that account’s data")
             XCTAssertNil(model.actionNotice)

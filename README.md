@@ -457,8 +457,9 @@ Everything in this client was read from source rather than from those docs.
 
 ## iPad
 
-At regular width the Cases and Chat tabs show the list beside what it opens
-(`ListBesideDetail`). Both layouts read one navigation path — the phone pushes it, the split
+At regular width only History's conversation list (`ChatListView`, a sheet from Ask) shows the
+list beside what it opens (`ListBesideDetail`); Matters is a single stack on every device, and
+the tabs are a row of buttons across the top. Both layouts read one navigation path — the phone pushes it, the split
 shows its last element (`ListDetailPath`) — so `AppNavigator` requests work unchanged. Sheets
 that are whole screens get `.pageSizedSheet()` (iOS 18+); single-list screens get
 `.readableColumn()`. A matter whose load is cancelled part-way (the column rebuilt while its

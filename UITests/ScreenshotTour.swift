@@ -43,22 +43,30 @@ final class ScreenshotTour: XCTestCase {
         guard app.textFields["Email"].waitForExistence(timeout: 15) else {
             snap("launch-failed"); return
         }
+        // The screen as it opens: the password leading.
         snap("sign-in")
 
-        tapIfPresent(app.buttons["Create an account"])
+        tapIfPresent(app.buttons["Create new account"])
         if app.textFields["Full name"].waitForExistence(timeout: 5) { snap("create-account") }
-        tapIfPresent(app.buttons["Sign in instead"])
+        // Full name takes focus on entry, so the keyboard lies over the foot of the form where
+        // "Sign in instead" lives. The design's back is a custom button, not a nav-bar one —
+        // labelled "Back to Sign in", at the top, where the keyboard never reaches.
+        tapIfPresent(app.buttons["Back to Sign in"])
+
+        // The other way in: the code segment, then the address.
+        tapIfPresent(app.buttons["Sign in with code"])
+        if app.buttons["Email me a sign-in code"].waitForExistence(timeout: 5) { snap("sign-in-code") }
 
         let email = app.textFields["Email"]
         if email.waitForExistence(timeout: 5) {
-            email.tap()
+            email.focusForTyping()
             email.typeText("john.doe@firm.com")
         }
-        tapIfPresent(app.buttons["Sign in with an email code"])
+        tapIfPresent(app.buttons["Email me a sign-in code"])
         let code = app.textFields["Sign-in code"]
         if code.waitForExistence(timeout: 10) {
             snap("enter-code")
-            code.tap()
+            code.focusForTyping()
             code.typeText("123456")
         }
 
@@ -74,14 +82,14 @@ final class ScreenshotTour: XCTestCase {
             }
         }
 
-        guard app.tab("Home").waitForExistence(timeout: 15) else {
+        guard app.tab("Ask").waitForExistence(timeout: 15) else {
             snap("sign-in-failed"); return
         }
-        snap("home")
+        snap("ask")
 
-        // The updates sheet, from Home's bell. Its label carries the unread count, so it is
-        // found by how it starts.
-        let updates = app.navigationBars["Home"].buttons.matching(
+        // The updates sheet, from Ask's bell. Its label carries the unread count, so it is found
+        // by how it starts.
+        let updates = app.navigationBars["Ask"].buttons.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Updates")).firstMatch
         if updates.waitForExistence(timeout: 5) {
             updates.tap()
@@ -91,18 +99,70 @@ final class ScreenshotTour: XCTestCase {
             }
         }
 
-        app.tab("Cases").tap()
-        snap("cases")
+        // Every conversation, under History.
+        let history = app.navigationBars["Ask"].buttons["History"]
+        if history.waitForExistence(timeout: 5) {
+            history.tap()
+            tapIfPresent(app.buttons["All conversations"].firstMatch)
+            if app.navigationBars["Conversations"].waitForExistence(timeout: 10) {
+                snap("history")
+                tapIfPresent(app.navigationBars["Conversations"].buttons["Done"])
+            }
+        }
+
+        // A conversation: the stub serves a stored answer with headings, a table and citations,
+        // and the work log it was stored with, folded above it.
+        let conversation = app.stubConversationRow
+        if conversation.waitForExistence(timeout: 10) {
+            app.reveal(conversation)
+            conversation.tap()
+            snap("conversation")
+            // The answer mode, chosen from the composer's chip.
+            let mode = app.buttons.matching(
+                NSPredicate(format: "label BEGINSWITH %@", "Answer mode,")).firstMatch
+            if mode.waitForExistence(timeout: 5) {
+                mode.tap()
+                snap("answer-mode")
+                let close = app.buttons["Close"].firstMatch
+                if close.waitForExistence(timeout: 3) { close.tap() } else { app.swipeDown() }
+            }
+            app.swipeUp()
+            snap("conversation-references")
+            backOut(app)
+        }
+
+        // Matters: the next sitting, what is upcoming, and the docket.
+        app.tab("Matters").tap()
+        snap("matters")
+        let hearing = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Item 7, Court 12")).firstMatch
+        if hearing.waitForExistence(timeout: 5), hearing.isHittable {
+            hearing.tap()
+            Thread.sleep(forTimeInterval: 0.5)
+            snap("hearing")
+            let close = app.buttons["Close"].firstMatch
+            if close.waitForExistence(timeout: 3), close.isHittable { close.tap() } else { app.swipeDown() }
+            // Gone before the segments behind it are tapped.
+            var polls = 0
+            while close.exists && polls < 20 {
+                Thread.sleep(forTimeInterval: 0.25)
+                polls += 1
+            }
+        }
+        tapIfPresent(app.buttons["Upcoming"].firstMatch)
+        snap("matters-upcoming")
+        tapIfPresent(app.buttons["All matters"].firstMatch)
+        snap("matters-docket")
 
         // The docket's sort & filter sheet, then scrolled to show the filters, and the docket
-        // once a court is chosen: its chip under the search bar, the toolbar icon filled. Cleared
-        // afterwards so the rest of the tour sees every case.
-        let arrange = app.buttons["case-sort-filter"]
+        // once a court is chosen: its chip under the search field, the toolbar icon filled.
+        // Cleared afterwards so the rest of the tour sees every case.
+        let arrange = app.buttons["Sort and filter"].firstMatch
         if arrange.waitForExistence(timeout: 5) {
             arrange.tap()
             let sheetBar = app.navigationBars["Sort & filter"]
             if sheetBar.waitForExistence(timeout: 5) {
-                snap("cases-sort-filter")
+                snap("matters-sort-filter")
                 // Scrolled inside the sheet's list; a swipe on its bar would move the sheet.
                 let form = app.collectionViews["case-arrangement-form"]
                 if form.exists { form.swipeUp() }
@@ -110,16 +170,15 @@ final class ScreenshotTour: XCTestCase {
                 if highCourts.waitForExistence(timeout: 3), highCourts.isHittable {
                     highCourts.tap()
                 }
-                snap("cases-sort-filter-full")
+                snap("matters-sort-filter-full")
                 tapIfPresent(sheetBar.buttons["Done"])
-                snap("cases-filtered")
+                snap("matters-filtered")
                 tapIfPresent(app.buttons["case-filters-clear-all"])
             }
         }
 
-        // Finding a case at the court — the form before a court is chosen. "Add case" in the
-        // toolbar opens it.
-        let find = app.buttons["Add case"].firstMatch
+        // Finding a case at the court — the form before a court is chosen.
+        let find = app.buttons["Add a matter"].firstMatch
         if find.waitForExistence(timeout: 5) {
             find.tap()
             if app.navigationBars["Find a case"].waitForExistence(timeout: 10) {
@@ -128,23 +187,11 @@ final class ScreenshotTour: XCTestCase {
             }
         }
 
-        // On iPad the docket sits beside the case it opens: a row chosen in it, tinted, with its
-        // case in the column beside.
-        if isPad {
-            let row = app.descendants(matching: .any)
-                .matching(identifier: "case-row-case-hc-delhi").firstMatch
-            if row.waitForExistence(timeout: 5) {
-                row.tap()
-                _ = app.navigationBars["Kapoor Textiles Pvt. Ltd. v. Commissioner of Customs"]
-                    .waitForExistence(timeout: 10)
-                snap("cases-beside-case")
-            }
-        }
-
-        // The Calendar opens on today, where the stub lists one matter and one diary entry; the
-        // listing then opens its case on the Cases tab, on the overview.
-        if app.tab("Calendar").exists {
-            app.tab("Calendar").tap()
+        // The Calendar opens over Matters on today, where the stub lists one matter and one diary
+        // entry; the listing then opens its case on Matters, on the overview.
+        let calendarButton = app.navigationBars["Matters"].buttons["Calendar"]
+        if calendarButton.waitForExistence(timeout: 5) {
+            calendarButton.tap()
             let listing = app.buttons["calendar-listing-case1"]
             let isListed = listing.waitForExistence(timeout: 10)
             snap("calendar")
@@ -152,90 +199,70 @@ final class ScreenshotTour: XCTestCase {
                 listing.tap()
                 let matter = app.navigationBars["Bakshi v. State of Maharashtra"]
                 if matter.waitForExistence(timeout: 10) {
-                    // On iPad, beside the docket, its row tinted — and nothing to back out of.
                     snap("case-overview")
-                    if !isPad { backOut(app) }
+                    backOut(app)
                 }
+            } else {
+                tapIfPresent(app.navigationBars["Calendar"].buttons["Done"])
             }
         }
 
-        // A conversation: the stub serves a stored answer with headings, a table and citations,
-        // and the work log it was stored with, collapsed above it.
-        app.tab("Chat").tap()
-        snap("chats")
-        let conversation = app.stubConversationRow
-        if conversation.waitForExistence(timeout: 10) {
-            conversation.tap()
-            snap("conversation")
-            // The composer's Quick | Thinking switch, on its other side. Left on Thinking: the
-            // choice belongs to this open conversation, and backing out discards it.
-            let thinking = app.buttons["Thinking"].firstMatch
-            if thinking.waitForExistence(timeout: 5) {
-                thinking.tap()
-                snap("conversation-thinking")
+        // Files: the folders, and one of them opened — its sub-folder above its documents.
+        app.tab("Files").tap()
+        snap("files")
+        let folder = app.buttons["folder-Bakshi"]
+        if folder.waitForExistence(timeout: 5) {
+            folder.tap()
+            if app.navigationBars["Bakshi"].waitForExistence(timeout: 10) {
+                snap("files-folder")
+                backOut(app)
             }
-            app.swipeUp()
-            snap("conversation-references")
-            // On iPad the conversation is beside the list, which never left: there is no Back,
-            // and the first bar button there is one of the list's own.
-            if !isPad { backOut(app) }
         }
 
-        // Everything behind More, each opened and closed from its own Done.
-        app.tab("More").tap()
-        snap("more")
-        // eAuctions is hidden for now; see `MoreView`.
-        for row in ["My Files", "Corporate Calendar", "Library", "Fetch Orders", "Matter workspaces", "Your workspace",
-                    "All tools", "Analysis tools", "File tools", "OCR", "Translate", "Settings"] {
+        // You: the account, its settings, and the tools that are not tabs.
+        app.tab("You").tap()
+        snap("you")
+        // The role selector.
+        let selector = app.buttons["Role selector"].firstMatch
+        if selector.waitForExistence(timeout: 5) {
+            app.reveal(selector)
+            selector.tap()
+            if app.navigationBars["Switch role"].waitForExistence(timeout: 5) {
+                snap("you-role-selector")
+                backOut(app)
+            }
+        }
+        // Notifications: off, as a fresh install finds it; then on, with the hearing reminders
+        // and updates beneath; then the account's email at the foot.
+        let notifications = app.buttons["notifications-settings"].firstMatch
+        app.reveal(notifications)
+        if notifications.waitForExistence(timeout: 5) {
+            notifications.tap()
+            if app.navigationBars["Notifications"].waitForExistence(timeout: 5) {
+                snap("you-notifications")
+                let allow = app.switches["notifications-allow"].firstMatch
+                if allow.waitForExistence(timeout: 5) {
+                    turnOn(allow)
+                    _ = app.switches["notifications-briefing"].firstMatch
+                        .waitForExistence(timeout: 5)
+                    snap("you-notifications-on")
+                    app.swipeUp()
+                    snap("you-notifications-email")
+                }
+                backOut(app)
+            }
+        }
+
+        // Everything You's Tools present, each opened and closed from its own Done. eAuctions is
+        // hidden for now; see `ToolsSections`.
+        for row in ["Your workspace", "Corporate Calendar", "Library", "Fetch Orders",
+                    "Matter workspaces", "All tools", "Analysis tools", "Limitation Radar",
+                    "MCA Registry", "File tools", "OCR", "Translate"] {
             let button = app.buttons[row].firstMatch
+            app.reveal(button)
             guard button.waitForExistence(timeout: 5) else { continue }
             button.tap()
             snap(row.lowercased().replacingOccurrences(of: " ", with: "-"))
-            if row == "My Files" {
-                // The shot above is the grid of folder tiles; this is one of them opened — its
-                // sub-folder as a tile above its documents.
-                let folder = app.buttons["folder-Bakshi"]
-                if folder.waitForExistence(timeout: 5) {
-                    folder.tap()
-                    if app.navigationBars["Bakshi"].waitForExistence(timeout: 10) {
-                        snap("my-files-folder")
-                        let back = app.navigationBars["Bakshi"].buttons.element(boundBy: 0)
-                        if back.waitForExistence(timeout: 5) { back.tap() } else { backOut(app) }
-                    }
-                }
-            }
-            if row == "Settings" {
-                // The role selector, opened from the head of Settings.
-                let selector = app.buttons["Role selector"].firstMatch
-                if selector.waitForExistence(timeout: 5) {
-                    selector.tap()
-                    if app.navigationBars["Switch role"].waitForExistence(timeout: 5) {
-                        snap("settings-role-selector")
-                        backOut(app)
-                    }
-                }
-                // Notifications: off, as a fresh install finds it; then on, with the hearing
-                // reminders and updates beneath; then the account's email at the foot.
-                let notifications = app.buttons["notifications-settings"].firstMatch
-                if notifications.waitForExistence(timeout: 5) {
-                    notifications.tap()
-                    if app.navigationBars["Notifications"].waitForExistence(timeout: 5) {
-                        snap("settings-notifications")
-                        let allow = app.switches["notifications-allow"].firstMatch
-                        if allow.waitForExistence(timeout: 5) {
-                            turnOn(allow)
-                            _ = app.switches["notifications-briefing"].firstMatch
-                                .waitForExistence(timeout: 5)
-                            snap("settings-notifications-on")
-                            app.swipeUp()
-                            snap("settings-notifications-email")
-                        }
-                        backOut(app)
-                    }
-                }
-                app.swipeUp()
-                snap("settings-plan-and-usage")
-            }
             if row == "Your workspace" {
                 // Litigator's workspace is the drafting taxonomy; one of its documents, opened.
                 tapIfPresent(app.buttons["matter-civil"])
@@ -244,7 +271,7 @@ final class ScreenshotTour: XCTestCase {
                 if plaint.waitForExistence(timeout: 5) {
                     plaint.tap()
                     snap("litigator-document")
-                    // Scoped to the form's own bar: the sheet sits over More, and an unscoped
+                    // Scoped to the form's own bar: the sheet sits over You, and an unscoped
                     // query could reach for a bar behind it.
                     let back = app.navigationBars["Plaint"].buttons.element(boundBy: 0)
                     if back.waitForExistence(timeout: 5) { back.tap() } else { backOut(app) }
@@ -263,6 +290,10 @@ final class ScreenshotTour: XCTestCase {
                 }
             }
         }
+
+        // The plan and its allowances, and the rest of You, at the foot.
+        app.swipeUp()
+        snap("you-foot")
     }
 
     /// What each tab says when there is nothing to show — every fixture empty. The empty state is
@@ -276,20 +307,10 @@ final class ScreenshotTour: XCTestCase {
         app.launchArguments = ["-UITestMode", "-UITestEmpty"] + (light ? ["-UITestLight"] : [])
         app.launch()
         let theme = light ? "light" : "dark"
-        guard app.textFields["Email"].waitForExistence(timeout: 15) else { return }
-        let email = app.textFields["Email"]
-        email.tap()
-        email.typeText("john.doe@firm.com")
-        let password = app.secureTextFields["Password"]
-        if password.waitForExistence(timeout: 5) {
-            password.tap()
-            password.typeText("hunter2")
-        }
-        tapIfPresent(app.buttons["Sign in"])
-        guard app.tab("Home").waitForExistence(timeout: 15) else { return }
+        guard app.signInWithACode(), app.tab("Ask").waitForExistence(timeout: 15) else { return }
 
         var step = 0
-        for tab in ["Home", "Cases", "Chat", "Calendar"] {
+        for tab in ["Ask", "Matters", "Files"] {
             let button = app.tab(tab)
             guard button.waitForExistence(timeout: 5) else { continue }
             button.tap()
@@ -315,7 +336,7 @@ final class ScreenshotTour: XCTestCase {
         signIn.lifetime = .keepAlways
         add(signIn)
 
-        tapIfPresent(app.buttons["Create an account"])
+        tapIfPresent(app.buttons["Create new account"])
         Thread.sleep(forTimeInterval: 0.8)
         let create = XCTAttachment(screenshot: app.screenshot())
         create.name = "providers-02-create-account"
@@ -326,7 +347,7 @@ final class ScreenshotTour: XCTestCase {
     // MARK: - Offline reading
 
     /// A conversation reopened with no signal — the copy kept on the device, the calm bar above
-    /// the composer that says so and how old it is — and Settings → Storage counting it.
+    /// the composer that says so and how old it is — and You → Storage counting it.
     /// `-UITestOffline` lets each route answer once and then fails it, as a phone in a court
     /// corridor does.
     func testTheOfflineConversationDark() { offlineTour(light: false) }
@@ -347,61 +368,36 @@ final class ScreenshotTour: XCTestCase {
             add(shot)
         }
 
-        guard app.textFields["Email"].waitForExistence(timeout: 15) else { return }
-        let email = app.textFields["Email"]
-        email.tap()
-        email.typeText("john.doe@firm.com")
-        let password = app.secureTextFields["Password"]
-        if password.waitForExistence(timeout: 5) {
-            password.tap()
-            password.typeText("hunter2")
-        }
-        tapIfPresent(app.buttons["Sign in"])
-        guard app.tab("Chat").waitForExistence(timeout: 15) else { return }
+        guard app.signInWithACode(), app.tab("Ask").waitForExistence(timeout: 15) else { return }
 
-        // Opened once with the signal, which keeps it; then reopened without. On a phone that
-        // is back to the list and in again. An iPad shows the conversation beside the list with
-        // its row selected, and the selected row cannot be chosen again — so the list's other
-        // conversation is opened in between.
-        let isBeside = UIDevice.current.userInterfaceIdiom == .pad
-        app.tab("Chat").tap()
+        // Opened once with the signal, which keeps it; then back to Ask and in again, without.
         let conversation = app.stubConversationRow
         guard conversation.waitForExistence(timeout: 10) else { return }
+        app.reveal(conversation)
         conversation.tap()
-        _ = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch
-            .waitForExistence(timeout: 10)
+        _ = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Read 1 document"))
+            .firstMatch.waitForExistence(timeout: 10)
         let bar = app.navigationBars["Conversation"]
-        if isBeside {
-            let other = app.buttons["chat-row-c2"].firstMatch
-            if other.waitForExistence(timeout: 5) {
-                other.tap()
-                var polls = 0
-                while !other.isSelected && polls < 40 {
-                    Thread.sleep(forTimeInterval: 0.1)
-                    polls += 1
-                }
-            }
-        } else if bar.waitForExistence(timeout: 5) {
-            bar.buttons.element(boundBy: 0).tap()
+        if bar.waitForExistence(timeout: 5) { bar.buttons.element(boundBy: 0).tap() }
+        if conversation.waitForExistence(timeout: 10) {
+            app.reveal(conversation)
+            conversation.tap()
         }
-        if conversation.waitForExistence(timeout: 10) { conversation.tap() }
         if app.staticTexts["offline-notice"].firstMatch.waitForExistence(timeout: 10) {
             snap("conversation")
         }
-        if !isBeside, bar.waitForExistence(timeout: 5) { bar.buttons.element(boundBy: 0).tap() }
+        if bar.waitForExistence(timeout: 5) { bar.buttons.element(boundBy: 0).tap() }
 
-        // Settings → Storage, scrolled to.
-        app.tab("More").tap()
-        let settings = app.buttons["Settings"].firstMatch
-        guard settings.waitForExistence(timeout: 5) else { return }
-        settings.tap()
+        // You → Storage, scrolled to.
+        app.tab("You").tap()
+        guard app.navigationBars["You"].waitForExistence(timeout: 5) else { return }
         let size = app.staticTexts["offline-storage-size"].firstMatch
         var swipes = 0
         while !(size.exists && size.isHittable) && swipes < 6 {
             app.swipeUp()
             swipes += 1
         }
-        snap("settings-storage")
+        snap("you-storage")
     }
 
     /// Turns a switch on, tolerating a miss as every step here does. The switch is a child of the
@@ -422,13 +418,11 @@ final class ScreenshotTour: XCTestCase {
         }
     }
 
+    /// Taps a control if it is there to be tapped — present, and not under a sheet that did not
+    /// close — and otherwise goes on, as every step of a tour does.
     private func tapIfPresent(_ element: XCUIElement) {
-        if element.waitForExistence(timeout: 5) { element.tap() }
+        if element.waitForExistence(timeout: 5), element.isHittable { element.tap() }
     }
-
-    /// The iPad lays Cases and Chat out as a list beside what it opens, which changes what there
-    /// is to photograph and what there is to back out of.
-    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     private func backOut(_ app: XCUIApplication) {
         let back = app.navigationBars.buttons.element(boundBy: 0)
@@ -437,7 +431,7 @@ final class ScreenshotTour: XCTestCase {
 
     // MARK: - App lock
 
-    /// The lock the app opens behind, and Settings → Security with the lock on and its timeout
+    /// The lock the app opens behind, and You → Security with the lock on and its timeout
     /// showing — `-UITestAppLock` starts with the lock on and someone signed in.
     func testTheAppLockDark() { appLockTour(light: false) }
     func testTheAppLockLight() { appLockTour(light: true) }
@@ -462,10 +456,9 @@ final class ScreenshotTour: XCTestCase {
         snap("locked")
 
         unlock.tap()
-        guard app.tab("More").waitForExistence(timeout: 10) else { snap("unlock-failed"); return }
-        app.tab("More").tap()
-        tapIfPresent(app.buttons["Settings"].firstMatch)
-        // Below Plan & usage; scrolled until the switch is in view, then raised so the timeout row
+        guard app.tab("You").waitForExistence(timeout: 10) else { snap("unlock-failed"); return }
+        app.tab("You").tap()
+        // Far down You; scrolled until the switch is in view, then raised so the timeout row
         // beneath it is in the picture too — a swipe alone leaves the switch on the bottom edge.
         let toggle = app.switches["app-lock-toggle"].firstMatch
         var swipes = 0
@@ -474,7 +467,7 @@ final class ScreenshotTour: XCTestCase {
             swipes += 1
         }
         appLockRaise(toggle, in: app)
-        snap("settings-security")
+        snap("you-security")
     }
 
     /// Drags the list holding `element` until the element sits in its upper half. Slow drags, so
@@ -495,7 +488,7 @@ final class ScreenshotTour: XCTestCase {
     // MARK: - Profile and documents shared in
 
     /// "Save to My Files" for a document handed to the app — the form, the folder list, and the
-    /// confirmation — and Settings → Edit profile, in both themes. A launch of their own, so the
+    /// confirmation — and You → Edit profile, in both themes. A launch of their own, so the
     /// document arriving does not interrupt the main tour.
     func testTheProfileAndSharingDark() { profileAndSharingTour(light: false) }
     func testTheProfileAndSharingLight() { profileAndSharingTour(light: true) }
@@ -515,16 +508,7 @@ final class ScreenshotTour: XCTestCase {
             add(shot)
         }
 
-        guard app.textFields["Email"].waitForExistence(timeout: 15) else { return }
-        let email = app.textFields["Email"]
-        email.tap()
-        email.typeText("john.doe@firm.com")
-        let password = app.secureTextFields["Password"]
-        if password.waitForExistence(timeout: 5) {
-            password.tap()
-            password.typeText("hunter2")
-        }
-        tapIfPresent(app.buttons["Sign in"])
+        guard app.signInWithACode() else { return }
 
         let sheet = app.navigationBars["Save to My Files"]
         if sheet.waitForExistence(timeout: 15) {
@@ -548,24 +532,23 @@ final class ScreenshotTour: XCTestCase {
             tapIfPresent(app.buttons["incoming-done"].firstMatch)
         }
 
-        guard app.tab("More").waitForExistence(timeout: 10) else { return }
-        app.tab("More").tap()
-        tapIfPresent(app.buttons["Settings"].firstMatch)
-        guard app.navigationBars["Settings"].waitForExistence(timeout: 10) else { return }
+        guard app.tab("You").waitForExistence(timeout: 10) else { return }
+        app.tab("You").tap()
+        guard app.navigationBars["You"].waitForExistence(timeout: 10) else { return }
         let edit = app.buttons["edit-profile"].firstMatch
         var swipes = 0
         while !(edit.exists && edit.isHittable) && swipes < 6 {
             app.swipeUp()
             swipes += 1
         }
-        snap("settings-account")
+        snap("you-account")
         let search = app.switches["spotlight-toggle"].firstMatch
         swipes = 0
         while !(search.exists && search.isHittable) && swipes < 6 {
             app.swipeUp()
             swipes += 1
         }
-        snap("settings-search")
+        snap("you-search")
         if edit.waitForExistence(timeout: 5) {
             swipes = 0
             while !(edit.exists && edit.isHittable) && swipes < 6 {
@@ -600,17 +583,7 @@ final class ScreenshotTour: XCTestCase {
             "-UITestMode", "-UITestLinkOnReturn", "emperor://calendar?day=\(day)",
         ] + (light ? ["-UITestLight"] : [])
         app.launch()
-        guard app.textFields["Email"].waitForExistence(timeout: 15) else { return }
-        let email = app.textFields["Email"]
-        email.tap()
-        email.typeText("john.doe@firm.com")
-        let password = app.secureTextFields["Password"]
-        if password.waitForExistence(timeout: 5) {
-            password.tap()
-            password.typeText("hunter2")
-        }
-        tapIfPresent(app.buttons["Sign in"])
-        guard app.tab("Home").waitForExistence(timeout: 15) else { return }
+        guard app.signInWithACode(), app.tab("Ask").waitForExistence(timeout: 15) else { return }
 
         XCUIDevice.shared.press(.home)
         var polls = 0

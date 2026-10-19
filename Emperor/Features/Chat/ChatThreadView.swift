@@ -96,7 +96,6 @@ struct ChatThreadView: View {
                 chatID: chatID,
                 service: session.chats,
                 files: session.files,
-                uploads: session.uploads,
                 detached: StoredDetachedDocuments(store: Preferences.detachedDocuments),
                 // Fast, or deep thinking on the top plan tier — see `AnswerModeDefault`.
                 preferredModel: AnswerModeDefault.starting(feeTier: session.currentUser?.feeTier).rawValue,
@@ -357,11 +356,6 @@ struct ChatThreadView: View {
         }
         .sheet(item: $model.openSource) { source in
             SourceDocumentView(attachment: source.attachment, mention: source.mention)
-        }
-        .alert("Scan failed", isPresented: alertBinding($model.scanError)) {
-            Button("OK") { model.scanError = nil }
-        } message: {
-            Text(model.scanError ?? "")
         }
         .alert("Cannot open that source", isPresented: alertBinding($model.citationError)) {
             Button("OK") { model.citationError = nil }

@@ -194,15 +194,23 @@ struct FolderSortHeader: View {
                     }
                 }
             } label: {
+                // The words and chevron are small, but the control is a full touch target: 44
+                // points each way, centred on them, without making the header any taller. The
+                // chevron scales with the words rather than staying at a fixed 10 points.
                 HStack(spacing: 4) {
                     Text(sort.label)
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .semibold))
+                        .imageScale(.small)
+                        .fontWeight(.semibold)
                 }
                 .font(.brand(.footnote, weight: .medium))
                 .foregroundStyle(theme.accentText)
                 .textCase(nil)
+                .frame(minWidth: Layout.touchTarget, minHeight: Layout.touchTarget)
+                .contentShape(Rectangle())
             }
+            // Back to about the words' own height in the header's layout.
+            .padding(.vertical, -(Layout.touchTarget - 20) / 2)
             .accessibilityLabel("Sort folders, \(sort.label)")
         }
     }

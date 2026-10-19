@@ -73,23 +73,32 @@ struct ToolFormView: View {
                     .foregroundStyle(theme.textTertiary)
             }
             .listRowBackground(theme.surface)
-
-            Section {
-                Button {
-                    // A fresh conversation each run. Threading a second tool prompt into an
-                    // existing thread would send the whole prior history back with it, and
-                    // `POST /chat` rewrites what it receives.
-                    startedChatID = ChatListViewModel.newChatID()
-                } label: {
-                    Text("Run")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.primaryAction)
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
         }
         .font(.brand(.body))
+        // "Run" in a bar of its own at the foot, as the role welcome's "Continue" is: the one
+        // action on the screen, in reach however long the form. Drawn as a row of the form it was
+        // read by the accessibility audit as a list cell's text, and failed for contrast however
+        // the gradient under it was set; outside the form, the same button passes as it does on
+        // the sign-in screen.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Button {
+                // A fresh conversation each run. Threading a second tool prompt into an
+                // existing thread would send the whole prior history back with it, and
+                // `POST /chat` rewrites what it receives.
+                startedChatID = ChatListViewModel.newChatID()
+            } label: {
+                Text("Run")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.primaryAction)
+            .padding(.horizontal, Spacing.gutter)
+            .padding(.vertical, Spacing.md)
+            .frame(maxWidth: .infinity)
+            .background(theme.groupedBackground)
+            .overlay(alignment: .top) {
+                Rectangle().fill(theme.separator).frame(height: 0.5)
+            }
+        }
         .scrollContentBackground(.hidden)
         .background(theme.groupedBackground)
         .navigationTitle(tool.title)

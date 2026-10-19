@@ -165,7 +165,9 @@ struct RecordRow<Leading: View, Trailing: View>: View {
     let title: String
     var subtitle: String?
     var subtitleColor: Color?
-    var titleLines = 1
+    /// At most this many lines of title at the default text size (`dynamicLineLimit`); `nil` for
+    /// the whole title at every size.
+    var titleLines: Int? = 1
     @ViewBuilder var leading: () -> Leading
     @ViewBuilder var trailing: () -> Trailing
 
@@ -173,10 +175,7 @@ struct RecordRow<Leading: View, Trailing: View>: View {
         HStack(spacing: Spacing.md) {
             leading()
             VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(title)
-                    .font(.brand(.body, weight: .medium))
-                    .foregroundStyle(theme.textPrimary)
-                    .dynamicLineLimit(titleLines)
+                titleText
                 if let subtitle {
                     Text(subtitle)
                         .font(.brand(.footnote))
@@ -192,12 +191,24 @@ struct RecordRow<Leading: View, Trailing: View>: View {
         .frame(minHeight: Layout.listRow)
         .contentShape(Rectangle())
     }
+
+    @ViewBuilder
+    private var titleText: some View {
+        let text = Text(title)
+            .font(.brand(.body, weight: .medium))
+            .foregroundStyle(theme.textPrimary)
+        if let titleLines {
+            text.dynamicLineLimit(titleLines)
+        } else {
+            text.fixedSize(horizontal: false, vertical: true)
+        }
+    }
 }
 
 extension RecordRow where Trailing == RowChevron {
     /// A row that leads somewhere: a chevron at its end.
     init(
-        title: String, subtitle: String? = nil, titleLines: Int = 1,
+        title: String, subtitle: String? = nil, titleLines: Int? = 1,
         @ViewBuilder leading: @escaping () -> Leading
     ) {
         self.init(
@@ -262,50 +273,6 @@ struct ItemNumberBadge: View {
     }
 }
 
-/// A citation number as a chip: drawn 20 by 18, answering a touch across 44. Tapped, it fills with
-/// the accent for half a second — then the cited page rises.
-struct CitationChip: View {
-    @Environment(\.theme) private var theme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    let number: Int
-    /// "Citation 2, AWARD.pdf, page 3".
-    let accessibilityText: String
-    let action: () -> Void
-
-    @State private var isLit = false
-
-    var body: some View {
-        Button {
-            Haptics.selection()
-            withAnimation(Motion.easeOut(Motion.Duration.fade)) { isLit = true }
-            let delay = reduceMotion ? 0 : 180
-            let open = action
-            let lit = $isLit
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(delay))
-                open()
-                try? await Task.sleep(for: .milliseconds(320))
-                withAnimation(Motion.easeOut(Motion.Duration.fade)) { lit.wrappedValue = false }
-            }
-        } label: {
-            Text(verbatim: "\(number)")
-                .recordText(RecordTokens.Typography.citation)
-                .monospacedDigit()
-                .foregroundStyle(isLit ? theme.onAccent : theme.accentText)
-                .padding(.horizontal, 5)
-                .frame(minWidth: 20, minHeight: 18)
-                .background(
-                    isLit ? theme.accent : theme.accentWash,
-                    in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
-                .frame(minWidth: Layout.touchTarget, minHeight: Layout.touchTarget)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(accessibilityText)
-    }
-}
-
 /// "p. 3" at the end of a source — the way to the page.
 struct PageChip: View {
     @Environment(\.theme) private var theme
@@ -366,11 +333,15 @@ struct RecordSegmentedControl<Value: Hashable>: View {
                 selection = value
             }
         } label: {
+            // One line at the default size; at a larger one the words wrap inside the segment —
+            // "All matters" over two lines — rather than shrinking or ending in an ellipsis,
+            // which the accessibility audit rightly read as text cut short.
             Text(title)
                 .font(.brand(size: 13.5, weight: .semibold, relativeTo: .footnote))
                 .foregroundStyle(isSelected ? theme.textPrimary : theme.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.vertical, 4)
                 .padding(.horizontal, Spacing.sm)
                 .frame(maxWidth: .infinity, minHeight: 30)
                 .background {
@@ -397,12 +368,32 @@ struct RecordSearchField: View {
     @Binding var text: String
     let prompt: String
 
+    @FocusState private var isFocused: Bool
+
     var body: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(theme.textTertiary)
                 .accessibilityHidden(true)
-            TextField(prompt, text: $text, prompt: Text(prompt).foregroundStyle(theme.textTertiary))
+            // Vertical, so a long query or a large text size wraps onto a second line rather than
+            // scrolling out of sight sideways — a one-line field is what the accessibility audit
+            // read as text cut short. A search is one line of words, so Return ends it (the
+            // keyboard's Search key) instead of starting a new line.
+            TextField(
+                prompt, text: Binding(
+                    get: { text },
+                    set: { newValue in
+                        if newValue.contains("\n") {
+                            text = newValue.replacingOccurrences(of: "\n", with: "")
+                            isFocused = false
+                        } else {
+                            text = newValue
+                        }
+                    }),
+                prompt: Text(prompt).foregroundStyle(theme.textTertiary),
+                axis: .vertical)
+                .lineLimit(1...3)
+                .focused($isFocused)
                 .font(.brand(.body))
                 .foregroundStyle(theme.textPrimary)
                 .textInputAutocapitalization(.never)

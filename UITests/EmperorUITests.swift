@@ -9,6 +9,10 @@ import XCTest
 /// The app runs against a stubbed transport (`UITestSupport`), so the **real** services, view
 /// models, decoders and navigation are exercised — only the socket is replaced. A response shape
 /// the decoder cannot read shows up here as an empty screen, exactly as it would in the field.
+///
+/// The app is the Record design's four tabs — **Ask · Matters · Files · You** (`MainTabView`).
+/// The Calendar opens from Matters, every conversation from Ask, and what was the More tab and
+/// Settings is You, with the tools as rows that present their screens.
 final class EmperorUITests: XCTestCase {
 
     override func setUp() {
@@ -17,29 +21,32 @@ final class EmperorUITests: XCTestCase {
     }
 
     private func launch(_ extraArguments: String...) -> XCUIApplication {
+        launch(arguments: extraArguments)
+    }
+
+    private func launch(arguments extraArguments: [String]) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-UITestMode"] + extraArguments
         app.launch()
         return app
     }
 
-    /// Signs in through the real login screen. The stub answers `/login`, so this exercises
-    /// `AuthService`, `Session.adopt` and the signed-out → signed-in transition rather than
-    /// bypassing them.
+    /// Signs in through the real sign-in screen, with an emailed code — the way it leads with
+    /// (`XCUIApplication.signInWithACode`).
     @discardableResult
     private func signIn(_ app: XCUIApplication) -> XCUIApplication {
-        let email = app.textFields["Email"]
-        XCTAssertTrue(email.waitForExistence(timeout: 10), "the login screen never appeared")
-        email.tap()
-        email.typeText("john.doe@firm.com")
-
-        let password = app.secureTextFields["Password"]
-        password.tap()
-        password.typeText("hunter2")
-
-        app.buttons["Sign in"].tap()
+        XCTAssertTrue(app.signInWithACode(), "the sign-in screen did not take an emailed code")
         return app
     }
+
+    /// Launched and signed in, with the tabs on screen.
+    private func signedIn(_ extraArguments: String...) -> XCUIApplication {
+        let app = signIn(launch(arguments: extraArguments))
+        XCTAssertTrue(app.tab("Ask").waitForExistence(timeout: 15), "signing in did not reach Ask")
+        return app
+    }
+
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     // MARK: - It starts
 
@@ -61,27 +68,51 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 10))
     }
 
-    // MARK: - Other ways in
+    // MARK: - Ways in
 
-    /// Every account can sign in with an emailed code, and it is the only way in for one made
-    /// with Google. A full code goes on without a tap, as code fields do elsewhere on the phone.
+    /// The code way in: chosen from its segment, an address, and a six-digit code. A full code
+    /// goes on without a tap, as code fields do elsewhere on the phone.
     func testSigningInWithAnEmailCode() {
         let app = launch()
         let email = app.textFields["Email"]
         XCTAssertTrue(email.waitForExistence(timeout: 10))
-        email.tap()
+        // The screen opens with the password; choosing the code must ask for no password.
+        app.buttons["Sign in with code"].tap()
+        // The field fades out with the swap; ask only once the transition has landed.
+        Thread.sleep(forTimeInterval: 0.8)
+        XCTAssertFalse(app.secureTextFields["Password"].exists, "the code asks for no password")
+        email.focusForTyping()
         email.typeText("john.doe@firm.com")
 
-        app.buttons["Sign in with an email code"].tap()
+        app.buttons["Email me a sign-in code"].tap()
 
         let code = app.textFields["Sign-in code"]
         XCTAssertTrue(code.waitForExistence(timeout: 10), "the code step never appeared")
-        code.tap()
+        XCTAssertTrue(app.staticTexts["Check your email"].exists, "the code step does not say where to look")
+        code.focusForTyping()
         code.typeText("123456")
 
         XCTAssertTrue(
-            app.tab("Home").waitForExistence(timeout: 10),
+            app.tab("Ask").waitForExistence(timeout: 10),
             "a complete code did not sign in")
+    }
+
+    /// The password, as the screen opens with it: address, password, sign in.
+    func testSigningInWithAPassword() {
+        let app = launch()
+        let email = app.textFields["Email"]
+        XCTAssertTrue(email.waitForExistence(timeout: 10))
+        email.focusForTyping()
+        email.typeText("john.doe@firm.com")
+
+        let password = app.secureTextFields["Password"]
+        XCTAssertTrue(password.waitForExistence(timeout: 5), "the screen does not open with a password")
+        password.focusForTyping()
+        password.typeText("hunter2")
+        app.buttons["Sign in"].firstMatch.tap()
+
+        XCTAssertTrue(
+            app.tab("Ask").waitForExistence(timeout: 10), "signing in with a password did not sign in")
     }
 
     /// Creating an account no longer signs anyone in: the server emails a confirmation link. The
@@ -90,7 +121,7 @@ final class EmperorUITests: XCTestCase {
     func testCreatingAnAccountAsksForConfirmation() {
         let app = launch()
         XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 10))
-        app.buttons["Create an account"].tap()
+        app.buttons["Create new account"].tap()
 
         let name = app.textFields["Full name"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
@@ -118,49 +149,45 @@ final class EmperorUITests: XCTestCase {
             app.staticTexts["Confirm your email"].waitForExistence(timeout: 10),
             "the confirmation step never appeared")
         XCTAssertTrue(app.buttons["Use a code instead"].exists)
-        XCTAssertFalse(app.tab("Home").exists, "nobody is signed in yet")
+        XCTAssertFalse(app.tab("Ask").exists, "nobody is signed in yet")
     }
 
     // MARK: - The tab bar
 
-    /// The bar the product owner chose: Home · Cases · Chat · Calendar · More, the same for every
-    /// role. Calendar holds the place the web gives its role-gated Corporate tab, which is now a
-    /// row in More — so it must not come back here by accident.
+    /// The Record design's four: Ask · Matters · Files · You, the same for every role. The old
+    /// Home, Cases, Chat, Calendar and More are gone as tabs — the Calendar opens from Matters,
+    /// and More's rows are You's Tools — so none of them may come back by accident.
     func testSigningInRevealsTheTabs() {
         let app = signIn(launch())
-        for tab in ["Home", "Cases", "Chat", "Calendar", "More"] {
+        for tab in ["Ask", "Matters", "Files", "You"] {
             XCTAssertTrue(
                 app.tab(tab).waitForExistence(timeout: 10),
                 "the \(tab) tab is missing")
         }
-        XCTAssertFalse(app.tab("Corporate").exists, "Corporate lives in More now")
+        for gone in ["Home", "Cases", "Chat", "Calendar", "More"] {
+            XCTAssertFalse(app.tab(gone).exists, "\(gone) is not a tab any more")
+        }
     }
 
     /// Every tab renders. A tab that crashes on appear takes the app down, and this is what
     /// notices.
     func testEveryTabOpensAndRendersItsScreen() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
-
-        for (tab, title) in [
-            ("Home", "Home"), ("Cases", "Cases"), ("Chat", "Emperor"),
-            ("Calendar", "Calendar"), ("More", "More"),
-        ] {
+        let app = signedIn()
+        for tab in ["Ask", "Matters", "Files", "You"] {
             app.tab(tab).tap()
             XCTAssertTrue(
-                app.navigationBars[title].waitForExistence(timeout: 10),
-                "tapping \(tab) did not show a screen titled \(title)")
+                app.navigationBars[tab].waitForExistence(timeout: 10),
+                "tapping \(tab) did not show a screen titled \(tab)")
             XCTAssertEqual(app.state, .runningForeground, "the app died on the \(tab) tab")
         }
     }
 
-    // MARK: - Home
+    // MARK: - Ask
 
-    /// A listing leads with where it is heard — item and courtroom — because that is what a
-    /// litigator scans a list for. The row is one accessibility element saying so, in order.
+    /// The next sitting on Ask leads with where it is heard — item and courtroom — because that
+    /// is what a litigator scans a list for. The row is one accessibility element saying so.
     func testAHomeListingLeadsWithItsItemAndCourt() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
+        let app = signedIn()
         let row = app.descendants(matching: .any).matching(
             NSPredicate(format: "label BEGINSWITH %@", "Item 7, Court 12")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10), "the listing does not lead with item and court")
@@ -169,78 +196,73 @@ final class EmperorUITests: XCTestCase {
 
     // MARK: - Calendar
 
-    /// The day's listing is on the Calendar, led by its sitting time, and tapping it lands on the
-    /// **Cases** tab with that matter open on its overview — the stub's `/cause-list`, `/cases`
-    /// and `/case` all describe `case1`, listed today, which is the day the Calendar opens on.
+    /// Opens the Calendar from the Matters tab's bar, where it lives now.
+    private func openTheCalendar(_ app: XCUIApplication) {
+        XCTAssertTrue(app.tab("Matters").waitForExistence(timeout: 10))
+        app.tab("Matters").tap()
+        let matters = app.navigationBars["Matters"]
+        XCTAssertTrue(matters.waitForExistence(timeout: 10))
+        matters.buttons["Calendar"].tap()
+        XCTAssertTrue(
+            app.navigationBars["Calendar"].waitForExistence(timeout: 10), "the Calendar did not open")
+    }
+
+    /// The day's listing is on the Calendar, led by its sitting time, and tapping it closes the
+    /// Calendar and lands on the **Matters** tab with that matter open on its overview — the
+    /// stub's `/cause-list`, `/cases` and `/case` all describe `case1`, listed today, which is
+    /// the day the Calendar opens on.
     ///
     /// Then the whole way round a second time. The request to open a case is taken once; this is
-    /// what notices if it is never cleared (the case would re-open on every visit to Cases) or
+    /// what notices if it is never cleared (the case would re-open on every visit to Matters) or
     /// never re-armed (the second tap would do nothing).
-    ///
-    /// On iPad the case opens beside the docket rather than over it, so there is no Back to take.
-    /// Another case is chosen in the docket instead — which is also what makes the second request
-    /// visible, since asking for the case already on screen would change nothing to look at — and
-    /// it is that case, not the requested one, that coming back to Cases must find.
-    func testACalendarListingOpensItsCaseOnTheCasesTab() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("Calendar").waitForExistence(timeout: 10))
-        app.tab("Calendar").tap()
-        XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
-
-        let listing = app.buttons["calendar-listing-case1"]
-        XCTAssertTrue(listing.waitForExistence(timeout: 10), "today's listing is not on the Calendar")
-        XCTAssertTrue(
-            listing.label.hasPrefix("10:30 AM. Item 7, Court 12"),
-            "the listing does not lead with its time, item and court: \(listing.label)")
+    func testACalendarListingOpensItsCaseOnTheMattersTab() {
+        let app = signedIn()
 
         for pass in 1...2 {
-            app.buttons["calendar-listing-case1"].tap()
+            openTheCalendar(app)
+            let listing = app.buttons["calendar-listing-case1"]
+            XCTAssertTrue(
+                listing.waitForExistence(timeout: 10),
+                "pass \(pass): today's listing is not on the Calendar")
+            XCTAssertTrue(
+                listing.label.hasPrefix("10:30 AM. Item 7, Court 12"),
+                "the listing does not lead with its time, item and court: \(listing.label)")
+            listing.tap()
 
             let matter = app.navigationBars["Bakshi v. State of Maharashtra"]
             XCTAssertTrue(
                 matter.waitForExistence(timeout: 10),
                 "pass \(pass): tapping the listing did not open its case")
-            XCTAssertTrue(
-                app.tab("Cases").isSelected,
-                "pass \(pass): the case opened somewhere other than the Cases tab")
             let overview = app.staticTexts.matching(
                 NSPredicate(format: "label ==[c] %@", "Overview")).firstMatch
             XCTAssertTrue(
                 overview.waitForExistence(timeout: 10),
                 "pass \(pass): the case did not open on its overview")
 
-            if UIDevice.current.userInterfaceIdiom == .pad {
-                // Beside the docket, which never left; then another case, chosen there.
-                XCTAssertTrue(
-                    app.navigationBars["Cases"].exists,
-                    "pass \(pass): the case did not open beside the docket")
-                caseRow(app, "case-hc-delhi").tap()
-                XCTAssertTrue(
-                    app.navigationBars["Kapoor Textiles Pvt. Ltd. v. Commissioner of Customs"]
-                        .waitForExistence(timeout: 10),
-                    "pass \(pass): choosing another case beside the docket did not open it")
-            } else {
-                // Back lands on the docket, not on whatever Cases showed before.
-                matter.buttons.element(boundBy: 0).tap()
-                XCTAssertTrue(
-                    app.navigationBars["Cases"].waitForExistence(timeout: 10),
-                    "pass \(pass): back from the case did not land on the docket")
-            }
-
-            app.tab("Calendar").tap()
-            XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
+            // Back lands on Matters, not on whatever it showed before.
+            matter.buttons.element(boundBy: 0).tap()
+            XCTAssertTrue(
+                app.navigationBars["Matters"].waitForExistence(timeout: 10),
+                "pass \(pass): back from the case did not land on Matters")
+            // Asked here rather than over the case, which hides the tab bar.
+            XCTAssertTrue(
+                becomesSelected(app.tab("Matters")),
+                "pass \(pass): the case opened somewhere other than the Matters tab")
         }
 
-        // And coming back to Cases does not open the case again by itself.
-        app.tab("Cases").tap()
-        XCTAssertTrue(app.navigationBars["Cases"].waitForExistence(timeout: 10))
+        // And coming back to Matters does not open the case again by itself.
+        app.tab("Ask").tap()
+        XCTAssertTrue(app.navigationBars["Ask"].waitForExistence(timeout: 10))
+        app.tab("Matters").tap()
+        XCTAssertTrue(app.navigationBars["Matters"].waitForExistence(timeout: 10))
         XCTAssertFalse(
             app.navigationBars["Bakshi v. State of Maharashtra"].exists,
             "an old request re-opened the case")
 
         // The day's diary entry follows its listings, in a section of its own. Scrolled to, as
         // it sits below the month and the listing: a list only builds the rows it is showing.
-        app.tab("Calendar").tap()
+        app.navigationBars["Matters"].buttons["Calendar"].tap()
+        XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
         let diary = app.staticTexts["File written statement"]
         var swipes = 0
         while !diary.exists, swipes < 3 {
@@ -248,17 +270,20 @@ final class EmperorUITests: XCTestCase {
             swipes += 1
         }
         XCTAssertTrue(diary.waitForExistence(timeout: 5), "the day's diary entry is missing")
+
+        // Presented over Matters, so it closes from its own Done.
+        app.navigationBars["Calendar"].buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["Matters"].waitForExistence(timeout: 10))
     }
 
     // MARK: - Corporate Calendar
 
-    /// More opens the Corporate Calendar for every role; it lists a statutory deadline and opens
-    /// it, the way back is the back button, and the screen closes from its own Done.
-    func testTheCorporateCalendarOpensFromMoreAndOpensADeadline() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["Corporate Calendar"].tap()
+    /// You's Tools open the Corporate Calendar for every role; it lists a statutory deadline and
+    /// opens it, the way back is the back button, and the screen closes from its own Done.
+    func testTheCorporateCalendarOpensFromYouAndOpensADeadline() {
+        let app = signedIn()
+        openYou(app)
+        openToolRow("Corporate Calendar", in: app)
         XCTAssertTrue(app.navigationBars["Corporate Calendar"].waitForExistence(timeout: 10))
 
         let deadline = app.staticTexts["GSTR-1"]
@@ -276,7 +301,7 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Corporate Calendar"].waitForExistence(timeout: 10))
 
         app.navigationBars["Corporate Calendar"].buttons["Done"].tap()
-        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
     }
 
     // MARK: - Calendar subscription
@@ -285,10 +310,8 @@ final class EmperorUITests: XCTestCase {
     /// control on screen. "Subscribe in Calendar" itself is not tapped: it leaves the app for
     /// the Calendar app, which is the point of it and the end of any test.
     func testCalendarOffersAPrivateLinkThatCanBeCopied() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("Calendar").waitForExistence(timeout: 10))
-        app.tab("Calendar").tap()
-        XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
+        let app = signedIn()
+        openTheCalendar(app)
 
         app.navigationBars["Calendar"].buttons["Subscribe"].tap()
         XCTAssertTrue(app.navigationBars["Subscribe"].waitForExistence(timeout: 10))
@@ -303,10 +326,26 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
     }
 
-    // MARK: - More
+    // MARK: - You's Tools
 
-    /// Each row in More opens its screen, **and every one of them can be closed by a control on
-    /// screen**.
+    /// Opens the You tab, on its own screen.
+    private func openYou(_ app: XCUIApplication) {
+        XCTAssertTrue(app.tab("You").waitForExistence(timeout: 10))
+        app.tab("You").tap()
+        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10), "You did not open")
+    }
+
+    /// Taps one of You's rows by its name, scrolled to first: You is a long list, and on a phone
+    /// the Tools rows start below the fold.
+    private func openToolRow(_ row: String, in app: XCUIApplication) {
+        let button = app.buttons[row].firstMatch
+        app.reveal(button)
+        XCTAssertTrue(button.waitForExistence(timeout: 5), "You has no \(row) row")
+        button.tap()
+    }
+
+    /// Each Tools row on You opens its screen, **and every one of them can be closed by a control
+    /// on screen**.
     ///
     /// The second half is the point. Each destination presents rather than pushes, so iOS gives
     /// it no back button — and five of the eight carried no close button either, because they
@@ -317,35 +356,32 @@ final class EmperorUITests: XCTestCase {
     ///
     /// So this taps the button rather than swiping. A swipe would pass either way and is exactly
     /// how the gap survived a green suite the first time.
-    func testEveryMoreRowOpensAndClosesFromAControlOnScreen() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
+    func testEveryToolsRowOpensAndClosesFromAControlOnScreen() {
+        let app = signedIn()
+        openYou(app)
 
         // Hidden for now at the product owner's request; its screen is kept. See the note at
-        // `MoreView`'s rows for how to bring it back. ("Projects" is the old name of the row
-        // that came back as "Matter workspaces".)
-        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
+        // `ToolsSections` for how to bring it back. ("Projects" is the old name of the row that
+        // came back as "Matter workspaces".)
         for hidden in ["Projects", "eAuctions"] {
             XCTAssertFalse(app.buttons[hidden].exists, "\(hidden) is meant to be hidden")
         }
 
         for (row, title) in [
-            ("My Files", "My Files"),
             ("Corporate Calendar", "Corporate Calendar"),
             ("Library", "Library"),
             ("Fetch Orders", "Fetch Orders"),
-            ("Matter workspaces", "Matter workspaces"),
+            // The workspaces open as the web's Matters page, under its name.
+            ("Matter workspaces", "Matters"),
             ("All tools", "Tools"),
             ("Analysis tools", "Analysis tools"),
+            ("Limitation Radar", "Limitation Radar"),
+            ("MCA Registry", "MCA Registry"),
             ("File tools", "File tools"),
             ("OCR", "OCR"),
             ("Translate", "Translate"),
-            ("Settings", "Settings"),
         ] {
-            let cell = app.buttons[row]
-            XCTAssertTrue(cell.waitForExistence(timeout: 10), "the \(row) row is missing")
-            cell.tap()
+            openToolRow(row, in: app)
             XCTAssertTrue(
                 app.navigationBars[title].waitForExistence(timeout: 10),
                 "\(row) did not open a screen titled \(title)")
@@ -360,9 +396,9 @@ final class EmperorUITests: XCTestCase {
             done.tap()
 
             XCTAssertTrue(
-                app.navigationBars["More"].waitForExistence(timeout: 10),
-                "closing \(row) did not return to More")
-            // Gone, not only going. More's own bar is there behind a sheet the whole time, so it
+                app.navigationBars["You"].waitForExistence(timeout: 10),
+                "closing \(row) did not return to You")
+            // Gone, not only going. You's own bar is there behind a sheet the whole time, so it
             // does not prove the sheet has left — and the OCR screen's switch carries a button
             // named "Translate", the next row's name, until it has.
             var polls = 0
@@ -374,21 +410,24 @@ final class EmperorUITests: XCTestCase {
         }
     }
 
-    // MARK: - My Files
+    // MARK: - Files
+
+    /// Opens the Files tab, on the library's top level.
+    private func openFiles(_ app: XCUIApplication) {
+        XCTAssertTrue(app.tab("Files").waitForExistence(timeout: 10))
+        app.tab("Files").tap()
+        XCTAssertTrue(app.navigationBars["Files"].waitForExistence(timeout: 10), "Files did not open")
+    }
 
     /// A folder opens, its document is listed, and deleting it asks first — naming the document
     /// in the question. Cancelled, so nothing is sent; what is pinned is that the destructive
     /// path cannot be reached without a confirmation that says what it will destroy.
     func testDeletingADocumentAsksFirstAndNamesIt() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["My Files"].tap()
-        XCTAssertTrue(app.navigationBars["My Files"].waitForExistence(timeout: 10))
+        let app = signedIn()
+        openFiles(app)
 
-        app.buttons["Folders"].tap()
-        // A folder is a tile now — one element, a button, found by its identifier, since its
-        // label also carries what the folder holds.
+        // A folder is one element, a button, found by its identifier, since its label also
+        // carries what the folder holds.
         let folder = app.buttons["folder-Bakshi"]
         XCTAssertTrue(folder.waitForExistence(timeout: 10), "the folder from /user-files is not listed")
         folder.tap()
@@ -410,6 +449,51 @@ final class EmperorUITests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
+    /// Files opens on its folders — the matters' papers — with no section tapped. A folder opens,
+    /// showing its own sub-folder and its documents; the sub-folder opens in turn; and Back
+    /// returns, level by level, to the top.
+    func testFilesOpensOnFoldersThatOpenTheirFolders() {
+        let app = signedIn()
+        openFiles(app)
+
+        let bakshi = app.buttons["folder-Bakshi"]
+        XCTAssertTrue(bakshi.waitForExistence(timeout: 10), "Files did not open on its folders")
+        XCTAssertTrue(app.buttons["folder-Arora_Holdings"].exists, "every top-level folder is listed")
+        // One element, saying what the folder holds — counted all the way down.
+        XCTAssertEqual(bakshi.label, "Bakshi, 2 documents, 1 folder")
+
+        // A document filed in no folder stays reachable from the top, below the folders.
+        let loose = app.staticTexts["Engagement Letter.pdf"]
+        var swipes = 0
+        while !loose.exists, swipes < 3 {
+            app.swipeUp()
+            swipes += 1
+        }
+        XCTAssertTrue(loose.waitForExistence(timeout: 5), "the document in no folder is not listed")
+
+        app.reveal(bakshi)
+        bakshi.tap()
+        XCTAssertTrue(app.navigationBars["Bakshi"].waitForExistence(timeout: 10), "the folder did not open")
+        let orders = app.buttons["folder-Bakshi/Orders"]
+        XCTAssertTrue(orders.waitForExistence(timeout: 10), "the sub-folder is not listed")
+        XCTAssertTrue(
+            app.staticTexts["Plaint.pdf"].waitForExistence(timeout: 5),
+            "the folder's own document is not listed")
+
+        orders.tap()
+        XCTAssertTrue(app.navigationBars["Orders"].waitForExistence(timeout: 10), "the sub-folder did not open")
+        XCTAssertTrue(
+            app.staticTexts["Interim Order.pdf"].waitForExistence(timeout: 5),
+            "the sub-folder's document is not listed")
+
+        app.navigationBars["Orders"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Bakshi"].waitForExistence(timeout: 10), "Back did not return to Bakshi")
+        app.navigationBars["Bakshi"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Files"].waitForExistence(timeout: 10), "Back did not return to Files")
+        XCTAssertTrue(app.buttons["folder-Bakshi"].waitForExistence(timeout: 10), "the folders are not there on return")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
     // MARK: - First sign-in
 
     /// The role choice appears after a first sign-in on this device, offers a way past without
@@ -419,7 +503,7 @@ final class EmperorUITests: XCTestCase {
 
         let choice = app.buttons["role-corporateCounsel"]
         XCTAssertTrue(choice.waitForExistence(timeout: 10), "the role choice did not appear")
-        XCTAssertFalse(app.tab("Home").exists, "the app was reachable behind it")
+        XCTAssertFalse(app.tab("Ask").exists, "the app was reachable behind it")
         XCTAssertTrue(app.buttons["Skip for now"].exists, "there must be a way past without choosing")
 
         choice.tap()
@@ -434,7 +518,7 @@ final class EmperorUITests: XCTestCase {
         start.tap()
 
         XCTAssertTrue(
-            app.tab("Home").waitForExistence(timeout: 10),
+            app.tab("Ask").waitForExistence(timeout: 10),
             "choosing a role did not lead into the app")
     }
 
@@ -443,10 +527,21 @@ final class EmperorUITests: XCTestCase {
         let skip = app.buttons["Skip for now"]
         XCTAssertTrue(skip.waitForExistence(timeout: 10), "the role choice did not appear")
         skip.tap()
-        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tab("Ask").waitForExistence(timeout: 10))
     }
 
     // MARK: - Court search
+
+    /// Opens the court lookup from Matters' "Add a matter".
+    private func openTheCourtLookup(_ app: XCUIApplication) {
+        XCTAssertTrue(app.tab("Matters").waitForExistence(timeout: 10))
+        app.tab("Matters").tap()
+        XCTAssertTrue(app.navigationBars["Matters"].waitForExistence(timeout: 10))
+        app.buttons["Add a matter"].firstMatch.tap()
+        XCTAssertTrue(
+            app.navigationBars["Find a case"].waitForExistence(timeout: 10),
+            "the court search sheet did not open")
+    }
 
     /// Looking a case up by its **case number** — the number printed on every piece of paper
     /// after registration, and until recently the one way of finding a matter this app could not
@@ -456,15 +551,8 @@ final class EmperorUITests: XCTestCase {
     /// The two modes are separate routes taking different fields, so this checks that switching
     /// actually reshapes the form rather than just relabelling it.
     func testACaseCanBeFoundByCaseNumberAndByDiaryNumber() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("Cases").waitForExistence(timeout: 10))
-        app.tab("Cases").tap()
-        // The toolbar's "Add case" opens the lookup, which is titled for what it does first.
-        app.buttons["Add case"].firstMatch.tap()
-
-        XCTAssertTrue(
-            app.navigationBars["Find a case"].waitForExistence(timeout: 10),
-            "the court search sheet did not open")
+        let app = signedIn()
+        openTheCourtLookup(app)
 
         // Forty-eight courts, so a pushed searchable list rather than a control on the form.
         app.buttons["court-picker"].tap()
@@ -504,11 +592,8 @@ final class EmperorUITests: XCTestCase {
     /// deal of Indian litigation happens there, and a picker that silently omits them reads as a
     /// product that has not heard of them rather than one that knows what it cannot do.
     func testDistrictCourtsAreListedButCannotBeChosen() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("Cases").waitForExistence(timeout: 10))
-        app.tab("Cases").tap()
-        app.buttons["Add case"].firstMatch.tap()
-        XCTAssertTrue(app.navigationBars["Find a case"].waitForExistence(timeout: 10))
+        let app = signedIn()
+        openTheCourtLookup(app)
 
         app.buttons["court-picker"].tap()
         XCTAssertTrue(app.navigationBars["Court"].waitForExistence(timeout: 5))
@@ -544,44 +629,58 @@ final class EmperorUITests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
-    // MARK: - Chat
+    // MARK: - Conversations
+
+    /// The reading card over the stub's stored answer: its work log read a document and searched
+    /// the record, which the card sums up in one line (`StepLabels.summary`).
+    private func storedWorkLogPanel(_ app: XCUIApplication) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Read 1 document")).firstMatch
+    }
+
+    /// Opens the stub's stored conversation from Ask's recent conversations.
+    private func openTheStubConversation(_ app: XCUIApplication) {
+        XCTAssertTrue(app.tab("Ask").waitForExistence(timeout: 10))
+        app.tab("Ask").tap()
+        let conversation = app.stubConversationRow
+        XCTAssertTrue(conversation.waitForExistence(timeout: 10), "the conversation is not listed on Ask")
+        app.reveal(conversation)
+        conversation.tap()
+        XCTAssertTrue(
+            app.navigationBars["Conversation"].waitForExistence(timeout: 10),
+            "the conversation did not open")
+    }
 
     /// A stored answer carries the work log it was produced with — the stub's answer was stored
-    /// with one, as the web stores every answer — drawn collapsed above it, and opening to the
-    /// calls that were made.
+    /// with one, as the web stores every answer — drawn folded above it, and opening to the
+    /// steps that were taken, each said in plain words.
     func testAStoredAnswerShowsTheWorkItRestsOn() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("Chat").waitForExistence(timeout: 10))
-        app.tab("Chat").tap()
-        let conversation = app.stubConversationRow
-        XCTAssertTrue(conversation.waitForExistence(timeout: 10), "the conversation is not listed")
-        conversation.tap()
+        let app = signedIn()
+        openTheStubConversation(app)
 
-        let panel = app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch
+        let panel = storedWorkLogPanel(app)
         XCTAssertTrue(panel.waitForExistence(timeout: 10), "the stored work log is not drawn")
-        XCTAssertTrue(panel.label.contains("2 steps"), "the panel miscounts: \(panel.label)")
+        XCTAssertTrue(
+            panel.label.contains("searched your files"), "the card misdescribes the work: \(panel.label)")
 
-        let step = app.staticTexts["Searching the record for: Section 34(3) limitation"]
-        XCTAssertFalse(step.exists, "a stored panel opens collapsed")
+        let step = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Searching your documents")).firstMatch
+        XCTAssertFalse(step.exists, "a stored card opens folded")
         panel.tap()
-        XCTAssertTrue(step.waitForExistence(timeout: 5), "the panel does not open to its steps")
+        XCTAssertTrue(step.waitForExistence(timeout: 5), "the card does not open to its steps")
         XCTAssertEqual(app.state, .runningForeground)
     }
 
     // MARK: - Empty states
 
-    /// `ListStateView` routes to `empty()` whenever the *filtered* list is empty, which is a
-    /// branch three screens got wrong by handling it in the content closure instead. With every
-    /// fixture empty, each of these must say something rather than showing a blank list.
+    /// With every fixture empty, each tab must say something rather than showing a blank screen.
     func testEmptyStatesRenderRatherThanBlankScreens() {
-        let app = signIn(launch("-UITestEmpty"))
-        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
+        let app = signedIn("-UITestEmpty")
 
-        for tab in ["Home", "Cases", "Chat", "Calendar"] {
+        for tab in ["Ask", "Matters", "Files"] {
             app.tab(tab).tap()
-            // `ContentUnavailableView` renders as static text; any of it is enough to prove the
-            // empty branch drew something.
+            XCTAssertTrue(app.navigationBars[tab].waitForExistence(timeout: 10))
+            // An empty state renders as static text; any of it is enough to prove the empty
+            // branch drew something.
             let hasCopy = app.staticTexts.count > 0
             XCTAssertTrue(hasCopy, "the \(tab) tab rendered nothing at all when empty")
             XCTAssertEqual(app.state, .runningForeground, "the app died on an empty \(tab)")
@@ -593,17 +692,14 @@ final class EmperorUITests: XCTestCase {
     /// The one destructive action reachable without a server write, and the way back to the
     /// login screen.
     func testSigningOutReturnsToLogin() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["Settings"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+        let app = signedIn()
+        openYou(app)
 
-        // Sign out is the last row, below Plan & usage, so on a phone it starts off screen — and
-        // a list only builds the rows it is showing. Scroll to it rather than assume it is there.
+        // Sign out is the last row of You, so on a phone it starts off screen — and a list only
+        // builds the rows it is showing. Scroll to it rather than assume it is there.
         let signOut = app.buttons["Sign out"].firstMatch
         var swipes = 0
-        while !(signOut.exists && signOut.isHittable) && swipes < 8 {
+        while !(signOut.exists && signOut.isHittable) && swipes < 10 {
             app.swipeUp()
             swipes += 1
         }
@@ -634,10 +730,9 @@ final class EmperorUITests: XCTestCase {
     /// generated from data rather than laid out by hand — so one broken field definition would
     /// break every tool at once. This opens the list and runs one.
     func testAToolOpensItsFormAndCanBeRun() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["All tools"].firstMatch.tap()
+        let app = signedIn()
+        openYou(app)
+        openToolRow("All tools", in: app)
 
         XCTAssertTrue(app.navigationBars["Tools"].waitForExistence(timeout: 10))
         // The five the web's own sidebar links, so the ones most likely to be opened.
@@ -678,30 +773,32 @@ final class EmperorUITests: XCTestCase {
 
         app.navigationBars["Tools"].buttons["Done"].firstMatch.tap()
         XCTAssertTrue(
-            app.navigationBars["More"].waitForExistence(timeout: 10),
+            app.navigationBars["You"].waitForExistence(timeout: 10),
             "the tool sheet could not be closed after running a tool")
     }
 
-    // MARK: - Role selector
+    // MARK: - Role
 
-    /// The role is switched from the head of Settings, at once, as the web's selector does — and
-    /// the workspace follows it.
-    func testTheRoleIsSwitchedFromSettings() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["Settings"].tap()
+    /// The role is switched from You's Role row, at once, as the web's selector does — and the
+    /// workspace follows it.
+    func testTheRoleIsSwitchedFromYou() {
+        let app = signedIn()
+        openYou(app)
 
+        // Below the account and its plan, so off screen on a phone until scrolled to.
         let selector = app.buttons["Role selector"].firstMatch
-        XCTAssertTrue(selector.waitForExistence(timeout: 10), "Settings has no role selector")
+        app.reveal(selector)
+        XCTAssertTrue(selector.waitForExistence(timeout: 5), "You has no role row")
         selector.tap()
         let corporate = app.buttons["role-corporateCounsel"].firstMatch
         XCTAssertTrue(corporate.waitForExistence(timeout: 10), "the roles were not listed")
         corporate.tap()
 
-        // Back on Settings, which now says the new role. Polled rather than waited on with an
+        // Back on You, which now says the new role. Polled rather than waited on with an
         // expectation: `waitForExpectations` sends the test case across actors, which Swift 6
         // refuses to compile here.
+        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
+        app.reveal(selector)
         XCTAssertTrue(selector.waitForExistence(timeout: 10))
         var polls = 0
         while !selector.label.contains("Corporate Counsel") && polls < 40 {
@@ -709,22 +806,21 @@ final class EmperorUITests: XCTestCase {
             polls += 1
         }
         XCTAssertTrue(
-            selector.label.contains("Corporate Counsel"), "Settings did not show the new role")
+            selector.label.contains("Corporate Counsel"), "You did not show the new role: \(selector.label)")
 
         // And the workspace is the new role's.
-        app.navigationBars["Settings"].buttons["Done"].tap()
-        let workspace = app.buttons["Your workspace"].firstMatch
-        XCTAssertTrue(workspace.waitForExistence(timeout: 10))
-        workspace.tap()
+        openToolRow("Your workspace", in: app)
         XCTAssertTrue(
             app.navigationBars["Corporate Counsel"].waitForExistence(timeout: 10),
             "the workspace did not follow the role")
-        app.buttons["Done"].firstMatch.tap()
+        app.navigationBars["Corporate Counsel"].buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
 
         // Left as the other tests expect to find it.
-        app.buttons["Settings"].firstMatch.tap()
+        app.reveal(selector)
         selector.tap()
         app.buttons["role-litigator"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
     }
 
     // MARK: - Your workspace
@@ -745,9 +841,8 @@ final class EmperorUITests: XCTestCase {
         let skipDetails = app.buttons["Skip"]
         if skipDetails.waitForExistence(timeout: 10) { skipDetails.tap() }
 
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["Your workspace"].tap()
+        openYou(app)
+        openToolRow("Your workspace", in: app)
         XCTAssertTrue(
             app.navigationBars["Litigator"].waitForExistence(timeout: 10),
             "Your workspace did not open as Litigator's")
@@ -785,7 +880,7 @@ final class EmperorUITests: XCTestCase {
         app.navigationBars["Plaint"].buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.navigationBars["Litigator"].waitForExistence(timeout: 10))
         app.navigationBars["Litigator"].buttons["Done"].tap()
-        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
     }
 
     // MARK: - File tools
@@ -794,10 +889,9 @@ final class EmperorUITests: XCTestCase {
     /// from one grid, so a card wired to the wrong destination — or a screen that dies on
     /// appear — shows up here rather than in a user's hands.
     func testEveryFileToolOpensFromTheHubAndComesBack() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["File tools"].tap()
+        let app = signedIn()
+        openYou(app)
+        openToolRow("File tools", in: app)
         XCTAssertTrue(app.navigationBars["File tools"].waitForExistence(timeout: 10))
 
         for (id, title) in [
@@ -829,17 +923,16 @@ final class EmperorUITests: XCTestCase {
         }
 
         app.navigationBars["File tools"].buttons["Done"].tap()
-        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
     }
 
     /// The account's own history, decoded from the shape `/ocr-history` really sends — a bare
     /// array whose jobs carry their page setup as an object. A decoder that cannot read it
     /// shows "Could not load" here instead of the row.
     func testTranslateListsTheAccountsHistory() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["Translate"].tap()
+        let app = signedIn()
+        openYou(app)
+        openToolRow("Translate", in: app)
         XCTAssertTrue(app.navigationBars["Translate"].waitForExistence(timeout: 10))
 
         let row = app.descendants(matching: .any)
@@ -853,65 +946,7 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 10), "the history row did not render")
     }
 
-    // MARK: - My Files as folders
-
-    /// My Files opens on its folders, drawn as tiles, with no segment tapped. A tile opens its
-    /// folder, which shows its own sub-folder as a tile and its documents as rows; a sub-folder's
-    /// tile opens in turn; and Back returns, level by level, to the grid.
-    func testMyFilesOpensOnFolderTilesThatOpenTheirFolders() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["My Files"].tap()
-        XCTAssertTrue(app.navigationBars["My Files"].waitForExistence(timeout: 10))
-
-        let bakshi = app.buttons["folder-Bakshi"]
-        XCTAssertTrue(bakshi.waitForExistence(timeout: 10), "My Files did not open on its folder tiles")
-        XCTAssertTrue(app.buttons["folder-Arora_Holdings"].exists, "every top-level folder is a tile")
-        // One element, saying what the folder holds — counted all the way down.
-        XCTAssertEqual(bakshi.label, "Bakshi, 2 documents, 1 folder")
-
-        // A document filed in no folder stays reachable from the top, below the grid.
-        let loose = app.staticTexts["Engagement Letter.pdf"]
-        var swipes = 0
-        while !loose.exists, swipes < 3 {
-            app.swipeUp()
-            swipes += 1
-        }
-        XCTAssertTrue(loose.waitForExistence(timeout: 5), "the document in no folder is not listed")
-
-        bakshi.tap()
-        XCTAssertTrue(app.navigationBars["Bakshi"].waitForExistence(timeout: 10), "the tile did not open its folder")
-        let orders = app.buttons["folder-Bakshi/Orders"]
-        XCTAssertTrue(orders.waitForExistence(timeout: 10), "the sub-folder is not drawn as a tile")
-        XCTAssertTrue(
-            app.staticTexts["Plaint.pdf"].waitForExistence(timeout: 5),
-            "the folder's own document is not listed")
-
-        orders.tap()
-        XCTAssertTrue(app.navigationBars["Orders"].waitForExistence(timeout: 10), "the sub-folder did not open")
-        XCTAssertTrue(
-            app.staticTexts["Interim Order.pdf"].waitForExistence(timeout: 5),
-            "the sub-folder's document is not listed")
-
-        app.navigationBars["Orders"].buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.navigationBars["Bakshi"].waitForExistence(timeout: 10), "Back did not return to Bakshi")
-        app.navigationBars["Bakshi"].buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.navigationBars["My Files"].waitForExistence(timeout: 10), "Back did not return to My Files")
-        XCTAssertTrue(app.buttons["folder-Bakshi"].waitForExistence(timeout: 10), "the grid is not there on return")
-        XCTAssertEqual(app.state, .runningForeground)
-    }
-
     // MARK: - Answer mode and OCR
-
-    /// Opens the stub's stored conversation from the Chat tab.
-    private func openTheStubConversation(_ app: XCUIApplication) {
-        XCTAssertTrue(app.tab("Chat").waitForExistence(timeout: 10))
-        app.tab("Chat").tap()
-        let conversation = app.stubConversationRow
-        XCTAssertTrue(conversation.waitForExistence(timeout: 10), "the conversation is not listed")
-        conversation.tap()
-    }
 
     /// Waits for an element to report itself selected, as a tap lands a frame or two later.
     /// Polled rather than waited on with an expectation, which Swift 6 refuses to compile here.
@@ -925,33 +960,52 @@ final class EmperorUITests: XCTestCase {
         return element.isSelected
     }
 
-    /// Quick and Thinking sit in the composer, always in sight, and one tap switches. A new
-    /// account has no preferred model, so a conversation opens on Quick.
-    func testTheComposerSwitchesBetweenQuickAndThinking() {
-        let app = signIn(launch())
+    /// Polls until `element`'s label is `label`.
+    private func reads(_ element: XCUIElement, _ label: String) -> Bool {
+        Self.poll(10) { element.exists && element.label == label }
+    }
+
+    /// The answer mode sits in the composer, always in sight, as a chip that names it; the chip
+    /// opens the choice of Fast and Deep thinking, each with what it is for, and one tap switches.
+    /// The fixture account is on no plan tier, so a conversation opens on Fast.
+    func testTheComposerSwitchesBetweenFastAndDeepThinking() {
+        let app = signedIn()
         openTheStubConversation(app)
 
-        let quick = app.buttons["Quick"]
-        let thinking = app.buttons["Thinking"]
-        XCTAssertTrue(quick.waitForExistence(timeout: 10), "the composer has no mode switch")
-        XCTAssertTrue(thinking.exists)
-        XCTAssertTrue(quick.isSelected, "a conversation opens on the account's default, Quick")
-        XCTAssertFalse(thinking.isSelected)
+        let chip = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Answer mode,")).firstMatch
+        XCTAssertTrue(chip.waitForExistence(timeout: 10), "the composer has no answer mode")
+        XCTAssertTrue(reads(chip, "Answer mode, Fast"), "a conversation opens on Fast: \(chip.label)")
 
-        thinking.tap()
-        XCTAssertTrue(becomesSelected(thinking), "tapping Thinking did not select it")
-        XCTAssertFalse(quick.isSelected, "both options are selected at once")
+        let fast = app.buttons.matching(NSPredicate(
+            format: "label CONTAINS %@", "Quick answers from your record")).firstMatch
+        let deep = app.buttons.matching(NSPredicate(
+            format: "label CONTAINS %@", "reasons through long records")).firstMatch
 
-        quick.tap()
-        XCTAssertTrue(becomesSelected(quick), "tapping Quick did not select it again")
-        XCTAssertFalse(thinking.isSelected)
+        chip.tap()
+        XCTAssertTrue(deep.waitForExistence(timeout: 5), "the answer modes were not offered")
+        XCTAssertTrue(fast.exists, "Fast is not offered")
+        XCTAssertTrue(fast.isSelected, "the current mode is not marked")
+        XCTAssertFalse(deep.isSelected)
+
+        deep.tap()
+        XCTAssertTrue(reads(chip, "Answer mode, Deep thinking"), "choosing Deep thinking did not take")
+        XCTAssertFalse(deep.exists, "the choice stayed open after a mode was chosen")
+
+        chip.tap()
+        XCTAssertTrue(deep.waitForExistence(timeout: 5))
+        XCTAssertTrue(becomesSelected(deep), "Deep thinking is not marked as the current mode")
+        XCTAssertFalse(fast.isSelected, "both modes are marked at once")
+        fast.tap()
+        XCTAssertTrue(reads(chip, "Answer mode, Fast"), "choosing Fast again did not take")
         XCTAssertEqual(app.state, .runningForeground)
     }
 
     /// The toolbar's menu keeps searching the web and reporting an answer — and offers no role
-    /// and no mode. A conversation is asked for in the practitioner's own role.
+    /// and no mode. A conversation is asked for in the practitioner's own role, and the mode is
+    /// the composer's.
     func testTheOptionsMenuOffersNoRoleAndNoMode() {
-        let app = signIn(launch())
+        let app = signedIn()
         openTheStubConversation(app)
 
         let options = app.buttons["More options"]
@@ -973,25 +1027,20 @@ final class EmperorUITests: XCTestCase {
         for role in ["Litigator", "Corporate Counsel", "Arbitrator or Judge"] {
             XCTAssertFalse(app.buttons[role].exists, "the menu still offers \(role)")
         }
-        for mode in ["Mode", "Quick —", "Thinking —"] {
+        for mode in ["Mode", "Fast", "Deep thinking"] {
             XCTAssertFalse(
                 app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", mode))
                     .firstMatch.exists,
-                "the mode is in the composer now, not the menu")
+                "the mode is in the composer, not the menu")
         }
     }
 
-    /// More has an OCR row of its own beside Translate. It opens the shared screen on OCR —
+    /// You has an OCR row of its own beside Translate. It opens the shared screen on OCR —
     /// no language to choose — and the switch at its head turns it into Translate and back.
-    func testOCROpensFromMoreAndItsSwitchChangesTheScreen() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
-
-        let row = app.buttons["OCR"]
-        XCTAssertTrue(row.waitForExistence(timeout: 10), "More has no OCR row")
-        row.tap()
+    func testOCROpensFromYouAndItsSwitchChangesTheScreen() {
+        let app = signedIn()
+        openYou(app)
+        openToolRow("OCR", in: app)
         XCTAssertTrue(app.navigationBars["OCR"].waitForExistence(timeout: 10), "OCR did not open")
 
         let modes = app.segmentedControls.firstMatch
@@ -1020,15 +1069,14 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(becomesSelected(ocr))
 
         app.navigationBars["OCR"].buttons["Done"].tap()
-        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
     }
 
     /// Translate, opened from its own row, opens on Translate — the same screen, other side.
     func testTranslateOpensOnTranslateWithItsSwitch() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["Translate"].tap()
+        let app = signedIn()
+        openYou(app)
+        openToolRow("Translate", in: app)
         XCTAssertTrue(app.navigationBars["Translate"].waitForExistence(timeout: 10))
 
         let modes = app.segmentedControls.firstMatch
@@ -1037,46 +1085,66 @@ final class EmperorUITests: XCTestCase {
         XCTAssertFalse(modes.buttons["OCR"].isSelected)
     }
 
-    // MARK: - Cases: court headings, sort & filter, and the docket's own search
+    // MARK: - Matters: court headings, sort & filter, and the docket's own search
 
-    /// The docket is headed by court, in order of importance — the stub has a matter under every
-    /// heading but "Other courts". Read off the screen as it scrolls, a little at a time, because
-    /// a list only builds the rows near the screen: each pass adds the headings it can see, top
-    /// to bottom, and the order they were first seen in is the order they are drawn in.
-    func testTheDocketIsHeadedByCourtInOrderOfImportance() {
-        let app = signIn(launch())
-        openCases(app)
-
-        let headings = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "case-group-"))
-        XCTAssertTrue(headings.firstMatch.waitForExistence(timeout: 10), "the docket has no headings")
-
-        let expected = ["sc", "hc", "nclat", "nclt", "tribunal", "district", "forum"]
-        var seen: [String] = []
-        for _ in 0..<12 {
-            let onScreen = headings.allElementsBoundByIndex
-                .filter { $0.exists }
-                .sorted { $0.frame.minY < $1.frame.minY }
-                .map { String($0.identifier.dropFirst("case-group-".count)) }
-            for key in onScreen where !seen.contains(key) {
-                seen.append(key)
-            }
-            if seen.count >= expected.count { break }
-            nudgeUp(app)
-        }
-        XCTAssertEqual(seen, expected, "the court headings are not in order of importance")
+    /// Opens Matters on "All matters" — the docket.
+    private func openTheDocket(_ app: XCUIApplication) {
+        XCTAssertTrue(app.tab("Matters").waitForExistence(timeout: 10))
+        app.tab("Matters").tap()
+        XCTAssertTrue(app.navigationBars["Matters"].waitForExistence(timeout: 10))
+        let all = app.buttons["All matters"].firstMatch
+        XCTAssertTrue(all.waitForExistence(timeout: 10), "Matters has no All matters")
+        all.tap()
+        XCTAssertTrue(becomesSelected(all), "All matters did not open")
     }
 
-    /// The docket has a search bar of its own, always on screen, that searches the user's own
-    /// cases — by party, by a diary number — and says so when nothing matches, with a way back.
-    /// Adding a case is a separate, labelled control.
-    func testTheDocketsSearchBarSearchesYourOwnCases() {
-        let app = signIn(launch())
-        openCases(app)
+    /// A docket row, by the case's id — its label is the whole row read aloud.
+    private func caseRow(_ app: XCUIApplication, _ id: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: "case-row-\(id)").firstMatch
+    }
 
-        let search = app.searchFields["Search your cases"]
-        XCTAssertTrue(search.waitForExistence(timeout: 10), "the docket has no search bar")
-        XCTAssertTrue(app.buttons["Add case"].exists, "adding a case is not its own control")
+    /// A heading of the docket: "High Courts · 3". Matched whatever its case, as the heading is
+    /// drawn in capitals.
+    private func docketHeading(_ title: String, in app: XCUIApplication) -> XCUIElement {
+        app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "\(title) ·"))
+            .firstMatch
+    }
+
+    /// The docket's search field, which searches the user's own matters.
+    private func docketSearch(_ app: XCUIApplication) -> XCUIElement {
+        app.textFields["Search your cases"].firstMatch
+    }
+
+    /// The docket is headed by court, in order of importance — the stub has a matter under every
+    /// heading but "Other courts". The docket is drawn whole, so every heading is there to be read
+    /// and their order is the order of their places on the page.
+    func testTheDocketIsHeadedByCourtInOrderOfImportance() {
+        let app = signedIn()
+        openTheDocket(app)
+
+        let expected = [
+            "Supreme Court", "High Courts", "NCLAT", "NCLT", "Tribunals", "District Courts",
+            "Consumer Commissions",
+        ]
+        let headings = expected.map { docketHeading($0, in: app) }
+        for (title, heading) in zip(expected, headings) {
+            XCTAssertTrue(heading.waitForExistence(timeout: 10), "the docket has no \(title) heading")
+        }
+        let tops = headings.map { $0.frame.minY }
+        XCTAssertEqual(tops, tops.sorted(), "the court headings are not in order of importance")
+        XCTAssertFalse(docketHeading("Other courts", in: app).exists, "an empty heading is drawn")
+    }
+
+    /// The docket has a search field of its own that searches the user's own cases — by party,
+    /// by a diary number — and says so when nothing matches, with a way back. Adding a matter is
+    /// a separate, labelled control.
+    func testTheDocketsSearchBarSearchesYourOwnCases() {
+        let app = signedIn()
+        openTheDocket(app)
+
+        let search = docketSearch(app)
+        XCTAssertTrue(search.waitForExistence(timeout: 10), "the docket has no search field")
+        XCTAssertTrue(app.buttons["Add a matter"].firstMatch.exists, "adding a matter is not its own control")
         XCTAssertTrue(caseRow(app, "case-sc").waitForExistence(timeout: 10))
 
         search.focusForTyping()
@@ -1086,19 +1154,21 @@ final class EmperorUITests: XCTestCase {
         XCTAssertFalse(caseRow(app, "case-sc").exists, "the search did not narrow the docket")
         XCTAssertFalse(caseRow(app, "case1").exists, "the search did not narrow the docket")
 
-        search.buttons["Clear text"].tap()
+        app.buttons["Clear search"].firstMatch.tap()
         search.focusForTyping()
         search.typeText("41207/2025")
         XCTAssertTrue(caseRow(app, "case-sc").waitForExistence(timeout: 5),
                       "the search did not find the matter by diary number")
         XCTAssertFalse(caseRow(app, "case-hc-delhi").exists)
 
-        search.buttons["Clear text"].tap()
+        app.buttons["Clear search"].firstMatch.tap()
         search.focusForTyping()
         search.typeText("zzzz")
-        let clear = app.buttons["case-no-matches-clear"]
-        XCTAssertTrue(clear.waitForExistence(timeout: 5), "nothing matching does not say so")
-        clear.tap()
+        let nothing = app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "No cases match")).firstMatch
+        XCTAssertTrue(nothing.waitForExistence(timeout: 5), "nothing matching does not say so")
+        // The empty state's own "Clear search", or the field's: either brings the docket back.
+        app.buttons["Clear search"].firstMatch.tap()
         XCTAssertTrue(caseRow(app, "case1").waitForExistence(timeout: 5),
                       "clearing did not bring the docket back")
         XCTAssertEqual(app.state, .runningForeground)
@@ -1107,10 +1177,10 @@ final class EmperorUITests: XCTestCase {
     /// Choosing a sort, a grouping and a court filter changes the docket; the filter shows as a
     /// chip and on the toolbar button; Clear all brings every court back.
     func testSortingAndFilteringChangeTheDocketAndClearAllRestoresIt() {
-        let app = signIn(launch())
-        openCases(app)
+        let app = signedIn()
+        openTheDocket(app)
 
-        let arrange = app.buttons["case-sort-filter"]
+        let arrange = app.buttons["Sort and filter"].firstMatch
         XCTAssertTrue(arrange.waitForExistence(timeout: 10), "there is no sort & filter control")
         XCTAssertTrue(caseRow(app, "case-sc").waitForExistence(timeout: 10))
         XCTAssertEqual(arrange.value as? String, "No filters")
@@ -1129,8 +1199,7 @@ final class EmperorUITests: XCTestCase {
 
         // One heading, High Courts only, by name: Bakshi, Kapoor, Lakshmi.
         XCTAssertTrue(
-            app.descendants(matching: .any).matching(identifier: "case-group-all").firstMatch
-                .waitForExistence(timeout: 5),
+            docketHeading("All cases", in: app).waitForExistence(timeout: 5),
             "choosing no grouping did not make one list")
         let rows = ["case1", "case-hc-delhi", "case-hc-madras"].map { caseRow(app, $0) }
         for row in rows {
@@ -1145,7 +1214,6 @@ final class EmperorUITests: XCTestCase {
         XCTAssertEqual(arrange.value as? String, "1 filter on")
 
         app.buttons["case-filters-clear-all"].tap()
-        // Creditors… (NCLAT) is second by name, so it is on screen on any device.
         XCTAssertTrue(caseRow(app, "case-nclat").waitForExistence(timeout: 5),
                       "Clear all did not bring the other courts back")
         XCTAssertFalse(chip.exists, "the chip outlived its filter")
@@ -1155,10 +1223,10 @@ final class EmperorUITests: XCTestCase {
     /// A filter that hides every case says so, rather than showing a blank list, and its Clear
     /// brings them back.
     func testAFilterThatHidesEverythingSaysSoAndCanBeCleared() {
-        let app = signIn(launch())
-        openCases(app)
+        let app = signedIn()
+        openTheDocket(app)
 
-        let arrange = app.buttons["case-sort-filter"]
+        let arrange = app.buttons["Sort and filter"].firstMatch
         XCTAssertTrue(arrange.waitForExistence(timeout: 10))
         arrange.tap()
         XCTAssertTrue(app.navigationBars["Sort & filter"].waitForExistence(timeout: 5))
@@ -1172,45 +1240,18 @@ final class EmperorUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["No cases match these filters"].waitForExistence(timeout: 5),
                       "a filtered-out docket did not say so")
-        let clear = app.buttons["case-no-matches-clear"]
+        let clear = app.buttons["Clear filters"].firstMatch
         XCTAssertTrue(clear.waitForExistence(timeout: 5))
         clear.tap()
         XCTAssertTrue(caseRow(app, "case-sc").waitForExistence(timeout: 5),
                       "Clear did not bring the docket back")
     }
 
-    private func openCases(_ app: XCUIApplication) {
-        XCTAssertTrue(app.tab("Cases").waitForExistence(timeout: 10))
-        app.tab("Cases").tap()
-        XCTAssertTrue(app.navigationBars["Cases"].waitForExistence(timeout: 10))
-    }
-
-    /// A docket row, by the case's id — its label is the whole row read aloud.
-    private func caseRow(_ app: XCUIApplication, _ id: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(identifier: "case-row-\(id)").firstMatch
-    }
-
-    /// Scrolls the docket by about a third of the screen, slowly and without a fling, so no
-    /// heading can pass from below the screen to above it between two looks.
-    ///
-    /// On iPad the drag is made inside the docket's own list: the middle of the window is in the
-    /// column beside it, where the case opens, and a drag there scrolls nothing in the docket.
-    private func nudgeUp(_ app: XCUIApplication) {
-        let docket = app.collectionViews["case-docket"]
-        let surface = UIDevice.current.userInterfaceIdiom == .pad && docket.exists
-            ? docket : app.windows.firstMatch
-        let from = surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
-        let to = surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
-        from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 0.2)
-    }
-
-    /// The sheet opens at half height on a phone, with the filters below the fold: pull it to
-    /// full height by its bar, then scroll inside it until the row can be tapped.
+    /// The sheet's filters may sit below the fold: scroll inside it until the row can be tapped.
     private func revealInArrangementSheet(_ element: XCUIElement, _ app: XCUIApplication) {
         // Dragged inside the sheet's own list, from low in it to higher up. A drag that starts on
-        // the sheet's bar or edge moves the sheet itself — it resized a half-height sheet and then
-        // pulled it back down, so the row was never reached — and the docket behind it is a list
-        // too, so the sheet's is found by name (the last list on screen, failing that).
+        // the sheet's bar or edge moves the sheet itself, so the sheet's list is found by name
+        // (the last list on screen, failing that).
         let named = app.collectionViews["case-arrangement-form"]
         let form = named.waitForExistence(timeout: 5)
             ? named : app.collectionViews.allElementsBoundByIndex.last ?? named
@@ -1228,23 +1269,20 @@ final class EmperorUITests: XCTestCase {
 
     // MARK: - Notifications
 
-    /// Settings → Notifications opens, is off until asked for, and turning it on shows the
-    /// hearing reminders, updates and a test. In UI-test mode the app answers as a device that was
-    /// asked and said yes — no real permission prompt, no real notification.
+    /// You → Notifications opens, is off until asked for, and turning it on shows the hearing
+    /// reminders, updates and a test. In UI-test mode the app answers as a device that was asked
+    /// and said yes — no real permission prompt, no real notification.
     ///
     /// The account's email switch is turned on and off against the stub, which remembers it for
     /// the run: the screen re-reads `/notif/status` after each change, so the switch only stays on
     /// if that read-back decodes.
     func testNotificationSettingsOpenAndShowTheirControls() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["Settings"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+        let app = signedIn()
+        openYou(app)
 
         let row = app.buttons["notifications-settings"].firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 10), "Settings has no Notifications row")
-        scrollUntilHittable(row, in: app)
+        app.reveal(row)
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "You has no Notifications row")
         row.tap()
         XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 10))
 
@@ -1288,9 +1326,9 @@ final class EmperorUITests: XCTestCase {
         flip(email, to: "0")
         XCTAssertTrue(app.navigationBars["Notifications"].exists)
 
-        // And back out to Settings, intact.
+        // And back out to You, intact.
         app.navigationBars["Notifications"].buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
     }
 
     /// Swipes until an element lower on the screen can be tapped — a list builds only the rows it
@@ -1350,84 +1388,36 @@ final class EmperorUITests: XCTestCase {
 
     // MARK: - iPad layouts
 
-    /// On iPad the docket stays on screen beside the case it opens. Before anything is chosen the
-    /// case's column says what it is for; a row opens its case there, beside the docket and
-    /// marked as the open one; and choosing another row **replaces** the case — the first is
-    /// gone, not pushed under the second.
-    ///
-    /// `/case` answers each docket matter as itself (`UITestSupport.Fixtures.itemBody`), so the
-    /// second case reads differently from the first.
-    func testOnIPadTheDocketStaysBesideTheCaseItOpens() throws {
-        let isPad = UIDevice.current.userInterfaceIdiom == .pad
-        try XCTSkipUnless(isPad, "the docket beside its case is iPad's layout")
-        let app = signIn(launch())
-        openCases(app)
-
-        XCTAssertTrue(
-            app.staticTexts["Choose a case"].waitForExistence(timeout: 10),
-            "with nothing chosen, the case's column does not say what it is for")
-
-        let bakshi = caseRow(app, "case1")
-        let kapoor = caseRow(app, "case-hc-delhi")
-        XCTAssertTrue(bakshi.waitForExistence(timeout: 10), "the docket is not listed")
-        bakshi.tap()
-
-        let bakshiBar = app.navigationBars["Bakshi v. State of Maharashtra"]
-        XCTAssertTrue(bakshiBar.waitForExistence(timeout: 10), "the case did not open")
-        let overview = app.staticTexts.matching(
-            NSPredicate(format: "label ==[c] %@", "Overview")).firstMatch
-        XCTAssertTrue(overview.waitForExistence(timeout: 10), "the case did not open on its overview")
-
-        // Both on screen at once: the docket — its title, its search, its other matters — and,
-        // to the right of it, the case.
-        XCTAssertTrue(app.navigationBars["Cases"].exists, "the docket left the screen")
-        XCTAssertTrue(app.searchFields["Search your cases"].exists, "the docket's search left the screen")
-        XCTAssertTrue(kapoor.exists, "the rest of the docket left the screen")
-        XCTAssertLessThanOrEqual(
-            bakshi.frame.maxX, overview.frame.minX,
-            "the docket and the case are not side by side")
-        XCTAssertFalse(app.staticTexts["Choose a case"].exists, "the placeholder outlived the choice")
-        XCTAssertTrue(becomesSelected(bakshi), "the open case's row is not marked as open")
-
-        kapoor.tap()
-        XCTAssertTrue(
-            app.navigationBars["Kapoor Textiles Pvt. Ltd. v. Commissioner of Customs"]
-                .waitForExistence(timeout: 10),
-            "choosing another case did not open it")
-        XCTAssertTrue(
-            disappears(bakshiBar),
-            "the first case is still on screen — the second was pushed over it, not put in its place")
-        XCTAssertTrue(becomesSelected(kapoor), "the newly open case's row is not marked")
-        XCTAssertFalse(bakshi.isSelected, "two rows are marked as open at once")
-        XCTAssertTrue(app.navigationBars["Cases"].exists, "the docket left the screen")
-        XCTAssertEqual(app.state, .runningForeground)
-    }
-
-    /// The same for Chat: a conversation opens beside the list, another replaces it, and a new
-    /// one opens in that same column with the list still there and no row marked — a new
-    /// conversation is in no row until its first turn is stored.
+    /// On iPad, History — every conversation, from Ask's bar — shows a conversation beside the
+    /// list: one opens there, another replaces it, and a new one opens in that same column with
+    /// the list still there and no row marked — a new conversation is in no row until its first
+    /// turn is stored.
     ///
     /// `c2` answers `/messages` with an exchange of its own; `c1`'s carries the work log.
     func testOnIPadAConversationOpensBesideTheList() throws {
-        let isPad = UIDevice.current.userInterfaceIdiom == .pad
         try XCTSkipUnless(isPad, "the list beside its conversation is iPad's layout")
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("Chat").waitForExistence(timeout: 10))
-        app.tab("Chat").tap()
-        XCTAssertTrue(app.navigationBars["Emperor"].waitForExistence(timeout: 10))
-        XCTAssertTrue(
+        let app = signedIn()
+        let history = app.navigationBars["Ask"].buttons["History"]
+        XCTAssertTrue(history.waitForExistence(timeout: 10), "Ask has no History")
+        history.tap()
+        let all = app.buttons["All conversations"].firstMatch
+        XCTAssertTrue(all.waitForExistence(timeout: 5), "History's menu did not open")
+        all.tap()
+        XCTAssertTrue(app.navigationBars["Conversations"].waitForExistence(timeout: 10))
+        try XCTSkipUnless(
             app.staticTexts["Choose a conversation"].waitForExistence(timeout: 10),
-            "with nothing chosen, the conversation's column does not say what it is for")
+            "History's sheet is drawn at a compact width here, so the list is not beside the conversation")
 
-        let first = chatRow(app, "c1")
-        let second = chatRow(app, "c2")
+        // In History's own list: Ask's recent rows, behind the sheet, carry the same identifiers.
+        let list = app.collectionViews.containing(.any, identifier: "chat-row-c2").firstMatch
+        let first = list.descendants(matching: .any).matching(identifier: "chat-row-c1").firstMatch
+        let second = list.descendants(matching: .any).matching(identifier: "chat-row-c2").firstMatch
         XCTAssertTrue(first.waitForExistence(timeout: 10), "the conversations are not listed")
         first.tap()
 
-        let worked = app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch
+        let worked = storedWorkLogPanel(app)
         XCTAssertTrue(worked.waitForExistence(timeout: 10), "the conversation did not open")
-        XCTAssertTrue(app.navigationBars["Emperor"].exists, "the list left the screen")
+        XCTAssertTrue(app.navigationBars["Conversations"].exists, "the list left the screen")
         XCTAssertTrue(second.exists, "the rest of the list left the screen")
         XCTAssertLessThanOrEqual(
             first.frame.maxX, worked.frame.minX,
@@ -1449,18 +1439,13 @@ final class EmperorUITests: XCTestCase {
         XCTAssertFalse(first.isSelected, "two rows are marked as open at once")
 
         // A new conversation, from the list's own button, takes the same column.
-        app.buttons["New chat"].firstMatch.tap()
+        app.navigationBars["Conversations"].buttons["New chat"].firstMatch.tap()
         XCTAssertTrue(
             disappears(secondQuestion), "a new conversation did not take the open one's place")
         XCTAssertTrue(app.navigationBars["Conversation"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.navigationBars["Emperor"].exists, "the list left the screen")
+        XCTAssertTrue(app.navigationBars["Conversations"].exists, "the list left the screen")
         XCTAssertFalse(second.isSelected, "a row is still marked for a conversation no longer open")
         XCTAssertEqual(app.state, .runningForeground)
-    }
-
-    /// A conversation in the list, by its id.
-    private func chatRow(_ app: XCUIApplication, _ id: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(identifier: "chat-row-\(id)").firstMatch
     }
 
     /// Waits for an element to leave the screen — a replaced column is taken down over an
@@ -1476,24 +1461,21 @@ final class EmperorUITests: XCTestCase {
 
     // MARK: - App lock
 
-    /// Settings → Security: the switch, named for what this device asks for, and — once it is on
-    /// — how long the app may be away. In UI-test mode a stand-in answers for Face ID and
+    /// You → Security: the switch, named for what this device asks for, and — once it is on —
+    /// how long the app may be away. In UI-test mode a stand-in answers for Face ID and
     /// recognises every face, so the real `LAContext` is never touched; and every launch starts
     /// with the lock off, so turning it on here is turning it on from off.
     func testSecuritySettingsShowTheLockAndItsTimeout() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["Settings"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+        let app = signedIn()
+        openYou(app)
 
-        // Below Plan & usage, so off screen on a phone until scrolled to — and then raised well
-        // into view, not left on the bottom edge where the swipe first finds it. The timeout row
+        // Far down You, so off screen on a phone until scrolled to — and then raised well into
+        // view, not left on the bottom edge where the swipe first finds it. The timeout row
         // appears *beneath* the switch, and a list builds no row it is not showing: with the switch
         // on the last visible line, the row is never built and cannot be found.
         let toggle = app.switches["app-lock-toggle"].firstMatch
-        scrollUntilHittable(toggle, in: app)
-        XCTAssertTrue(toggle.waitForExistence(timeout: 10), "Settings has no Security section")
+        app.reveal(toggle)
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10), "You has no Security section")
         appLockRaise(toggle, in: app)
         XCTAssertTrue(
             toggle.label.contains("Require Face ID"),
@@ -1520,7 +1502,7 @@ final class EmperorUITests: XCTestCase {
             appLockWait { self.appLockShows(app, "After 5 minutes") }, "the choice did not stick")
 
         // And off again, which takes the timeout with it.
-        scrollUntilHittable(toggle, in: app)
+        app.reveal(toggle)
         flip(toggle, to: "0")
         XCTAssertTrue(appLockWait { !timeout.exists }, "the timeout outlived the lock")
     }
@@ -1533,12 +1515,12 @@ final class EmperorUITests: XCTestCase {
         let unlock = app.buttons["app-lock-unlock"]
         XCTAssertTrue(unlock.waitForExistence(timeout: 15), "the app did not open locked")
         XCTAssertTrue(app.staticTexts["Emperor is locked"].exists)
-        XCTAssertFalse(app.tab("Home").exists, "the tabs were reachable behind the lock")
+        XCTAssertFalse(app.tab("Ask").exists, "the tabs were reachable behind the lock")
         XCTAssertFalse(app.textFields["Email"].exists, "a session on the device opened on sign-in")
 
         unlock.tap()
         XCTAssertTrue(
-            app.tab("Home").waitForExistence(timeout: 10), "unlocking did not reveal the app")
+            app.tab("Ask").waitForExistence(timeout: 10), "unlocking did not reveal the app")
         XCTAssertTrue(appLockWait { !unlock.exists }, "the lock stayed up")
         XCTAssertEqual(app.state, .runningForeground)
     }
@@ -1550,7 +1532,7 @@ final class EmperorUITests: XCTestCase {
         let unlock = app.buttons["app-lock-unlock"]
         XCTAssertTrue(unlock.waitForExistence(timeout: 15), "the app did not open locked")
         unlock.tap()
-        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tab("Ask").waitForExistence(timeout: 10))
 
         // To the Home Screen. The Home button press alone did not background the app on the
         // iOS 26 runners, so if the app is still in front a moment later, bringing SpringBoard
@@ -1566,10 +1548,10 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(
             app.buttons["app-lock-unlock"].waitForExistence(timeout: 10),
             "coming back did not lock the app")
-        XCTAssertFalse(app.tab("Home").exists, "the tabs were reachable behind the lock")
+        XCTAssertFalse(app.tab("Ask").exists, "the tabs were reachable behind the lock")
         app.buttons["app-lock-unlock"].tap()
         XCTAssertTrue(
-            app.tab("Home").waitForExistence(timeout: 10), "unlocking again did not reveal the app")
+            app.tab("Ask").waitForExistence(timeout: 10), "unlocking again did not reveal the app")
     }
 
     /// Drags the list holding `element` until the element sits in its upper half, so a row that
@@ -1604,29 +1586,21 @@ final class EmperorUITests: XCTestCase {
     /// Polls `condition` until it holds or `seconds` pass. `waitForExpectations` sends the test
     /// case across actors, which Swift 6 refuses to compile here.
     private func appLockWait(_ seconds: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
-        let deadline = Date().addingTimeInterval(seconds)
-        while Date() < deadline {
-            if condition() { return true }
-            Thread.sleep(forTimeInterval: 0.25)
-        }
-        return condition()
+        Self.poll(seconds, condition)
     }
 
     // MARK: - Profile, documents shared in, and search
 
-    /// Settings → Edit profile opens on the account as it is, and a save reaches the server and
-    /// comes back: the stub echoes the account it was sent, and Settings shows the new name and
-    /// title from the session — not from the form.
-    func testEditingTheProfileSavesItAndSettingsShowsIt() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["Settings"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+    /// You → the account at its head opens Edit profile on the account as it is, and a save
+    /// reaches the server and comes back: the stub echoes the account it was sent, and You shows
+    /// the new name and title from the session — not from the form.
+    func testEditingTheProfileSavesItAndYouShowsIt() {
+        let app = signedIn()
+        openYou(app)
 
         let edit = app.buttons["edit-profile"].firstMatch
-        scrollUntilHittable(edit, in: app)
-        XCTAssertTrue(edit.waitForExistence(timeout: 10), "Settings has no Edit profile row")
+        app.reveal(edit)
+        XCTAssertTrue(edit.waitForExistence(timeout: 10), "You has no Edit profile row")
         edit.tap()
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 10))
 
@@ -1654,18 +1628,19 @@ final class EmperorUITests: XCTestCase {
         save.tap()
 
         XCTAssertTrue(
-            app.navigationBars["Settings"].waitForExistence(timeout: 10),
-            "saving did not return to Settings")
+            app.navigationBars["You"].waitForExistence(timeout: 10),
+            "saving did not return to You")
         let account = app.descendants(matching: .any)["account-profile"].firstMatch
-        XCTAssertTrue(account.waitForExistence(timeout: 10), "Settings has no account header")
+        app.reveal(account)
+        XCTAssertTrue(account.waitForExistence(timeout: 10), "You has no account header")
         var polls = 0
         while !account.label.contains("John Q. Doe") && polls < 40 {
             Thread.sleep(forTimeInterval: 0.25)
             polls += 1
         }
-        XCTAssertTrue(account.label.contains("John Q. Doe"), "Settings did not show the saved name")
+        XCTAssertTrue(account.label.contains("John Q. Doe"), "You did not show the saved name")
         XCTAssertTrue(
-            account.label.contains("Advocate, Bombay High Court"), "Settings did not show the title")
+            account.label.contains("Advocate, Bombay High Court"), "You did not show the title")
     }
 
     /// A document handed to the app before anyone signs in waits for sign-in, then opens "Save to
@@ -1724,20 +1699,17 @@ final class EmperorUITests: XCTestCase {
             polls += 1
         }
         XCTAssertFalse(bar.exists)
-        XCTAssertTrue(app.tab("Home").exists)
+        XCTAssertTrue(app.tab("Ask").waitForExistence(timeout: 5))
     }
 
-    /// Settings → Search: "Show in Spotlight search", on by default, and it turns.
-    func testTheSpotlightSwitchIsInSettings() {
-        let app = signIn(launch())
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["Settings"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+    /// You → Search: "Show in Spotlight search", on by default, and it turns.
+    func testTheSpotlightSwitchIsOnYou() {
+        let app = signedIn()
+        openYou(app)
 
         let toggle = app.switches["spotlight-toggle"].firstMatch
-        scrollUntilHittable(toggle, in: app)
-        XCTAssertTrue(toggle.waitForExistence(timeout: 10), "Settings has no Spotlight switch")
+        app.reveal(toggle)
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10), "You has no Spotlight switch")
         XCTAssertEqual(toggle.value as? String, "1", "on until turned off")
         flip(toggle, to: "0")
         flip(toggle, to: "1")
@@ -1746,8 +1718,8 @@ final class EmperorUITests: XCTestCase {
     // MARK: - Opening a day from outside: the Today widget, links and notification taps
 
     /// `emperor://calendar?day=…` — what the Today widget opens, and the path a tapped hearing
-    /// reminder takes — lands on the Calendar **on that day**: its cell selected and its listing
-    /// below. Two days ahead, where the stub's docket lists the Delhi matter. Then a bare
+    /// reminder takes — opens the Calendar over Matters **on that day**: its cell selected and its
+    /// listing below. Two days ahead, where the stub's docket lists the Delhi matter. Then a bare
     /// `emperor://calendar` moves it back to today.
     ///
     /// Each link arrives as the app comes back from the background (`-UITestLinkOnReturn`), which
@@ -1755,17 +1727,14 @@ final class EmperorUITests: XCTestCase {
     /// `UITestSupport.takeLinkOnReturn` for why not `XCUIApplication.open(_:)`.
     func testALinkOpensTheCalendarOnItsDay() {
         let day = Self.indianDay(daysFromNow: 2)
-        let app = signIn(launch(
+        let app = signedIn(
             "-UITestLinkOnReturn", "emperor://calendar?day=\(day.key)",
-            "-UITestLinkOnReturn", "emperor://calendar"))
-        XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10), "signing in did not reach Home")
+            "-UITestLinkOnReturn", "emperor://calendar")
 
         leaveAndReturn(app)
         XCTAssertTrue(
             app.navigationBars["Calendar"].waitForExistence(timeout: 10),
             "the link did not open the Calendar")
-        XCTAssertTrue(
-            becomesSelected(app.tab("Calendar")), "the Calendar opened but its tab is not selected")
         let cell = dayCell(day.label, in: app)
         XCTAssertTrue(cell.waitForExistence(timeout: 10), "the month shown does not hold the day")
         XCTAssertTrue(becomesSelected(cell), "the Calendar did not open on the day the link named")
@@ -1781,6 +1750,13 @@ final class EmperorUITests: XCTestCase {
         if cell.exists {
             XCTAssertFalse(cell.isSelected, "the day the first link named is still selected")
         }
+
+        // The Calendar was opened over Matters, where it lives.
+        app.navigationBars["Calendar"].buttons["Done"].tap()
+        XCTAssertTrue(
+            app.navigationBars["Matters"].waitForExistence(timeout: 10),
+            "the Calendar was not opened over Matters")
+        XCTAssertTrue(becomesSelected(app.tab("Matters")), "the Matters tab is not selected")
     }
 
     /// A day's cell in the Calendar's month. Today's is read out as "Today, …" — so it is found by
@@ -1791,15 +1767,14 @@ final class EmperorUITests: XCTestCase {
         ).firstMatch
     }
 
-    /// An update tapped while a sheet is open — here the Calendar's Subscribe sheet — must not be
-    /// lost, and must not take the person's sheet away: Updates waits, and appears over Home the
-    /// moment that sheet is closed. `emperor://updates` takes the same path a tapped update does,
-    /// and arrives as the app comes back to the front, the privacy cover lifting as it does.
+    /// An update tapped while a sheet is open — here the Calendar, and its Subscribe sheet over
+    /// it — must not be lost, and must not take the person's sheets away: Updates waits until
+    /// nothing is presented, and then appears over Ask, where its bell is. `emperor://updates`
+    /// takes the same path a tapped update does, and arrives as the app comes back to the front,
+    /// the privacy cover lifting as it does.
     func testUpdatesWaitForTheOpenSheetThenAppear() {
-        let app = signIn(launch("-UITestLinkOnReturn", "emperor://updates"))
-        XCTAssertTrue(app.tab("Calendar").waitForExistence(timeout: 10))
-        app.tab("Calendar").tap()
-        XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 10))
+        let app = signedIn("-UITestLinkOnReturn", "emperor://updates")
+        openTheCalendar(app)
         app.navigationBars["Calendar"].buttons["Subscribe"].tap()
         let subscribe = app.navigationBars["Subscribe"]
         XCTAssertTrue(subscribe.waitForExistence(timeout: 10))
@@ -1811,21 +1786,29 @@ final class EmperorUITests: XCTestCase {
         XCTAssertFalse(
             app.navigationBars["Updates"].exists, "Updates was put over the open sheet")
 
+        // The Calendar is still up under it, so Updates still waits.
         subscribe.buttons["Done"].tap()
+        let calendar = app.navigationBars["Calendar"]
+        XCTAssertTrue(calendar.waitForExistence(timeout: 10), "the Calendar was taken away")
+        Thread.sleep(forTimeInterval: 1.5)
+        XCTAssertTrue(calendar.exists, "the Calendar was taken away")
+        XCTAssertFalse(
+            app.navigationBars["Updates"].exists, "Updates was put over the Calendar")
+
+        calendar.buttons["Done"].tap()
         let updates = app.navigationBars["Updates"]
         XCTAssertTrue(
-            updates.waitForExistence(timeout: 10), "Updates never followed once the sheet closed")
+            updates.waitForExistence(timeout: 10), "Updates never followed once the sheets closed")
 
         updates.buttons["Done"].tap()
-        XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.tab("Home").isSelected, "Updates opens over Home, where its bell is")
+        XCTAssertTrue(app.navigationBars["Ask"].waitForExistence(timeout: 10))
+        XCTAssertTrue(becomesSelected(app.tab("Ask")), "Updates opens over Ask, where its bell is")
     }
 
     /// A shared conversation's link opens it read-only, over whatever is showing — its title, the
     /// question and the answer, and nothing that writes.
     func testASharedConversationLinkOpensItReadOnly() {
-        let app = signIn(launch("-UITestLinkOnReturn", "emperor://share/k3j9x2abq81mz"))
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
+        let app = signedIn("-UITestLinkOnReturn", "emperor://share/k3j9x2abq81mz")
 
         leaveAndReturn(app)
         let sheet = app.navigationBars["Shared conversation"]
@@ -1880,48 +1863,21 @@ final class EmperorUITests: XCTestCase {
 
     // MARK: - Offline reading
 
-    /// Waits for the stub's stored answer to be drawn — its work-log panel is the first thing in
+    /// Waits for the stub's stored answer to be drawn — its reading card is the first thing in
     /// it — so a test knows the conversation has loaded and been kept.
     private func waitForTheStoredAnswer(_ app: XCUIApplication) -> Bool {
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch
-            .waitForExistence(timeout: 10)
+        storedWorkLogPanel(app).waitForExistence(timeout: 10)
     }
 
-    /// The list sits beside the conversation — an iPad at full width — rather than under it.
-    private var listIsBesideConversation: Bool {
-        UIDevice.current.userInterfaceIdiom == .pad
-    }
-
-    /// Back from the conversation to the list, by the bar's leading button — see
-    /// `testAToolOpensItsFormAndCanBeRun` for why it is not found by its label. A phone only: on
-    /// an iPad the list is already in sight beside the conversation, and that bar's leading
-    /// button is not a way back.
+    /// Back from the conversation to Ask, by the bar's leading button — see
+    /// `testAToolOpensItsFormAndCanBeRun` for why it is not found by its label.
     private func leaveTheConversation(_ app: XCUIApplication) {
-        guard !listIsBesideConversation else { return }
         let bar = app.navigationBars["Conversation"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
         bar.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(
             app.stubConversationRow.waitForExistence(timeout: 10),
-            "leaving the conversation did not return to the list")
-    }
-
-    /// Opens the stub conversation again, so that it loads a second time.
-    ///
-    /// On a phone: back to the list, and in again. On an iPad the conversation opens beside the
-    /// list with its row selected, and choosing the selected row again opens nothing — so the
-    /// list's other conversation is opened first, and the stub's chosen after it, which replaces
-    /// the column and loads it afresh.
-    private func reopenTheStubConversation(_ app: XCUIApplication) {
-        if listIsBesideConversation {
-            let other = app.buttons["chat-row-c2"].firstMatch
-            XCTAssertTrue(other.waitForExistence(timeout: 10), "no other conversation to open")
-            other.tap()
-            XCTAssertTrue(becomesSelected(other), "the other conversation did not open")
-        } else {
-            leaveTheConversation(app)
-        }
-        app.stubConversationRow.tap()
+            "leaving the conversation did not return to Ask")
     }
 
     /// `-UITestOffline` lets every route answer once and then fails it as a phone with no signal
@@ -1929,12 +1885,14 @@ final class EmperorUITests: XCTestCase {
     /// stored answer is there, the bar above the composer says it is the saved copy and how old,
     /// and a question typed into the composer cannot be sent — a saved copy is never posted back.
     func testAConversationOpenedOnceReopensOfflineAndCannotBeAskedFrom() {
-        let app = signIn(launch("-UITestOffline"))
+        let app = signedIn("-UITestOffline")
         openTheStubConversation(app)
         XCTAssertTrue(waitForTheStoredAnswer(app), "the conversation did not load the first time")
         XCTAssertFalse(app.staticTexts["offline-notice"].exists, "online, there is no notice")
 
-        reopenTheStubConversation(app)
+        leaveTheConversation(app)
+        app.reveal(app.stubConversationRow)
+        app.stubConversationRow.tap()
 
         let notice = app.staticTexts["offline-notice"].firstMatch
         XCTAssertTrue(notice.waitForExistence(timeout: 10), "reopened offline with no notice")
@@ -1944,7 +1902,7 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(waitForTheStoredAnswer(app), "the saved copy's answer is not drawn")
 
         // Typed, so that only the offline rule can be what holds the send back.
-        let placeholder = "Ask about this matter…"
+        let placeholder = "Ask a follow-up…"
         let field = app.textViews[placeholder].exists
             ? app.textViews[placeholder] : app.textFields[placeholder]
         XCTAssertTrue(field.waitForExistence(timeout: 5), "no composer")
@@ -1954,26 +1912,22 @@ final class EmperorUITests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
-    /// Settings → Storage counts what was kept — here, the conversation just opened — and
-    /// clearing it asks first and then leaves nothing.
-    func testSettingsStorageShowsWhatIsKeptAndClearsIt() {
-        let app = signIn(launch())
+    /// You → Storage counts what was kept — here, the conversation just opened — and clearing it
+    /// asks first and then leaves nothing.
+    func testStorageOnYouShowsWhatIsKeptAndClearsIt() {
+        let app = signedIn()
         openTheStubConversation(app)
         XCTAssertTrue(waitForTheStoredAnswer(app))
         leaveTheConversation(app)
 
-        XCTAssertTrue(app.tab("More").waitForExistence(timeout: 10))
-        app.tab("More").tap()
-        app.buttons["Settings"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
-
+        openYou(app)
         let size = app.staticTexts["offline-storage-size"].firstMatch
-        scrollUntilHittable(size, in: app)
-        XCTAssertTrue(size.waitForExistence(timeout: 10), "Settings has no Storage row")
+        app.reveal(size)
+        XCTAssertTrue(size.waitForExistence(timeout: 10), "You has no Storage row")
         XCTAssertNotEqual(size.label, "None", "the conversation just opened was not counted")
 
         let clear = app.buttons["offline-storage-clear"].firstMatch
-        scrollUntilHittable(clear, in: app)
+        app.reveal(clear)
         let confirm = confirmation("Clear offline copies", afterTapping: clear, in: app)
         XCTAssertNotNil(confirm, "clearing did not ask first")
         confirm?.tap()

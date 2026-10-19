@@ -491,13 +491,16 @@ struct DocumentTile: View {
 
     var body: some View {
         let side = min(self.side, 44)
+        // A square at the standard sizes. The tile's side stops growing at 44 points but the
+        // letters do not, so at the largest text sizes the tile widens to hold them — "PDF"
+        // whole, never shrunk or cut to "P…", which the accessibility audit read as clipped.
         return Text(kind.uppercased())
             .font(.brand(size: 9.5, weight: .bold, relativeTo: .caption2))
             .tracking(0.4)
             .foregroundStyle(theme.textFaint)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .frame(width: side, height: side)
+            .fixedSize()
+            .padding(.horizontal, 3)
+            .frame(minWidth: side, minHeight: side)
             .background(theme.surface2, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
@@ -803,30 +806,6 @@ struct SecondaryButtonStyle: ButtonStyle {
     }
 }
 
-/// A quieter companion inside a card — "Compare plans": the accent on its soft wash.
-struct TonalButtonStyle: ButtonStyle {
-    @Environment(\.theme) private var theme
-    @Environment(\.isEnabled) private var isEnabled
-
-    var compact = true
-
-    func makeBody(configuration: Configuration) -> some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-        return configuration.label
-            .font(.brand(.subheadline, weight: .semibold))
-            .foregroundStyle(theme.accentText)
-            .padding(.horizontal, Spacing.lg)
-            .padding(.vertical, Spacing.xs)
-            .frame(minHeight: compact ? Layout.compactButtonHeight : Layout.buttonHeight)
-            .background(theme.accentSoft, in: shape)
-            .overlay(shape.fill(configuration.isPressed ? theme.pressShade : Color.clear))
-            .frame(minHeight: Layout.touchTarget)
-            .contentShape(Rectangle())
-            .opacity(isEnabled ? 1 : 0.42)
-            .animation(Motion.tap, value: configuration.isPressed)
-    }
-}
-
 /// A text button in the accent — "Send a new code", "See all".
 struct QuietButtonStyle: ButtonStyle {
     @Environment(\.theme) private var theme
@@ -936,10 +915,6 @@ extension ButtonStyle where Self == SecondaryButtonStyle {
     static var compactSecondaryAction: SecondaryButtonStyle { SecondaryButtonStyle(compact: true) }
 }
 
-extension ButtonStyle where Self == TonalButtonStyle {
-    static var tonalAction: TonalButtonStyle { TonalButtonStyle() }
-}
-
 extension ButtonStyle where Self == QuietButtonStyle {
     static var quietAction: QuietButtonStyle { QuietButtonStyle() }
 }
@@ -1019,22 +994,28 @@ struct AdaptiveStack<Content: View>: View {
     }
 }
 
-/// A line limit for the standard text sizes, lifted at the accessibility sizes.
+/// A line limit at the default text size and smaller, lifted as soon as the reader asks for
+/// larger text.
 ///
-/// Two lines of a matter's title is a tidy list at the default size; at the largest it is three
+/// Two lines of a matter's title is a tidy list at the default size; at a larger one it is a few
 /// words and an ellipsis, and the reader who most needs the title is the one who cannot see it.
 /// So the limit holds where it keeps a list scannable, and goes where it would hide the words.
+///
+/// It used to hold through every standard size and lift only at the accessibility ones. Xcode's
+/// accessibility audit failed that as clipped text — a docket title, a recent conversation —
+/// because at the standard sizes above the default (xLarge to xxxLarge) the words were already
+/// cut short. Anyone who chose those sizes chose them to read more easily, not to see less.
 private struct DynamicLineLimit: ViewModifier {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let limit: Int
 
     func body(content: Content) -> some View {
-        content.lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : limit)
+        content.lineLimit(dynamicTypeSize > .large ? nil : limit)
     }
 }
 
 extension View {
-    /// `lineLimit(limit)`, except at the accessibility text sizes — see `DynamicLineLimit`.
+    /// `lineLimit(limit)` at the default text size and below — see `DynamicLineLimit`.
     func dynamicLineLimit(_ limit: Int) -> some View {
         modifier(DynamicLineLimit(limit: limit))
     }

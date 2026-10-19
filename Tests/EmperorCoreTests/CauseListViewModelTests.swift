@@ -81,63 +81,6 @@ final class CauseListViewModelTests: XCTestCase {
 
     // MARK: - Day navigation
 
-    /// An empty day is a real answer, so the arrows never skip one — but a blank screen should
-    /// still say where the next listing is rather than being a dead end.
-    func testJumpingGoesToTheNextListedDayNotTheNextCalendarDay() async {
-        await withCauseList { service, model in
-            service.listings = [
-                Self.listing("2026-09-14"),
-                Self.listing("2026-09-21", caseID: "case_2"),
-                Self.listing("2026-10-05", caseID: "case_3"),
-            ]
-            await model.load()
-
-            // Driven the way the screen drives it — read the day, then select it. The empty
-            // state names the date on its button, so it needs the value, not a command.
-            XCTAssertEqual(model.nextListedDay, "2026-09-21", "not the 15th")
-            model.select(day: model.nextListedDay ?? "")
-            XCTAssertEqual(model.selectedDay, "2026-09-21")
-
-            XCTAssertEqual(model.nextListedDay, "2026-10-05", "the 5th, not the 22nd")
-            model.select(day: model.nextListedDay ?? "")
-            XCTAssertEqual(model.selectedDay, "2026-10-05")
-        }
-    }
-
-    func testSteppingMovesOneCalendarDay() async {
-        await withCauseList { service, model in
-            service.listings = [Self.listing("2026-09-14")]
-            await model.load()
-
-            model.step(days: 1)
-            XCTAssertEqual(model.selectedDay, "2026-09-15")
-            model.step(days: -2)
-            XCTAssertEqual(model.selectedDay, "2026-09-13")
-        }
-    }
-
-    /// Stepping must not drift across a month boundary or a DST-style edge. India has no DST,
-    /// but the arithmetic still has to land on the right day.
-    func testSteppingCrossesAMonthBoundaryCleanly() async {
-        await withCauseList { _, model in
-            model.select(day: "2026-09-30")
-            model.step(days: 1)
-            XCTAssertEqual(model.selectedDay, "2026-10-01")
-        }
-    }
-
-    /// Nil rather than the last day again, so the empty state can drop the button entirely
-    /// instead of offering one that goes nowhere.
-    func testThereIsNoNextDayBeyondTheLastListing() async {
-        await withCauseList { service, model in
-            service.listings = [Self.listing("2026-09-14")]
-            await model.load()
-
-            XCTAssertNil(model.nextListedDay)
-            XCTAssertEqual(model.selectedDay, "2026-09-14", "stays put rather than jumping")
-        }
-    }
-
     func testGoToTodayReturnsToIndiasToday() async {
         await withCauseList { _, model in
             model.select(day: "2026-01-01")

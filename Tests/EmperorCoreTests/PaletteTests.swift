@@ -274,17 +274,17 @@ final class PaletteTests: XCTestCase {
         }
     }
 
-    /// The label on the primary gradient — the one main action per screen. White clears AA on the
-    /// gradient's first stop in both appearances and on its last in light. The dark gradient's last
-    /// stop is 4.4:1, which is why the label is bold and set at 16 points or more: WCAG's large-text
-    /// allowance is 3:1, and the centre of the button, where the label sits, still clears 4.5.
+    /// The label on the primary gradient — the one main action per screen. White clears AA on
+    /// both stops in both appearances, so a label clears it wherever on the button it sits. The
+    /// dark gradient's last stop was 4.4:1 (`#5A7C9A`), and Xcode's accessibility audit failed the
+    /// tool form's full-width "Run" on it; it is now `#567692`, 4.8:1.
     func testThePrimaryGradientCarriesAWhiteLabel() {
         for (name, palette) in cases {
             let gradient = palette.primaryGradient
             let start = palette.onAccent.contrastRatio(against: gradient.start)
             XCTAssertGreaterThanOrEqual(start, 4.5, "\(name): label on the first stop")
             let end = palette.onAccent.contrastRatio(against: gradient.end)
-            XCTAssertGreaterThanOrEqual(end, 3.0, "\(name): label on the last stop")
+            XCTAssertGreaterThanOrEqual(end, 4.5, "\(name): label on the last stop")
             let middle = PaletteColor(
                 (gradient.start.red + gradient.end.red) / 2,
                 (gradient.start.green + gradient.end.green) / 2,
@@ -500,14 +500,24 @@ final class PaletteTests: XCTestCase {
     }
 
     /// Why a chosen row draws its quietest line in secondary rather than tertiary: on the light
-    /// selection wash tertiary falls under AA. Pinned, so the row is not "tidied" back.
-    func testTertiaryTextIsTooFaintForAChosenRow() {
-        let palette = Palette.light
-        let fill = palette.selectionWash(PractitionerRole.seniorCounsel.tileHue)
-            .composited(over: palette.canvas)
-        XCTAssertLessThan(palette.textTertiary.contrastRatio(against: fill), 4.5)
-        let panel = palette.surfaceAccent.composited(over: palette.canvas)
-        XCTAssertLessThan(palette.textTertiary.contrastRatio(against: panel), 4.5)
+    /// selection wash tertiary sits a hair above AA (4.56:1 since the caption colour was darkened
+    /// for the accessibility audit; under 4.5 before), which no wash change should be able to
+    /// undo. Secondary clears it with room on both grounds. Pinned, so the row is not "tidied"
+    /// back.
+    func testAChosenRowsQuietestLineClearsAA() {
+        for (name, palette) in cases {
+            let fill = palette.selectionWash(PractitionerRole.seniorCounsel.tileHue)
+                .composited(over: palette.canvas)
+            let panel = palette.surfaceAccent.composited(over: palette.canvas)
+            for (place, ground) in [("selection wash", fill), ("accent panel", panel)] {
+                let ratio = palette.textSecondary.contrastRatio(against: ground)
+                XCTAssertGreaterThanOrEqual(
+                    ratio, 4.5, "\(name)/\(place): secondary is \(String(format: "%.2f", ratio)):1")
+                XCTAssertGreaterThan(
+                    ratio, palette.textTertiary.contrastRatio(against: ground),
+                    "\(name)/\(place): secondary is the stronger of the two")
+            }
+        }
     }
 
     // MARK: - Preference

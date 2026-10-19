@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// Signing in: the Record "Ask the *record*." screen, the six-box code, and the paths around them.
+/// Signing in: the "Emperor AI" screen — the mark in its tile, the Password / Sign in with code
+/// choice, the six-box code, and the paths around them.
 ///
-/// The way in the design leads with is an address and a one-time code — "Email me a sign-in
-/// code", no password to remember. Every other way the platform offers stays reachable from the
-/// same screen as a quieter option: a password, Google or Apple where the build has them, and
-/// creating an account, with its confirmation step.
+/// The password leads, the way the design's screen opens; "Sign in with code" swaps it for an
+/// address and a one-time code with nothing to remember. Creating an account, resetting a
+/// password and — where a build carries them — social providers stay on the same screen.
 ///
 /// Every decision — which step comes next, what a refusal means, when another email may be
 /// sent — is `SignInFlow`'s, in the tested core. This view lays out whichever step it is on.
@@ -18,8 +18,9 @@ struct LoginView: View {
     @FocusState private var codeFocused: Bool
     @State private var isAskingForReset = false
     @State private var showsPassword = false
-    /// Whether the sign-in step offers the password field — the quieter way in.
-    @State private var usesPassword = false
+    /// Which way the sign-in step is showing: the password, which leads, or the one-time code
+    /// behind its own segment.
+    @State private var usesPassword = true
     /// Whether an address that cannot be one has been said so, in red under the field. Set when
     /// the field is left or the button pressed — not on every keystroke of a half-typed address.
     @State private var judgesEmail = false
@@ -87,6 +88,12 @@ struct LoginView: View {
         .onChange(of: focused) { old, _ in
             if old == .email { judgesEmail = true }
         }
+        .onChange(of: usesPassword) { _, uses in
+            // Switching ways in clears what either way said and hands the keyboard to the
+            // field the new way starts with. The segment animates the swap itself.
+            session.signInFlow.clearMessages()
+            focused = uses ? .password : .email
+        }
         .onReceive(NotificationCenter.default.publisher(for: .emperorConnectivityChanged)) { _ in
             isOffline = AppConnectivity.current.isOffline
         }
@@ -101,10 +108,19 @@ struct LoginView: View {
         @Bindable var flow = flow
 
         return VStack(alignment: .leading, spacing: 0) {
-            lockup
-                .padding(.bottom, Spacing.xxxl + Spacing.xs)
+            header
+                .padding(.bottom, Spacing.xxl)
 
-            labelled("Work email", hint: judgesEmail ? flow.emailProblem : nil, hintIsError: true) {
+            RecordSegmentedControl(
+                label: "Sign-in method",
+                options: [
+                    (value: true, title: "Password"),
+                    (value: false, title: "Sign in with code"),
+                ],
+                selection: $usesPassword
+            )
+
+            labelled("Email", hint: judgesEmail ? flow.emailProblem : nil, hintIsError: true) {
                 emailField(
                     $flow.email,
                     isInvalid: judgesEmail && flow.emailProblem != nil,
@@ -116,20 +132,19 @@ struct LoginView: View {
                         }
                     })
             }
+            .padding(.top, Spacing.lg)
 
             if usesPassword {
-                labelled("Password") {
-                    passwordField(
-                        $flow.password, label: "Password", field: .password, isNew: false,
-                        submit: { run { await $0.signIn() } })
-                }
-                .padding(.top, Spacing.md)
-                .transition(.opacity)
+                passwordRow(flow)
+                    .padding(.top, Spacing.md)
+                    .transition(.opacity)
             }
 
             VStack(alignment: .leading, spacing: Spacing.md) {
                 if isOffline {
-                    OfflineStrip(message: "You're offline. Connect to get a sign-in code.")
+                    OfflineStrip(message: usesPassword
+                        ? "You're offline. Connect to sign in."
+                        : "You're offline. Connect to get a sign-in code.")
                 }
                 messages(flow)
             }
@@ -153,76 +168,85 @@ struct LoginView: View {
             }
             .padding(.top, Spacing.md)
 
-            orDivider("or")
-
-            VStack(spacing: Spacing.sm) {
-                if flow.social.offersAny {
-                    SocialSignInButtons(config: flow.social)
-                }
-                Button {
-                    withAnimation(Motion.adaptive(Motion.easeOut(0.2), reduceMotion: reduceMotion)) {
-                        usesPassword.toggle()
-                    }
-                    session.signInFlow.clearMessages()
-                    focused = usesPassword ? .password : .email
-                } label: {
-                    Text(usesPassword ? "Email me a code instead" : "Sign in with a password")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.secondaryAction)
-
-                if usesPassword {
-                    AuthLinkButton(title: "Forgot your password?") {
-                        isAskingForReset = true
-                    }
-                }
+            // Where the build carries them, the providers sit under their own divider. Off in
+            // a normal build (`SocialSignInConfig`); the UI test that shows them switches it on.
+            if flow.social.offersAny {
+                orDivider("or")
+                SocialSignInButtons(config: flow.social)
             }
 
             Spacer(minLength: Spacing.xxl)
 
-            VStack(spacing: Spacing.xs) {
-                switchLink(prompt: "New to Emperor?", action: "Create an account") {
-                    session.signInFlow.show(.createAccount)
-                }
-                Text(usesPassword
-                     ? "Your password is sent only to Emperor."
-                     : "One-time code, no password to remember.")
-                    .font(.brand(.caption))
-                    .foregroundStyle(theme.textTertiary)
-                    .multilineTextAlignment(.center)
+            switchLink(prompt: "Don't have an account?", action: "Create new account") {
+                session.signInFlow.show(.createAccount)
             }
             .frame(maxWidth: .infinity)
             .padding(.top, Spacing.xxl)
         }
     }
 
-    /// The mark, "Ask the *record*." in the serif, and what Emperor is.
-    private var lockup: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            RecordMarkView(height: 44)
-            headline
-                .font(.display(size: 46, relativeTo: .largeTitle))
-                .foregroundStyle(theme.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityLabel("Emperor. Ask the record.")
-            Text("Your matters, judgments and drafts — read, searched and cited to the page.")
-                .font(.brand(.subheadline))
-                .foregroundStyle(theme.textFaint)
-                .fixedSize(horizontal: false, vertical: true)
+    /// "Password" with the way to reset it beside it, over the field, as the design has it.
+    private func passwordRow(_ flow: SignInFlow) -> some View {
+        @Bindable var flow = flow
+
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                // The field below carries this name for VoiceOver, so only the eye hears it.
+                Text("Password")
+                    .font(.brand(.footnote, weight: .semibold))
+                    .foregroundStyle(theme.textSecondary)
+                    .accessibilityHidden(true)
+                Spacer(minLength: Spacing.sm)
+                Button("Forgot password?") {
+                    isAskingForReset = true
+                }
+                .font(.brand(.footnote, weight: .semibold))
+                .foregroundStyle(theme.accentText)
+                .frame(minHeight: 44)
+                .padding(.vertical, -8)
+                .contentShape(Rectangle())
+            }
+            passwordField(
+                $flow.password, label: "Password", field: .password, isNew: false,
+                submit: { run { await $0.signIn() } })
         }
     }
 
-    /// "Ask the *record*." — the one italic word in the accent.
-    private var headline: Text {
-        Text("Ask the ") + Text("record").italic().foregroundStyle(theme.accentText) + Text(".")
+    /// The mark in its tile, "Emperor AI" in the serif, and what the app is — centred, as the
+    /// design's sign-in sits.
+    private var header: some View {
+        VStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: Radius.dialog, style: .continuous)
+                .fill(theme.surface2)
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.dialog, style: .continuous)
+                        .strokeBorder(theme.separator, lineWidth: 1))
+                .frame(width: 76, height: 76)
+                .overlay(RecordMarkView(height: 40))
+                .accessibilityHidden(true)
+
+            Text("Emperor AI")
+                .font(.display(size: 42, relativeTo: .largeTitle))
+                .foregroundStyle(theme.textPrimary)
+                .padding(.top, Spacing.lg)
+                .accessibilityAddTraits(.isHeader)
+
+            Text("Sign in to your legal workspace")
+                .font(.brand(.subheadline))
+                .foregroundStyle(theme.textFaint)
+                .padding(.top, Spacing.xs)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+        .multilineTextAlignment(.center)
     }
 
-    /// "We sent a 6-digit code to **aarti@kapoorlaw.in**."
-    private func codeSentLine(_ email: String) -> Text {
+    /// "We sent a 6-digit code to **aarti@kapoorlaw.in**. It works for 10 minutes." — the
+    /// lifetime the server gave, or "a few minutes" when it gave none.
+    private func codeSentLine(_ email: String, minutes: Int?) -> Text {
         Text("We sent a \(SignInFlow.codeLength)-digit code to ")
             + Text(email).foregroundStyle(theme.textPrimary).fontWeight(.semibold)
-            + Text(". It works for a few minutes.")
+            + Text(minutes.map { ". It works for \($0) minutes." } ?? ". It works for a few minutes.")
     }
 
     private func sendCode(_ flow: SignInFlow) {
@@ -344,7 +368,7 @@ struct LoginView: View {
                 .recordText(RecordTokens.Typography.largeTitle)
                 .foregroundStyle(theme.textPrimary)
                 .accessibilityAddTraits(.isHeader)
-            codeSentLine(email)
+            codeSentLine(email, minutes: flow.codeLifetimeMinutes)
                 .font(.brand(.subheadline))
                 .foregroundStyle(theme.textFaint)
                 .fixedSize(horizontal: false, vertical: true)
@@ -368,6 +392,8 @@ struct LoginView: View {
                 }
             }
 
+            // No notice under the boxes: the only one this step gets is "We've emailed a code",
+            // which the line under the title already says. VoiceOver still hears it announced.
             Group {
                 if flow.isWorking {
                     HStack(spacing: Spacing.sm) {
@@ -382,11 +408,6 @@ struct LoginView: View {
                         .foregroundStyle(theme.danger)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityLabel("Error: \(error)")
-                } else if let notice = flow.notice {
-                    Text(notice)
-                        .font(.brand(.footnote))
-                        .foregroundStyle(theme.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(.top, Spacing.md)

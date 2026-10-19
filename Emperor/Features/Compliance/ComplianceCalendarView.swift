@@ -50,7 +50,7 @@ struct ComplianceCalendarView: View {
                 // The companies are kept on this device, as the web keeps them in the browser.
                 let created = ComplianceCalendarViewModel(
                     service: session.complianceCalendar, cache: session.cache,
-                    companies: CompanyProfileStore(store: CaseListView.preferences))
+                    companies: CompanyProfileStore(store: MattersView.docketPreferences))
                 model = created
                 await created.load()
             }

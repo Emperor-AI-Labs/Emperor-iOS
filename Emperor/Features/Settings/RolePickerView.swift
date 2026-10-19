@@ -57,43 +57,6 @@ struct RolePickerView: View {
     }
 }
 
-/// The current role, as the head of Settings draws it: the role's own tile, its name and who it
-/// is for — the trigger the web keeps in its top bar, made a row a thumb can find.
-struct RoleSelectorLabel: View {
-    @Environment(\.theme) private var theme
-
-    let role: PractitionerRole
-
-    var body: some View {
-        // At the accessibility sizes the tile, the words and "Switch" go one under another;
-        // beside each other they would leave the role's name a word to a line.
-        AdaptiveStack(spacing: Spacing.md) {
-            IconTile(systemImage: role.systemImage, hue: role.tileHue, size: .large)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Practising as")
-                    .font(.brand(.caption, weight: .medium))
-                    .foregroundStyle(theme.textSecondary)
-                Text(role.label)
-                    .font(.brand(.headline, weight: .semibold))
-                    .foregroundStyle(theme.textPrimary)
-                Text(role.tagline)
-                    .font(.brand(.footnote))
-                    .foregroundStyle(theme.textSecondary)
-                    .dynamicLineLimit(2)
-            }
-            Spacer(minLength: Spacing.sm)
-            Text("Switch")
-                .font(.brand(.footnote, weight: .semibold))
-                .foregroundStyle(theme.accentText)
-                .accessibilityHidden(true)
-        }
-        .padding(.vertical, Spacing.xs)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("Practising as \(role.label)"))
-        .accessibilityHint(Text("Switch role"))
-    }
-}
-
 /// One role, as both places that offer the choice draw it: its symbol, its name, a line saying
 /// who it is for, and a sentence on what it does — Senior Counsel and Litigator are not
 /// distinguishable from two words.
@@ -118,8 +81,8 @@ struct RoleOptionLabel: View {
                 Text(role.tagline)
                     .font(.brand(.caption))
                     .foregroundStyle(theme.textSecondary)
-                // Tertiary on a plain card; secondary on the chosen one, whose wash takes tertiary
-                // under 4.5:1 in light (`PaletteTests.testTertiaryTextIsTooFaintForAChosenRow`).
+                // Tertiary on a plain card; secondary on the chosen one, whose wash leaves tertiary
+                // barely at 4.5:1 in light (`PaletteTests.testAChosenRowsQuietestLineClearsAA`).
                 Text(role.detail)
                     .font(.brand(.caption2))
                     .foregroundStyle(isSelected ? theme.textSecondary : theme.textTertiary)

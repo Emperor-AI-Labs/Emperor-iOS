@@ -18,7 +18,7 @@
       "text": "#0F1424",
       "textSoft": "#454B63",
       "textFaint": "#5A6178",
-      "textMute": "#6B7187",
+      "textMute": "#62687E",
       "accent": "#464E85",
       "accent2": "#547592",
       "accentSoft": "rgba(111,121,189,0.12)",
@@ -86,7 +86,7 @@
       ],
       "dark": [
         "#4D568F",
-        "#5A7C9A"
+        "#567692"
       ],
       "use": "the ONE primary action per screen, the send button, avatar, FAB"
     },

@@ -56,6 +56,9 @@ final class SignInFlow {
     private(set) var error: String?
     /// Something worth saying that is not a failure: "We've sent a code to …".
     private(set) var notice: String?
+    /// How long the last emailed code works, as the server said when it sent it; nil when it
+    /// did not say.
+    private(set) var codeLifetimeMinutes: Int?
     /// Whether to offer "Email me a sign-in code" on the sign-in step — after the server has
     /// said this account has no password, or on request.
     private(set) var offersCode = false
@@ -319,6 +322,7 @@ final class SignInFlow {
             self.lastSendAt = sentAt
             self.code = ""
             self.step = .enterCode(email: address)
+            self.codeLifetimeMinutes = request.expiresInMinutes
             let minutes = request.expiresInMinutes.map { " It works for \($0) minutes." } ?? ""
             self.notice = "We've emailed a \(Self.codeLength)-digit code to \(address).\(minutes)"
         }

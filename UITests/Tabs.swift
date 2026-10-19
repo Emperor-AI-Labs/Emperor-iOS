@@ -13,7 +13,7 @@ extension XCUIApplication {
     ///
     /// On iPhone the tabs live in a tab bar along the bottom. On iPad (iPadOS 18 and later) the
     /// same `TabView` draws them as a row of buttons across the top, with no tab bar element at
-    /// all — so `tabBars.buttons["Home"]` finds nothing there, and every test that started from a
+    /// all — so `tabBars.buttons["Ask"]` finds nothing there, and every test that started from a
     /// tab failed on iPad while the app itself was fine. Matched on label *and* symbol, because an
     /// iPad screen can carry a second button with the same label (a toolbar's "More").
     func tab(_ name: String) -> XCUIElement {
@@ -43,14 +43,64 @@ extension XCUIElement {
 }
 
 extension XCUIApplication {
-    /// The stub's stored conversation, "Bakshi v. State", in the chat list — wherever this device
-    /// draws it. On a phone its title is a text of its own; on an iPad, where the list sits beside
-    /// the conversation and keeps a selection, the row is one button (`chat-row-c1`) and its title
-    /// is not exposed separately. Found by either, so a test reads the same on both.
+    /// The stub's stored conversation, "Bakshi v. State" — among Ask's recent conversations, where
+    /// its row is one button (`chat-row-c1`), or in History's list, where its title can be a text
+    /// of its own. Found by either, so a test reads the same wherever it opens it.
     var stubConversationRow: XCUIElement {
         descendants(matching: .any).matching(NSPredicate(
             format: "identifier == %@ OR (elementType == %d AND label == %@)",
             "chat-row-c1", XCUIElement.ElementType.staticText.rawValue, "Bakshi v. State"))
             .firstMatch
+    }
+}
+
+extension XCUIApplication {
+    /// Signs in the way the sign-in screen's code segment leads: choose the code, the address,
+    /// "Email me a sign-in code", then the six digits. A full code goes on without a tap, as code
+    /// fields do elsewhere on the phone. The stub answers `/auth/otp/request` and
+    /// `/auth/otp/verify`, so this drives the real `SignInFlow`, `AuthService` and the
+    /// signed-out → signed-in transition.
+    ///
+    /// Returns whether every step was there to take; it does not wait for the app behind it,
+    /// because what comes next — the tabs, a role question, a document to save — is each test's
+    /// own subject.
+    @discardableResult
+    func signInWithACode(_ address: String = "john.doe@firm.com") -> Bool {
+        let email = textFields["Email"]
+        guard email.waitForExistence(timeout: 15) else { return false }
+
+        // The screen opens on the password; the code is behind its own segment.
+        let codeSegment = buttons["Sign in with code"].firstMatch
+        guard codeSegment.waitForExistence(timeout: 5) else { return false }
+        codeSegment.tap()
+
+        email.focusForTyping()
+        email.typeText(address)
+
+        let send = buttons["Email me a sign-in code"].firstMatch
+        guard send.waitForExistence(timeout: 5) else { return false }
+        send.tap()
+
+        let code = textFields["Sign-in code"]
+        guard code.waitForExistence(timeout: 10) else { return false }
+        code.focusForTyping()
+        code.typeText("123456")
+        return true
+    }
+
+    /// Scrolls until `element` can be tapped: up first, then back down — a list builds only the
+    /// rows near what it shows, and a row may be above the screen as easily as below it once the
+    /// list has been scrolled for an earlier one.
+    func reveal(_ element: XCUIElement) {
+        var swipes = 0
+        while !(element.exists && element.isHittable) && swipes < 6 {
+            swipeUp()
+            swipes += 1
+        }
+        swipes = 0
+        while !(element.exists && element.isHittable) && swipes < 8 {
+            swipeDown()
+            swipes += 1
+        }
     }
 }

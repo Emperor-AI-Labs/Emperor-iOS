@@ -75,7 +75,7 @@ as possible into `Sources/EmperorCore/`**, which builds and tests here.
 
 ```bash
 sudo apt install swiftlang     # Swift 6.1.3 on Ubuntu; no iOS SDK, but the core builds
-cd emperor-ios && swift test    # ~1,560 tests
+cd emperor-ios && swift test    # ~2,100 tests
 ```
 
 View models live in the core for this reason — turn state, recovery and error handling are
@@ -115,7 +115,7 @@ that makes no sense against the current source, `rm -rf .build` before investiga
 ## How to work on this repo
 
 - **Put logic in `Sources/EmperorCore/`.** It is Foundation-only — no UIKit, no SwiftUI — so it
-  compiles and tests anywhere, including Linux and CI. `swift test` runs about 1,560 tests in
+  compiles and tests anywhere, including Linux and CI. `swift test` runs about 2,100 tests in
   half a minute. Anything that could plausibly live there should.
 - **A view should hold no logic worth testing.** Everything a screen does other than lay itself
   out — loading, error wording, selection, empty-state rules — belongs in a `@MainActor` view
@@ -156,10 +156,20 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   `screenshot-tour` and `screenshot-tour-ipad` artifacts hold the pictures as plain PNGs —
   `gh run download <run> -n screenshot-tour-ipad`. Look at both after any visible change; an
   iPad turns sheets into form sheets and confirmation dialogs into popovers.
-- **iPad layouts.** At regular width Cases and Chat show the list beside what it opens
-  (`ListBesideDetail`); both layouts read one navigation path (`ListDetailPath`). UI tests that
-  tap a row and then go Back must branch on `UIDevice.current.userInterfaceIdiom` — on iPad
-  there is no Back — and should drag inside a named list rather than the window's centre.
+- **The app's shape (the Record design).** Four tabs — **Ask · Matters · Files · You**
+  (`MainTabView`). Sign-in opens with the password behind a Password | Sign in with code
+  segmented control; the one-time code ("Email me a sign-in code") is the other segment. Matters
+  holds the cause list and the docket, and opens the Calendar as a
+  sheet from its bar. Settings and Tools (every tool, the file tools, OCR, Translate, the
+  Corporate Calendar, Library) live under You. UI tests sign in through the shared
+  `signInWithACode` helper and reach tabs through `app.tab(_:)`, both in `UITests/Tabs.swift`.
+- **iPad layouts.** At regular width only History's conversation list (`ChatListView`, a sheet
+  from Ask) shows the list beside what it opens (`ListBesideDetail`, reading one navigation path,
+  `ListDetailPath`); Matters is a single stack on every device. A UI test that taps a
+  conversation in History and then goes Back must branch on
+  `UIDevice.current.userInterfaceIdiom` — on iPad there is no Back. On iPad the tabs are a row
+  of buttons across the top, not a tab bar element; `app.tab(_:)` finds them on both. Drag inside
+  a named list rather than at the window's centre.
 - **Anything drawn over the whole app goes in `AppLockShield`'s window, not the root view.** A
   root-view overlay is under every sheet. In UI tests `-UITestAppLock` starts locked with a
   session on the device, and a stand-in answers for Face ID.
@@ -172,8 +182,12 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   for text, `AdaptiveStack` for a title with something beside it, `.dynamicLineLimit` for
   essential text, `ValueRow` rather than `LabeledContent(_:value:)`, and a label on every
   icon-only control. Add an audit waiver only for something the system draws, with its reason.
-  The audit is a separate, reported CI step for now — read its result on every run, and make it
-  blocking (drop `continue-on-error` in `ci.yml`) once it passes on both devices.
+  Colours come from `Design/record-tokens.json` (regenerate `RecordTokens.swift` with
+  `node scripts/generate-record-tokens.mjs`, never edit it). The audit is a separate, reported CI
+  step for now — read its result on every run (a finding the audit cannot tie to an element comes
+  with an `-edges` attachment listing everything on screen), and make it blocking (drop
+  `continue-on-error` in `ci.yml`) once it passes on both devices run after run. What is left is
+  noted beside that step.
 - The app target compiles `Sources/EmperorCore` directly, so the tested code and the shipped
   code are the same bytes.
 

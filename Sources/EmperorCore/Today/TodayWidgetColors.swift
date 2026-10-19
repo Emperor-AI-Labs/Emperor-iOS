@@ -24,7 +24,7 @@ struct TodayWidgetColors: Equatable, Sendable {
 
     static let light = TodayWidgetColors(
         canvas: 0xFFFFFF,
-        textPrimary: 0x0F1424, textSecondary: 0x454B63, textTertiary: 0x6B7187,
+        textPrimary: 0x0F1424, textSecondary: 0x454B63, textTertiary: 0x62687E,
         accent: 0x464E85, accentText: 0x464E85)
 
     /// A hex's three channels in 0...1, for `Color(.sRGB, red:green:blue:)`.

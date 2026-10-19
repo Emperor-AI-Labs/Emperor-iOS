@@ -217,11 +217,13 @@ jobs:
             | xcbeautify --renderer github-actions
 
       # **Reported, not yet blocking.** `AccessibilityAuditTests` runs Xcode's accessibility audit
-      # over the main screens. Hundreds of its first findings are fixed; the few left are tied to
-      # no element and appear only while a scrolled list sits under iOS 26's bar fade, so they are
-      # still being identified. Until they are, a finding is shown on the run (the step goes red
+      # over the main screens. On iPhone what is left (six, as of October 2026) is "Dynamic Type
+      # partially unsupported" on Files and Translate, tied to no element the audit can name. On
+      # iPad the text-size checks can still run past the audit's time limit on one screen or
+      # another, while UIKit rebuilds the floating tab bar for every size step (see the samples
+      # this step collects). Until both are gone, a finding is shown on the run (the step goes red
       # in the log) without failing the job. Make this blocking again — drop
-      # `continue-on-error` — the first time it passes on both devices.
+      # `continue-on-error` — once it passes on both devices run after run.
       - name: Accessibility audit (reported)
         continue-on-error: true
         run: |
