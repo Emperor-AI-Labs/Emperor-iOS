@@ -80,6 +80,8 @@ final class Session {
     let filingAnnexures: FilingAnnexureService
     /// Shared conversations, read without an account — the web's `/share/:shareId` (share package).
     let sharedChats: SharedChatService
+    /// Connected services: Google Drive and OneDrive, import and export — see `CloudDriveService`.
+    let cloudDrives: CloudDriveService
 
     let cache: ResponseCache
 
@@ -137,6 +139,7 @@ final class Session {
         self.supportFeedback = SupportFeedbackService(client: client)
         self.filingAnnexures = FilingAnnexureService(client: client)
         self.sharedChats = SharedChatService(client: client)
+        self.cloudDrives = CloudDriveService(client: client)  // Connected services package
         self.store = store
         self.cache = cache
         self.signInFlow = SignInFlow(auth: auth)

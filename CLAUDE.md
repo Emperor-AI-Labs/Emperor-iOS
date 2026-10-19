@@ -296,6 +296,12 @@ Full detail in `README.md`. The short list:
 37. **`/draft-feedback` answers `ok`, not `success`** — `{ok: true, id}`, or `400 {ok: false,
     error}` when there is neither a rating nor a comment. It trims a long comment or draft
     rather than refusing it; `FeedbackService` caps both first.
+38. **Connecting Google Drive or OneDrive never returns to the app.** `/cloud/connect` gives the
+    drive's consent page; the drive redirects to the server, which stores the token and lands on
+    the *web* app's Settings page. Read `/cloud/connections` again when the in-app Safari view
+    closes — that is the only signal. The `/cloud/*` refusals are sentences meant for the person
+    (409 not connected or too little access, 404 no such document) that name the web's Settings;
+    `CloudDriveWording` points them at You → Connected services. See `CloudDriveService`.
 
 ## Runtime connectivity
 
