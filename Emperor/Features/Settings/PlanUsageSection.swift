@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// "Plan & usage": the account's plan, its standing, this month's allowances — and, where the
-/// build allows it, the way to the plans page.
+/// build allows it, the way to the plans page. The plan row opens `BillingView`.
 ///
 /// The app takes no money. "View plans" opens the web app's plans page in the browser, where the
 /// plan is bought on the same account; coming back reads the account and the allowances again,
@@ -16,11 +16,17 @@ struct PlanUsageSection: View {
 
     var body: some View {
         Section {
-            // Each row named, so the accessibility audit can say which one it means.
-            LabeledContent("Plan") {
-                Text(planLabel).foregroundStyle(theme.textPrimary)
+            // Each row named, so the accessibility audit can say which one it means. The plan
+            // opens Billing: its standing, the payments and invoices, and a coupon.
+            NavigationLink {
+                BillingView()
+            } label: {
+                LabeledContent("Plan") {
+                    Text(planLabel).foregroundStyle(theme.textPrimary)
+                }
             }
             .accessibilityIdentifier("plan-name")
+            .accessibilityHint("Opens billing: payments, invoices and coupons")
 
             if let standing = session.standing {
                 standingRow(standing)

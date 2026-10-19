@@ -315,6 +315,16 @@ Full detail in `README.md`. The short list:
     cleaned body, so an edited draft synced on its own appears twice in Drafts. Save the edit over
     the original row by id (`POST /save-document`) with the body exactly as the server derives it
     (`DraftEdit.storedDraft`) *before* the sync. See `DraftEditService`.
+42. **The coupon routes answer codes of their own**, outside `Refusal`: 400 `COUPON_INVALID`
+    (the coupon's own reason, shown as written), 400 `NEEDS_PAYMENT`, 409 `PLAN_DOWNGRADE` and
+    409 `COUPON_SPENT`. The `NEEDS_PAYMENT` and `PLAN_DOWNGRADE` sentences send the reader to a
+    payment step, so this client words them (`CouponRefusal`). Only a code that owes nothing is
+    redeemed here; `/billing/coupon/preview` answers 200 with `valid:false` for a bad code.
+    Invoices and orders are paise integers; an invoice's `gstPaise` is null or 0 when no GST
+    was charged, and then no GST line is drawn. See `BillingService`.
+43. **`DELETE /case` removes the case for its whole team** and only for a team owner or admin
+    (403 otherwise, worded by `CaseRemovalCopy`). A matter made from the case is kept and stops
+    showing the court's record. Refetch the docket afterwards; never patch it. See `CaseRemoving`.
 
 ## Runtime connectivity
 

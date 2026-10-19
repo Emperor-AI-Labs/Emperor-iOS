@@ -66,6 +66,10 @@ final class AccessibilityAuditTests: XCTestCase {
         audit("role-welcome", in: app)
         litigator.tap()
         app.buttons["Continue"].tap()
+        let start = app.buttons["Start working"]
+        guard reached(start, "the first-sign-in details step") else { return }
+        audit("role-welcome-details", in: app)
+        start.tap()
         XCTAssertTrue(app.tab("Home").waitForExistence(timeout: 10), "choosing a role led nowhere")
     }
 

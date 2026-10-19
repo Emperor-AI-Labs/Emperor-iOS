@@ -86,6 +86,8 @@ final class Session {
     let fileDownloads: FileDownloadService
     /// Draft editing: an edited draft written back to its conversation and its Drafts row.
     let draftEdits: DraftEditService
+    /// The account's plan, payments, invoices and coupons — see `BillingService` (account package).
+    let billing: BillingService
 
     let cache: ResponseCache
 
@@ -146,6 +148,7 @@ final class Session {
         self.cloudDrives = CloudDriveService(client: client)  // Connected services package
         self.fileDownloads = FileDownloadService(client: client)  // My Files package
         self.draftEdits = DraftEditService(client: client)
+        self.billing = BillingService(client: client)  // account package
         self.store = store
         self.cache = cache
         self.signInFlow = SignInFlow(auth: auth)

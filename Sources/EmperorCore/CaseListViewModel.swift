@@ -79,12 +79,14 @@ final class CaseListViewModel {
         service: any CaseProviding,
         cache: ResponseCache? = nil,
         store: any PreferenceStore = InMemoryPreferenceStore(),
-        now: @escaping @Sendable () -> Date = { Date() }
+        now: @escaping @Sendable () -> Date = { Date() },
+        remover: (any CaseRemoving)? = nil
     ) {
         self.service = service
         self.cache = cache
         self.store = store
         self.now = now
+        self.remover = remover
         sort = CaseSort.stored(in: store)
         grouping = CaseGrouping.stored(in: store)
         filters = CaseFilters.stored(in: store)
@@ -92,6 +94,37 @@ final class CaseListViewModel {
 
     var presentation: ListPresentation {
         ListPresentation(state: state, isEmpty: cases.isEmpty, cachedAt: cachedAt)
+    }
+
+    // MARK: - Stop tracking
+
+    private let remover: (any CaseRemoving)?
+    /// The case being removed from the docket, while it is.
+    private(set) var removingID: String?
+    /// Why the last removal failed.
+    var removeError: String?
+
+    /// Offered on a live docket only — a kept copy cannot say whether a case is still there.
+    var canRemove: Bool { remover != nil && cachedAt == nil && removingID == nil }
+
+    /// Removes a case and reads the docket again. The row is not dropped by hand: the server's
+    /// list is what says it went.
+    ///
+    /// - Returns: whether it was removed.
+    @discardableResult
+    func removeCase(id: String) async -> Bool {
+        guard let remover, removingID == nil else { return false }
+        removingID = id
+        removeError = nil
+        defer { removingID = nil }
+        do {
+            try await remover.removeCase(id: id)
+        } catch {
+            removeError = DisplayText.message(for: error)
+            return false
+        }
+        await load()
+        return true
     }
 
     /// There are cases, and the search and filters hide all of them.

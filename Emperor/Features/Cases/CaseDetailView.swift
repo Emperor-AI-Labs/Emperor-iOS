@@ -19,8 +19,13 @@ struct CaseDetailView: View {
     @Environment(Session.self) private var session
 
     let caseID: String
+    /// Called once the case is no longer tracked, so the screen that opened it can read its
+    /// docket again and close it. Without one, the screen closes itself.
+    var onRemoved: (() -> Void)?
 
+    @Environment(\.dismiss) private var dismiss
     @State private var model: CaseDetailViewModel?
+    @State private var isConfirmingRemoval = false
     @State private var isAddingNote = false
     @State private var isAddingTask = false
     /// The matter behind this case, once asked for — pushed as its workspace.
@@ -44,7 +49,8 @@ struct CaseDetailView: View {
                     caseID: caseID, service: session.cases,
                     offline: session.offlineCopies?.matters,
                     connectivity: AppConnectivity.current,
-                    projects: session.projects)
+                    projects: session.projects,
+                    remover: session.cases)
             }
             // Loads when nothing has been loaded yet — including after a load that was cancelled
             // part-way (the model goes back to idle), so the matter is not left unloaded.
@@ -107,6 +113,15 @@ struct CaseDetailView: View {
                         }
                         .disabled(model.isOpeningMatter)
                     }
+                    if model.canRemove {
+                        Divider()
+                        // The web's "Remove", asked first: it is shared with the team and final.
+                        Button(role: .destructive) {
+                            isConfirmingRemoval = true
+                        } label: {
+                            Label(CaseRemovalCopy.action, systemImage: "minus.circle")
+                        }
+                    }
                 } label: {
                     Label("Add", systemImage: "plus")
                 }
@@ -119,6 +134,11 @@ struct CaseDetailView: View {
             ProjectDetailView(projectID: route.projectID)
                 .toolbar(.hidden, for: .tabBar)
         }
+        .modifier(CaseRemovalPrompts(
+            model: model, isConfirming: $isConfirmingRemoval,
+            onRemoved: {
+                if let onRemoved { onRemoved() } else { dismiss() }
+            }))
         .alert("Could not open the workspace", isPresented: Binding(
             get: { model.matterError != nil },
             set: { if !$0 { model.matterError = nil } }
@@ -320,6 +340,39 @@ struct CaseDetailView: View {
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// "Stop tracking": the confirmation before it, and the reason when it was refused.
+private struct CaseRemovalPrompts: ViewModifier {
+    let model: CaseDetailViewModel
+    @Binding var isConfirming: Bool
+    let onRemoved: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .confirmationDialog(
+                CaseRemovalCopy.confirmTitle,
+                isPresented: $isConfirming,
+                titleVisibility: .visible
+            ) {
+                Button(CaseRemovalCopy.action, role: .destructive) {
+                    Task {
+                        if await model.remove() { onRemoved() }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(CaseRemovalCopy.confirmMessage)
+            }
+            .alert(CaseRemovalCopy.failedTitle, isPresented: Binding(
+                get: { model.removeError != nil },
+                set: { if !$0 { model.removeError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(model.removeError ?? "")
+            }
     }
 }
 

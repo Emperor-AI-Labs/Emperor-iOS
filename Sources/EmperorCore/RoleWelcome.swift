@@ -4,9 +4,10 @@ import Foundation
 ///
 /// The web asks a new account what kind of practitioner it is before anything else
 /// (`src/pages/Onboarding.jsx`, step 0) and treats an unset role as "onboarding not done"
-/// (`uiRole: null`, `src/lib/store.js:86`). This is the same question, asked the same way: one
-/// screen, every option optional, and a "Skip for now" that leaves the default in force. It is
-/// asked once per device and only of an account that has no role yet.
+/// (`uiRole: null`, `src/lib/store.js:86`). This is the same question, asked the same way: every
+/// option optional, and a "Skip for now" that leaves the default in force — followed, as on the
+/// web, by the chambers and designation (`RoleWelcomeFlow`). It is asked once per device and only
+/// of an account that has no role yet.
 ///
 /// ## When it appears
 ///
