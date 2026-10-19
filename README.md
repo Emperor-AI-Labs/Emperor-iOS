@@ -296,6 +296,25 @@ Settings → Storage shows and clears it.
   1,600 pixels wide and kept under 2 MB before it is sent), and a matter is deleted only once its
   name has been typed.
 
+- **The matter list works like the web's Matters page.** It always fetches archived matters too
+  and lists every tracked case that no matter links yet beside them, so its Status menu (Active
+  by default, then On hold, Disposed, Archived, All statuses), its practice-area menu (only the
+  areas the matters actually have) and its search filter one list locally. The search also
+  matches a case number written another way ("WP(C) 4412 of 2025"). Sort is Recent activity (a
+  chronology date still to come does not count), Next hearing (upcoming, then past, then
+  undated) or Name A–Z. Opening a tracked case makes its matter (`/project-from-case`). New matter
+  takes a name, a banner, a folder colour and the court case (found, not filed yet, or later);
+  Edit details sends every filled field and sends a field the user emptied as `null`. The
+  rules are `MatterListing`, `NewMatterViewModel` and `MatterEditDraft`.
+- **Teams share tracked cases.** Every member of a team sees the cases it tracks under Matters.
+  The Teams sheet (the Matters tab's people button) makes a team and adds someone who already
+  has an account by their email address; there is no route to list or remove members, so each
+  team shows its member count instead.
+- **The day's cause list downloads as PDF, Word or CSV**, with the web's columns and file names
+  (`cause-list-<day>.<ext>`), from the Calendar and from the Matters tab's next sitting. The
+  courts, rows and CSV are held to the web's own export by a generated fixture
+  (`CauseListExport`).
+
 - **`court_type` is `'district'` by default** — the `cases` column's default, and what
   `/save-case` writes when no type is sent. `CourtTier` lets a court code or name that says
   otherwise outrank a stored `district`, and reads the code and name whenever the type is

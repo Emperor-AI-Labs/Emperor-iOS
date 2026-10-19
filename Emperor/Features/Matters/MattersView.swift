@@ -26,6 +26,9 @@ struct MattersView: View {
     @State private var isAddingMatter = false
     @State private var isArranging = false
     @State private var isShowingCalendar = false
+    @State private var isShowingTeams = false
+    @State private var isCreatingMatter = false
+    @State private var openMatter: MatterRoute?
     @State private var toast: String?
 
     var body: some View {
@@ -109,6 +112,22 @@ struct MattersView: View {
                 CalendarView(onDone: { isShowingCalendar = false })
                     .pageSizedSheet()
             }
+            .sheet(isPresented: $isShowingTeams) {
+                TeamsSheet()
+            }
+            .sheet(isPresented: $isCreatingMatter) {
+                NewMatterSheet { projectID, message in
+                    toast = message
+                    openMatter = MatterRoute(projectID: projectID)
+                    let cases = self.cases
+                    Task { await cases?.load() }
+                }
+                .pageSizedSheet()
+            }
+            .navigationDestination(item: $openMatter) { route in
+                ProjectDetailView(projectID: route.projectID)
+                    .toolbar(.hidden, for: .tabBar)
+            }
         }
         .recordToast($toast)
         .task { await loadOnce() }
@@ -146,7 +165,21 @@ struct MattersView: View {
             .accessibilityLabel("Calendar")
             .accessibilityHint("Your hearings day by day, and your diary")
         }
+        // The web's "Team" button, beside its Matters title: who shares the tracked cases.
+        ToolbarItem(placement: .topBarLeading) {
+            Button {
+                isShowingTeams = true
+            } label: {
+                Image(systemName: "person.2")
+            }
+            .accessibilityLabel("Teams")
+            .accessibilityHint("Make a team, or add someone to one")
+        }
         ToolbarItemGroup(placement: .primaryAction) {
+            // The next sitting's list, downloaded as the web's cause list downloads a day.
+            if segment == .next, let day = overview?.nextSitting {
+                CauseListDownloadMenu(day: day.key, listings: day.listings)
+            }
             if segment == .all, let cases {
                 Button {
                     isArranging = true
@@ -158,13 +191,24 @@ struct MattersView: View {
                 .accessibilityLabel(CaseListViewModel.Copy.arrange)
                 .accessibilityValue(cases.filterSummary)
             }
-            Button {
-                isAddingMatter = true
+            // The web's New matter, and — second — tracking a case on its own, which is what
+            // this button did before matters had their own sheet.
+            Menu {
+                Button {
+                    isCreatingMatter = true
+                } label: {
+                    Label(ProjectListViewModel.Copy.newMatter, systemImage: "folder.badge.plus")
+                }
+                Button {
+                    isAddingMatter = true
+                } label: {
+                    Label("Track a case", systemImage: "building.columns")
+                }
             } label: {
                 Image(systemName: "plus")
             }
-            .accessibilityLabel("Add a matter")
-            .accessibilityHint("Finds a case at its court and adds it to your matters")
+            .accessibilityLabel("Add")
+            .accessibilityHint("Starts a new matter, or tracks a case from its court")
         }
     }
 

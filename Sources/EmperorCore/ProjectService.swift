@@ -17,7 +17,13 @@ protocol ProjectProviding: Sendable {
 
     /// The caller's matter for a tracked case — made on the spot when there is none.
     func projectFromCase(caseID: String) async throws -> (project: Project, existed: Bool)
+    /// The same, with what New matter chose: the name (blank lets the server name it after the
+    /// cause title), the banner and the folder colour. Used only when the matter is made.
+    func projectFromCase(caseID: String, seed: MatterSeed) async throws -> (project: Project, existed: Bool)
     func create(_ draft: MatterDraft) async throws -> Project
+    /// `POST /project` with the matter's `id`: the Edit details form. Only the fields present
+    /// change — see `MatterEditDraft.fields(comparedWith:)`.
+    func update(projectID: String, fields: [String: JSONValue]) async throws -> Project
     /// A partial update: only the fields named change.
     func patch(projectID: String, fields: [String: JSONValue]) async throws -> Project
 
@@ -62,6 +68,11 @@ extension ProjectProviding {
     }
     func projectFromCase(caseID: String) async throws -> (project: Project, existed: Bool) { throw notOffered }
     func create(_ draft: MatterDraft) async throws -> Project { throw notOffered }
+    func update(projectID: String, fields: [String: JSONValue]) async throws -> Project { throw notOffered }
+    /// A stand-in that knows only the plain form is asked that, and the seed is dropped.
+    func projectFromCase(caseID: String, seed: MatterSeed) async throws -> (project: Project, existed: Bool) {
+        try await projectFromCase(caseID: caseID)
+    }
     func patch(projectID: String, fields: [String: JSONValue]) async throws -> Project { throw notOffered }
     func saveTask(projectID: String, id: String?, draft: TaskDraft) async throws -> ProjectTask { throw notOffered }
     func deleteTask(id: String) async throws { throw notOffered }
@@ -124,19 +135,18 @@ struct ProjectDetail: Equatable, Sendable {
 /// The matter routes (docs/projects.md): `GET /projects`, `GET /project`, and the writes the
 /// Matters workspace is made of.
 ///
-/// ## Ordering is the server's, not ours
+/// ## Ordering and filtering are the list's, as on the web
 ///
-/// The list arrives sorted by priority, then next hearing, then last update. It is not re-sorted
-/// here. Re-deciding it would put the phone and the browser in disagreement about which matter is
-/// most urgent, which is the one thing a priority field exists to settle — and it is the opposite
-/// call from `CaseListViewModel`, which *does* re-sort because `/cases` orders by `updated_at
-/// DESC` and adding a note there moves a matter to the top of the docket.
+/// The route sorts by priority, then next hearing, then last update. The web's Matters page then
+/// re-orders the whole list by its own Sort menu (recent activity by default) and filters it by
+/// status locally, and `ProjectListViewModel` does the same — see `MatterListing`.
 ///
 /// ## Archived is excluded unless asked for
 ///
 /// `includeArchived=1` is the route's own opt-in, and the exclusion happens in the `WHERE`
-/// clause. The default matches the web, and an archived matter appearing on a phone but not in a
-/// browser would read as a sync fault.
+/// clause. The Matters list always asks for them: a tracked case is listed only while no matter
+/// links it, and an archived matter still links its case — without the archived ones, every case
+/// whose matter was archived would come back as a "tracked case".
 ///
 /// ## Writes send only what changed
 ///
@@ -215,7 +225,15 @@ struct ProjectService: ProjectProviding {
     /// `POST /project-from-case`: idempotent per user and case, so opening a tracked case's
     /// matter twice gives the same matter. A 403 means the caller is not on the case's team.
     func projectFromCase(caseID: String) async throws -> (project: Project, existed: Bool) {
-        let body = try await signed(["caseId": .string(caseID)])
+        try await projectFromCase(caseID: caseID, seed: MatterSeed())
+    }
+
+    func projectFromCase(caseID: String, seed: MatterSeed) async throws -> (project: Project, existed: Bool) {
+        var fields: [String: JSONValue] = ["caseId": .string(caseID)]
+        put(&fields, "name", seed.name)
+        put(&fields, "banner", seed.banner)
+        put(&fields, "color", seed.color)
+        let body = try await signed(fields)
         let request = try await client.makeRequest("POST", "/project-from-case", body: body)
         let response = try await client.send(request, as: ProjectFromCaseResponse.self)
         try CaseService.throwIfUnsuccessful(success: response.success, error: response.error)
@@ -240,6 +258,19 @@ struct ProjectService: ProjectProviding {
         put(&fields, "banner", draft.banner)
         put(&fields, "courtStatus", draft.courtStatus)
         let request = try await client.makeRequest("POST", "/project", body: try await signed(fields))
+        return try await unwrapProject(try await client.send(request, as: ProjectWriteResponse.self))
+    }
+
+    /// `POST /project` with `id`: the Edit details form's save. `fields` are the web's camelCase
+    /// keys; the route changes only those present, and reads a `null` or a blank as "clear it".
+    func update(projectID: String, fields: [String: JSONValue]) async throws -> Project {
+        var body = fields
+        body["id"] = .string(projectID)
+        if let name = body["name"], case .string(let text) = name,
+           text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw APIError.server(status: 400, message: "Give the matter a name.")
+        }
+        let request = try await client.makeRequest("POST", "/project", body: try await signed(body))
         return try await unwrapProject(try await client.send(request, as: ProjectWriteResponse.self))
     }
 

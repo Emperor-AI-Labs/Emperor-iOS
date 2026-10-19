@@ -13,6 +13,9 @@ struct CourtSearchView: View {
         case track
         /// Fetch Orders: read the case first — the row's first button opens its record.
         case lookup
+        /// New matter: choose the case. The row's button hands it to `onPick` and closes; the
+        /// matter sheet tracks it when the matter is made.
+        case pick
     }
 
     @Environment(\.theme) private var theme
@@ -22,6 +25,8 @@ struct CourtSearchView: View {
     var purpose: Purpose = .track
     /// Called after a case is pinned, so the docket behind this sheet reloads.
     let onSaved: () -> Void
+    /// `.pick` only: the case chosen.
+    var onPick: ((CourtSearchResult) -> Void)? = nil
 
     @State private var model: CourtSearchViewModel?
     /// The result being read without being added (`CourtRecordView`).
@@ -36,8 +41,7 @@ struct CourtSearchView: View {
                     ProgressView()
                 }
             }
-            .navigationTitle(purpose == .lookup
-                             ? CourtSearchViewModel.Copy.lookupTitle : CourtSearchViewModel.Copy.title)
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -59,6 +63,14 @@ struct CourtSearchView: View {
                 }
                 .pageSizedSheet()
             }
+        }
+    }
+
+    private var title: String {
+        switch purpose {
+        case .track: return CourtSearchViewModel.Copy.title
+        case .lookup: return CourtSearchViewModel.Copy.lookupTitle
+        case .pick: return CourtSearchViewModel.Copy.pickTitle
         }
     }
 
@@ -380,7 +392,9 @@ struct CourtSearchView: View {
             // Two ways on: read the record first (Fetch Orders), or add it straight away. The
             // purpose decides which leads.
             HStack(spacing: Spacing.sm) {
-                if purpose == .lookup {
+                if purpose == .pick {
+                    pickButton(result)
+                } else if purpose == .lookup {
                     readButton(result, prominent: true)
                     saveButton(model, result)
                 } else {
@@ -391,6 +405,27 @@ struct CourtSearchView: View {
             .padding(.top, Spacing.xxs)
         }
         .padding(.vertical, Spacing.xs + 2)
+    }
+
+    /// New matter's choice: this is the case. Nothing is saved here — the matter sheet tracks it
+    /// when the matter is made, so backing out of New matter leaves nothing behind.
+    private func pickButton(_ result: CourtSearchResult) -> some View {
+        Button {
+            onPick?(result)
+            dismiss()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                Text(CourtSearchViewModel.Copy.useThisCase)
+            }
+            .font(.brand(.caption, weight: .semibold))
+            .foregroundStyle(theme.accentText)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, 6)
+            .background(theme.accentWash, in: Capsule())
+            .overlay(Capsule().strokeBorder(theme.accentMuted, lineWidth: 1))
+        }
+        .buttonStyle(.borderless)
     }
 
     /// Opens the case's record from the court — orders, hearings, parties — without adding it.

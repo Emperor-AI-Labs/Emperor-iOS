@@ -461,6 +461,9 @@ final class CourtSearchViewModel {
         static let title = "Find a case"
         /// The same search, opened to read a case rather than to add one (Fetch Orders).
         static let lookupTitle = "Fetch Orders"
+        /// New matter's search: the web's heading over the same panel.
+        static let pickTitle = "Find the case in court records"
+        static let useThisCase = "Use this case"
         static let readFirst = "Read it first"
         static let fetchThisCase = "Fetch this case"
         static let searchButton = "Search the court"

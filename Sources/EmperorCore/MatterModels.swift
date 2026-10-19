@@ -425,6 +425,13 @@ struct MatterDraft: Equatable, Sendable {
     var courtStatus: String? = nil
 }
 
+/// What New matter hands `POST /project-from-case` along with the case: each omitted when blank.
+struct MatterSeed: Equatable, Sendable {
+    var name: String? = nil
+    var banner: String? = nil
+    var color: String? = nil
+}
+
 // MARK: - Envelopes
 
 struct ProjectFromCaseResponse: Codable, Sendable {
