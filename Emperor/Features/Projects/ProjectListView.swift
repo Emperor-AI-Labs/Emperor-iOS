@@ -20,6 +20,7 @@ struct ProjectListView: View {
     @State private var path: [String] = []
     @State private var isCreatingMatter = false
     @State private var toast: String?
+    @State private var editing: Project?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -50,6 +51,13 @@ struct ProjectListView: View {
                 ProjectDetailView(projectID: projectID) {
                     Task { await model?.load() }
                 }
+            }
+            .sheet(item: $editing) { project in
+                EditMatterSheet(project: project) { saved, message in
+                    toast = model?.notice(afterSaving: saved) ?? message
+                    Task { await model?.load() }
+                }
+                .pageSizedSheet()
             }
             .recordToast($toast)
             .task {
@@ -215,6 +223,18 @@ struct ProjectListView: View {
         } else {
             NavigationLink(value: row.id) {
                 MatterListRowView(row: row, isOpening: false)
+            }
+            // TODO: offer "Edit details" from the matter workspace's toolbar menu too, as the
+            // web's workspace header does. That screen is being changed elsewhere; until then a
+            // long press here is the way in.
+            .contextMenu {
+                if let project = row.project {
+                    Button {
+                        editing = project
+                    } label: {
+                        Label("Edit details", systemImage: "pencil")
+                    }
+                }
             }
         }
     }

@@ -99,6 +99,46 @@ enum TrackedCaseLookup {
     }
 }
 
+/// Tracks a picked court case: the copy the user already tracks, else a new one in their own
+/// team (`trackCase.js`). Shared by New matter and Edit details, which must agree on what "the
+/// same case" is or one of them files a second copy.
+struct CaseTracker {
+    let cases: any CaseProviding
+    let courts: any CourtSearching
+
+    enum Result: Equatable {
+        case success(String)
+        case failure(String)
+    }
+
+    /// A save refused as a duplicate is looked up again — if the case is there now, it is the one
+    /// to use.
+    func track(_ pick: CourtSearchResult, title: String) async -> Result {
+        let known = try? await cases.cases()
+        if let hit = known.flatMap({ TrackedCaseLookup.find(pick, in: $0) }) { return .success(hit.id) }
+
+        var card = pick
+        // A court searched only as a preview gives no cause title: the matter's name reads better
+        // in the tracked cases than the server's "Untitled Case".
+        if (card.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty, !title.isEmpty {
+            card.title = title
+        }
+        var refusal: String?
+        do {
+            switch try await courts.save(card) {
+            case .saved(let id): return .success(id)
+            case .alreadySaved(let message), .refusedAsIndistinguishable(let message): refusal = message
+            }
+        } catch {
+            refusal = DisplayText.message(for: error)
+        }
+        if let again = try? await cases.cases(), let hit = TrackedCaseLookup.find(pick, in: again) {
+            return .success(hit.id)
+        }
+        return .failure(refusal ?? NewMatterViewModel.Copy.couldNotTrack)
+    }
+}
+
 /// The New matter sheet.
 ///
 /// See `ChatViewModel` for why `@Observable` is Apple-only.
@@ -274,37 +314,8 @@ final class NewMatterViewModel {
         }
     }
 
-    enum TrackResult: Equatable {
-        case success(String)
-        case failure(String)
-    }
-
-    /// The tracked case for this card: the copy the user already tracks, else a new one in their
-    /// own team. A save refused as a duplicate is looked up again — if it is there now, it is the
-    /// one to use.
-    func track(_ pick: CourtSearchResult, title: String) async -> TrackResult {
-        let known = try? await cases.cases()
-        if let hit = known.flatMap({ TrackedCaseLookup.find(pick, in: $0) }) { return .success(hit.id) }
-
-        var card = pick
-        // A court searched only as a preview gives no cause title: the matter's name reads better
-        // in the tracked cases than the server's "Untitled Case".
-        if (card.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty, !title.isEmpty {
-            card.title = title
-        }
-        var refusal: String?
-        do {
-            switch try await courts.save(card) {
-            case .saved(let id): return .success(id)
-            case .alreadySaved(let message), .refusedAsIndistinguishable(let message): refusal = message
-            }
-        } catch {
-            refusal = DisplayText.message(for: error)
-        }
-        if let again = try? await cases.cases(), let hit = TrackedCaseLookup.find(pick, in: again) {
-            return .success(hit.id)
-        }
-        return .failure(refusal ?? Copy.couldNotTrack)
+    func track(_ pick: CourtSearchResult, title: String) async -> CaseTracker.Result {
+        await CaseTracker(cases: cases, courts: courts).track(pick, title: title)
     }
 
     private static func reason(_ error: Error) -> String {
