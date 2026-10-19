@@ -27,6 +27,8 @@ struct MattersView: View {
     @State private var isArranging = false
     @State private var isShowingCalendar = false
     @State private var isShowingTeams = false
+    @State private var isCreatingMatter = false
+    @State private var openMatter: MatterRoute?
     @State private var toast: String?
 
     var body: some View {
@@ -113,6 +115,19 @@ struct MattersView: View {
             .sheet(isPresented: $isShowingTeams) {
                 TeamsSheet()
             }
+            .sheet(isPresented: $isCreatingMatter) {
+                NewMatterSheet { projectID, message in
+                    toast = message
+                    openMatter = MatterRoute(projectID: projectID)
+                    let cases = self.cases
+                    Task { await cases?.load() }
+                }
+                .pageSizedSheet()
+            }
+            .navigationDestination(item: $openMatter) { route in
+                ProjectDetailView(projectID: route.projectID)
+                    .toolbar(.hidden, for: .tabBar)
+            }
         }
         .recordToast($toast)
         .task { await loadOnce() }
@@ -172,13 +187,24 @@ struct MattersView: View {
                 .accessibilityLabel(CaseListViewModel.Copy.arrange)
                 .accessibilityValue(cases.filterSummary)
             }
-            Button {
-                isAddingMatter = true
+            // The web's New matter, and — second — tracking a case on its own, which is what
+            // this button did before matters had their own sheet.
+            Menu {
+                Button {
+                    isCreatingMatter = true
+                } label: {
+                    Label(ProjectListViewModel.Copy.newMatter, systemImage: "folder.badge.plus")
+                }
+                Button {
+                    isAddingMatter = true
+                } label: {
+                    Label("Track a case", systemImage: "building.columns")
+                }
             } label: {
                 Image(systemName: "plus")
             }
-            .accessibilityLabel("Add a matter")
-            .accessibilityHint("Finds a case at its court and adds it to your matters")
+            .accessibilityLabel("Add")
+            .accessibilityHint("Starts a new matter, or tracks a case from its court")
         }
     }
 

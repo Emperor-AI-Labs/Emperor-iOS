@@ -18,8 +18,8 @@ struct ProjectListView: View {
 
     @State private var model: ProjectListViewModel?
     @State private var path: [String] = []
-    @State private var isNaming = false
-    @State private var newName = ""
+    @State private var isCreatingMatter = false
+    @State private var toast: String?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -31,19 +31,13 @@ struct ProjectListView: View {
                 }
             }
             .navigationTitle(ProjectListViewModel.Copy.title)
-            .alert(ProjectListViewModel.Copy.newMatter, isPresented: $isNaming) {
-                TextField("Name — Helios v. Northgrid", text: $newName)
-                Button("Cancel", role: .cancel) { newName = "" }
-                Button("Create") {
-                    let name = newName
-                    newName = ""
-                    guard let model else { return }
-                    Task {
-                        if let id = await model.create(named: name) { path.append(id) }
-                    }
+            .sheet(isPresented: $isCreatingMatter) {
+                NewMatterSheet(existing: model?.projects ?? []) { projectID, message in
+                    toast = message
+                    path.append(projectID)
+                    Task { await model?.load() }
                 }
-            } message: {
-                Text("A name is all it needs. The court case, the client and the rest are added in the workspace.")
+                .pageSizedSheet()
             }
             // On the root rather than inside `content`, so it is there in every state — including
             // the spinner before the first load returns, and the failure view if it never does.
@@ -57,6 +51,7 @@ struct ProjectListView: View {
                     Task { await model?.load() }
                 }
             }
+            .recordToast($toast)
             .task {
                 guard model == nil else { return }
                 let created = ProjectListViewModel(
@@ -110,15 +105,11 @@ struct ProjectListView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    isNaming = true
+                    isCreatingMatter = true
                 } label: {
                     Label(ProjectListViewModel.Copy.newMatter, systemImage: "plus")
                 }
-                .disabled(model.isCreating)
             }
-        }
-        .onChange(of: model.createError) { _, error in
-            if error != nil { isNaming = false }
         }
     }
 
@@ -135,7 +126,7 @@ struct ProjectListView: View {
             }
         } else {
             Button {
-                isNaming = true
+                isCreatingMatter = true
             } label: {
                 Label(ProjectListViewModel.Copy.newMatter, systemImage: "plus")
             }
