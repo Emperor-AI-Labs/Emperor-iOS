@@ -16,7 +16,7 @@ import SwiftUI
 ///   wrong one. So each carries its own "Done" at `.cancellationAction`, and You owns the one
 ///   sheet they are presented in.
 enum ToolDestination: String, Identifiable {
-    case deck, corporateCalendar, library, fetchOrders, projects, tools, analysis, fileTools, ocr, translate, eAuctions
+    case deck, corporateCalendar, library, fetchOrders, projects, tools, analysis, limitationRadar, mcaRegistry, fileTools, ocr, translate, eAuctions
 
     var id: String { rawValue }
 
@@ -33,6 +33,10 @@ enum ToolDestination: String, Identifiable {
         case .tools: return "All tools"
         // The server-run Doc Index, List of Dates and Devil's Advocate, with their history.
         case .analysis: return "Analysis tools"
+        // Is a suit in time, and by how much — date arithmetic against the Limitation Act.
+        case .limitationRadar: return "Limitation Radar"
+        // Decode a CIN offline; open the companies named in liquidation notices.
+        case .mcaRegistry: return "MCA Registry"
         case .fileTools: return "File tools"
         case .ocr: return "OCR"
         case .translate: return "Translate"
@@ -50,6 +54,8 @@ enum ToolDestination: String, Identifiable {
         case .projects: return "folder.badge.gearshape"
         case .tools: return "wrench.and.screwdriver"
         case .analysis: return "exclamationmark.shield"
+        case .limitationRadar: return "hourglass"
+        case .mcaRegistry: return "building.2"
         case .fileTools: return "scissors"
         case .ocr: return "doc.text.viewfinder"
         case .translate: return "character.bubble"
@@ -68,6 +74,8 @@ enum ToolDestination: String, Identifiable {
         case .projects: ProjectListView()
         case .tools: ToolsListView()
         case .analysis: AnalysisHubView()
+        case .limitationRadar: LimitationRadarView()
+        case .mcaRegistry: McaRegistryView()
         case .fileTools: PDFToolsView()
         // One screen with an OCR | Translate switch at its head; each row opens it in its own mode.
         case .ocr: OCRView(mode: .ocr)
@@ -103,6 +111,8 @@ struct ToolsSections: View {
         Section {
             row(.tools)
             row(.analysis)
+            row(.limitationRadar)
+            row(.mcaRegistry)
             row(.fileTools)
             row(.ocr)
             row(.translate)

@@ -43,6 +43,9 @@ let package = Package(
                 // The web's icon tiles — the tool palette, the hash that picks a tool's colour, each
                 // tool's icon and each role's colour — from `scripts/generate-tile-fixtures.mjs`.
                 .copy("Resources/tool-tiles.json"),
+                // The Limitation Radar's suit types and answers, from the platform's `audit.js` —
+                // `scripts/generate-limitation-fixtures.mjs`.
+                .copy("Resources/limitation-radar.json"),
             ]),
     ]
 )

@@ -33,6 +33,8 @@ struct ProjectDetailView: View {
     /// "Build from documents", while its sheet is up.
     @State private var chronologyBuild: ChronologyBuildViewModel?
     @State private var isConfirmingDelete = false
+    /// The Limitation Radar, opened from Tasks as the web's "Check limitation" does.
+    @State private var isCheckingLimitation = false
 
     var body: some View {
         Group {
@@ -162,6 +164,7 @@ struct ProjectDetailView: View {
                     .pageSizedSheet()
             }
         }
+        .sheet(isPresented: $isCheckingLimitation) { LimitationRadarView().pageSizedSheet() }
         .sheet(isPresented: $isConfirmingDelete) {
             MatterDeleteSheet(model: model) {
                 onDeleted?()
@@ -511,6 +514,12 @@ struct ProjectDetailView: View {
 
     @ViewBuilder
     private func tasks(_ model: ProjectDetailViewModel) -> some View {
+        Section {
+            Button { isCheckingLimitation = true } label: {
+                IconRowLabel(title: "Check limitation", systemImage: "hourglass")
+            }
+        }
+        .listRowBackground(theme.surface)
         if model.tasks.isEmpty {
             Section {
                 emptyLine("Nothing to do yet. Add a task, a filing or a limitation date.")

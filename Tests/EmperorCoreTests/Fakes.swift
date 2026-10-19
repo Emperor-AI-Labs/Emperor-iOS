@@ -330,3 +330,38 @@ final class FakeLibrary: LibraryProviding, @unchecked Sendable {
         return documentData
     }
 }
+
+/// A `LimitationRadarProviding` that answers with what it is given and records what it was sent.
+final class FakeLimitationRadar: LimitationRadarProviding, @unchecked Sendable {
+    var audit: LimitationAudit?
+    var error: Error?
+    private(set) var requests: [LimitationRequest] = []
+
+    func audit(_ request: LimitationRequest) async throws -> LimitationAudit {
+        requests.append(request)
+        if let error { throw error }
+        guard let audit else { throw APIError.decoding("No audit configured.") }
+        return audit
+    }
+}
+
+/// A `SupportFeedbackProviding` that records each report and answers as told.
+final class FakeSupportFeedback: SupportFeedbackProviding, @unchecked Sendable {
+    struct Sent: Equatable {
+        var description: String
+        var kind: SupportFeedbackKind
+        var pageURL: String
+        var attachments: [SupportAttachment]
+    }
+    var error: Error?
+    private(set) var sent: [Sent] = []
+
+    func submit(
+        description: String, kind: SupportFeedbackKind, pageURL: String,
+        attachments: [SupportAttachment]
+    ) async throws -> Int? {
+        sent.append(Sent(description: description, kind: kind, pageURL: pageURL, attachments: attachments))
+        if let error { throw error }
+        return sent.count
+    }
+}
