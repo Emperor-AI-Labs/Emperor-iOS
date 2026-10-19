@@ -317,3 +317,18 @@ final class DocxExportTests: XCTestCase {
             "the nested item appears once, not once per level")
     }
 }
+
+// MARK: - Word page breaks
+
+final class DocxPageBreakTests: XCTestCase {
+
+    func testAPageBreakDivBecomesAWordPageBreak() throws {
+        XCTAssertTrue(DocxDocument.breaksPageBefore(["style": "page-break-before: always"]))
+        XCTAssertTrue(DocxDocument.breaksPageBefore(["style": "break-before:page"]))
+        XCTAssertFalse(DocxDocument.breaksPageBefore(["style": "text-align:center"]))
+
+        let xml = String(decoding: DocxDocument.make(
+            fromHTML: "<p>one</p>" + #"<div style="page-break-before:always"></div>"# + "<p>two</p>"), as: UTF8.self)
+        XCTAssertEqual(xml.components(separatedBy: #"<w:br w:type="page"/>"#).count - 1, 1)
+    }
+}

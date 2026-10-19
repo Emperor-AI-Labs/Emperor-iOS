@@ -76,6 +76,8 @@ final class Session {
     let limitationRadar: LimitationRadarService
     /// "Report a bug" — the support inbox the web's Help menu writes to.
     let supportFeedback: SupportFeedbackService
+    /// The List of Annexures under a draft, and the filing-ready package — see `FilingPackage`.
+    let filingAnnexures: FilingAnnexureService
 
     let cache: ResponseCache
 
@@ -131,6 +133,7 @@ final class Session {
         self.analysis = AnalysisService(client: client)
         self.limitationRadar = LimitationRadarService(client: client)
         self.supportFeedback = SupportFeedbackService(client: client)
+        self.filingAnnexures = FilingAnnexureService(client: client)
         self.store = store
         self.cache = cache
         self.signInFlow = SignInFlow(auth: auth)
