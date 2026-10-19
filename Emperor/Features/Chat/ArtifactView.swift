@@ -15,9 +15,14 @@ struct ArtifactDetailView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
     let artifact: StreamArtifact
+    /// The conversation the draft was written in, which is what its annexures are kept under.
+    /// Without one — a draft opened from history — there is no filing-ready package to offer.
+    var chatID: String?
     @Environment(\.dismiss) private var dismiss
 
     @State private var showsCitations = true
+    @State private var annexures: AnnexureListViewModel?
+    @State private var packageExport: FilingPackageExport?
     private let preferences = Preferences()
 
     private var hasCitations: Bool { DraftCitations.hasMarkers(artifact.body) }
@@ -84,14 +89,30 @@ struct ArtifactDetailView: View {
                         content: artifact.body,
                         isHTML: artifact.format == .html,
                         title: artifact.title,
-                        offersCitationChoice: hasCitations)
+                        offersCitationChoice: hasCitations,
+                        packageExport: packageExport,
+                        hasAnnexures: annexures?.isVisible ?? false)
                 }
             }
+            .filingPackageStatus(packageExport, title: artifact.title)
             .onAppear {
                 showsCitations = DraftCitationsPreference.showsCitations(
                     in: preferences, userID: session.currentUser?.id)
             }
+            .task { await loadAnnexures() }
         }
+    }
+}
+
+extension ArtifactDetailView {
+    /// Reads the draft's annexures, so the download menu knows whether to offer the package.
+    /// Drafts only: a table is not filed.
+    fileprivate func loadAnnexures() async {
+        guard let chatID, artifact.kind == .canvas, annexures == nil else { return }
+        let list = AnnexureListViewModel(chatID: chatID, service: session.filingAnnexures)
+        annexures = list
+        packageExport = FilingPackageExport(chatID: chatID, service: session.filingAnnexures)
+        await list.load()
     }
 }
 

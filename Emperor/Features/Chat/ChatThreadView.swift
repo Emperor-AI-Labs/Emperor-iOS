@@ -143,6 +143,9 @@ struct ChatThreadView: View {
 
     private func thread(_ model: ChatViewModel) -> some View {
         @Bindable var model = model
+        // The List of Annexures goes under one answer: the last finished draft.
+        let draftAnswerID = AnnexureListViewModel.draftAnswerID(
+            in: model.messages, isStreaming: model.isStreaming)
 
         return VStack(spacing: 0) {
             ScrollViewReader { proxy in
@@ -165,7 +168,8 @@ struct ChatThreadView: View {
                                 onAskAgain: askAgain(after: message, in: model),
                                 followUps: followUps(after: message, in: model),
                                 onFollowUp: { question in send(question, in: model) },
-                                onCopied: { toast = "Copied with its sources" })
+                                onCopied: { toast = "Copied with its sources" },
+                                showsAnnexures: message.stableID == draftAnswerID)
                                 .id(message.stableID)
                                 .transition(Motion.rise(reduceMotion: reduceMotion))
                         }
@@ -710,6 +714,9 @@ private struct MessageBubble: View {
     var followUps: [String] = []
     var onFollowUp: (String) -> Void = { _ in }
     var onCopied: () -> Void = {}
+    /// Whether the List of Annexures is drawn under this answer — see
+    /// `AnnexureListViewModel.draftAnswerID`.
+    var showsAnnexures = false
 
     @State private var isReporting = false
     @State private var sharing: SharedAnswer?
@@ -747,6 +754,9 @@ private struct MessageBubble: View {
                     ReasoningPanel(snapshot: log, isStreaming: false, liveStatus: nil)
                 }
                 answer
+                if showsAnnexures, let chatID {
+                    AnnexuresCard(chatID: chatID)
+                }
                 actions
                 if !followUps.isEmpty {
                     followUpList
@@ -817,7 +827,8 @@ private struct MessageBubble: View {
         AnswerView(
             content: StreamContent.parse(message.content),
             isStreaming: false,
-            onSelectCitation: onSelectCitation)
+            onSelectCitation: onSelectCitation,
+            chatID: chatID)
             // On the answer only. Reporting your own question would file a complaint about
             // something the model did not write.
             .contextMenu {
@@ -919,6 +930,8 @@ private struct AnswerView: View {
     let content: StreamContent
     let isStreaming: Bool
     var onSelectCitation: (AnnexureMention) -> Void = { _ in }
+    /// Handed to the full-screen draft, whose download menu offers the filing-ready package.
+    var chatID: String?
     @State private var openArtifact: StreamArtifact?
 
     var body: some View {
@@ -960,7 +973,7 @@ private struct AnswerView: View {
         // fraction of the display, which is the wrong shape for reading a pleading —
         // and the one device where there is most room to give it.
         .fullScreenCover(item: $openArtifact) { artifact in
-            ArtifactDetailView(artifact: artifact)
+            ArtifactDetailView(artifact: artifact, chatID: chatID)
         }
     }
 }

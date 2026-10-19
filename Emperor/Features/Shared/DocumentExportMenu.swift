@@ -15,6 +15,11 @@ struct DocumentExportMenu: View {
     /// Whether to ask, for each format, with or without the citation numbers — the Record
     /// draft's download menu. Offered only when the draft carries any.
     var offersCitationChoice = false
+    /// Builds the filing-ready package — the draft with every annexure it cites. Its two items
+    /// appear only when `hasAnnexures`; the package needs the network, so unlike the files above
+    /// it is made when chosen, and `FilingPackageStatus` shows the progress and the share sheet.
+    var packageExport: FilingPackageExport?
+    var hasAnnexures = false
 
     var body: some View {
         Menu {
@@ -30,6 +35,9 @@ struct DocumentExportMenu: View {
             } else {
                 pdfLink("PDF", citations: true)
                 wordLink("Word (.docx)", subtitle: nil, citations: true)
+            }
+            if let packageExport, hasAnnexures {
+                packageSection(packageExport)
             }
             Divider()
             // The document as it stands, for pasting somewhere this app knows nothing about.
@@ -65,6 +73,36 @@ struct DocumentExportMenu: View {
                 } else {
                     Label(label, systemImage: "doc.text")
                 }
+            }
+        }
+    }
+
+    /// The web's two "filing-ready package" downloads.
+    private func packageSection(_ export: FilingPackageExport) -> some View {
+        Section("Filing-ready package") {
+            packageButton("Word · filing-ready package", format: .word, export: export)
+            packageButton("PDF · filing-ready package", format: .pdf, export: export)
+        }
+        .disabled(export.isBuilding)
+    }
+
+    private func packageButton(
+        _ label: String, format: FilingPackage.Format, export: FilingPackageExport
+    ) -> some View {
+        Button {
+            // A filing copy carries no citation numbers, as the clean download does.
+            let draft = fragment(citations: false)
+            Task {
+                await export.start(format, draftHTML: draft) { pieces in
+                    try FilingPackageFile.render(pieces, as: format)
+                }
+            }
+        } label: {
+            Label {
+                Text(label)
+                Text("The draft, then every annexure")
+            } icon: {
+                Image(systemName: format == .pdf ? "doc.richtext" : "doc.text")
             }
         }
     }
