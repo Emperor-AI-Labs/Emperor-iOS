@@ -326,6 +326,30 @@ automatically — at most 50 per tool — and listed by `/analysis/history`, per
 tools; deleting a run that is already gone counts as done. The web's Highlighter page is not
 offered: it is a sample with no route behind it.
 
+### Limitation Radar
+
+Is a suit in time, and by how much? (You → Tools → Limitation Radar, and "Check limitation" on
+a matter's Tasks; `LimitationRadarService`, `LimitationRadarViewModel`.) The answer is date
+arithmetic against the Schedule to the Limitation Act, 1963, computed by the platform — no model
+is involved, so the same dates give the same answer twice. The client sends the suit type and
+bare `YYYY-MM-DD` days (a picker shown in India's zone, so the day picked is the day sent),
+checks the two required dates first in the web's words, and shows the platform's own sentence
+when it refuses a timeline. The verdict has three colours, not two: amber means "in time only if
+the Section 12A mediation exclusion applies". The suit types and the result card's wording are
+held to the platform's `audit.js`, run under Node by `scripts/generate-limitation-fixtures.mjs`.
+
+### MCA Registry
+
+Decode any Corporate Identity Number on the phone, and open the companies named in IBBI
+liquidation auction notices (You → Tools → MCA Registry; `McaRegistryViewModel`). The decoder
+needs no network. Companies are gathered from one page of at most 200 notices exactly as the web
+gathers them — by CIN in capitals, else by name, keeping the longest spelling and the latest
+issue date — and the screen says when more notices match than that page holds. A company's page
+re-reads its notices by the CIN as stored, and each opens the eAuctions notice screen. Registered
+office, directors, charges and filing history are MCA master data, which this product has no
+licensed source for; the screen names each gap rather than filling it. There is no "watch this
+company" control — auction watchlists stay held back (below).
+
 ### A caution on reading the platform
 
 The platform's own `AGENTS.md` was corrected on 2026-08-25 and now carries a `file:line`
@@ -447,11 +471,8 @@ up without reading why it is held.**
 A different thing from the list above, and worth keeping separate: nobody decided to withhold
 these. They are finished, and no screen was ever connected to them. Treat them as work to land
 rather than as decisions to respect.
-- **CIN decoder** (`Sources/EmperorCore/Cin.swift`). An offline Corporate Identity Number parser
-  ported from the platform's `src/lib/cin.js` by way of the Android client's `Cin.kt`, with 515
-  lines of tests. Every field is decoded and each result carries its own verification note — for
-  a caller that does not exist. The platform reaches this at `/mca-registry`; Android ships it as
-  a drawer row. `AuctionDetailView` renders a CIN as a bare string and never decodes it.
+- **A CIN on an eAuctions notice is not decoded.** The decoder (`Cin.swift`) now has a screen,
+  the MCA Registry, but `AuctionDetailView` still renders a notice's CIN as a bare string.
 
 ### Waiting on the server
 - **`POST /delete-account` does not exist.** This blocks App Store listing outright under
