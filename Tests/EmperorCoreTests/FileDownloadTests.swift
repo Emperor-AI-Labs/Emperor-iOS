@@ -283,6 +283,33 @@ final class FileDownloadWordingTests: XCTestCase {
         XCTAssertNil(FileDownloadWording.filename(fromContentDisposition: nil))
     }
 
+    /// A zip's end record, as an archiver writes it, holding `count` entries.
+    private func zipBytes(entries count: UInt8, comment: String = "") -> Data {
+        var bytes: [UInt8] = [0x50, 0x4B, 0x03, 0x04] + Array(repeating: 0, count: 40)
+        bytes += [0x50, 0x4B, 0x05, 0x06, 0, 0, 0, 0, count, 0, count, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        let commentBytes = Array(comment.utf8)
+        bytes += [UInt8(commentBytes.count), 0] + commentBytes
+        return Data(bytes)
+    }
+
+    func testAZipsEntriesAreCounted() {
+        XCTAssertEqual(FileDownloadWording.zipEntryCount(zipBytes(entries: 3)), 3)
+        XCTAssertEqual(FileDownloadWording.zipEntryCount(zipBytes(entries: 2, comment: "made here")), 2)
+        XCTAssertNil(FileDownloadWording.zipEntryCount(Data("PK".utf8)))
+        XCTAssertNil(FileDownloadWording.zipEntryCount(Data(repeating: 1, count: 100)))
+    }
+
+    /// The route leaves out what it cannot find and still answers 200, so a short zip is said.
+    func testAShortZipIsSaid() {
+        let archive = DownloadedFile(fileName: "documents.zip", data: zipBytes(entries: 2))
+        XCTAssertEqual(
+            FileDownloadWording.shortfallNotice(asked: 3, archive: archive),
+            "1 of the 3 documents was no longer in your library, so documents.zip holds 2.")
+        XCTAssertNil(FileDownloadWording.shortfallNotice(asked: 2, archive: archive))
+        XCTAssertNil(FileDownloadWording.shortfallNotice(
+            asked: 5, archive: DownloadedFile(fileName: "x.zip", data: Data("PK".utf8))))
+    }
+
     func testTheRootIsSpelledAsADot() {
         XCTAssertEqual(FileZipEntry(zipStored("Loose.pdf")).folderName, ".")
         XCTAssertEqual(FileZipEntry(zipStored("A/B/C.pdf")).folderName, "A/B")

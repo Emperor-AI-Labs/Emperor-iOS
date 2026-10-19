@@ -512,7 +512,7 @@ final class MyFilesViewModel {
             let archive = try await downloads.zip(files: files, suggestedName: name)
             self?.sharing = SharedDocument(fileName: archive.fileName, data: archive.data)
             delivered = true
-            return nil
+            return FileDownloadWording.shortfallNotice(asked: files.count, archive: archive)
         }
         return delivered
     }

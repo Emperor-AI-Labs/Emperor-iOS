@@ -149,6 +149,36 @@ enum FileDownloadWording {
         return stem + "_searchable.pdf"
     }
 
+    /// How many documents a zip holds, read from its end-of-central-directory record; `nil` when
+    /// the bytes do not end like a zip.
+    ///
+    /// The zip route leaves out any document it cannot find and still answers 200, so the count
+    /// is the only way to know a zip of three holds two.
+    static func zipEntryCount(_ data: Data) -> Int? {
+        let bytes = [UInt8](data)
+        // The record is 22 bytes plus a comment of at most 65,535.
+        guard bytes.count >= 22 else { return nil }
+        let lowest = max(0, bytes.count - 22 - 65_535)
+        var index = bytes.count - 22
+        while index >= lowest {
+            if bytes[index] == 0x50, bytes[index + 1] == 0x4B,
+               bytes[index + 2] == 0x05, bytes[index + 3] == 0x06 {
+                return Int(bytes[index + 10]) | Int(bytes[index + 11]) << 8
+            }
+            index -= 1
+        }
+        return nil
+    }
+
+    /// Said when a zip came back holding fewer documents than were asked for. `nil` when it holds
+    /// them all, or when its count cannot be read.
+    static func shortfallNotice(asked: Int, archive: DownloadedFile) -> String? {
+        guard let held = zipEntryCount(archive.data), held < asked else { return nil }
+        let missing = asked - held
+        return "\(missing) of the \(asked) documents \(missing == 1 ? "was" : "were") no longer in "
+            + "your library, so \(archive.fileName) holds \(held)."
+    }
+
     /// `Wadhwa` → `Wadhwa.zip`, as the web names a folder's zip.
     static func zipName(for name: String) -> String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)

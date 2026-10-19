@@ -255,4 +255,13 @@ final class FolderUploadPlanTests: XCTestCase {
             plan.decisions(hashes: [nil, nil], results: [], existing: []),
             [.upload, .upload])
     }
+
+    /// The upload panel heads a folder upload's nested folders with their path.
+    func testTheUploadPanelNamesANestedFolderByItsPath() {
+        var batch = UploadBatch()
+        let now = Date()
+        batch.add(id: "1", name: "Order.pdf", size: 10, folderName: "Clients/Wadhwa_Matter/Orders", at: now)
+        batch.add(id: "2", name: "Plaint.pdf", size: 10, folderName: "Clients/Wadhwa_Matter", at: now)
+        XCTAssertEqual(batch.groups.map(\.title), ["Clients / Wadhwa Matter / Orders", "Clients / Wadhwa Matter"])
+    }
 }
