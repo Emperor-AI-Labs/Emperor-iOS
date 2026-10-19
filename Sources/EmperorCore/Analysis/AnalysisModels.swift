@@ -233,6 +233,15 @@ struct AnalysisRunSummary: Decodable, Equatable, Sendable, Identifiable {
         guard names.count > 2 else { return names.joined(separator: ", ") }
         return names.prefix(2).joined(separator: ", ") + " +\(names.count - 2)"
     }
+
+    /// The line under a history row's title: the tool (in a list of every tool), when, what.
+    func metaLine(showsTool: Bool, now: Date = Date()) -> String {
+        var parts: [String] = []
+        if showsTool { parts.append(tool.title) }
+        if let date = createdDate { parts.append(DisplayText.relative(date, from: now)) }
+        if !fileLine.isEmpty { parts.append(fileLine) }
+        return parts.joined(separator: " · ")
+    }
 }
 
 /// One saved run with its result.

@@ -165,6 +165,20 @@ final class AnalysisRunViewModelTests: XCTestCase {
         }
     }
 
+    func testTryAgainAfterAFailedRunStartsItAgainWithTheSameInputs() async {
+        await withRun { fake, model in
+            fake.script([analysisJob(.error, error: "busy")])
+            model.setFiles([analysisUploads])
+            model.reference = "note"
+            await model.start()
+            fake.script([analysisJob(.done, result: AnalysisFixtures.devilsAdvocate)])
+            await model.retry()
+            XCTAssertEqual(fake.starts.count, 2)
+            XCTAssertEqual(fake.starts.last?.2, "note")
+            guard case .done = model.phase else { return XCTFail("\(model.phase)") }
+        }
+    }
+
     func testAJobTheServerLostSaysToRunItAgain() async {
         await withRun { fake, model in
             fake.script([analysisJob(.reading), .failure(APIError.server(status: 404, message: AnalysisService.lostJobMessage))])
@@ -302,6 +316,13 @@ final class AnalysisRunViewModelTests: XCTestCase {
             let opened = await model.open(runID: "anr_missing")
             XCTAssertFalse(opened)
             XCTAssertEqual(model.phase, .failed(AnalysisFailure(message: AnalysisService.runGoneMessage)))
+
+            // "Try again" opens it again rather than starting a run with no documents.
+            let summary = AnalysisRunSummary(id: "anr_missing", tool: .listOfDates)
+            fake.store(AnalysisRun(summary: summary, result: AnalysisFixtures.value(AnalysisFixtures.listOfDates)))
+            await model.retry()
+            guard case .done = model.phase else { return XCTFail("\(model.phase)") }
+            XCTAssertTrue(fake.starts.isEmpty)
 
             fake.store(AnalysisRun(summary: .init(id: "anr_bad", tool: .listOfDates), result: .object([:])))
             let bad = await model.open(runID: "anr_bad")

@@ -85,6 +85,8 @@ final class AnalysisRunViewModel {
     private(set) var phase: Phase = .idle
     /// The saved run being opened, by id.
     private(set) var opening: String?
+    /// The saved run that last failed to open, so "Try again" opens it again.
+    private var failedRunID: String?
 
     private let service: any AnalysisProviding
     private let pollInterval: TimeInterval
@@ -148,8 +150,18 @@ final class AnalysisRunViewModel {
 
     // MARK: - Running
 
+    /// "Try again": the saved run that failed to open, else the run itself.
+    func retry() async {
+        if let runID = failedRunID {
+            await open(runID: runID)
+        } else {
+            await start()
+        }
+    }
+
     func start() async {
         guard canRun else { return }
+        failedRunID = nil
         generation += 1
         let mine = generation
         let files = self.files
@@ -206,6 +218,7 @@ final class AnalysisRunViewModel {
     func cancel() {
         generation += 1
         opening = nil
+        failedRunID = nil
         phase = .idle
     }
 
@@ -239,15 +252,18 @@ final class AnalysisRunViewModel {
         generation += 1
         let mine = generation
         opening = runID
+        failedRunID = nil
         do {
             let run = try await service.run(id: runID)
             guard mine == generation else { return false }
             show(run)
             if case .done = phase { return true }
+            failedRunID = runID
             return false
         } catch {
             guard mine == generation else { return false }
             opening = nil
+            failedRunID = runID
             phase = .failed(Self.failure(error))
             return false
         }

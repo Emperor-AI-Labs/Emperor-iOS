@@ -258,6 +258,8 @@ final class AnalysisModelTests: XCTestCase {
         XCTAssertEqual(s.adverse, 2)
         XCTAssertEqual(s.span, "2021 → 2099")
         XCTAssertEqual(try listOfDates().matterLine, "Helios v. Northgrid | CS(COMM) 412/2025, High Court of Delhi")
+        XCTAssertEqual(try listOfDates().summaryLine, "5 events · 2 rules & orders · 2021 → 2099 · 1 by Helios · 2 third parties · 2 adverse")
+        XCTAssertEqual(try listOfDates(AnalysisFixtures.listOfDatesBare).summaryLine, "1 event · 0 rules & orders · 2024 · 1 by our side · 0 third parties · 0 adverse")
     }
 
     func testBoldIsSplitIntoRunsAndStrippedForText() throws {
@@ -373,6 +375,9 @@ final class AnalysisModelTests: XCTestCase {
         XCTAssertEqual(row.fileLine, "My Plaint.pdf, b.pdf +2")
         XCTAssertNotNil(row.createdDate)
         XCTAssertEqual(AnalysisRunSummary(id: "x", tool: .listOfDates).displayTitle, "Untitled run")
+        let now = try XCTUnwrap(WireDate.parse("2026-10-16T11:30:00.000Z"))
+        XCTAssertEqual(row.metaLine(showsTool: true, now: now), "Doc Index · 2 hours ago · My Plaint.pdf, b.pdf +2")
+        XCTAssertEqual(row.metaLine(showsTool: false, now: now), "2 hours ago · My Plaint.pdf, b.pdf +2")
     }
 
     func testTheProvenanceLineIsTheWebs() {

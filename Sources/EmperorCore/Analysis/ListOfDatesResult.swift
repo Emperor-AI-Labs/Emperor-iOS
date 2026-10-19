@@ -224,10 +224,25 @@ struct ListOfDatesResult: Decodable, Equatable, Sendable {
             from: dated.first?.year ?? "", to: dated.last?.year ?? "")
     }
 
+    /// "Number, Forum", each part only when present.
+    var matterTail: String {
+        [matter.number, matter.forum].filter { !$0.isEmpty }.joined(separator: ", ")
+    }
+
     /// "Title | Number, Forum", each part only when present.
     var matterLine: String {
-        let tail = [matter.number, matter.forum].filter { !$0.isEmpty }.joined(separator: ", ")
-        return [matter.title, tail].filter { !$0.isEmpty }.joined(separator: " | ")
+        [matter.title, matterTail].filter { !$0.isEmpty }.joined(separator: " | ")
+    }
+
+    /// "5 events · 2 rules & orders · 2021 → 2025 · 1 by Helios · 2 third parties · 2 adverse"
+    /// — the web's summary strip.
+    var summaryLine: String {
+        let s = summary
+        let ours = parties.ours.isEmpty ? "by our side" : "by \(parties.ours)"
+        var parts = ["\(s.events) event\(s.events == 1 ? "" : "s")", "\(s.rules) rules & orders"]
+        if !s.span.isEmpty { parts.append(s.span) }
+        parts += ["\(s.ours) \(ours)", "\(s.others) third parties", "\(s.adverse) adverse"]
+        return parts.joined(separator: " · ")
     }
 
     var inSumRuns: [RichRun] { RichRun.runs(inSum) }
