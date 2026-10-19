@@ -282,6 +282,14 @@ Full detail in `README.md`. The short list:
 34. **`POST /court/lookup` saves nothing and needs a verified sign-in.** It takes the same card
     `/save-case` does, nested under `card` (`CourtSearchResult.cardFields` builds both), answers
     honest status codes with a `code`, and caches a record for ten minutes. See `CourtLookup`.
+35. **The Library is `/library/catalogue/*`** (`lib/library/routes.js`), not the older
+    `/library/{categories,browse,file}`. Any signed-in user may read it; every route answers
+    `401 auth_required` to a dead token, which this client treats as a sign-out like any other.
+    Errors are JSON `{error}` with a code (`LibraryCatalogueError`): `/cover` says `cover_pending`
+    (+ `Retry-After`) while it renders and `no_cover` when it never will — only the first is
+    worth retrying; `/judgment` says `file_missing` for a row whose text is not on the host and
+    `too_large` past 8 MB; a row's `ext` carries the dot (`.pdf`). `/file` answers a JSON 404 for
+    a missing file, so the reading room HEADs first and sniffs the bytes. See `LibraryService`.
 
 ## Runtime connectivity
 
