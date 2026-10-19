@@ -84,6 +84,8 @@ final class Session {
     let cloudDrives: CloudDriveService
     /// Several documents as one zip, and a PDF's searchable copy (My Files package).
     let fileDownloads: FileDownloadService
+    /// Draft editing: an edited draft written back to its conversation and its Drafts row.
+    let draftEdits: DraftEditService
 
     let cache: ResponseCache
 
@@ -143,6 +145,7 @@ final class Session {
         self.sharedChats = SharedChatService(client: client)
         self.cloudDrives = CloudDriveService(client: client)  // Connected services package
         self.fileDownloads = FileDownloadService(client: client)  // My Files package
+        self.draftEdits = DraftEditService(client: client)
         self.store = store
         self.cache = cache
         self.signInFlow = SignInFlow(auth: auth)

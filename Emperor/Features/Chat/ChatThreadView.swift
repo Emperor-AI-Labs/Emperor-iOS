@@ -23,6 +23,10 @@ struct ChatThreadView: View {
     @State private var stoppedByReader = false
     @State private var isChoosingMode = false
     @State private var toast: String?
+    /// The draft open full screen. Held here rather than on the answer it came from: an edit
+    /// rewrites that answer, and with it the identity the transcript draws it under, which
+    /// would otherwise take the open draft down with the old row.
+    @State private var openDraft: OpenDraft?
     /// The composer's keyboard. Lowered when a question is sent, so the answer has the screen.
     /// Nothing raises it again: tapping the field does that on its own, which is the behaviour
     /// the platform already gives a focusable field and the one a reader expects.
@@ -100,7 +104,8 @@ struct ChatThreadView: View {
                 // reached — never sent. See `ChatViewModel.savedCopyAt`.
                 offline: session.offlineCopies?.conversations,
                 connectivity: AppConnectivity.current,
-                projectID: projectID)
+                projectID: projectID,
+                draftEdits: session.draftEdits)
             // Asked for in the role the user practises in, and only that: the conversation
             // offers no role of its own to pick, so the one chosen in Settings governs every
             // answer. Without this every conversation would open as a litigator regardless of
@@ -176,7 +181,12 @@ struct ChatThreadView: View {
                                 followUps: followUps(after: message, in: model),
                                 onFollowUp: { question in send(question, in: model) },
                                 onCopied: { toast = "Copied with its sources" },
-                                showsAnnexures: message.stableID == draftAnswerID)
+                                showsAnnexures: message.stableID == draftAnswerID,
+                                onOpenArtifact: { artifact in
+                                    openDraft = OpenDraft(
+                                        artifact: artifact,
+                                        target: model.draftEditTarget(for: message))
+                                })
                                 .id(message.stableID)
                                 .transition(Motion.rise(reduceMotion: reduceMotion))
                         }
@@ -306,6 +316,12 @@ struct ChatThreadView: View {
             }
         }
         .recordToast($toast)
+        // Full screen, not a sheet — see `AnswerView`. The last draft opens editable.
+        .fullScreenCover(item: $openDraft) { draft in
+            ArtifactDetailView(
+                artifact: draft.artifact, chatID: chatID, editTarget: draft.target,
+                conversation: model)
+        }
         .alert("Ask this again?", isPresented: Binding(
             get: { editing != nil },
             set: { if !$0 { editing = nil } }
@@ -745,6 +761,8 @@ private struct MessageBubble: View {
     /// Whether the List of Annexures is drawn under this answer — see
     /// `AnnexureListViewModel.draftAnswerID`.
     var showsAnnexures = false
+    /// Opens a draft from this answer. Nil leaves the answer to open it itself.
+    var onOpenArtifact: ((StreamArtifact) -> Void)?
 
     /// The feedback sheet, open on the rating its thumb asked for — or on none.
     @State private var feedback: FeedbackOpening?
@@ -862,7 +880,8 @@ private struct MessageBubble: View {
             content: StreamContent.parse(message.content),
             isStreaming: false,
             onSelectCitation: onSelectCitation,
-            chatID: chatID)
+            chatID: chatID,
+            onOpenArtifact: onOpenArtifact)
             // On the answer only. Reporting your own question would file a complaint about
             // something the model did not write.
             .contextMenu {
@@ -978,6 +997,8 @@ struct AnswerView: View {
     var onSelectCitation: (AnnexureMention) -> Void = { _ in }
     /// Handed to the full-screen draft, whose download menu offers the filing-ready package.
     var chatID: String?
+    /// Opens a draft somewhere that outlives this answer; nil opens it from here.
+    var onOpenArtifact: ((StreamArtifact) -> Void)?
     @State private var openArtifact: StreamArtifact?
 
     var body: some View {
@@ -996,7 +1017,11 @@ struct AnswerView: View {
 
             ForEach(content.artifacts) { artifact in
                 Button {
-                    openArtifact = artifact
+                    if let onOpenArtifact {
+                        onOpenArtifact(artifact)
+                    } else {
+                        openArtifact = artifact
+                    }
                 } label: {
                     ArtifactCard(artifact: artifact)
                 }
@@ -1022,6 +1047,13 @@ struct AnswerView: View {
             ArtifactDetailView(artifact: artifact, chatID: chatID)
         }
     }
+}
+
+/// A draft opened full screen, and the turn it can take an edit back into, if any.
+private struct OpenDraft: Identifiable {
+    let id = UUID()
+    let artifact: StreamArtifact
+    let target: DraftEditTarget?
 }
 
 /// Drafts and chronologies are delivered as separate documents rather than inline prose, so
