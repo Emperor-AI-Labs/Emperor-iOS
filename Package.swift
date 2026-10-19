@@ -49,6 +49,9 @@ let package = Package(
                 // The composer and export options — draft length, research sources, page setup —
                 // from `scripts/generate-{draft-depth,research-sources,page-setup}-fixtures.mjs`.
                 .copy("Resources/composer"),
+                // What a folder upload drops as operating-system debris, and where each of its
+                // files lands — `scripts/generate-upload-junk-fixtures.mjs`.
+                .copy("Resources/upload-folder"),
             ]),
     ]
 )

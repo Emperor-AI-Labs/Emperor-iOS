@@ -17,6 +17,27 @@ struct DuplicateReview: Identifiable {
     var cleared: [(url: URL, fileName: String)]
     /// Where all of them are going.
     let folder: String
+    /// For a folder upload: where each file goes instead, by its URL.
+    var folders: [URL: String] = [:]
+    /// For a folder upload: the picked folder, whose access covers every file inside it.
+    var scope: URL?
+}
+
+/// A folder picked for upload: its plan, and where each planned file's bytes are.
+struct PickedFolderUpload: Identifiable {
+    let id = UUID()
+    /// The picked folder. Its security scope covers every file inside it.
+    let root: URL
+    let plan: FolderUploadPlan
+    /// Each planned file's URL, by its relative path.
+    let urls: [String: URL]
+
+    /// The planned files, in order, with their bytes and their landing folders.
+    var documents: [(url: URL, fileName: String, folder: String)] {
+        plan.entries.compactMap { entry in
+            urls[entry.relativePath].map { ($0, entry.fileName, entry.folderName) }
+        }
+    }
 }
 
 /// Putting documents into the library — shared by the attach picker and My Files, so the two
@@ -79,8 +100,16 @@ enum LibraryUploadFlow {
 
     /// Hands each document to the background uploader, which copies it before returning.
     ///
+    /// - Parameters:
+    ///   - folders: for a folder upload, each file's own landing folder; `folder` otherwise.
+    ///   - scope: for a folder upload, the picked folder, held open while its files are copied.
     /// - Returns: the first failure, worded for the user, or `nil` if every one started.
-    static func upload(_ files: [(url: URL, fileName: String)], into folder: String) async -> String? {
+    static func upload(
+        _ files: [(url: URL, fileName: String)], into folder: String,
+        folders: [URL: String] = [:], scope: URL? = nil
+    ) async -> String? {
+        let scopeOpen = scope?.startAccessingSecurityScopedResource() ?? false
+        defer { if scopeOpen { scope?.stopAccessingSecurityScopedResource() } }
         var failure: String?
         for file in files {
             let scoped = file.url.startAccessingSecurityScopedResource()
@@ -93,12 +122,101 @@ enum LibraryUploadFlow {
             }
             do {
                 try await BackgroundUploader.shared.start(
-                    source: file.url, fileName: file.fileName, folderName: folder)
+                    source: file.url, fileName: file.fileName,
+                    folderName: folders[file.url] ?? folder)
             } catch {
                 failure = failure ?? DisplayText.message(for: error)
             }
         }
         return failure
+    }
+
+    // MARK: - Folders
+
+    /// Reads a picked folder: every file inside it, at any depth, by its path from the folder
+    /// down — the folder's own name first, as a browser's folder pick names them — and the plan
+    /// `FolderUploadPlan` makes of them. Nothing is copied here; the uploader copies each file
+    /// as it starts.
+    static func pickedFolder(at url: URL, into destination: String) -> PickedFolderUpload {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+
+        let rootName = url.lastPathComponent
+        let base = url.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+        let keys: [URLResourceKey] = [.isRegularFileKey, .fileSizeKey]
+        var found: [(path: String, url: URL, size: Int)] = []
+        if let walker = FileManager.default.enumerator(
+            at: url, includingPropertiesForKeys: keys, options: [.skipsPackageDescendants]) {
+            for case let fileURL as URL in walker {
+                guard let values = try? fileURL.resourceValues(forKeys: Set(keys)),
+                      values.isRegularFile == true
+                else { continue }
+                let parts = fileURL.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+                guard parts.count > base.count, Array(parts.prefix(base.count)) == base else { continue }
+                let relative = ([rootName] + parts.dropFirst(base.count)).joined(separator: "/")
+                found.append((relative, fileURL, values.fileSize ?? 0))
+            }
+        }
+        found.sort { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+
+        let plan = FolderUploadPlan(
+            sources: found.map { FolderUploadPlan.Source(relativePath: $0.path, size: $0.size) },
+            destination: destination)
+        var urls: [String: URL] = [:]
+        for item in found where urls[item.path] == nil { urls[item.path] = item.url }
+        return PickedFolderUpload(root: url, plan: plan, urls: urls)
+    }
+
+    /// The duplicate question for a folder upload — `review` for a batch whose files land in
+    /// several folders. The rules are `FolderUploadPlan.decisions`; as with `review`, every
+    /// failure here uploads.
+    ///
+    /// - Parameter existing: the library as last read, for a clash below the destination.
+    static func reviewFolder(
+        _ picked: PickedFolderUpload, duplicates: any DuplicateChecking,
+        existing: [FileNode.StoredFile]
+    ) async -> DuplicateReview? {
+        let documents = picked.documents
+        let scoped = picked.root.startAccessingSecurityScopedResource()
+        let hashes = documents.map { FileHash.sha256(of: $0.url) }
+        if scoped { picked.root.stopAccessingSecurityScopedResource() }
+
+        let checkable = zip(documents, hashes).compactMap { document, hash in
+            hash.map { (name: document.fileName, hash: $0) }
+        }
+        let results = (try? await duplicates.check(
+            files: checkable, targetFolder: picked.plan.destination)) ?? []
+        let decisions = picked.plan.decisions(hashes: hashes, results: results, existing: existing)
+
+        var flagged: [DuplicateReviewSheet.Item] = []
+        var cleared: [(url: URL, fileName: String)] = []
+        for (document, decision) in zip(documents, decisions) {
+            if case .upload = decision {
+                cleared.append((document.url, document.fileName))
+            } else {
+                flagged.append(DuplicateReviewSheet.Item(
+                    url: document.url, fileName: document.fileName, decision: decision,
+                    upload: false))
+            }
+        }
+        guard !flagged.isEmpty else { return nil }
+        var review = DuplicateReview(items: flagged, cleared: cleared, folder: picked.plan.destination)
+        review.folders = folderMap(picked)
+        review.scope = picked.root
+        return review
+    }
+
+    /// Every planned file of a picked folder, each into its own folder.
+    static func uploadFolder(_ picked: PickedFolderUpload) async -> String? {
+        await upload(
+            picked.documents.map { ($0.url, $0.fileName) }, into: picked.plan.destination,
+            folders: folderMap(picked), scope: picked.root)
+    }
+
+    private static func folderMap(_ picked: PickedFolderUpload) -> [URL: String] {
+        var map: [URL: String] = [:]
+        for document in picked.documents { map[document.url] = document.folder }
+        return map
     }
 
     // MARK: - Photos

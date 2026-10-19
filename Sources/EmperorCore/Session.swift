@@ -82,6 +82,8 @@ final class Session {
     let sharedChats: SharedChatService
     /// Connected services: Google Drive and OneDrive, import and export — see `CloudDriveService`.
     let cloudDrives: CloudDriveService
+    /// Several documents as one zip, and a PDF's searchable copy (My Files package).
+    let fileDownloads: FileDownloadService
 
     let cache: ResponseCache
 
@@ -140,6 +142,7 @@ final class Session {
         self.filingAnnexures = FilingAnnexureService(client: client)
         self.sharedChats = SharedChatService(client: client)
         self.cloudDrives = CloudDriveService(client: client)  // Connected services package
+        self.fileDownloads = FileDownloadService(client: client)  // My Files package
         self.store = store
         self.cache = cache
         self.signInFlow = SignInFlow(auth: auth)

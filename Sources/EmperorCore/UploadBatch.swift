@@ -127,9 +127,11 @@ struct UploadBatch: Equatable, Sendable {
 
         var id: String { folderName }
 
-        /// The destination, or "My Files (root)" for the top of the library.
+        /// The destination, or "My Files (root)" for the top of the library. A folder upload's
+        /// nested folders read as a path — "Clients / Wadhwa / Orders" — so two "Orders" folders
+        /// from one upload can be told apart.
         var title: String {
-            folderName.isEmpty ? "My Files (root)" : DisplayText.fileName(folderName)
+            folderName.isEmpty ? "My Files (root)" : FolderUploadPlan.breadcrumb(folderName)
         }
 
         /// "2/5" while any is sending, "5 files" once none is.

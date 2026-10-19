@@ -302,6 +302,13 @@ Full detail in `README.md`. The short list:
     closes — that is the only signal. The `/cloud/*` refusals are sentences meant for the person
     (409 not connected or too little access, 404 no such document) that name the web's Settings;
     `CloudDriveWording` points them at You → Connected services. See `CloudDriveService`.
+39. **`POST /download-files` leaves out what it cannot find and still answers 200** — 404 only
+    when none is found. Count the zip's entries (`FileDownloadWording.zipEntryCount`) rather than
+    trusting the status. `/download-searchable` answers its errors in plain text, and sends a PDF
+    that is already its searchable version as stored. See `FileDownloadService`.
+40. **A folder upload's structure is its `folderName`** — `Clients/Wadhwa/Orders`, slashes and
+    all; the folders are made on arrival. Operating-system files are refused (415), so
+    `FolderUploadPlan` drops them first by `junkNames.js`' rules (`UploadJunk`, golden-tested).
 
 ## Runtime connectivity
 

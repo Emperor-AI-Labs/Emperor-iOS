@@ -152,6 +152,23 @@ consent page; the drive redirects to the server, which keeps the token and then 
 again once the browser is closed. The `/cloud/*` refusals are sentences for the person (409 for
 a drive that is not connected or granted too little, 404 for a missing document) and name the
 web's Settings, so this client points them at You → Connected services (`CloudDriveWording`).
+**`POST /download-files` leaves out what it cannot find and still answers 200.** A zip of three
+documents may hold two; only when none is found does it answer 404. Its entries are flat, so a
+second document of the same name is stored under its folder's path. This client reads the
+archive's end record to count what arrived (`FileDownloadWording.zipEntryCount`) and says when
+it is short. The route takes its credential from the `Authorization` header alone.
+
+**`GET /download-searchable` answers errors in plain text**, not JSON (400 for a missing
+parameter, 404 for a missing file or one that is not a PDF), and a PDF that is already its own
+searchable version — or has no scanned pages — comes back as stored, renamed
+`<name>_searchable.pdf`. The searchable copy differs from the plain download only for a PDF with
+scanned pages that has not yet been made searchable in place.
+
+**A folder upload's structure travels in `folderName`.** Each file is sent with the folder it
+lands in, slashes and all (`Clients/Wadhwa/Orders`), and the folders are made on arrival.
+Operating-system files (`.DS_Store`, `._Award.pdf`, anything under `__MACOSX/`) are refused with
+a 415, so `FolderUploadPlan` drops them before the count is shown, by the platform's own rules
+(`UploadJunk`, held to `junkNames.js` by golden data).
 
 ### Accounts, plans and refusals
 
@@ -582,6 +599,30 @@ how it went; a plan refusal stops the run rather than repeating it for every fil
 is not offered as a destination, as for uploads. A document's menu offers "Save to Google Drive"
 and "Save to OneDrive" for the connected drives — the web offers Google Drive alone. Cloud Sync is
 outside the Free plan, and that refusal arrives as a `Refusal`, worded by this client.
+### My Files: folders in, zips and searchable copies out
+
+- **Upload a folder.** My Files' Add menu offers "Upload a folder" beside Files and Photos. The
+  folder is read on the phone, planned by `FolderUploadPlan` — the web's `destinationFor`: every
+  file lands in a folder named by its path, under the picked folder's own name unless the
+  destination already ends in it; at the top level the folder lands under its own name, the one
+  case where the top of My Files is offered — and confirmed with the count, the place, the size
+  and what was left out (a type the library does not hold, over 500 MB, past 200 files).
+  Operating-system debris is dropped without a word. The duplicate check runs as for files: the
+  server's "would replace" counts for files landing directly in the destination, and the library
+  as last read answers for the folders beneath it. Each file then goes to `BackgroundUploader`
+  with its own folder, and the upload panel heads each folder with its path.
+- **Download several as a zip.** Select turns the rows into checkboxes; "Download N as zip" sends
+  them to `POST /download-files` and hands `documents.zip` to the share sheet. A folder's long
+  press offers "Download as zip", which sends every document beneath it and names the archive
+  after the folder, as the web does.
+- **Searchable PDF.** A PDF's long press in My Files, and the document viewer's footer, fetch
+  `GET /download-searchable` and share `<name>_searchable.pdf`: the same pages with an invisible
+  text layer over the scanned ones, so a reader outside the app can search and copy them. For a
+  digital PDF, or one already made searchable on arrival, it is the stored file renamed.
+- **A matter's documents** can be renamed and deleted from its Files section — swipe, long press
+  or VoiceOver action — through the routes My Files uses, addressed by the matter's own folder
+  (`_projects/<id>/…`), with the web's matter-worded confirmation. Uploading into a matter stays
+  out, as on the web: documents come in from My Files.
 
 ### Built and deliberately held back
 These exist, are tested, and have no caller. Each is marked at its definition. **Do not wire one

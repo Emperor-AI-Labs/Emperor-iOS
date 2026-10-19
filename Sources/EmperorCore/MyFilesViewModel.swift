@@ -105,20 +105,24 @@ final class MyFilesViewModel {
     private let cache: ResponseCache?
     private let offline: OfflineDocuments?
     private let officePreview: (any OfficePreviewProviding)?
+    private let downloads: (any FileDownloading)?
 
     /// - Parameters:
     ///   - cache: where the library is kept between launches, so it can be browsed offline.
     ///   - offline: where this account keeps documents for reading offline.
     ///   - officePreview: the converter, so a Word document is saved for offline as the viewer
     ///     shows it.
+    ///   - downloads: the zip and searchable-PDF downloads; without it neither is offered.
     init(
         service: any FileProviding,
         manager: any FileManaging,
         now: @escaping @Sendable () -> Date = { Date() },
         cache: ResponseCache? = nil,
         offline: OfflineDocuments? = nil,
-        officePreview: (any OfficePreviewProviding)? = nil
+        officePreview: (any OfficePreviewProviding)? = nil,
+        downloads: (any FileDownloading)? = nil
     ) {
+        self.downloads = downloads
         self.service = service
         self.manager = manager
         self.now = now
@@ -157,6 +161,7 @@ final class MyFilesViewModel {
         // A document's reading percentage never steps back within a stage between two reads.
         let fresh = ingestLatch.apply(to: fresh)
         tree = fresh
+        pruneSelection()
         cachedAt = nil
         cache?.save(fresh, for: .fileTree)
         offline?.prune(keepingPaths: Set(FileService.allFiles(in: fresh).map(\.path)))
@@ -397,6 +402,119 @@ final class MyFilesViewModel {
             self.sharing = SharedDocument(fileName: file.name, data: data)
             return nil
         }
+    }
+
+    // MARK: - Downloads
+
+    /// Whether the zip and searchable-PDF downloads are offered at all.
+    var offersDownloads: Bool { downloads != nil }
+
+    /// Whether a document has a searchable copy to offer: a PDF, as the web's viewer decides.
+    func offersSearchableCopy(of file: FileNode.StoredFile) -> Bool {
+        downloads != nil && FileDownloadWording.offersSearchableCopy(fileName: file.name)
+    }
+
+    /// Fetches a PDF's searchable copy — its scanned pages carrying an invisible text layer, so
+    /// they can be searched and copied from in any reader — and hands it to the share sheet.
+    ///
+    /// A PDF with no scanned pages, or one already stored as its searchable version, comes back
+    /// as it is: the server never lays the text on twice.
+    func shareSearchableCopy(of file: FileNode.StoredFile) async {
+        guard let downloads else { return }
+        await perform(on: file.path) { [weak self] _ in
+            let copy = try await downloads.searchablePDF(name: file.name, folderName: file.folderPath)
+            self?.sharing = SharedDocument(fileName: copy.fileName, data: copy.data)
+            return nil
+        }
+    }
+
+    // MARK: - Selecting several
+
+    /// Whether the rows are checkboxes rather than links.
+    private(set) var isSelecting = false
+    /// The chosen documents, by path.
+    private(set) var selectedPaths: Set<String> = []
+
+    func beginSelecting() {
+        isSelecting = true
+        selectedPaths = []
+    }
+
+    func endSelecting() {
+        isSelecting = false
+        selectedPaths = []
+    }
+
+    func isSelected(_ file: FileNode.StoredFile) -> Bool { selectedPaths.contains(file.path) }
+
+    func toggleSelection(_ file: FileNode.StoredFile) {
+        guard isSelecting else { return }
+        if selectedPaths.contains(file.path) {
+            selectedPaths.remove(file.path)
+        } else {
+            selectedPaths.insert(file.path)
+        }
+    }
+
+    /// The chosen documents still in the library, in library order.
+    var selectedFiles: [FileNode.StoredFile] {
+        FileService.allFiles(in: tree).filter { selectedPaths.contains($0.path) }
+    }
+
+    /// "Select documents", "1 selected", "3 selected".
+    var selectionTitle: String {
+        selectedPaths.isEmpty ? "Select documents" : "\(selectedPaths.count) selected"
+    }
+
+    /// "Download 3 as zip" — or, for one, "Download as zip".
+    var zipSelectionLabel: String {
+        selectedPaths.count > 1 ? "Download \(selectedPaths.count) as zip" : "Download as zip"
+    }
+
+    /// Lets go of a choice whose document has left the library.
+    private func pruneSelection() {
+        guard !selectedPaths.isEmpty else { return }
+        let present = Set(FileService.allFiles(in: tree).map(\.path))
+        selectedPaths.formIntersection(present)
+    }
+
+    /// Every document under a folder, at any depth, as the zip route names them — the web's
+    /// `filesUnder`.
+    func zipPlan(for folder: FolderSummary) -> [FileZipEntry] {
+        FileBrowser.files(under: folder.path, in: tree).map(FileZipEntry.init)
+    }
+
+    /// The chosen documents as one zip, for the share sheet. Ends selecting once it has arrived.
+    func downloadSelectionAsZip() async {
+        let files = selectedFiles
+        guard !files.isEmpty else {
+            actionError = "Choose at least one document to download."
+            return
+        }
+        let delivered = await downloadZip(files.map(FileZipEntry.init), named: nil, busy: "zip")
+        if delivered { endSelecting() }
+    }
+
+    /// A folder's documents, sub-folders and all, as one zip named after the folder.
+    func downloadAsZip(_ folder: FolderSummary) async {
+        let files = zipPlan(for: folder)
+        guard !files.isEmpty else {
+            actionNotice = "\(folder.displayName) holds no documents to download."
+            return
+        }
+        _ = await downloadZip(files, named: folder.name, busy: folder.path)
+    }
+
+    private func downloadZip(_ files: [FileZipEntry], named name: String?, busy: String) async -> Bool {
+        guard let downloads else { return false }
+        var delivered = false
+        await perform(on: busy) { [weak self] _ in
+            let archive = try await downloads.zip(files: files, suggestedName: name)
+            self?.sharing = SharedDocument(fileName: archive.fileName, data: archive.data)
+            delivered = true
+            return FileDownloadWording.shortfallNotice(asked: files.count, archive: archive)
+        }
+        return delivered
     }
 
     // MARK: - Offline
