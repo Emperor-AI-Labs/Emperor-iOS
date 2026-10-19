@@ -13,6 +13,7 @@ struct YouView: View {
 
     @State private var tool: ToolDestination?
     @State private var isConfirmingSignOut = false
+    @State private var isReportingBug = false
 
     private let preferences = Preferences()
 
@@ -116,6 +117,16 @@ struct YouView: View {
                         IconRowLabel(title: Disclaimer.title, systemImage: "exclamationmark.shield")
                     }
                     .accessibilityIdentifier("settings-disclaimer")
+                    Button {
+                        isReportingBug = true
+                    } label: {
+                        HStack(spacing: Spacing.sm) {
+                            IconRowLabel(title: "Report a bug", systemImage: "ladybug")
+                            RowChevron()
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel(Text("Report a bug"))
                 } header: {
                     SectionHeader(title: "More")
                 } footer: {
@@ -156,6 +167,10 @@ struct YouView: View {
             .navigationBarTitleDisplayMode(.large)
             .sheet(item: $tool) { chosen in
                 chosen.screen
+                    .pageSizedSheet()
+            }
+            .sheet(isPresented: $isReportingBug) {
+                BugReportSheet(screen: "You")
                     .pageSizedSheet()
             }
             .confirmationDialog(
