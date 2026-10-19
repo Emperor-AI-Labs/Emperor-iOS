@@ -327,6 +327,8 @@ Settings → Storage shows and clears it.
   against the host, not the API base. A reset happened only if the answer says `rotated: true`.
 - **`/cause-list` text fields can arrive as numbers** — the server copies some straight out of
   stored JSON. `CauseListing` decodes either.
+- **A court row's `data` is text on `/case` and an object on `/project`.** `courtHistory` arrives
+  already parsed; a strict string decode failed the whole matter. `CaseItem` keeps either.
 
 ### Analysis tools
 
@@ -435,8 +437,9 @@ the caller from the token alone.
 Some features are built and tested but deliberately have no path to them from any screen —
 auction watchlists among them; "Built and deliberately held back" below has the list. Each is
 marked at its definition with the reason. **Do not wire one up without confirming the endpoint
-contract first.** File and folder deletion, translation history and the calendar subscription
-link were held back the same way, and were released once their contracts were confirmed.
+contract first.** File and folder deletion, translation history, the calendar subscription
+link and marking a statutory deadline done were held back the same way, and were released once
+their contracts were confirmed.
 
 The specifics — what is outstanding, and in what order — are tracked privately rather than here.
 
@@ -486,6 +489,37 @@ plan rows it never reached pending, where the web ticks every row.
   simulator does not evict apps the way a phone under memory pressure does.
   `docs/RELEASING.md` lists what to try, in order.
 
+### Companies, fee receipts and the matter's record
+
+- **The Corporate Calendar takes companies.** Add company / Edit company describes one — six
+  switches (listed, employees, GST, foreign dealings, tax audit, CSR), the state and the AGM
+  date — and the chosen company's statutory deadlines are generated on the device for 60 days
+  back and 366 ahead (`ComplianceSchedule`, a port of the web's `complianceSchedule.js`, held to
+  it by `scripts/generate-compliance-schedule-fixtures.mjs`). Companies stay on the device under
+  the web's own storage keys, as the web keeps them in the browser; nothing about them is sent.
+  The feed's own copy of any obligation the generator produces is dropped once a company is
+  chosen, as on the web.
+- **A deadline is marked done, or open again,** from its row (swipe) or its page.
+  `POST /compliance-event` upserts a row whose id is the deadline's own,
+  `stat:<obligation>:<YYYY-MM-DD>` — the generator's id for a company deadline
+  (`stat:aoc4:2026-10-30`), the pipeline's code for a feed row (`stat:GSTR1:2026-10-11`) — with
+  its title, its category as `type` (`filing` when it has none), the day, `done` or `open`, the
+  marker's existing notes and `remindDays: null`. No team is named, so a new marker is filed
+  under the user's own team; ticking again rewrites the same row. A refused tick is taken back.
+- **A payment prints as a fee receipt** (the "…" beside it → Fee receipt): the web's document
+  (`FeeReceipt`, held to `receipt.js` and `inr.js` byte for byte by
+  `scripts/generate-fee-receipt-fixtures.mjs`), laid out as an A4 PDF and offered through the
+  share sheet. An entry's attached slip or challan (`receipt_file`) is named under it and opens
+  in the viewer.
+- **The Chronology exports a List of Dates & Events** as Word or PDF: the user's entries, the
+  AI's and the court's orders by default, listings and notes on request, under the court and
+  cause title with DD.MM.YYYY dates (`ChronologyExport`, the web's `listOfDatesHtml`).
+- **The Overview draws the matter's timeline**: the chronology and the court's record up to
+  today, newest first, sides alternating, a marker at each year, the next hearing on top, and
+  every row saying whether it came from the court, the user or the documents
+  (`OverviewTimeline`). The merge, the export and the timeline are pinned by
+  `scripts/generate-matter-record-fixtures.mjs`. The web's horizontal timeline is not offered.
+
 ### Built and deliberately held back
 These exist, are tested, and have no caller. Each is marked at its definition. **Do not wire one
 up without reading why it is held.**
@@ -498,8 +532,6 @@ up without reading why it is held.**
 - **Auction watchlists.**
 - **Sharing a conversation.** These are privileged legal conversations; held back until the
   endpoint contract is confirmed. No screen creates a share link.
-- **Marking a statutory deadline done** on the Corporate calendar. The screen reads the web's
-  done markers but does not write them, until the endpoint contract is confirmed.
 - **The compliance pipeline's history page.** The web's version reads from a service the app
   cannot reach.
 

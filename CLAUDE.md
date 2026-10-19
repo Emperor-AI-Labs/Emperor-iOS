@@ -147,8 +147,9 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   `generate-worklog-fixtures.mjs` (the work log the web stores with each answer, and a
   `/messages` body),
   `generate-phone-fixtures.mjs`, `generate-tile-fixtures.mjs` (tool tile colours and symbols),
-  `generate-cause-list-fixtures.mjs`, `generate-compliance-feed-fixture.mjs` and
-  `generate-file-date-fixtures.mjs`. When a golden test fails after a platform change,
+  `generate-cause-list-fixtures.mjs`, `generate-compliance-feed-fixture.mjs`,
+  `generate-compliance-schedule-fixtures.mjs`, `generate-fee-receipt-fixtures.mjs`,
+  `generate-matter-record-fixtures.mjs` and `generate-file-date-fixtures.mjs`. When a golden test fails after a platform change,
   regenerate; do not edit the fixture to match.
 - **The UI is seen through CI, on an iPhone and an iPad.** Every UI test and
   `UITests/ScreenshotTour.swift` (every main screen, both themes) run on both devices. The
@@ -290,6 +291,9 @@ Full detail in `README.md`. The short list:
     worth retrying; `/judgment` says `file_missing` for a row whose text is not on the host and
     `too_large` past 8 MB; a row's `ext` carries the dot (`.pdf`). `/file` answers a JSON 404 for
     a missing file, so the reading room HEADs first and sniffs the bytes. See `LibraryService`.
+36. **A court row's `data` is a string on `/case` and an object on `/project`.** `GET /project`'s
+    `courtHistory` parses `case_items.data` before sending it; a strict `String?` threw and the
+    whole matter failed to load. `CaseItem`'s decoder keeps either as text.
 
 ## Runtime connectivity
 
