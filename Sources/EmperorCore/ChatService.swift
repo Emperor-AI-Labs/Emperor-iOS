@@ -186,6 +186,19 @@ protocol ChatProviding: Sendable {
         attachments: [ChatAttachment]?,
         webSearch: Bool
     ) async throws -> AsyncThrowingStream<ChatTurnEvent, Error>
+    /// The same turn, asked inside a matter: `projectID` names it on the request, so the turn
+    /// reads the matter's documents and the conversation is filed under the matter. `nil` is an
+    /// ordinary conversation. Stand-ins that do not care get the default below, which forwards
+    /// to the six-argument form.
+    func send(
+        history: [ChatMessage],
+        chatID: String,
+        model: ChatModel,
+        role: ChatRole?,
+        attachments: [ChatAttachment]?,
+        webSearch: Bool,
+        projectID: String?
+    ) async throws -> AsyncThrowingStream<ChatTurnEvent, Error>
     /// Stores a finished turn's work log on its answer, the way the web does. Never throws and
     /// never surfaces: see `WorkLogSync` for when it declines, and why that is always silent.
     ///
@@ -203,6 +216,22 @@ protocol ChatProviding: Sendable {
 }
 
 extension ChatProviding {
+    /// Drops the matter, for stand-ins that do not exercise it. `ChatService` implements the
+    /// seven-argument form itself, so this is never what a real turn goes through.
+    func send(
+        history: [ChatMessage],
+        chatID: String,
+        model: ChatModel,
+        role: ChatRole?,
+        attachments: [ChatAttachment]?,
+        webSearch: Bool,
+        projectID: String?
+    ) async throws -> AsyncThrowingStream<ChatTurnEvent, Error> {
+        try await send(
+            history: history, chatID: chatID, model: model, role: role,
+            attachments: attachments, webSearch: webSearch)
+    }
+
     /// A stand-in that stores nothing, for fakes that do not exercise saving.
     func saveWorkLog(
         _ fields: [String: JSONValue],
@@ -290,9 +319,8 @@ struct ChatService: ChatProviding, ChatListProviding {
             attachments: attachments, webSearch: webSearch, projectID: nil)
     }
 
-    /// The same turn, asked inside a matter. The `ChatProviding` witness above is the
-    /// six-argument shape every caller and stand-in implements; this is where the matter goes
-    /// once a screen can name one (docs/projects.md, "Chat plumbing").
+    /// The same turn, asked inside a matter (docs/projects.md, "Chat plumbing"). This is the
+    /// form `ChatViewModel` calls; the six-argument one above forwards here with no matter.
     func send(
         history: [ChatMessage],
         chatID: String,

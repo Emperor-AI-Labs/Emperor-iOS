@@ -106,6 +106,10 @@ final class ChatViewModel {
     var restoredDraft: String?
 
     let chatID: String
+    /// The matter this conversation belongs to, when it was opened from one. Named on every
+    /// turn — the first, every follow-up, an edit and a re-answer alike — because a turn sent
+    /// without it is read without the matter's documents.
+    let projectID: String?
     var attachments: [ChatAttachment] = []
 
     /// The documents to name above the composer, which is none once the conversation has started.
@@ -174,6 +178,7 @@ final class ChatViewModel {
     ///   - detached: where removals are remembered. Without it a removal lasts the session only.
     ///   - offline: where this account keeps conversations for reading offline.
     ///   - connectivity: whether the device is known to have no connection.
+    ///   - projectID: the matter this conversation was opened from, if any.
     init(
         chatID: String,
         service: any ChatProviding,
@@ -182,9 +187,12 @@ final class ChatViewModel {
         detached: (any DetachedDocuments)? = nil,
         preferredModel: String? = nil,
         offline: OfflineStore? = nil,
-        connectivity: (any ConnectivityReporting)? = nil
+        connectivity: (any ConnectivityReporting)? = nil,
+        projectID: String? = nil
     ) {
         self.chatID = chatID
+        let trimmedProject = projectID?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.projectID = (trimmedProject?.isEmpty ?? true) ? nil : trimmedProject
         self.service = service
         self.files = files
         self.uploads = uploads
@@ -498,7 +506,8 @@ final class ChatViewModel {
                     model: self.model,
                     role: self.role,
                     attachments: outbound,
-                    webSearch: self.webSearch)
+                    webSearch: self.webSearch,
+                    projectID: self.projectID)
 
                 for try await event in stream {
                     switch event {
