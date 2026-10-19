@@ -4,12 +4,8 @@ import XCTest
 import FoundationNetworking
 #endif
 
-/// The in-app report channel for a generated answer.
-///
-/// Both stores require one for a product that produces AI content, and this app had none. The
-/// interesting behaviour is not the happy path — it is that this route answers **200 with
-/// `ok: false`** when it rejects, so a client that trusts the status code tells the user a
-/// report was filed that was not.
+/// Feedback on a draft or an answer — `POST /draft-feedback`, as the web's `DraftFeedbackButton`
+/// sends it, and the sheet in front of it.
 final class FeedbackTests: XCTestCase {
 
     private static let config = APIConfig(baseURL: URL(string: "https://example.test/api")!)
@@ -32,101 +28,253 @@ final class FeedbackTests: XCTestCase {
         return FeedbackService(client: client)
     }
 
-    func testAReportPostsTheReasonAsACategory() async throws {
+    private static func feedback(
+        rating: DraftFeedbackRating? = .down, categories: [DraftFeedbackCategory] = [.citations],
+        comment: String = "Para 14 cites nothing.", html: String? = "<h1>WRIT PETITION</h1>"
+    ) -> DraftFeedback {
+        DraftFeedback(
+            chatID: "chat-1", documentID: nil, documentTitle: "Writ Petition", rating: rating,
+            categories: categories, comment: comment, docHTML: html)
+    }
+
+    // MARK: - The wire
+
+    func testTheBodyIsTheWebs() async throws {
         let service = await makeService()
         HTTPStub.always(.json(#"{"ok":true,"id":7}"#))
 
-        try await service.reportAnswer(
-            chatID: "chat-1", reason: .fabricatedCitation, comment: "Para 14 cites nothing.")
+        let id = try await service.send(Self.feedback(categories: [.formatting, .citations]))
 
+        XCTAssertEqual(id, 7)
         let sent = try XCTUnwrap(HTTPStub.lastRequest)
         XCTAssertEqual(sent.path, "/api/draft-feedback")
         let body = sent.bodyJSON
-        XCTAssertEqual(body["categories"] as? [String], ["fabricated-citation"])
+        XCTAssertEqual(body["userId"] as? String, "42")
         XCTAssertEqual(body["chatId"] as? String, "chat-1")
-        XCTAssertEqual(body["comment"] as? String, "Para 14 cites nothing.")
-    }
-
-    /// `rating` is coerced to null server-side unless it is exactly `up` or `down`, and a null
-    /// rating with an empty comment is a 400. A report is always a complaint.
-    func testTheRatingIsAlwaysDown() async throws {
-        let service = await makeService()
-        HTTPStub.always(.json(#"{"ok":true}"#))
-
-        try await service.reportAnswer(chatID: "c", reason: .harmful, comment: "")
-
-        let body = try XCTUnwrap(HTTPStub.lastRequest).bodyJSON
+        XCTAssertEqual(body["documentTitle"] as? String, "Writ Petition")
         XCTAssertEqual(body["rating"] as? String, "down")
+        XCTAssertEqual(body["categories"] as? [String], ["Formatting", "Citations"])
+        XCTAssertEqual(body["comment"] as? String, "Para 14 cites nothing.")
+        XCTAssertEqual(body["docHtml"] as? String, "<h1>WRIT PETITION</h1>")
+        // Present and null, as the web sends it when it has no saved id.
+        XCTAssertTrue(body.keys.contains("documentId"))
+        XCTAssertTrue(body["documentId"] is NSNull)
     }
 
-    /// The reported answer is already stored against the chat id. Sending it again would copy
-    /// privileged client material into a second table for no reviewer benefit.
-    func testTheAnswerTextIsNotSent() async throws {
-        let service = await makeService()
-        HTTPStub.always(.json(#"{"ok":true}"#))
+    func testTheSixCategoriesAreTheWebsWords() {
+        XCTAssertEqual(
+            DraftFeedbackCategory.allCases.map(\.rawValue),
+            ["Formatting", "Accuracy", "Structure", "Citations", "Annexures", "Other"])
+        XCTAssertEqual(DraftFeedbackRating.up.label, "Good")
+        XCTAssertEqual(DraftFeedbackRating.down.label, "Needs work")
+    }
 
-        try await service.reportAnswer(chatID: "c", reason: .wrongLaw, comment: "wrong section")
+    /// A comment with no rating is enough; the rating goes as null.
+    func testNoRatingIsSentAsNull() async throws {
+        let service = await makeService()
+        HTTPStub.always(.json(#"{"ok":true,"id":1}"#))
+
+        try await service.send(Self.feedback(rating: nil, categories: []))
 
         let body = try XCTUnwrap(HTTPStub.lastRequest).bodyJSON
-        XCTAssertNil(body["docHtml"], "the answer's text must not travel with the report")
+        XCTAssertTrue(body["rating"] is NSNull)
+        XCTAssertEqual(body["categories"] as? [String], [])
     }
 
-    /// The server truncates rather than rejects, so an uncapped field loses its tail with no
-    /// error. Capped client-side, where the sheet can say so before the tap.
-    func testALongCommentIsCappedRatherThanTruncatedServerSide() async throws {
+    /// An answer with no draft sends no text: the conversation id is how a reviewer finds it.
+    func testAnAnswerWithNoDraftSendsNoText() async throws {
         let service = await makeService()
         HTTPStub.always(.json(#"{"ok":true}"#))
 
-        try await service.reportAnswer(
-            chatID: "c", reason: .other,
-            comment: String(repeating: "x", count: FeedbackService.commentLimit + 500))
+        try await service.send(Self.feedback(html: nil))
+
+        XCTAssertEqual(try XCTUnwrap(HTTPStub.lastRequest).bodyJSON["docHtml"] as? String, "")
+    }
+
+    /// The server trims rather than refuses, so both are capped before they are uploaded.
+    func testTheCommentAndTheDraftAreCappedAtTheServersLimits() async throws {
+        let service = await makeService()
+        HTTPStub.always(.json(#"{"ok":true}"#))
+
+        try await service.send(Self.feedback(
+            comment: String(repeating: "x", count: FeedbackService.commentLimit + 500),
+            html: String(repeating: "é", count: FeedbackService.htmlLimit + 10)))
 
         let body = try XCTUnwrap(HTTPStub.lastRequest).bodyJSON
         XCTAssertEqual((body["comment"] as? String)?.count, FeedbackService.commentLimit)
+        XCTAssertEqual((body["docHtml"] as? String)?.utf16.count, FeedbackService.htmlLimit)
     }
 
-    /// **The one that matters.** A rejection arrives as 200, so branching on the status code
-    /// would report failure as success.
-    func testARejectionArrivingAsTwoHundredStillThrows() async {
+    /// A cut never splits a character in two — an emoji is two UTF-16 units.
+    func testTheDraftIsCutOnACharacterBoundary() {
+        let html = String(repeating: "a", count: FeedbackService.htmlLimit - 1) + "🙂🙂"
+        let capped = FeedbackService.cappedHTML(html)
+        XCTAssertEqual(capped.utf16.count, FeedbackService.htmlLimit - 1)
+        XCTAssertFalse(capped.contains("🙂"))
+    }
+
+    /// The route's refusal: 400 with `ok: false` and its reason, which reaches the person.
+    func testARefusalCarriesTheServersReason() async {
+        let service = await makeService()
+        HTTPStub.always(.json(#"{"ok":false,"error":"Pick a rating or write a comment"}"#, status: 400))
+
+        do {
+            try await service.send(Self.feedback(rating: nil, comment: ""))
+            XCTFail("a 400 must throw")
+        } catch {
+            XCTAssertTrue("\(error)".contains("Pick a rating or write a comment"), "\(error)")
+        }
+    }
+
+    /// "Sent" is only what the server said it stored.
+    func testATwoHundredWithoutOkStillThrows() async {
         let service = await makeService()
         HTTPStub.always(.json(#"{"ok":false,"error":"Missing parameters"}"#))
 
         do {
-            try await service.reportAnswer(chatID: "c", reason: .other, comment: "x")
-            XCTFail("a 200 with ok:false must not be treated as a filed report")
+            try await service.send(Self.feedback())
+            XCTFail("ok:false must not read as sent")
         } catch {
-            XCTAssertTrue(
-                "\(error)".contains("Missing parameters"),
-                "the server's own reason should reach the user, got \(error)")
+            XCTAssertTrue("\(error)".contains("Missing parameters"))
         }
     }
 
     func testAServerErrorThrows() async {
         let service = await makeService()
-        HTTPStub.always(.json(#"{"error":"nope"}"#, status: 500))
+        HTTPStub.always(.json(#"{"ok":false,"error":"nope"}"#, status: 500))
 
         do {
-            try await service.reportAnswer(chatID: "c", reason: .other, comment: "x")
+            try await service.send(Self.feedback())
             XCTFail("a 500 must throw")
         } catch {}
     }
 
-    /// A report from a screen that has no conversation behind it still has to be filable —
-    /// `chatId` is nullable on the route.
-    func testAReportWithNoChatStillSends() async throws {
-        let service = await makeService()
-        HTTPStub.always(.json(#"{"ok":true}"#))
+    // MARK: - What it is about
 
-        try await service.reportAnswer(chatID: nil, reason: .other, comment: "general")
+    func testADraftsTargetCarriesItsHTMLAndItsWord() {
+        let doc = StreamArtifact(kind: .canvas, format: .html, title: "Plaint", body: "<p>x</p>")
+        let target = DraftFeedbackTarget.artifact(doc, chatID: "c")
+        XCTAssertEqual(target.subject, "document")
+        XCTAssertEqual(target.docHTML, "<p>x</p>")
 
-        XCTAssertNotNil(HTTPStub.lastRequest)
+        let table = StreamArtifact(kind: .table, format: .markdown, title: "Dates", body: "| a | b |\n|---|---|\n| 1 | 2 |")
+        let tableTarget = DraftFeedbackTarget.artifact(table, chatID: "c")
+        XCTAssertEqual(tableTarget.subject, "table")
+        XCTAssertTrue(tableTarget.docHTML?.contains("<table") ?? false, "a Markdown table goes as HTML")
     }
 
-    func testEveryReasonIsOfferableAndHasAStableWireValue() {
-        XCTAssertEqual(ReportReason.allCases.count, 4)
-        for reason in ReportReason.allCases {
-            XCTAssertFalse(reason.label.isEmpty)
-            XCTAssertEqual(reason.rawValue, reason.rawValue.lowercased())
+    func testAnAnswerIsAboutItsDraftWhenItHasOne() {
+        let withDraft = StreamContent.parse(
+            "Here it is.\n[CANVAS_TRIGGER: Plaint]\n<canvas_content><h1>PLAINT</h1><p>Body</p></canvas_content>")
+        XCTAssertEqual(withDraft.artifacts.count, 1)
+        let target = DraftFeedbackTarget.answer(withDraft, chatID: "c")
+        XCTAssertEqual(target.subject, "document")
+        XCTAssertEqual(target.title, "Plaint")
+        XCTAssertTrue(target.docHTML?.contains("PLAINT") ?? false)
+
+        let plain = DraftFeedbackTarget.answer(StreamContent.parse("Section 9 applies."), chatID: "c")
+        XCTAssertEqual(plain.subject, "answer")
+        XCTAssertNil(plain.docHTML)
+    }
+
+    // MARK: - The sheet
+
+    func testTheSheetNeedsARatingOrAComment() async {
+        await onFeedbackMainActor {
+            let model = DraftFeedbackViewModel(target: Self.documentTarget, service: RecordingFeedback())
+            XCTAssertFalse(model.canSend)
+            model.toggle(.formatting)
+            XCTAssertFalse(model.canSend, "categories alone are not enough for the route")
+            model.comment = "  "
+            XCTAssertFalse(model.canSend)
+            model.comment = "The prayer is missing."
+            XCTAssertTrue(model.canSend)
+            model.comment = ""
+            model.toggle(.up)
+            XCTAssertTrue(model.canSend)
+            model.toggle(.up)
+            XCTAssertNil(model.rating, "tapping the chosen rating again clears it")
         }
+    }
+
+    func testCategoriesKeepTheChipOrder() async {
+        await onFeedbackMainActor {
+            let model = DraftFeedbackViewModel(target: Self.documentTarget, service: RecordingFeedback())
+            model.toggle(.other)
+            model.toggle(.accuracy)
+            model.toggle(.annexures)
+            model.toggle(.other)
+            XCTAssertEqual(model.categories, [.accuracy, .annexures])
+        }
+    }
+
+    func testSendingPassesEverythingAndASentSheetCannotSendTwice() async {
+        await onFeedbackMainActor {
+            let fake = RecordingFeedback()
+            let model = DraftFeedbackViewModel(target: Self.documentTarget, rating: .down, service: fake)
+            model.toggle(.citations)
+            model.comment = "Wrong section."
+            let sent = await model.send()
+            XCTAssertTrue(sent)
+            XCTAssertTrue(model.isSent)
+            XCTAssertEqual(fake.sent.count, 1)
+            XCTAssertEqual(fake.sent.first?.rating, .down)
+            XCTAssertEqual(fake.sent.first?.categories, [.citations])
+            XCTAssertEqual(fake.sent.first?.docHTML, "<p>Draft</p>")
+            XCTAssertEqual(fake.sent.first?.documentTitle, "Plaint")
+            XCTAssertFalse(model.canSend)
+        }
+    }
+
+    func testAFailureKeepsEverythingAndSaysWhy() async {
+        await onFeedbackMainActor {
+            let fake = RecordingFeedback()
+            fake.failure = APIError.server(status: 400, message: "Pick a rating or write a comment")
+            let model = DraftFeedbackViewModel(target: Self.documentTarget, rating: .up, service: fake)
+            model.comment = "Good"
+            let sent = await model.send()
+            XCTAssertFalse(sent)
+            XCTAssertEqual(model.error, "Pick a rating or write a comment")
+            XCTAssertEqual(model.comment, "Good")
+            XCTAssertEqual(model.rating, .up)
+        }
+    }
+
+    /// The footer says what leaves the phone: the draft's text when there is one.
+    func testThePrivacyNoteSaysWhenTheDraftIsSent() async {
+        await onFeedbackMainActor {
+            let doc = DraftFeedbackViewModel(target: Self.documentTarget, service: RecordingFeedback())
+            XCTAssertEqual(doc.title, "Feedback on this document")
+            XCTAssertTrue(doc.privacyNote.contains("text is sent"))
+
+            let answer = DraftFeedbackViewModel(
+                target: DraftFeedbackTarget(subject: "answer", title: "", chatID: "c", docHTML: nil),
+                service: RecordingFeedback())
+            XCTAssertTrue(answer.privacyNote.contains("not sent"))
+        }
+    }
+
+    private static let documentTarget = DraftFeedbackTarget(
+        subject: "document", title: "Plaint", chatID: "chat-1", docHTML: "<p>Draft</p>")
+}
+
+/// Linux XCTest cannot invoke a `@MainActor` test method — see `ChatViewModelTests`.
+@MainActor
+private func onFeedbackMainActor(_ body: @MainActor () async -> Void) async {
+    await body()
+}
+
+/// Records what the sheet sends, and fails when told to.
+private final class RecordingFeedback: FeedbackProviding, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _sent: [DraftFeedback] = []
+    var failure: Error?
+
+    var sent: [DraftFeedback] { lock.withLock { _sent } }
+
+    func send(_ feedback: DraftFeedback) async throws -> Int? {
+        if let failure { throw failure }
+        lock.withLock { _sent.append(feedback) }
+        return 1
     }
 }
