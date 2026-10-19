@@ -46,6 +46,9 @@ let package = Package(
                 // The Limitation Radar's suit types and answers, from the platform's `audit.js` —
                 // `scripts/generate-limitation-fixtures.mjs`.
                 .copy("Resources/limitation-radar.json"),
+                // A company's statutory deadlines, from the platform's `complianceSchedule.js` —
+                // `scripts/generate-compliance-schedule-fixtures.mjs`.
+                .copy("Resources/compliance-schedule"),
             ]),
     ]
 )

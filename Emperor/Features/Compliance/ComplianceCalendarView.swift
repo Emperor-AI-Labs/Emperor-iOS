@@ -18,6 +18,15 @@ struct ComplianceCalendarView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var model: ComplianceCalendarViewModel?
+    /// The Add company / Edit company sheet, while it is up.
+    @State private var editingCompany: CompanyEditing?
+
+    /// What the company sheet opens on.
+    struct CompanyEditing: Identifiable {
+        let company: CompanyProfile
+        let isNew: Bool
+        var id: String { company.id }
+    }
 
     var body: some View {
         NavigationStack {
@@ -38,8 +47,10 @@ struct ComplianceCalendarView: View {
             }
             .task {
                 guard model == nil else { return }
+                // The companies are kept on this device, as the web keeps them in the browser.
                 let created = ComplianceCalendarViewModel(
-                    service: session.complianceCalendar, cache: session.cache)
+                    service: session.complianceCalendar, cache: session.cache,
+                    companies: CompanyProfileStore(store: CaseListView.preferences))
                 model = created
                 await created.load()
             }
@@ -50,6 +61,8 @@ struct ComplianceCalendarView: View {
     private func content(_ model: ComplianceCalendarViewModel) -> some View {
         ListStateView(presentation: model.presentation, retry: { await model.load() }) {
             List {
+                companyBar(model)
+
                 Section {
                     summaryStrip(model)
                         .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
@@ -90,9 +103,12 @@ struct ComplianceCalendarView: View {
                     Section {
                         ForEach(group.deadlines) { deadline in
                             NavigationLink {
-                                ComplianceDeadlineDetailView(detail: model.detail(for: deadline))
+                                ComplianceDeadlineDetailView(model: model, deadline: deadline)
                             } label: {
                                 row(deadline, model)
+                            }
+                            .swipeActions(edge: .leading) {
+                                doneButton(deadline, model)
                             }
                         }
                     } header: {
@@ -119,8 +135,12 @@ struct ComplianceCalendarView: View {
                 systemImage: "calendar.badge.checkmark",
                 message: ComplianceCalendarViewModel.Copy.nothingTrackedDetail
             ) {
-                Button("Refresh") { Task { await model.load() } }
-                    .buttonStyle(.secondaryAction)
+                VStack(spacing: Spacing.sm) {
+                    Button("Add company") { addCompany(model) }
+                        .buttonStyle(.primaryAction)
+                    Button("Refresh") { Task { await model.load() } }
+                        .buttonStyle(.secondaryAction)
+                }
             }
         }
         .toolbar {
@@ -128,6 +148,93 @@ struct ComplianceCalendarView: View {
                 filterMenu(model)
             }
         }
+        .sheet(item: $editingCompany) { editing in
+            CompanyProfileSheet(
+                initial: editing.company, isNew: editing.isNew,
+                onSave: { model.saveCompany($0) },
+                onDelete: { model.deleteCompany(id: $0) })
+            .pageSizedSheet()
+        }
+        .alert(
+            "Not saved",
+            isPresented: Binding(
+                get: { model.writeError != nil },
+                set: { if !$0 { model.writeError = nil } }),
+            presenting: model.writeError
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { message in
+            Text(message)
+        }
+    }
+
+    // MARK: - Companies
+
+    private func addCompany(_ model: ComplianceCalendarViewModel) {
+        editingCompany = CompanyEditing(company: model.newCompany(), isNew: true)
+    }
+
+    /// The web's company bar: with no company, the invitation to add one; with some, the chosen
+    /// one, what it is, and Edit and Add.
+    @ViewBuilder
+    private func companyBar(_ model: ComplianceCalendarViewModel) -> some View {
+        Section {
+            if let active = model.activeCompany {
+                if model.companies.count > 1 {
+                    Picker("Company", selection: Binding(
+                        get: { active.id },
+                        set: { model.selectCompany($0) }
+                    )) {
+                        ForEach(model.companies) { company in
+                            Text(company.displayName).tag(company.id)
+                        }
+                    }
+                } else {
+                    ValueRow("Company", value: active.displayName)
+                }
+                Button {
+                    editingCompany = CompanyEditing(company: active, isNew: false)
+                } label: {
+                    Label("Edit company", systemImage: "pencil")
+                }
+                Button {
+                    addCompany(model)
+                } label: {
+                    Label("Add company", systemImage: "plus")
+                }
+            } else {
+                Text(model.companyLine)
+                    .font(.brand(.subheadline))
+                    .foregroundStyle(theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    addCompany(model)
+                } label: {
+                    Label("Add company", systemImage: "plus")
+                }
+            }
+        } footer: {
+            if model.activeCompany != nil {
+                Text(model.companyLine)
+                    .font(.brand(.caption))
+                    .foregroundStyle(theme.textSecondary)
+            }
+        }
+        .listRowBackground(theme.surface)
+    }
+
+    /// Mark done, or open again — the web's tick on a statutory row.
+    private func doneButton(_ deadline: StatutoryDeadline, _ model: ComplianceCalendarViewModel)
+        -> some View {
+        let done = model.isDone(deadline)
+        return Button {
+            Task { await model.toggleDone(deadline) }
+        } label: {
+            Label(done ? "Mark not done" : "Mark done",
+                  systemImage: done ? "arrow.uturn.backward" : "checkmark")
+        }
+        .tint(done ? theme.textSecondary : theme.success)
+        .disabled(model.isWriting(deadline))
     }
 
     // MARK: - Counts and chips
@@ -367,7 +474,12 @@ struct ComplianceCalendarView: View {
 struct ComplianceDeadlineDetailView: View {
     @Environment(\.theme) private var theme
 
-    let detail: DeadlineDetail
+    let model: ComplianceCalendarViewModel
+    let deadline: StatutoryDeadline
+
+    /// Read through the model, so a tick here or a refresh behind it shows at once.
+    private var current: StatutoryDeadline { model.deadline(id: deadline.id) ?? deadline }
+    private var detail: DeadlineDetail { model.detail(for: current) }
 
     var body: some View {
         List {
@@ -426,10 +538,19 @@ struct ComplianceDeadlineDetailView: View {
             }
 
             Section {
-                if detail.isDone {
-                    Label("Marked done on the web", systemImage: "checkmark.circle.fill")
+                Button {
+                    Task { await model.toggleDone(current) }
+                } label: {
+                    Label(detail.isDone ? "Done — mark not done" : "Mark done",
+                          systemImage: detail.isDone ? "checkmark.circle.fill" : "circle")
+                        .font(.brand(.subheadline, weight: .semibold))
+                        .foregroundStyle(detail.isDone ? theme.success : theme.accentText)
+                }
+                .disabled(model.isWriting(current))
+                if detail.fromCompanyProfile {
+                    Label("From your company profile", systemImage: "building.2")
                         .font(.brand(.subheadline))
-                        .foregroundStyle(theme.success)
+                        .foregroundStyle(theme.textSecondary)
                 }
                 if let verification = detail.verificationText {
                     Label(verification, systemImage: verificationSymbol)

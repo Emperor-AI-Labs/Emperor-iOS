@@ -506,6 +506,14 @@ final class FakeComplianceCalendar: ComplianceCalendarProviding, @unchecked Send
         if let markerError { throw markerError }
         return markers
     }
+
+    var savedMarkers: [StatutoryMarker] = []
+    var saveError: Error?
+
+    func saveMarker(_ marker: StatutoryMarker) async throws {
+        if let saveError { throw saveError }
+        savedMarkers.append(marker)
+    }
 }
 
 @MainActor

@@ -50,6 +50,12 @@ struct StatutoryDeadline: Codable, Equatable, Identifiable, Sendable {
     /// A `YYYY-MM-DD`, or the literal `NEEDS_VERIFICATION`.
     var lastVerifiedDate: String?
     var status: String?
+    /// Set on a deadline generated from the user's company profile when the month moves the
+    /// usual day ("TDS deducted in March is due 30 April."). Never on the wire.
+    var overrideNote: String? = nil
+    /// Generated on the device from a company the user described (`ComplianceSchedule`), not
+    /// read from the feed. Never on the wire.
+    var fromCompanyProfile = false
 
     enum CodingKeys: String, CodingKey {
         case id, name, title, frequency, notes, authority, dateKey, status
@@ -100,11 +106,14 @@ extension StatutoryDeadline {
     /// The pipeline's note on the obligation, which is where its caveats live — "QRMP filers:
     /// due 13th instead", "extended to 07-31 by RBI circular".
     var note: String? {
+        var base: String?
         for candidate in [detail, notes] {
             let trimmed = candidate?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if !trimmed.isEmpty { return trimmed }
+            if !trimmed.isEmpty { base = trimmed; break }
         }
-        return nil
+        // The web prints a month's exception after the description, as one paragraph.
+        guard let extra = overrideNote?.nilIfEmpty else { return base }
+        return base.map { "\($0) \(extra)" } ?? extra
     }
 
     var frequencyLabel: String? {
