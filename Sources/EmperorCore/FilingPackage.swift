@@ -194,6 +194,13 @@ enum FilingPackage {
             + "Attach it to the filing separately."
     }
 
+    /// "Petition — filing package.pdf".
+    static func fileName(title: String, format: Format) -> String {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let stem = trimmed.isEmpty ? "Document" : trimmed
+        return "\(stem) — filing package.\(format == .pdf ? "pdf" : "docx")"
+    }
+
     // MARK: - The pieces as markup
 
     /// Starts the next part on a fresh page, in print and in Word (`DocxDocument`).

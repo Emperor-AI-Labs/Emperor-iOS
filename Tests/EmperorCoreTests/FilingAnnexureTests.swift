@@ -561,6 +561,12 @@ final class FilingPackageTests: XCTestCase {
         XCTAssertEqual(segments[3], .image(Sample.png))
     }
 
+    func testThePackageIsNamedAfterTheDraft() {
+        XCTAssertEqual(FilingPackage.fileName(title: " Writ Petition ", format: .pdf),
+                       "Writ Petition — filing package.pdf")
+        XCTAssertEqual(FilingPackage.fileName(title: "", format: .word), "Document — filing package.docx")
+    }
+
     func testTheListEscapesTitles() {
         let html = FilingPackage.listHTML([FilingAnnexure(
             id: "1", mark: "P-1", title: "Sale deed <A & B>", treatment: .original)])

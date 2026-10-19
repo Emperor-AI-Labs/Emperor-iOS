@@ -151,10 +151,17 @@ enum PDFTools {
     /// expects, and sorting by filename would quietly reorder an annexure bundle.
     static func merge(_ urls: [URL], name: String) throws -> Output {
         guard urls.count >= 2 else { throw Failure.needsTwo }
+        let output = try merged(urls.map(open))
+        return try write(output, named: name.hasSuffix(".pdf") ? name : "\(name).pdf")
+    }
+
+    /// Joins documents already open, in the order given, copying each page structurally. Shared
+    /// by the Merge tool and the filing-ready package, which merges an annexure's original after
+    /// the draft without either being written to disk first.
+    static func merged(_ documents: [PDFDocument]) throws -> PDFDocument {
         let output = PDFDocument()
         var position = 0
-        for url in urls {
-            let source = try open(url)
+        for source in documents {
             for index in 0..<source.pageCount {
                 guard let page = source.page(at: index) else { continue }
                 output.insert(page, at: position)
@@ -162,7 +169,7 @@ enum PDFTools {
             }
         }
         guard position > 0 else { throw Failure.empty }
-        return try write(output, named: name.hasSuffix(".pdf") ? name : "\(name).pdf")
+        return output
     }
 
     // MARK: - Plumbing
