@@ -13,7 +13,7 @@ import UIKit
 /// its own, so it is drawn as it is, with the receipt's `@page` margins (16 mm by 18 mm).
 enum HTMLDocumentPDF {
     static func render(document html: String) -> Data {
-        let paper = AnswerPDF.Paper.a4.size
+        let paper = CGSize(width: 595.2, height: 841.8)  // A4 in points, as `AnswerPDF` draws it
         let insets = UIEdgeInsets(top: 45.35, left: 51.02, bottom: 45.35, right: 51.02)
         let renderer = UIPrintPageRenderer()
         let formatter = UIMarkupTextPrintFormatter(markupText: html)
