@@ -290,6 +290,13 @@ Full detail in `README.md`. The short list:
     worth retrying; `/judgment` says `file_missing` for a row whose text is not on the host and
     `too_large` past 8 MB; a row's `ext` carries the dot (`.pdf`). `/file` answers a JSON 404 for
     a missing file, so the reading room HEADs first and sniffs the bytes. See `LibraryService`.
+36. **`POST /download-files` leaves out what it cannot find and still answers 200** — 404 only
+    when none is found. Count the zip's entries (`FileDownloadWording.zipEntryCount`) rather than
+    trusting the status. `/download-searchable` answers its errors in plain text, and sends a PDF
+    that is already its searchable version as stored. See `FileDownloadService`.
+37. **A folder upload's structure is its `folderName`** — `Clients/Wadhwa/Orders`, slashes and
+    all; the folders are made on arrival. Operating-system files are refused (415), so
+    `FolderUploadPlan` drops them first by `junkNames.js`' rules (`UploadJunk`, golden-tested).
 
 ## Runtime connectivity
 
