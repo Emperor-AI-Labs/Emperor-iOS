@@ -56,6 +56,9 @@ final class CloudConnectionsViewModel {
     private(set) var notice: String?
     /// The sign-in page to show. The view presents it and calls `browserDidClose` once it goes.
     var consentPage: CloudConsentPage?
+    /// The drive whose sign-in page was opened, kept past the page itself: a sheet clears its
+    /// item before its dismissal handler runs.
+    private var awaitingDrive: CloudDrive?
 
     private let service: any CloudDriveProviding
 
@@ -101,15 +104,18 @@ final class CloudConnectionsViewModel {
         defer { busy = nil }
         do {
             consentPage = CloudConsentPage(drive: drive, url: try await service.connectURL(for: drive))
+            awaitingDrive = drive
         } catch {
             notice = CloudDriveWording.message(for: error)
         }
     }
 
     /// The sign-in page has gone — closed, or finished. Reads the connections again and says how
-    /// the drive stands.
-    func browserDidClose(_ drive: CloudDrive) async {
+    /// the drive it was for stands.
+    func browserDidClose() async {
         consentPage = nil
+        guard let drive = awaitingDrive else { return }
+        awaitingDrive = nil
         let wasConnected = connections.first { $0.drive == drive }?.connected ?? false
         await load()
         guard case .loaded = state,
@@ -214,6 +220,27 @@ enum CloudImportOutcome: Equatable, Sendable {
     case failed(String)
     /// Not tried: an earlier file was refused for a reason that would refuse this one too.
     case skipped(String)
+}
+
+extension CloudImportOutcome {
+    /// The line under the file's name. The stored name is said only when the server changed it —
+    /// it sanitises names, and the document is found in My Files under the stored one.
+    func line(for file: CloudDriveFile) -> String {
+        switch self {
+        case .waiting: return "Waiting"
+        case .importing: return "Importing…"
+        case .imported(let stored):
+            return stored == file.name ? "Imported" : "Imported as \(DisplayText.fileName(stored))"
+        case .failed(let reason), .skipped(let reason): return reason
+        }
+    }
+
+    var isProblem: Bool {
+        switch self {
+        case .failed, .skipped: return true
+        default: return false
+        }
+    }
 }
 
 /// My Files → Import from a drive: the web's import modal (`src/pages/MyFilesPage.jsx`,

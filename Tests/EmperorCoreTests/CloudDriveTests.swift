@@ -280,6 +280,16 @@ final class CloudDriveWordingTests: XCTestCase {
         XCTAssertEqual(CloudImportViewModel.label(forFolder: "Bakshi/2025/Writs"), "Bakshi / 2025 / Writs")
     }
 
+    func testEachOutcomeHasALine() {
+        let file = CloudDriveFile(id: "g1", name: "Reply brief.pdf")
+        XCTAssertEqual(CloudImportOutcome.imported(storedName: "Reply brief.pdf").line(for: file), "Imported")
+        XCTAssertEqual(CloudImportOutcome.imported(storedName: "Reply_brief_1_.pdf").line(for: file), "Imported as Reply brief 1 .pdf")
+        XCTAssertEqual(CloudImportOutcome.importing.line(for: file), "Importing…")
+        XCTAssertEqual(CloudImportOutcome.failed("Cloud file is empty").line(for: file), "Cloud file is empty")
+        XCTAssertTrue(CloudImportOutcome.skipped("Not tried").isProblem)
+        XCTAssertFalse(CloudImportOutcome.waiting.isProblem)
+    }
+
     func testTheSummarySaysWhatArrived() {
         XCTAssertEqual(
             CloudImportViewModel.summary(imported: 1, of: 1, into: "Uploads"),
@@ -414,12 +424,17 @@ final class CloudConnectionsViewModelTests: XCTestCase {
             XCTAssertNil(model.busy)
 
             fake.setRows([FakeCloudDrives.row(.google, connected: true, email: "a@firm.in")])
-            await model.browserDidClose(.google)
+            model.consentPage = nil  // as the sheet does, before its dismissal handler
+            await model.browserDidClose()
 
             XCTAssertNil(model.consentPage)
             XCTAssertEqual(model.connectedDrives, [.google])
             XCTAssertEqual(model.notice, "Google Drive is connected.")
             XCTAssertEqual(fake.calls, ["connections", "connect:google", "connections"])
+
+            // A second dismissal with no page opened reads nothing.
+            await model.browserDidClose()
+            XCTAssertEqual(fake.calls.count, 3)
         }
     }
 
@@ -427,7 +442,7 @@ final class CloudConnectionsViewModelTests: XCTestCase {
         await withConnections([FakeCloudDrives.row(.microsoft, connected: false)]) { _, model in
             await model.load()
             await model.connect(.microsoft)
-            await model.browserDidClose(.microsoft)
+            await model.browserDidClose()
             XCTAssertEqual(
                 model.notice,
                 "OneDrive is not connected. If you finished signing in, check again in a moment.")

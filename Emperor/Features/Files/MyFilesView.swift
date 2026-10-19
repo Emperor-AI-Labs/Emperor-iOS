@@ -19,6 +19,8 @@ struct MyFilesView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var model: MyFilesViewModel?
+    /// Which drives are connected, for Import and "Save to …" — see `CloudFileActionsViewModel`.
+    @State private var cloud: CloudFileActionsViewModel?
     /// The folders opened, deepest last.
     ///
     /// Bound rather than built from `NavigationLink`s, so a folder row, a search result and a
@@ -45,7 +47,8 @@ struct MyFilesView: View {
             Group {
                 if let model {
                     LibraryScreen(
-                        model: model, path: "", rootTitle: rootTitle, openFolders: $openFolders)
+                        model: model, path: "", rootTitle: rootTitle, cloud: cloud,
+                        openFolders: $openFolders)
                 } else {
                     ProgressView()
                 }
@@ -66,7 +69,7 @@ struct MyFilesView: View {
             .navigationDestination(for: FolderRoute.self) { route in
                 if let model {
                     LibraryScreen(
-                        model: model, path: route.path, rootTitle: rootTitle,
+                        model: model, path: route.path, rootTitle: rootTitle, cloud: cloud,
                         openFolders: $openFolders)
                         .toolbar(.hidden, for: .tabBar)
                 }
@@ -83,6 +86,7 @@ struct MyFilesView: View {
                 // Each reading of the library keeps the device's search in step with it.
                 created.onTreeLoaded = { AppSpotlight.shared.libraryLoaded($0) }
                 model = created
+                cloud = CloudFileActionsViewModel(service: session.cloudDrives)
                 await created.load()
                 if let opening {
                     openFolders = opening.folderStack.map { FolderRoute(path: $0) }
@@ -119,6 +123,8 @@ private struct LibraryScreen: View {
     let path: String
     /// "Files" on the tab, "My Files" presented.
     let rootTitle: String
+    /// The connected drives, for Import and "Save to …". `nil` until the screen has made it.
+    let cloud: CloudFileActionsViewModel?
     /// The navigation stack's path. A folder tile opens its folder by appending to it.
     @Binding var openFolders: [FolderRoute]
 
@@ -147,6 +153,7 @@ private struct LibraryScreen: View {
     @State private var uploadError: String?
     /// This month's allowances, for the storage meter at the head of the library.
     @State private var usage: AccountUsageViewModel?
+    @State private var isImportingFromDrive = false
 
     /// `FileNode.StoredFile` has no identity of its own, and inventing one for a wire type would
     /// be worse than wrapping it.
@@ -187,7 +194,7 @@ private struct LibraryScreen: View {
     }
 
     var body: some View {
-        alerts(presentations(chrome(content)))
+        cloudDrives(alerts(presentations(chrome(content))))
     }
 
     /// Split into three so no single expression carries every modifier: a chain this long is
@@ -318,6 +325,23 @@ private struct LibraryScreen: View {
                 set: { if $0 == nil { model.sharing = nil } }
             )) { shared in
                 shareSheet(for: shared)
+            }
+    }
+
+    /// Import from a drive, and what "Save to …" leaves behind. The drives are read again each
+    /// time the top level appears — a drive connected under You, or on the web, then shows here.
+    private func cloudDrives<V: View>(_ view: V) -> some View {
+        view
+            .modifier(CloudSaveOutcomes(cloud: cloud))
+            .sheet(isPresented: $isImportingFromDrive) {
+                CloudImportSheet(
+                    service: session.cloudDrives,
+                    destinations: uploadDestinations,
+                    initialDestination: uploadFolder,
+                    onImported: { await model.uploadDidFinish() })
+            }
+            .task(id: cloud == nil) {
+                if isRoot { await cloud?.refresh() }
             }
     }
 
@@ -709,7 +733,8 @@ private struct LibraryScreen: View {
             previewing = Previewing(file: file)
         } label: {
             DocumentRowLabel(
-                file: file, location: location, date: date, isBusy: model.isBusy(file.path),
+                file: file, location: location, date: date,
+                isBusy: model.isBusy(file.path) || cloud?.exportingPath == file.path,
                 offline: model.offlineStatus(of: file))
         }
         .buttonStyle(.plain)
@@ -752,6 +777,7 @@ private struct LibraryScreen: View {
             } label: {
                 Label("Share…", systemImage: "square.and.arrow.up")
             }
+            cloudSaveActions(file)
             Button {
                 Task { await model.toggleFavorite(file) }
             } label: {
@@ -780,6 +806,22 @@ private struct LibraryScreen: View {
             }
         }
         .disabled(model.isWorking)
+    }
+
+    /// "Save to Google Drive", "Save to OneDrive" — one for each connected drive, and none when no
+    /// drive is connected. The web offers Google Drive alone; the server takes either.
+    @ViewBuilder
+    private func cloudSaveActions(_ file: FileNode.StoredFile) -> some View {
+        if let cloud {
+            ForEach(cloud.connectedDrives) { drive in
+                Button {
+                    Task { await cloud.export(file, to: drive) }
+                } label: {
+                    Label("Save to \(drive.label)", systemImage: "icloud.and.arrow.up")
+                }
+                .disabled(cloud.isExporting)
+            }
+        }
     }
 
     /// "Save for offline", or "Remove offline copy" once it is saved. A copy kept only because the
@@ -843,6 +885,17 @@ private struct LibraryScreen: View {
                 isNamingFolder = true
             } label: {
                 Label(isRoot ? "New folder" : "New folder here", systemImage: "folder.badge.plus")
+            }
+            // Only once a drive is connected: until then there is nothing to import from, and
+            // You → Connected services is where one is connected.
+            if let cloud, cloud.offersImport {
+                Divider()
+                Button {
+                    isImportingFromDrive = true
+                } label: {
+                    Label(cloud.importTitle, systemImage: "icloud.and.arrow.down")
+                }
+                .accessibilityIdentifier("cloud-import")
             }
         } label: {
             Label("Add", systemImage: "plus")
