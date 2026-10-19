@@ -177,6 +177,12 @@ actor APIClient {
         onRefusal?(refusal)
     }
 
+    /// For callers that read a 401 themselves (the Library's coded errors): the session is over,
+    /// and the app signs out as it would from any other route.
+    func noteAuthenticationLost() {
+        onAuthenticationLost?()
+    }
+
     func currentCredentials() -> Credentials? { credentials }
 
     /// No cookie jar for this API.
