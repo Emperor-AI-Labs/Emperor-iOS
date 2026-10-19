@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
 
 /// Files — the document library, as the Record design's Files tab and as My Files presented
 /// over the app for a tapped search result.
@@ -141,7 +142,15 @@ private struct LibraryScreen: View {
     /// Which picker the menu asked for; only becomes `pickAfterChoosing` once a folder is chosen,
     /// so Cancel on the destination sheet opens nothing.
     @State private var requestedPick: PickAfterChoosing = .files
-    private enum PickAfterChoosing { case files, photos }
+    private enum PickAfterChoosing { case files, photos, folder }
+    /// Whether the open file importer is choosing a whole folder rather than documents. Set every
+    /// time the importer is opened, never reset afterwards, so the answer is read the way it was
+    /// asked.
+    @State private var isImportingFolder = false
+    /// At the top level, where a picked folder goes — `""` for the top of My Files itself.
+    @State private var chosenFolderDestination: String?
+    /// A folder read and planned, waiting on the person's go-ahead.
+    @State private var pendingFolder: PickedFolderUpload?
     @State private var photoSelection: [PhotosPickerItem] = []
     @State private var duplicateReview: DuplicateReview?
     @State private var uploadError: String?
@@ -201,13 +210,20 @@ private struct LibraryScreen: View {
                 ToolbarItem(placement: .primaryAction) {
                     addMenu
                 }
+                if model.offersDownloads {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        selectButton
+                    }
+                }
             }
             .safeAreaInset(edge: .top) {
                 UploadsInFlightBanner()
             }
             // A folder is a matter's papers, so its one primary action is asking about them.
             .safeAreaInset(edge: .bottom) {
-                if !isRoot, !folderAttachments.isEmpty {
+                if model.isSelecting {
+                    SelectionZipBar(model: model)
+                } else if !isRoot, !folderAttachments.isEmpty {
                     Button {
                         navigator.ask(
                             "Summarise the papers in \(title) and list what each document is.",
@@ -246,15 +262,22 @@ private struct LibraryScreen: View {
         view
             .sheet(isPresented: $isChoosingDestination, onDismiss: {
                 switch pickAfterChoosing {
-                case .files: isImporting = true
+                case .files:
+                    isImportingFolder = false
+                    isImporting = true
                 case .photos: isPickingPhotos = true
+                case .folder:
+                    isImportingFolder = true
+                    isImporting = true
                 case nil: break
                 }
                 pickAfterChoosing = nil
             }) {
                 UploadDestinationSheet(
                     destinations: uploadDestinations,
-                    initial: chosenUploadFolder ?? FileLibraryViewModel.uploadFolder,
+                    initial: requestedPick == .folder
+                        ? (chosenFolderDestination ?? "")
+                        : (chosenUploadFolder ?? FileLibraryViewModel.uploadFolder),
                     createFolder: { name in
                         await model.createFolder(named: name, in: "")
                         guard model.actionError == nil else { return nil }
@@ -263,16 +286,28 @@ private struct LibraryScreen: View {
                             .first { $0.path.caseInsensitiveCompare(wanted) == .orderedSame }?.path ?? wanted
                     },
                     onChoose: { folder in
-                        chosenUploadFolder = folder
+                        if requestedPick == .folder {
+                            chosenFolderDestination = folder
+                        } else {
+                            chosenUploadFolder = folder
+                        }
                         pickAfterChoosing = requestedPick
-                    })
+                    },
+                    allowsTopLevel: requestedPick == .folder,
+                    chooseLabel: requestedPick == .folder ? "Choose folder" : "Choose files")
             }
+            // One importer for both, because two on one view do not both present: a folder pick
+            // asks for a folder and takes one, a document pick asks for documents.
             .fileImporter(
                 isPresented: $isImporting,
-                allowedContentTypes: LibraryUploadFlow.importableTypes,
-                allowsMultipleSelection: true
+                allowedContentTypes: isImportingFolder ? [UTType.folder] : LibraryUploadFlow.importableTypes,
+                allowsMultipleSelection: !isImportingFolder
             ) { outcome in
                 guard case .success(let urls) = outcome else { return }
+                if isImportingFolder {
+                    if let folder = urls.first { readFolder(folder) }
+                    return
+                }
                 let picked = urls.map { PickedDocument(url: $0, fileName: $0.lastPathComponent) }
                 Task { await add(picked) }
             }
@@ -291,7 +326,10 @@ private struct LibraryScreen: View {
                     items: review.items,
                     cleared: review.cleared,
                     onConfirm: { chosen in
-                        Task { uploadError = await LibraryUploadFlow.upload(chosen, into: review.folder) }
+                        Task {
+                            uploadError = await LibraryUploadFlow.upload(
+                                chosen, into: review.folder, folders: review.folders, scope: review.scope)
+                        }
                     })
             }
             // The viewer keeps what it opens, so the offline marks are read again once it closes.
@@ -362,6 +400,9 @@ private struct LibraryScreen: View {
             } message: {
                 Text(renameHint)
             }
+            .modifier(FolderUploadConfirmation(pending: $pendingFolder) { picked in
+                Task { await uploadFolder(picked) }
+            })
             .alert("New folder", isPresented: $isNamingFolder) {
                 TextField("Folder name", text: $newFolderName)
                 Button("Cancel", role: .cancel) { newFolderName = "" }
@@ -685,12 +726,22 @@ private struct LibraryScreen: View {
         .accessibilityAction(named: "Delete folder") {
             model.requestDeletion(of: folder)
         }
+        .accessibilityAction(named: "Download as zip") {
+            Task { await model.downloadAsZip(folder) }
+        }
         .contextMenu {
             Button {
                 renameText = folder.name
                 renamingFolder = folder
             } label: {
                 Label("Rename", systemImage: "pencil")
+            }
+            if model.offersDownloads {
+                Button {
+                    Task { await model.downloadAsZip(folder) }
+                } label: {
+                    Label("Download as zip", systemImage: "doc.zipper")
+                }
             }
             Divider()
             Button(role: .destructive) {
@@ -706,14 +757,24 @@ private struct LibraryScreen: View {
         _ file: FileNode.StoredFile, location: String? = nil, date: String? = nil
     ) -> some View {
         Button {
-            previewing = Previewing(file: file)
+            if model.isSelecting {
+                model.toggleSelection(file)
+            } else {
+                previewing = Previewing(file: file)
+            }
         } label: {
-            DocumentRowLabel(
-                file: file, location: location, date: date, isBusy: model.isBusy(file.path),
-                offline: model.offlineStatus(of: file))
+            HStack(spacing: Spacing.sm) {
+                if model.isSelecting {
+                    SelectionMark(isSelected: model.isSelected(file))
+                }
+                DocumentRowLabel(
+                    file: file, location: location, date: date, isBusy: model.isBusy(file.path),
+                    offline: model.offlineStatus(of: file))
+            }
         }
         .buttonStyle(.plain)
-        .accessibilityHint("Opens the document")
+        .accessibilityAddTraits(model.isSelecting && model.isSelected(file) ? [.isSelected] : [])
+        .accessibilityHint(model.isSelecting ? "Chooses the document for the zip" : "Opens the document")
         .swipeActions(edge: .leading) {
             Button {
                 Task { await model.toggleFavorite(file) }
@@ -751,6 +812,13 @@ private struct LibraryScreen: View {
                 Task { await model.prepareShare(file) }
             } label: {
                 Label("Share…", systemImage: "square.and.arrow.up")
+            }
+            if model.offersSearchableCopy(of: file) {
+                Button {
+                    Task { await model.shareSearchableCopy(of: file) }
+                } label: {
+                    Label("Searchable PDF", systemImage: "doc.text.magnifyingglass")
+                }
             }
             Button {
                 Task { await model.toggleFavorite(file) }
@@ -824,10 +892,17 @@ private struct LibraryScreen: View {
                     } label: {
                         Label("From Photos", systemImage: "photo.badge.plus")
                     }
+                    Button {
+                        requestedPick = .folder
+                        isChoosingDestination = true
+                    } label: {
+                        Label("Upload a folder", systemImage: "folder.fill.badge.plus")
+                    }
                 }
             } else {
                 Section("Upload to \(DisplayText.fileName(uploadFolder))") {
                     Button {
+                        isImportingFolder = false
                         isImporting = true
                     } label: {
                         Label("From Files", systemImage: "doc.badge.plus")
@@ -836,6 +911,12 @@ private struct LibraryScreen: View {
                         isPickingPhotos = true
                     } label: {
                         Label("From Photos", systemImage: "photo.badge.plus")
+                    }
+                    Button {
+                        isImportingFolder = true
+                        isImporting = true
+                    } label: {
+                        Label("Upload a folder", systemImage: "folder.fill.badge.plus")
                     }
                 }
             }
@@ -874,6 +955,46 @@ private struct LibraryScreen: View {
             accepted.map { ($0.url, $0.fileName) }, into: folder) {
             uploadError = failure
         }
+    }
+
+    /// Reads a picked folder and asks before sending it — a folder can hold far more than the
+    /// person glanced at, which is why the web confirms a folder pick too.
+    private func readFolder(_ url: URL) {
+        let destination = isRoot
+            ? (chosenFolderDestination ?? "")
+            : MyFilesViewModel.uploadDestination(for: path)
+        let picked = LibraryUploadFlow.pickedFolder(at: url, into: destination)
+        guard !picked.plan.isEmpty else {
+            uploadError = picked.plan.emptyMessage
+            return
+        }
+        pendingFolder = picked
+    }
+
+    /// Checks the folder's documents against the library, then hands each to the uploader,
+    /// into its own folder.
+    private func uploadFolder(_ picked: PickedFolderUpload) async {
+        if let review = await LibraryUploadFlow.reviewFolder(
+            picked, duplicates: session.duplicates, existing: FileService.allFiles(in: model.tree)) {
+            duplicateReview = review
+        } else if let failure = await LibraryUploadFlow.uploadFolder(picked) {
+            uploadError = failure
+        }
+    }
+
+    private var selectButton: some View {
+        Button(model.isSelecting ? "Cancel" : "Select") {
+            if model.isSelecting {
+                model.endSelecting()
+            } else {
+                model.beginSelecting()
+            }
+        }
+        .disabled(model.isWorking && !model.isSelecting)
+        .accessibilityHint(model.isSelecting
+            ? "Stops choosing documents"
+            : "Chooses several documents to download as one zip")
+        .accessibilityIdentifier("my-files-select")
     }
 
     private func addPhotos(_ items: [PhotosPickerItem]) async {
@@ -968,5 +1089,75 @@ private struct MoveDocumentSheet: View {
 
     private func depth(of folder: FolderSummary) -> Int {
         max(0, folder.path.split(separator: "/").count - 1)
+    }
+}
+
+/// Asks before a picked folder is uploaded: how many documents, where they go, how much, and
+/// what was left out — the web's folder confirmation.
+private struct FolderUploadConfirmation: ViewModifier {
+    @Binding var pending: PickedFolderUpload?
+    let onConfirm: (PickedFolderUpload) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .alert(pending?.plan.confirmTitle ?? "Upload folder", isPresented: Binding(
+                get: { pending != nil },
+                set: { if !$0 { pending = nil } }
+            )) {
+                // Captured now: the alert clears its binding after the action runs.
+                let picked = pending
+                Button(picked?.plan.confirmLabel ?? "Upload") {
+                    if let picked { onConfirm(picked) }
+                }
+                Button("Cancel", role: .cancel) { pending = nil }
+            } message: {
+                Text(pending?.plan.confirmMessage ?? "")
+            }
+    }
+}
+
+/// The round tick beside a document while choosing several.
+private struct SelectionMark: View {
+    @Environment(\.theme) private var theme
+    let isSelected: Bool
+
+    var body: some View {
+        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            .font(.system(size: 22))
+            .foregroundStyle(isSelected ? theme.accentText : theme.textTertiary)
+            .accessibilityHidden(true)
+    }
+}
+
+/// The bar under the list while choosing several: how many are chosen, and the zip.
+private struct SelectionZipBar: View {
+    @Environment(\.theme) private var theme
+    let model: MyFilesViewModel
+
+    var body: some View {
+        HStack(spacing: Spacing.md) {
+            Text(model.selectionTitle)
+                .font(.brand(.subheadline, weight: .medium))
+                .foregroundStyle(theme.textPrimary)
+                .monospacedDigit()
+            Spacer(minLength: Spacing.sm)
+            if model.isBusy("zip") {
+                ProgressView().controlSize(.small)
+            }
+            Button {
+                Task { await model.downloadSelectionAsZip() }
+            } label: {
+                Label(model.zipSelectionLabel, systemImage: "doc.zipper")
+            }
+            .buttonStyle(.compactSecondaryAction)
+            .disabled(model.selectedPaths.isEmpty || model.isWorking)
+            .accessibilityIdentifier("my-files-zip")
+        }
+        .padding(.horizontal, Spacing.gutter)
+        .padding(.vertical, Spacing.sm)
+        .background(theme.groupedBackground)
+        .overlay(alignment: .top) {
+            Rectangle().fill(theme.separator).frame(height: 0.5)
+        }
     }
 }

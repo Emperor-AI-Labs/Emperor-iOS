@@ -35,6 +35,9 @@ struct ProjectDetailView: View {
     @State private var isConfirmingDelete = false
     /// The Limitation Radar, opened from Tasks as the web's "Check limitation" does.
     @State private var isCheckingLimitation = false
+    /// A matter's document being renamed, and the name typed so far.
+    @State private var renamingFile: FileNode.StoredFile?
+    @State private var renameText = ""
 
     var body: some View {
         Group {
@@ -48,7 +51,8 @@ struct ProjectDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             guard model == nil else { return }
-            let created = ProjectDetailViewModel(projectID: projectID, service: session.projects)
+            let created = ProjectDetailViewModel(
+                projectID: projectID, service: session.projects, fileManager: session.fileManagement)
             model = created
             await created.load()
         }
@@ -165,6 +169,7 @@ struct ProjectDetailView: View {
             }
         }
         .sheet(isPresented: $isCheckingLimitation) { LimitationRadarView().pageSizedSheet() }
+        .modifier(MatterDocumentPrompts(model: model, renaming: $renamingFile, renameText: $renameText))
         .sheet(isPresented: $isConfirmingDelete) {
             MatterDeleteSheet(model: model) {
                 onDeleted?()
@@ -726,7 +731,7 @@ struct ProjectDetailView: View {
                 let files = FileService.allFiles(in: folder.files ?? [])
                 if !files.isEmpty {
                     Section {
-                        ForEach(files, id: \.path) { file in fileRow(file) }
+                        ForEach(files, id: \.path) { file in fileRow(file, model) }
                     } header: {
                         SectionHeader(title: folder.name, detail: "\(files.count)")
                     }
@@ -735,7 +740,7 @@ struct ProjectDetailView: View {
             }
             if !model.looseFiles.isEmpty {
                 Section {
-                    ForEach(model.looseFiles, id: \.path) { file in fileRow(file) }
+                    ForEach(model.looseFiles, id: \.path) { file in fileRow(file, model) }
                 } header: {
                     SectionHeader(title: "Other", detail: "\(model.looseFiles.count)")
                 }
@@ -744,14 +749,11 @@ struct ProjectDetailView: View {
         }
     }
 
-    private func fileRow(_ file: FileNode.StoredFile) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(DisplayText.fileName(file.name)).font(.brand(.subheadline))
-            if !file.isReadable, let status = file.status, !status.isEmpty {
-                Text(status).font(.brand(.caption2)).foregroundStyle(theme.textTertiary)
-            }
+    private func fileRow(_ file: FileNode.StoredFile, _ model: ProjectDetailViewModel) -> some View {
+        MatterDocumentRow(file: file, model: model) { chosen in
+            renameText = chosen.name
+            renamingFile = chosen
         }
-        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Pieces

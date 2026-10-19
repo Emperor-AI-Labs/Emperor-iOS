@@ -19,6 +19,11 @@ struct UploadDestinationSheet: View {
     let createFolder: (String) async -> String?
     /// Called with the chosen folder; the caller dismisses and then picks documents.
     let onChoose: (String) -> Void
+    /// Offers the top of My Files, as `""`. Only for a folder upload: a folder brings its own
+    /// name and lands under it, where a loose file would sit with no matter at all.
+    var allowsTopLevel = false
+    /// The confirming button: "Choose files", or "Choose folder".
+    var chooseLabel = "Choose files"
 
     @State private var chosen: String?
     @State private var newName = ""
@@ -35,6 +40,11 @@ struct UploadDestinationSheet: View {
         NavigationStack {
             List {
                 Section {
+                    if allowsTopLevel {
+                        DestinationRow(
+                            title: "Top of My Files", systemImage: "tray.full",
+                            isChosen: chosen == "") { chosen = "" }
+                    }
                     ForEach(all, id: \.self) { path in
                         Button {
                             chosen = path
@@ -59,6 +69,12 @@ struct UploadDestinationSheet: View {
                     }
                 } header: {
                     SectionHeader(title: "Folders")
+                } footer: {
+                    if allowsTopLevel {
+                        Text("At the top, the folder keeps its own name. Inside a folder, it goes in under its own name.")
+                            .font(.brand(.footnote))
+                            .foregroundStyle(theme.textTertiary)
+                    }
                 }
                 .listRowBackground(theme.surface)
 
@@ -96,7 +112,7 @@ struct UploadDestinationSheet: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Choose files") {
+                    Button(chooseLabel) {
                         if let chosen { onChoose(chosen) }
                         dismiss()
                     }
@@ -124,6 +140,38 @@ struct UploadDestinationSheet: View {
                 createFailed = true
             }
         }
+    }
+}
+
+/// One destination in the list: an icon, a name, and a tick on the chosen one.
+private struct DestinationRow: View {
+    @Environment(\.theme) private var theme
+    let title: String
+    let systemImage: String
+    let isChosen: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: systemImage)
+                    .foregroundStyle(theme.accentText)
+                    .frame(width: 24)
+                    .accessibilityHidden(true)
+                Text(title)
+                    .foregroundStyle(theme.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if isChosen {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(theme.accentText)
+                        .fontWeight(.semibold)
+                        .accessibilityHidden(true)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isChosen ? [.isSelected] : [])
     }
 }
 
