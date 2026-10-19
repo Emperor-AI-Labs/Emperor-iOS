@@ -337,6 +337,7 @@ final class EmperorUITests: XCTestCase {
             ("Fetch Orders", "Fetch Orders"),
             ("Matter workspaces", "Matter workspaces"),
             ("All tools", "Tools"),
+            ("Analysis tools", "Analysis tools"),
             ("File tools", "File tools"),
             ("OCR", "OCR"),
             ("Translate", "Translate"),
