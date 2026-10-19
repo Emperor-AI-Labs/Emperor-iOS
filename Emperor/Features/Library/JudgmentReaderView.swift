@@ -305,7 +305,7 @@ private struct JudgmentHeaderCard: View {
 }
 
 /// Buttons wrapped onto as many lines as they need.
-struct FlowRow: Layout {
+struct FlowRow: SwiftUI.Layout {
     var spacing: CGFloat = 6
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
