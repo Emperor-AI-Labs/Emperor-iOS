@@ -378,6 +378,17 @@ final class DraftEditViewModel {
     /// Whether closing now would lose typing — the guard the viewer asks before it goes.
     func closeNeedsConfirmation(current: String?) -> Bool { hasChanges(current) }
 
+    /// Set when Cancel found typing to lose; the viewer asks before throwing it away.
+    var isConfirmingDiscard = false
+
+    /// Cancel, with the page as it now reads. True when there is nothing to lose and the editor
+    /// can simply be closed; otherwise the viewer is asked to confirm first.
+    func requestCancel(current: String?) -> Bool {
+        guard closeNeedsConfirmation(current: current) else { return true }
+        isConfirmingDiscard = true
+        return false
+    }
+
     /// Done: the page read back, folded into the conversation, stored.
     func finish(editedHTML: String?) async {
         guard phase == .editing else { return }
@@ -398,6 +409,7 @@ final class DraftEditViewModel {
     /// Leaves edit mode without keeping what was typed. The page goes back to the draft as it
     /// stood.
     func discard() {
+        isConfirmingDiscard = false
         guard phase == .editing else { return }
         let anchored = DraftEdit.anchored(DraftEdit.editableHTML(body: body, format: .html))
         page = anchored.html

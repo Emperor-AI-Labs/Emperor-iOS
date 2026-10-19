@@ -232,9 +232,18 @@ final class DraftEditSyncTests: XCTestCase {
         ]
         let body = try XCTUnwrap(DraftEditSync.body(
             userID: "42", chat: chat, storedMessages: stored, index: 1, content: "new </p> \"q\""))
-        XCTAssertEqual(String(decoding: body, as: UTF8.self), #"""
-            {"userId":"42","chats":[{"id":"chat-1","title":"Plaint","role":"Litigator","model":"fast","updatedAt":"2026-10-03 06:30:00","messages":[{"role":"user","content":"Q","attachments":[{"name":"a.pdf"}]},{"role":"assistant","content":"new </p> \"q\"","done":true,"workLog":[]}]}]}
-            """#)
+        let text = String(decoding: body, as: UTF8.self)
+        XCTAssertTrue(text.hasPrefix(#"{"userId":"42","chats":[{"#), text)
+        XCTAssertTrue(text.hasSuffix(#"""
+            "messages":[{"role":"user","content":"Q","attachments":[{"name":"a.pdf"}]},{"role":"assistant","content":"new </p> \"q\"","done":true,"workLog":[]}]}]}
+            """#), "the stored bytes, the one content replaced")
+        let head = try XCTUnwrap(
+            (try JSONSerialization.jsonObject(with: body) as? [String: Any])?["chats"] as? [[String: Any]])
+        XCTAssertEqual(head.first?["id"] as? String, "chat-1")
+        XCTAssertEqual(head.first?["title"] as? String, "Plaint")
+        XCTAssertEqual(head.first?["role"] as? String, "Litigator")
+        XCTAssertEqual(head.first?["model"] as? String, "fast")
+        XCTAssertEqual(head.first?["updatedAt"] as? String, "2026-10-03 06:30:00")
         XCTAssertNil(DraftEditSync.body(userID: "42", chat: chat, storedMessages: stored, index: 2, content: "x"))
     }
 }

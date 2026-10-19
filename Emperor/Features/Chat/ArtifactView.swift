@@ -11,6 +11,11 @@ import WebKit
 /// account on this device (`DraftCitationsPreference`); a draft without any has no eye. Hiding is
 /// a display choice — the stored draft is never rewritten — and the download menu asks again,
 /// for Word and for PDF, whether to carry them.
+///
+/// The last draft of a conversation can be edited in place, as on the web: Edit switches the page
+/// itself into editing, with a formatting bar above the keyboard, and Done folds what was typed
+/// back into the conversation and stores it (`DraftEditViewModel`). The outline lists the
+/// draft's headings and jumps to each.
 struct ArtifactDetailView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
@@ -23,76 +28,69 @@ struct ArtifactDetailView: View {
     @State private var showsCitations = true
     @State private var annexures: AnnexureListViewModel?
     @State private var packageExport: FilingPackageExport?
+    @State private var editor: DraftEditViewModel
+    @State private var bridge: DraftWebBridge
+    @State private var showsOutline = false
     private let preferences = Preferences()
 
-    private var hasCitations: Bool { DraftCitations.hasMarkers(artifact.body) }
+    /// - Parameters:
+    ///   - editTarget: the turn the draft came from, when it can take an edit back — see
+    ///     `ChatViewModel.draftEditTarget(for:)`. Nil opens it for reading only.
+    ///   - conversation: where an edit is folded and stored.
+    @MainActor
+    init(
+        artifact: StreamArtifact,
+        chatID: String? = nil,
+        editTarget: DraftEditTarget? = nil,
+        conversation: (any DraftEditCommitting)? = nil
+    ) {
+        self.artifact = artifact
+        self.chatID = chatID
+        _editor = State(initialValue: DraftEditViewModel(
+            artifact: artifact, target: editTarget, conversation: conversation))
+        _bridge = State(initialValue: DraftWebBridge())
+    }
 
-    private var shownBody: String {
-        showsCitations || !hasCitations ? artifact.body : DraftCitations.withoutMarkers(artifact.body)
+    private var hasCitations: Bool { DraftCitations.hasMarkers(editor.body) }
+
+    /// What the web view shows: the page as edited, citation numbers hidden if asked — never
+    /// while editing, when the text on the page is the text being changed.
+    private var shownPage: String {
+        editor.isEditing || showsCitations || !hasCitations
+            ? editor.page : DraftCitations.withoutMarkers(editor.page)
+    }
+
+    private var shownMarkdown: String {
+        showsCitations || !hasCitations ? editor.body : DraftCitations.withoutMarkers(editor.body)
     }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Group {
-                    switch artifact.format {
-                    case .html:
-                        DocumentWebView(html: shownBody)
-                    case .markdown:
-                        // Not monospaced source: a chronology is a table, and rendering the pipe
-                        // syntax verbatim is a visibly broken answer.
-                        MarkdownArtifactView(markdown: shownBody)
-                    }
-                }
-                .background(theme.paper)
-                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .strokeBorder(theme.separator, lineWidth: 1))
-                .shadow(color: theme.cardShadow, radius: 12, x: 0, y: 8)
-                .padding(.horizontal, 14)
-                .padding(.top, Spacing.lg)
-
-                if hasCitations {
-                    Text(showsCitations
-                         ? "Citation numbers point to the references in the answer."
-                         : "Citations hidden on the page. Downloads still ask.")
-                        .font(.brand(size: 12.5, relativeTo: .caption))
-                        .foregroundStyle(theme.textTertiary)
-                        .multilineTextAlignment(.center)
-                        .padding(.vertical, Spacing.md)
-                        .padding(.horizontal, Spacing.lg)
-                }
+                paper
+                footer
             }
             .background(theme.surface2.ignoresSafeArea())
             .navigationTitle(artifact.title)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+            .toolbar { toolbarContent }
+            .safeAreaInset(edge: .bottom) {
+                if editor.isEditing {
+                    DraftEditToolbar(active: editor.activeCommands) { run($0) }
                 }
-                ToolbarItemGroup(placement: .primaryAction) {
-                    if hasCitations {
-                        Button {
-                            Haptics.selection()
-                            showsCitations.toggle()
-                            DraftCitationsPreference.save(
-                                showsCitations, to: preferences, userID: session.currentUser?.id)
-                        } label: {
-                            Image(systemName: showsCitations ? "eye" : "eye.slash")
-                        }
-                        .accessibilityLabel(showsCitations ? "Hide citations" : "Show citations")
-                    }
-                    // Was a share of the raw body, which handed over markup rather than a
-                    // document. A drafted pleading is something an advocate files.
-                    DocumentExportMenu(
-                        content: artifact.body,
-                        isHTML: artifact.format == .html,
-                        title: artifact.title,
-                        offersCitationChoice: hasCitations,
-                        packageExport: packageExport,
-                        hasAnnexures: annexures?.isVisible ?? false)
-                }
+            }
+            .interactiveDismissDisabled(editor.isEditing || editor.isSaving)
+            .confirmationDialog(
+                "Discard this edit?", isPresented: $editor.isConfirmingDiscard,
+                titleVisibility: .visible
+            ) {
+                Button("Discard edit", role: .destructive) { discardEditing() }
+                Button("Keep editing", role: .cancel) {}
+            } message: {
+                Text("What you changed has not been saved.")
+            }
+            .sheet(isPresented: $showsOutline) {
+                DraftOutlineSheet(outline: editor.outline) { jump(to: $0) }
             }
             .filingPackageStatus(packageExport, title: artifact.title)
             .onAppear {
@@ -101,6 +99,115 @@ struct ArtifactDetailView: View {
             }
             .task { await loadAnnexures() }
         }
+    }
+
+    private var paper: some View {
+        Group {
+            if editor.showsPage {
+                EditableDocumentWebView(html: shownPage, revision: editor.pageRevision, bridge: bridge)
+            } else {
+                // Not monospaced source: a chronology is a table, and rendering the pipe
+                // syntax verbatim is a visibly broken answer.
+                MarkdownArtifactView(markdown: shownMarkdown)
+            }
+        }
+        .background(theme.paper)
+        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .strokeBorder(editor.isEditing ? theme.accent : theme.separator, lineWidth: 1))
+        .shadow(color: theme.cardShadow, radius: 12, x: 0, y: 8)
+        .padding(.horizontal, 14)
+        .padding(.top, Spacing.lg)
+    }
+
+    @ViewBuilder
+    private var footer: some View {
+        if let notice = editor.notice {
+            DraftEditStatusLine(text: notice, isProblem: true, onRetry: nil)
+        } else if let status = editor.statusText {
+            DraftEditStatusLine(
+                text: status, isProblem: editor.statusIsProblem,
+                onRetry: editor.canRetry ? { retry() } : nil)
+        } else if hasCitations {
+            Text(showsCitations
+                 ? "Citation numbers point to the references in the answer."
+                 : "Citations hidden on the page. Downloads still ask.")
+                .font(.brand(size: 12.5, relativeTo: .caption))
+                .foregroundStyle(theme.textTertiary)
+                .multilineTextAlignment(.center)
+                .padding(.vertical, Spacing.md)
+                .padding(.horizontal, Spacing.lg)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        if editor.isEditing {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { cancelEditing() }
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                outlineButton
+                Button("Done") { finishEditing() }
+                    .fontWeight(.semibold)
+                    .accessibilityHint("Saves the edit")
+            }
+        } else {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Done") { dismiss() }
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                readingActions
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var outlineButton: some View {
+        if editor.showsOutline {
+            Button {
+                showsOutline = true
+            } label: {
+                Image(systemName: "list.bullet.indent")
+            }
+            .accessibilityLabel("Outline")
+        }
+    }
+
+    @ViewBuilder
+    private var readingActions: some View {
+        if hasCitations {
+            Button {
+                Haptics.selection()
+                showsCitations.toggle()
+                DraftCitationsPreference.save(
+                    showsCitations, to: preferences, userID: session.currentUser?.id)
+            } label: {
+                Image(systemName: showsCitations ? "eye" : "eye.slash")
+            }
+            .accessibilityLabel(showsCitations ? "Hide citations" : "Show citations")
+        }
+        outlineButton
+        if editor.isEditable {
+            Button {
+                beginEditing()
+            } label: {
+                Image(systemName: "pencil")
+            }
+            .disabled(!editor.canBeginEditing)
+            .accessibilityLabel("Edit")
+            .accessibilityHint("Edits this draft in place")
+        }
+        // Was a share of the raw body, which handed over markup rather than a document. A
+        // drafted pleading is something an advocate files — as it now reads, edits and all.
+        DocumentExportMenu(
+            content: editor.body,
+            isHTML: editor.format == .html,
+            title: artifact.title,
+            offersCitationChoice: hasCitations,
+            packageExport: packageExport,
+            hasAnnexures: annexures?.isVisible ?? false)
     }
 }
 
@@ -113,6 +220,75 @@ extension ArtifactDetailView {
         annexures = list
         packageExport = FilingPackageExport(chatID: chatID, service: session.filingAnnexures)
         await list.load()
+    }
+
+    // MARK: Editing — the bridge runs the page, the view model decides.
+
+    fileprivate func beginEditing() {
+        let editor = editor
+        let bridge = bridge
+        let before = editor.showsPage ? shownPage : nil
+        editor.begin()
+        guard editor.isEditing else { return }
+        // A different page — citation numbers back, or a table now drawn as HTML — is loaded
+        // first; the editor switches on over the page that will be there, not the one leaving.
+        if before != editor.page { bridge.expectLoad() }
+        Haptics.selection()
+        Task {
+            let baseline = await bridge.run(DraftEditScript.begin)
+            editor.editorOpened(baseline: baseline)
+            editor.activeCommands = DraftEditScript.activeCommands(from: await bridge.run(DraftEditScript.state))
+        }
+    }
+
+    fileprivate func run(_ command: DraftEditCommand) {
+        let editor = editor
+        let bridge = bridge
+        Task {
+            editor.activeCommands = DraftEditScript.activeCommands(
+                from: await bridge.run(DraftEditScript.run(command)))
+        }
+    }
+
+    fileprivate func finishEditing() {
+        let editor = editor
+        let bridge = bridge
+        Task {
+            let html = await bridge.run(DraftEditScript.read)
+            if html != nil { _ = await bridge.run(DraftEditScript.end) }
+            await editor.finish(editedHTML: html)
+        }
+    }
+
+    /// Cancel asks first when something was typed; nothing typed, nothing to ask.
+    fileprivate func cancelEditing() {
+        let editor = editor
+        let bridge = bridge
+        Task {
+            let current = await bridge.run(DraftEditScript.read)
+            guard editor.requestCancel(current: current) else { return }
+            _ = await bridge.run(DraftEditScript.end)
+            editor.discard()
+        }
+    }
+
+    fileprivate func discardEditing() {
+        let editor = editor
+        let bridge = bridge
+        Task {
+            _ = await bridge.run(DraftEditScript.end)
+            editor.discard()
+        }
+    }
+
+    fileprivate func retry() {
+        let editor = editor
+        Task { await editor.retry() }
+    }
+
+    fileprivate func jump(to entry: DraftEdit.OutlineEntry) {
+        let bridge = bridge
+        Task { _ = await bridge.run(DraftEditScript.jump(to: entry.id)) }
     }
 }
 
