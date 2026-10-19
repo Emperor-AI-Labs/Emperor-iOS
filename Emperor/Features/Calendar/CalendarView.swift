@@ -195,6 +195,10 @@ struct CalendarView: View {
                     Label("Add", systemImage: "plus")
                 }
             }
+            // The selected day's listings, as the web's cause list downloads them.
+            ToolbarItem(placement: .primaryAction) {
+                CauseListDownloadMenu(day: model.selectedDay, listings: model.selectedCalendarDay.listings)
+            }
         }
         .sheet(isPresented: $isAddingEvent) {
             ComplianceEventSheet(day: model.selectedDay) { draft in

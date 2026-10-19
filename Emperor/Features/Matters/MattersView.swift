@@ -176,6 +176,10 @@ struct MattersView: View {
             .accessibilityHint("Make a team, or add someone to one")
         }
         ToolbarItemGroup(placement: .primaryAction) {
+            // The next sitting's list, downloaded as the web's cause list downloads a day.
+            if segment == .next, let day = overview?.nextSitting {
+                CauseListDownloadMenu(day: day.key, listings: day.listings)
+            }
             if segment == .all, let cases {
                 Button {
                     isArranging = true
