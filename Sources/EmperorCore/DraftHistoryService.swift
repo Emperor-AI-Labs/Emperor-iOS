@@ -35,6 +35,15 @@ struct DraftedItem: Codable, Equatable, Identifiable, Sendable {
     /// The conversation it came out of. `""` rather than null when the chat is gone, because
     /// the server COALESCEs it — so emptiness is the signal, not nil.
     var chatTitle: String?
+    /// The matter whose conversation made it, when one did (`canvas_documents` → `chats.project_id`,
+    /// docs/projects.md). Such a draft belongs to the matter's own Drafts section; the web's
+    /// Library hid these rows and then stopped listing drafts altogether. Kept out of this
+    /// list the same way — see `DraftHistoryViewModel`.
+    var projectID: String?
+
+    var belongsToMatter: Bool {
+        !(projectID?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -43,6 +52,7 @@ struct DraftedItem: Codable, Equatable, Identifiable, Sendable {
         case type
         case createdAtRaw = "created_at"
         case chatTitle = "chat_title"
+        case projectID = "project_id"
     }
 
     /// - Note: **two encodings on one field.** Ordinary writes are JavaScript ISO 8601 with

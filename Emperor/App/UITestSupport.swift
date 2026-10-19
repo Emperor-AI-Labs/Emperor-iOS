@@ -190,7 +190,7 @@ enum UITestSupport {
             // A metered account part-way through a month, so the usage meters have something
             // to draw — including one running low and one used up.
             case "/billing/entitlements":
-                return #"{"success":true,"signedIn":true,"planLabel":"Essential","expired":false,"metered":true,"limits":{"matters":-1,"storageGb":10,"documents":-1,"scannedPages":6000,"chatQueries":1000,"deepThinkingQueries":150},"usage":{"resetsAt":"2026-10-31T18:30:00.000Z","chatQueries":812,"deepThinkingQueries":150,"scannedPages":120,"documents":44,"matters":7,"storageUsedBytes":2400000000,"storageAllowanceBytes":10000000000}}"#
+                return #"{"success":true,"signedIn":true,"planLabel":"Junior Associate","expired":false,"metered":true,"limits":{"matters":-1,"storageGb":10,"documents":-1,"scannedPages":6000,"chatQueries":1000,"deepThinkingQueries":150},"usage":{"resetsAt":"2026-10-31T18:30:00.000Z","chatQueries":812,"deepThinkingQueries":150,"scannedPages":120,"documents":44,"matters":7,"storageUsedBytes":2400000000,"storageAllowanceBytes":10000000000}}"#
             // Two, so the iPad's list beside its conversation has another row to choose; `c2`
             // answers `/messages` with an exchange of its own (`itemBody`).
             case "/chats":

@@ -38,13 +38,13 @@ final class ChatListViewModel {
         // carries a visible "as of" stamp until then.
         if state == .idle, chats.isEmpty,
            let cached = cache?.load([ChatSummary].self, for: .chatList) {
-            chats = cached.value
+            chats = Self.ownConversations(cached.value)
             cachedAt = cached.storedAt
         }
 
         state = .loading
         do {
-            chats = try await service.chats()
+            chats = Self.ownConversations(try await service.chats())
             cachedAt = nil
             cache?.save(chats, for: .chatList)
             state = .loaded
@@ -54,6 +54,19 @@ final class ChatListViewModel {
             // a staleness banner rather than blanking it.
             state = .failed(LoadFailure(error))
         }
+    }
+
+    /// The conversations this list shows: the ones started here or in the web's Ask, not the
+    /// ones started inside a matter.
+    ///
+    /// A matter's conversation searches only that matter's documents and carries its context.
+    /// Opened from here it would be continued as an ordinary conversation — the server drops a
+    /// matter's attachments from a turn that does not name the matter — so the person would see
+    /// an answer that had silently stopped reading their file. The web keeps them out of History
+    /// and the home rail for the same reason; this client does not yet open a matter's
+    /// conversations at all, so until it does they are not listed.
+    static func ownConversations(_ chats: [ChatSummary]) -> [ChatSummary] {
+        chats.filter { !$0.belongsToMatter }
     }
 
     /// The id for a conversation the user is starting now.

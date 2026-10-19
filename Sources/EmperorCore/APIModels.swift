@@ -158,8 +158,19 @@ struct ChatSummary: Codable, Equatable, Identifiable, Sendable {
     var messageCount: Int?
     var lastPreview: String?
     var updatedAtRaw: String?
+    /// The matter this conversation belongs to, when it was started inside one on the web
+    /// (`chats.project_id`, docs/projects.md). Such a conversation searches only that matter's
+    /// documents, and a turn sent to it from outside the matter would drop every one of its
+    /// attachments — so, as the web's History does, this client keeps them out of its lists
+    /// (`ChatListViewModel.ownConversations`). `nil` from a server that predates matters.
+    var projectID: String?
 
     var updatedAt: Date? { WireDate.parse(updatedAtRaw) }
+
+    /// Whether this conversation lives inside a matter.
+    var belongsToMatter: Bool {
+        !(projectID?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+    }
     var displayTitle: String {
         let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? "New Chat" : trimmed
@@ -168,6 +179,8 @@ struct ChatSummary: Codable, Equatable, Identifiable, Sendable {
     enum CodingKeys: String, CodingKey {
         case id, title, role, model, messageCount, lastPreview
         case updatedAtRaw = "updatedAt"
+        // snake_case on an otherwise camelCase row: the server copies the column name through.
+        case projectID = "project_id"
     }
 }
 

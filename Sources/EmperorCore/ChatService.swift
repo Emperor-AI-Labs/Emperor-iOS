@@ -105,6 +105,11 @@ struct ChatRequest: Encodable {
     var searchMode: String?
     var attachments: [ChatAttachment]?
     var source: String?
+    /// The matter this turn is asked inside (docs/projects.md). With it, the server keeps only
+    /// that matter's documents among the attachments and gives the model the matter's context;
+    /// without it, any attachment from inside a matter is dropped. `nil` omits the key, which is
+    /// an ordinary conversation — never an empty string, which the server would try to own.
+    var projectId: String?
 }
 
 /// Everything the reasoning panel needs, as of this moment in the stream.
@@ -280,10 +285,28 @@ struct ChatService: ChatProviding, ChatListProviding {
         attachments: [ChatAttachment]? = nil,
         webSearch: Bool = false
     ) async throws -> AsyncThrowingStream<ChatTurnEvent, Error> {
+        try await send(
+            history: history, chatID: chatID, model: model, role: role,
+            attachments: attachments, webSearch: webSearch, projectID: nil)
+    }
+
+    /// The same turn, asked inside a matter. The `ChatProviding` witness above is the
+    /// six-argument shape every caller and stand-in implements; this is where the matter goes
+    /// once a screen can name one (docs/projects.md, "Chat plumbing").
+    func send(
+        history: [ChatMessage],
+        chatID: String,
+        model: ChatModel,
+        role: ChatRole?,
+        attachments: [ChatAttachment]?,
+        webSearch: Bool,
+        projectID: String?
+    ) async throws -> AsyncThrowingStream<ChatTurnEvent, Error> {
         guard let credentials = await client.currentCredentials() else {
             throw APIError.notAuthenticated
         }
 
+        let trimmedProject = projectID?.trimmingCharacters(in: .whitespacesAndNewlines)
         let payload = ChatRequest(
             messages: history,
             userId: credentials.userIDString,
@@ -297,7 +320,8 @@ struct ChatService: ChatProviding, ChatListProviding {
             // search on keywords in the message, so this cannot fully opt out.
             searchMode: webSearch ? "web" : nil,
             attachments: attachments,
-            source: "chat")
+            source: "chat",
+            projectId: (trimmedProject?.isEmpty ?? true) ? nil : trimmedProject)
 
         var request = try await client.makeRequest("POST", "/chat", body: payload)
         request.setValue("text/plain", forHTTPHeaderField: "Accept")

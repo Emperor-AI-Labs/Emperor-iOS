@@ -114,7 +114,9 @@ final class DraftHistoryViewModel {
     func load() async {
         state = .loading
         do {
-            items = try await service.drafts(kind)
+            // A matter's drafts are the matter's, as its conversations are — see
+            // `ChatListViewModel.ownConversations`.
+            items = try await service.drafts(kind).filter { !$0.belongsToMatter }
             state = .loaded
         } catch is CancellationError {
             // Switching the Drafts/Tables control cancels the in-flight fetch, and a cancelled
