@@ -221,7 +221,7 @@ final class CaseDetailViewModel {
         do {
             // Not the screen's to cancel: SwiftUI cancels a screen's task whenever it takes the
             // screen off and puts it back, which on an iPad happens when the Calendar opens a
-            // matter as the Cases tab comes to the front. Cancelled here, the read was abandoned
+            // matter as the Matters tab comes to the front. Cancelled here, the read was abandoned
             // and the matter came back to "Could not load" — see `uncancelledRead`.
             let service = self.service
             let caseID = self.caseID

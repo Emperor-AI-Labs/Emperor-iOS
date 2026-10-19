@@ -98,15 +98,18 @@ final class ScreenshotTour: XCTestCase {
         app.tab("Ask").tap()
         snap("ask")
 
-        // Every conversation, from History's own tab.
-        app.tab("History").tap()
+        // Every conversation, from More → History.
+        app.tab("More").tap()
+        tapIfPresent(app.buttons["History"].firstMatch)
         if app.navigationBars["Conversations"].waitForExistence(timeout: 10) {
             snap("history")
+            // Closed from its own Done before the next tab is tapped.
+            tapIfPresent(app.navigationBars["Conversations"].buttons["Done"])
         }
 
-        // A conversation, from Ask's recent ones: the stub serves a stored answer with headings,
+        // A conversation, from Home's recent ones: the stub serves a stored answer with headings,
         // a table and citations, and the work log it was stored with, folded above it.
-        app.tab("Ask").tap()
+        app.tab("Home").tap()
         let conversation = app.stubConversationRow
         if conversation.waitForExistence(timeout: 10) {
             app.reveal(conversation)
@@ -126,9 +129,9 @@ final class ScreenshotTour: XCTestCase {
             backOut(app)
         }
 
-        // Cases: the next sitting, what is upcoming, and the docket.
-        app.tab("Cases").tap()
-        snap("cases")
+        // Matters: the next sitting, what is upcoming, and the docket.
+        app.tab("Matters").tap()
+        snap("matters")
         let hearing = app.descendants(matching: .any).matching(
             NSPredicate(format: "label BEGINSWITH %@", "Item 7, Court 12")).firstMatch
         if hearing.waitForExistence(timeout: 5), hearing.isHittable {
@@ -145,9 +148,9 @@ final class ScreenshotTour: XCTestCase {
             }
         }
         tapIfPresent(app.buttons["Upcoming"].firstMatch)
-        snap("cases-upcoming")
+        snap("matters-upcoming")
         tapIfPresent(app.buttons["All matters"].firstMatch)
-        snap("cases-docket")
+        snap("matters-docket")
 
         // The docket's sort & filter sheet, then scrolled to show the filters, and the docket
         // once a court is chosen: its chip under the search field, the toolbar icon filled.
@@ -157,7 +160,7 @@ final class ScreenshotTour: XCTestCase {
             arrange.tap()
             let sheetBar = app.navigationBars["Sort & filter"]
             if sheetBar.waitForExistence(timeout: 5) {
-                snap("cases-sort-filter")
+                snap("matters-sort-filter")
                 // Scrolled inside the sheet's list; a swipe on its bar would move the sheet.
                 let form = app.collectionViews["case-arrangement-form"]
                 if form.exists { form.swipeUp() }
@@ -165,9 +168,9 @@ final class ScreenshotTour: XCTestCase {
                 if highCourts.waitForExistence(timeout: 3), highCourts.isHittable {
                     highCourts.tap()
                 }
-                snap("cases-sort-filter-full")
+                snap("matters-sort-filter-full")
                 tapIfPresent(sheetBar.buttons["Done"])
-                snap("cases-filtered")
+                snap("matters-filtered")
                 tapIfPresent(app.buttons["case-filters-clear-all"])
             }
         }
@@ -182,11 +185,10 @@ final class ScreenshotTour: XCTestCase {
             }
         }
 
-        // The Calendar opens over Cases on today, where the stub lists one matter and one diary
-        // entry; the listing then opens its case on Cases, on the overview.
-        let calendarButton = app.navigationBars["Cases"].buttons["Calendar"]
-        if calendarButton.waitForExistence(timeout: 5) {
-            calendarButton.tap()
+        // The Calendar tab on today, where the stub lists one matter and one diary entry; the
+        // listing then opens its case on Matters, on the overview.
+        app.tab("Calendar").tap()
+        if app.navigationBars["Calendar"].waitForExistence(timeout: 10) {
             let listing = app.buttons["calendar-listing-case1"]
             let isListed = listing.waitForExistence(timeout: 10)
             snap("calendar")
@@ -197,13 +199,13 @@ final class ScreenshotTour: XCTestCase {
                     snap("case-overview")
                     backOut(app)
                 }
-            } else {
-                tapIfPresent(app.navigationBars["Calendar"].buttons["Done"])
             }
         }
 
-        // Files: the folders, and one of them opened — its sub-folder above its documents.
-        app.tab("Files").tap()
+        // Files, from More: the folders, and one of them opened — its sub-folder above its
+        // documents. Closed from its own Done before the next step.
+        app.tab("More").tap()
+        tapIfPresent(app.buttons["Files"].firstMatch)
         snap("files")
         let folder = app.buttons["folder-Bakshi"]
         if folder.waitForExistence(timeout: 5) {
@@ -213,6 +215,7 @@ final class ScreenshotTour: XCTestCase {
                 backOut(app)
             }
         }
+        tapIfPresent(app.navigationBars["Files"].buttons["Done"])
 
         // You: the account, its settings, and the tools that are not tabs — opened from Home's
         // profile button, where the redesign keeps it.
@@ -307,7 +310,7 @@ final class ScreenshotTour: XCTestCase {
         guard app.signInWithACode(), app.tab("Home").waitForExistence(timeout: 15) else { return }
 
         var step = 0
-        for tab in ["Home", "Cases", "Ask", "Files", "History"] {
+        for tab in ["Home", "Matters", "Ask", "Calendar", "More"] {
             let button = app.tab(tab)
             guard button.waitForExistence(timeout: 5) else { continue }
             button.tap()
@@ -365,10 +368,10 @@ final class ScreenshotTour: XCTestCase {
             add(shot)
         }
 
-        guard app.signInWithACode(), app.tab("Ask").waitForExistence(timeout: 15) else { return }
-        app.tab("Ask").tap()
+        guard app.signInWithACode(), app.tab("Home").waitForExistence(timeout: 15) else { return }
+        app.tab("Home").tap()
 
-        // Opened once with the signal, which keeps it; then back to Ask and in again, without.
+        // Opened once with the signal, which keeps it; then back to Home and in again, without.
         let conversation = app.stubConversationRow
         guard conversation.waitForExistence(timeout: 10) else { return }
         app.reveal(conversation)
@@ -585,7 +588,7 @@ final class ScreenshotTour: XCTestCase {
             "-UITestMode", "-UITestLinkOnReturn", "emperor://calendar?day=\(day)",
         ] + (light ? ["-UITestLight"] : [])
         app.launch()
-        guard app.signInWithACode(), app.tab("Ask").waitForExistence(timeout: 15) else { return }
+        guard app.signInWithACode(), app.tab("Home").waitForExistence(timeout: 15) else { return }
 
         XCUIDevice.shared.press(.home)
         var polls = 0

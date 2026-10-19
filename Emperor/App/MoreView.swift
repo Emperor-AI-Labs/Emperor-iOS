@@ -5,8 +5,8 @@ import SwiftUI
 /// This was the More tab — the web's sidebar on a phone (`src/shell/MobileNav.jsx`). The
 /// redesign has five tabs, and none of these is one, so they live under You — reached from
 /// Home's profile button — with every row kept: the role's workspace, every tool, the file
-/// tools, OCR, Translate, the Corporate Calendar and Library. My Files and History are tabs of
-/// their own now, and Settings is You itself.
+/// tools, OCR, Translate, the Corporate Calendar and Library. My Files and History are rows
+/// under the new More tab, and Settings is You itself.
 ///
 /// Labels are the web's — **Translate**, **eAuctions** — not the names this app once used, so
 /// someone who uses both learns one vocabulary.

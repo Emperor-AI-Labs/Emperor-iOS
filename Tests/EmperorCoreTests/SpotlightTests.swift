@@ -137,11 +137,11 @@ final class SpotlightTests: XCTestCase {
         XCTAssertEqual(inbox.tapCount, 1, "an identifier this build did not write is ignored")
     }
 
-    /// A case result opens the case on the Cases tab, through the same request the Calendar uses.
+    /// A case result opens the case on the Matters tab, through the same request the Calendar uses.
     func testACaseResultOpensTheCase() async {
-        let navigator = AppNavigator(selectedTab: .files)
+        let navigator = AppNavigator(selectedTab: .more)
         navigator.open(.caseDetail(id: "case1"))
-        XCTAssertEqual(navigator.selectedTab, .cases)
+        XCTAssertEqual(navigator.selectedTab, .matters)
         XCTAssertEqual(navigator.takePendingCaseStack()?.map(\.caseID), ["case1"])
     }
 

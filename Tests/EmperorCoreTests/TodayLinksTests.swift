@@ -142,14 +142,14 @@ final class TodayLinksTests: XCTestCase {
 
     // MARK: - The Calendar's day
 
-    /// A day asked for switches to Cases, asks it for the Calendar, and waits there to be
-    /// taken — once.
+    /// A day asked for switches to the Calendar tab, carries the day for it, and waits there to
+    /// be taken — once.
     func testOpeningADaySwitchesToTheCalendarAndIsTakenOnce() async {
         await onMain {
             let navigator = AppNavigator(selectedTab: .ask)
             navigator.openCalendar(on: "2026-10-15")
 
-            XCTAssertEqual(navigator.selectedTab, .cases)
+            XCTAssertEqual(navigator.selectedTab, .calendar)
             XCTAssertTrue(navigator.takeCalendarRequest())
             XCTAssertFalse(navigator.takeCalendarRequest(), "presented once")
             XCTAssertEqual(navigator.pendingDay, "2026-10-15")
@@ -162,9 +162,9 @@ final class TodayLinksTests: XCTestCase {
     /// A malformed day still shows the Calendar, on whatever day it was showing.
     func testAMalformedDayOpensTheCalendarWhereItWas() async {
         await onMain {
-            let navigator = AppNavigator(selectedTab: .files)
+            let navigator = AppNavigator(selectedTab: .more)
             navigator.openCalendar(on: "2026-02-30")
-            XCTAssertEqual(navigator.selectedTab, .cases)
+            XCTAssertEqual(navigator.selectedTab, .calendar)
             XCTAssertTrue(navigator.takeCalendarRequest(), "the Calendar is still shown")
             XCTAssertNil(navigator.pendingDay)
             navigator.openCalendar(on: nil)
@@ -187,10 +187,10 @@ final class TodayLinksTests: XCTestCase {
     /// person is working in must not go with the tab. It waits to be taken, once.
     func testUpdatesWaitWithoutMovingTheTab() async {
         await onMain {
-            let navigator = AppNavigator(selectedTab: .cases)
+            let navigator = AppNavigator(selectedTab: .matters)
             navigator.openUpdates()
 
-            XCTAssertEqual(navigator.selectedTab, .cases)
+            XCTAssertEqual(navigator.selectedTab, .matters)
             XCTAssertNotNil(navigator.updatesRequest)
             XCTAssertTrue(navigator.takeUpdatesRequest())
             XCTAssertNil(navigator.updatesRequest)

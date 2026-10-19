@@ -155,25 +155,26 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   `screenshot-tour` and `screenshot-tour-ipad` artifacts hold the pictures as plain PNGs —
   `gh run download <run> -n screenshot-tour-ipad`. Look at both after any visible change; an
   iPad turns sheets into form sheets and confirmation dialogs into popovers.
-- **The app's shape (the redesign).** Five tabs — **Home · Cases · Ask · Files · History**
+- **The app's shape (the redesign).** Five tabs — **Home · Matters · Ask · Calendar · More**
   (`MainTabView`). Sign-in opens with the password behind a Password | Sign in with code
   segmented control; the one-time code ("Email me a sign-in code") is the other segment. Home is
-  the dashboard: the design's own bar — the mark, the plan pill (plan & usage as a sheet), the
-  role pill (switches the role), Updates, and the profile button, whose sheet is **You** — the
-  account, its plan, Settings and Tools (every tool, the file tools, OCR, Translate,
-  the Corporate Calendar, Library), You having left the bar. Under the bar the composer, whose
-  send carries the question, its files and its answer mode to Ask (`AppNavigator.ask`) — nothing
-  is sent from Home; the quick actions (draft a petition → the drafting workspace, New chat → a
-  fresh Ask composer, Find a case → the court lookup, which asks Cases to reload its docket);
-  the cause list and the Precedents Vault as the two cards (the vault is for every role, its
-  chips opening the workspace on Civil, Tax, Criminal or IPR); and the recent conversations,
-  each pushing its thread on Home's own stack. Cases holds the cause list and the
-  docket, and opens the Calendar as a sheet from its bar; History is every conversation, each
-  pushing its thread. UI tests sign in through the shared
+  the dashboard: the design's own bar — the mark, the plan pill (plan & usage as a sheet),
+  Updates, and the profile button, whose sheet is **You** — the account, its plan, Settings and
+  Tools (every tool, the file tools, OCR, Translate, the Corporate Calendar, Library), You having
+  left the bar. Under the bar the composer, whose send carries the question, its files and its
+  answer mode to Ask (`AppNavigator.ask`) — nothing is sent from Home; the quick actions; the
+  cause list and the Precedents Vault as the two cards; and the recent conversations, each
+  pushing its thread on Home's own stack. **Ask** greets the reader by name in the design's serif,
+  then the composer and the role's suggestions — a question sent from here opens a fresh
+  conversation. **Matters** holds the cause list and the docket (the next sitting, what is
+  upcoming, every matter) and opens the court lookup from "Add a matter". **Calendar** is the
+  matters day by day, and the diary, with Subscribe in its bar. **More** holds Files and History
+  as rows that present their screens in sheets, plus the web sidebar's Case tools and Doc tools
+  rows (drawn, not yet wired). UI tests sign in through the shared
   `signInWithACode` helper and reach tabs through `app.tab(_:)`, both in `UITests/Tabs.swift`.
-- **iPad layouts.** At regular width History's conversation list (`ChatListView` — the History
-  tab, and still a sheet from Ask) shows the list beside what it opens (`ListBesideDetail`,
-  reading one navigation path, `ListDetailPath`); Cases is a single stack on every device. A UI
+- **iPad layouts.** At regular width History's conversation list (`ChatListView` — presented
+  from More → History) shows the list beside what it opens (`ListBesideDetail`,
+  reading one navigation path, `ListDetailPath`); Matters is a single stack on every device. A UI
   test that taps a
   conversation in History and then goes Back must branch on
   `UIDevice.current.userInterfaceIdiom` — on iPad there is no Back. On iPad the tabs are a row

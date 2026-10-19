@@ -1,19 +1,20 @@
 import SwiftUI
+import UIKit
 
-/// The signed-in app: the redesign's five destinations, **Home · Cases · Ask · Files · History**.
+/// The signed-in app: **Home · Matters · Ask · Calendar · More**.
 ///
 /// - **Home** is the dashboard: the composer that starts a question, the cause list and the
-///   drafting section as cards, and the recent conversations. The profile button in its bar
-///   opens **You** as a sheet — the account, its plan and allowances, the app's settings — which
-///   left the bar in the redesign, along with **Tools**, which holds everything that is not one
-///   of the five: the role's workspace, every tool, the file tools, OCR and translation, the
-///   Corporate Calendar, Library, drafts and updates.
-/// - **Ask** is where a question starts: the date and a greeting, the composer, suggestions for
-///   the reader's role, the next sitting from the cause list, and recent conversations.
-/// - **Cases** is the cause list and the docket together: the next sitting, what is upcoming,
-///   and every matter. The Calendar opens from it.
-/// - **Files** is the library.
-/// - **History** is every conversation, each pushing its thread.
+///   Precedents Vault as cards, and the recent conversations. The profile button in its bar
+///   opens **You** as a sheet — the account, its plan and allowances, the app's settings, and
+///   Tools (the role's workspace, every tool, the file tools, OCR and Translate, the Corporate
+///   Calendar, Library, drafts and updates).
+/// - **Matters** is the cause list and the docket together: the next sitting, what is upcoming,
+///   and every matter.
+/// - **Ask** is where a question starts: the composer, and suggestions for the reader's role.
+///   Its tab icon is the Record mark — the logo, where the sparkle was.
+/// - **Calendar** is the matters day by day, and the diary.
+/// - **More** holds what is not a tab: Files, History, and the web sidebar's Case tools and
+///   Doc tools rows (drawn for their shape; not yet wired to screens).
 ///
 /// Pushed screens — a conversation, a draft, a folder — hide the tab bar (`.toolbar(.hidden,
 /// for: .tabBar)` on each), as the design asks.
@@ -43,27 +44,31 @@ struct MainTabView: View {
 
             MattersView()
                 .tabItem {
-                    Label("Cases", systemImage: "briefcase")
+                    Label("Matters", systemImage: "folder")
                 }
-                .tag(AppNavigator.Tab.cases)
+                .tag(AppNavigator.Tab.matters)
 
             AskHomeView()
                 .tabItem {
-                    Label("Ask", systemImage: "sparkles")
+                    Label {
+                        Text("Ask")
+                    } icon: {
+                        Image(uiImage: Self.askMarkImage())
+                    }
                 }
                 .tag(AppNavigator.Tab.ask)
 
-            MyFilesView(isTab: true)
+            CalendarView()
                 .tabItem {
-                    Label("Files", systemImage: "folder")
+                    Label("Calendar", systemImage: "calendar")
                 }
-                .tag(AppNavigator.Tab.files)
+                .tag(AppNavigator.Tab.calendar)
 
-            ChatListView()
+            MoreTabView()
                 .tabItem {
-                    Label("History", systemImage: "clock")
+                    Label("More", systemImage: "line.3.horizontal")
                 }
-                .tag(AppNavigator.Tab.history)
+                .tag(AppNavigator.Tab.more)
         }
         .environment(\.navigator, navigator)
         // A tapped notification opens where it leads — the Calendar, or Updates.
@@ -73,5 +78,24 @@ struct MainTabView: View {
         // The chosen tab in the accent's text colour; the others in the caption colour
         // (`BrandAppearance`). iOS switches tabs instantly, as the design asks.
         .tint(theme.accentText)
+    }
+
+    /// The two-stroke Record mark, rendered once from its shape as a template image for the tab
+    /// bar — template, so the bar tints it like every other icon.
+    ///
+    /// `ImageRenderer` rather than a bundled asset: the mark already exists as a `Shape`
+    /// (`RecordMarkShape`) and the asset catalogue's copy is marked "original", which would
+    /// resist the bar's tint.
+    @MainActor
+    private static func askMarkImage() -> UIImage {
+        let height: CGFloat = 30
+        let content = RecordMarkShape()
+            .fill(Color.black)
+            .frame(
+                width: height * CGFloat(RecordMark.viewBox.width / RecordMark.viewBox.height),
+                height: height)
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = 3
+        return (renderer.uiImage ?? UIImage()).withRenderingMode(.alwaysTemplate)
     }
 }

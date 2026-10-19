@@ -194,7 +194,8 @@ struct CitationReferenceList: View {
                     .accessibilityHint("Shows this reference on its own, to copy")
 
                     InlineMarkdownText(text: reference.text, citations: citations)
-                        .font(.brand(.subheadline))
+                        // Part of the answer, so its prose face — the badge beside it stays SF.
+                        .font(.serif(.subheadline))
                         .foregroundStyle(theme.textPrimary)
                 }
                 .padding(.horizontal, 10)
@@ -234,7 +235,7 @@ struct CitationReferenceSheet: View {
                         CitationNumberBadge(number: reference.number)
                             .accessibilityHidden(true)
                         InlineMarkdownText(text: reference.text)
-                            .font(.brand(.body))
+                            .font(.serif(.body))
                             .foregroundStyle(theme.textPrimary)
                     }
 

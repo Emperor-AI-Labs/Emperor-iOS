@@ -527,7 +527,11 @@ struct RadioMark: View {
     }
 }
 
-/// Send, or — while an answer is being written — a dark square Stop. The swap pops in.
+/// Send, or — while an answer is being written — a dark circle Stop. The swap pops in.
+///
+/// A **circle**, as the design draws it. Disabled, the send is drawn in its own colours — the
+/// surface and the tertiary text — rather than the gradient faded with an opacity: a gradient at
+/// 0.35 over the light canvas faded to almost nothing and the button vanished in light mode.
 struct SendStopButton: View {
     @Environment(\.theme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -538,7 +542,6 @@ struct SendStopButton: View {
     let onStop: () -> Void
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
         Group {
             if isStreaming {
                 Button {
@@ -549,7 +552,7 @@ struct SendStopButton: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(theme.onInverse)
                         .frame(width: 40, height: 40)
-                        .background(theme.inverse, in: shape)
+                        .background(theme.inverse, in: Circle())
                         .frame(minWidth: Layout.touchTarget, minHeight: Layout.touchTarget)
                         .contentShape(Rectangle())
                 }
@@ -562,10 +565,13 @@ struct SendStopButton: View {
                 } label: {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(theme.onAccent)
+                        .foregroundStyle(canSend ? theme.onAccent : theme.textTertiary)
                         .frame(width: 40, height: 40)
-                        .background(theme.primaryGradient, in: shape)
-                        .opacity(canSend ? 1 : 0.35)
+                        .background(
+                            canSend
+                                ? AnyShapeStyle(theme.primaryGradient)
+                                : AnyShapeStyle(theme.surface2),
+                            in: Circle())
                         .frame(minWidth: Layout.touchTarget, minHeight: Layout.touchTarget)
                         .contentShape(Rectangle())
                 }
@@ -629,6 +635,10 @@ struct AttachmentChip: View {
 /// The field grows to six lines, then scrolls. Return sends from a hardware keyboard; Shift-Return
 /// adds a line. Nothing here clears the text: the screen does, once the question has really gone —
 /// so a question refused, offline or busy stays where it was written.
+///
+/// `showsMark` puts the Record mark ahead of the field, as the design draws the Home and Ask
+/// composers — the logo in the text box. Anything the screen adds (`accessories`) sits at the
+/// trailing edge, before Send: the rewrite wand and dictation on the design's own row.
 struct RecordComposer<Accessories: View>: View {
     @Environment(\.theme) private var theme
 
@@ -641,6 +651,7 @@ struct RecordComposer<Accessories: View>: View {
     var isStreaming = false
     var canSend = true
     var isDisabled = false
+    var showsMark = false
     let onAttach: () -> Void
     let onSend: () -> Void
     var onStop: () -> Void = {}
@@ -662,28 +673,40 @@ struct RecordComposer<Accessories: View>: View {
                 }
             }
 
-            TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundStyle(theme.textTertiary), axis: .vertical)
-                .lineLimit(1...Layout.composerMaxLines)
-                .textFieldStyle(.plain)
-                .font(.brand(.body))
-                .foregroundStyle(theme.textPrimary)
-                .focused(focus)
-                .disabled(isDisabled)
-                .padding(.horizontal, 14)
-                .padding(.top, 14)
-                .padding(.bottom, 6)
-                .onKeyPress(keys: [.return]) { press in
-                    guard !press.modifiers.contains(.shift) else { return .ignored }
-                    guard canSend, !isStreaming else { return .handled }
-                    Haptics.send()
-                    onSend()
-                    return .handled
+            HStack(alignment: .top, spacing: 8) {
+                if showsMark {
+                    // The logo in the text box: the mark, at the first line's height.
+                    RecordMarkShape()
+                        .fill(theme.logoGradient)
+                        .frame(width: 22, height: 16.5)
+                        .padding(.top, 17)
+                        .accessibilityHidden(true)
                 }
+                TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundStyle(theme.textTertiary), axis: .vertical)
+                    .lineLimit(1...Layout.composerMaxLines)
+                    .textFieldStyle(.plain)
+                    .font(.brand(.body))
+                    .foregroundStyle(theme.textPrimary)
+                    .focused(focus)
+                    .disabled(isDisabled)
+                    .padding(.leading, showsMark ? 0 : 14)
+                    .padding(.trailing, 14)
+                    .padding(.top, 14)
+                    .padding(.bottom, 6)
+                    .onKeyPress(keys: [.return]) { press in
+                        guard !press.modifiers.contains(.shift) else { return .ignored }
+                        guard canSend, !isStreaming else { return .handled }
+                        Haptics.send()
+                        onSend()
+                        return .handled
+                    }
+            }
+            .padding(.leading, showsMark ? 14 : 0)
 
             HStack(spacing: Spacing.xs) {
                 Button(action: onAttach) {
-                    Image(systemName: "paperclip")
-                        .font(.system(size: 18, weight: .medium))
+                    Image(systemName: "plus.circle")
+                        .font(.system(size: 20, weight: .regular))
                         .foregroundStyle(theme.textFaint)
                         .frame(minWidth: Layout.touchTarget, minHeight: Layout.touchTarget)
                         .contentShape(Rectangle())
@@ -695,9 +718,9 @@ struct RecordComposer<Accessories: View>: View {
                 ModeChip(model: model, action: onChooseMode)
                     .disabled(isStreaming)
 
-                accessories()
-
                 Spacer(minLength: 0)
+
+                accessories()
 
                 SendStopButton(
                     isStreaming: isStreaming, canSend: canSend, onSend: onSend, onStop: onStop)
@@ -726,13 +749,15 @@ extension RecordComposer where Accessories == EmptyView {
         text: Binding<String>, placeholder: String, attachments: [String] = [],
         onRemoveAttachment: ((Int) -> Void)? = nil, model: ChatModel,
         onChooseMode: @escaping () -> Void, isStreaming: Bool = false, canSend: Bool = true,
-        isDisabled: Bool = false, onAttach: @escaping () -> Void, onSend: @escaping () -> Void,
+        isDisabled: Bool = false, showsMark: Bool = false,
+        onAttach: @escaping () -> Void, onSend: @escaping () -> Void,
         onStop: @escaping () -> Void = {}, focus: FocusState<Bool>.Binding
     ) {
         self.init(
             text: text, placeholder: placeholder, attachments: attachments,
             onRemoveAttachment: onRemoveAttachment, model: model, onChooseMode: onChooseMode,
             isStreaming: isStreaming, canSend: canSend, isDisabled: isDisabled,
+            showsMark: showsMark,
             onAttach: onAttach, onSend: onSend, onStop: onStop, focus: focus,
             accessories: { EmptyView() })
     }

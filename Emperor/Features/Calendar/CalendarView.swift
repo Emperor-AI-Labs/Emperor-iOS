@@ -7,7 +7,7 @@ import SwiftUI
 /// Selecting a day in the month shows the matters listed on it — from the cause list, topped up
 /// from the docket's next hearing dates — **in the order the day will run**: by sitting time,
 /// then the listings whose list printed no time, by courtroom and item. Each row is the one Home
-/// draws (`CauseListingRow`), led by its time. Tapping one opens that case on the **Cases** tab,
+/// draws (`CauseListingRow`), led by its time. Tapping one opens that case on the **Matters** tab,
 /// on its overview: the case belongs to the docket, and a second copy of its screen inside this
 /// tab would be a second place to look for the same matter. The day's diary entries follow as
 /// their own section. The rules are `CalendarListings` and `CalendarViewModel`.
@@ -17,8 +17,9 @@ import SwiftUI
 /// ## Opened on a day from outside
 ///
 /// A tapped hearing reminder, the Today widget and the app's `emperor://calendar?day=` link all
-/// ask `AppNavigator` for a day. This takes it the way the Cases tab takes a case — when it
-/// appears, or when the request arrives while it is already alive — selects the day, and scrolls
+/// ask `AppNavigator` for a day (`openCalendar(on:)`, which switches to this tab). This takes it
+/// the way the Matters tab takes a case — when it appears, or when the request arrives while it
+/// is already alive — selects the day, and scrolls
 /// back to the month so the day's listings are what is on screen. A request that arrives before
 /// the screen has made its model is taken as the model is made, before the first load.
 ///
@@ -37,8 +38,8 @@ import SwiftUI
 /// either. On the one screen whose purpose is not missing a limitation date, a reminder control
 /// would be the worst possible place to make a promise the product cannot keep.
 ///
-/// The Corporate Calendar is not linked from here any more: it has its own row in More, for
-/// every role.
+/// The Corporate Calendar is not linked from here any more: it has its own row in You's Tools,
+/// for every role.
 struct CalendarView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
@@ -53,9 +54,6 @@ struct CalendarView: View {
     @ScaledMetric(relativeTo: .footnote) private var stepSide: CGFloat = 32
     /// Counts days opened from outside, each of which scrolls back up to the month.
     @State private var openedDays = 0
-
-    /// Closes the Calendar, which is presented over Matters rather than being a tab.
-    var onDone: (() -> Void)?
 
     /// The month grid's row, which a day opened from outside scrolls to.
     private static let monthRowID = "calendar-month"
@@ -78,12 +76,6 @@ struct CalendarView: View {
                     Button("Subscribe") { isSubscribing = true }
                         .accessibilityHint("Adds your hearings and diary to the Calendar app")
                 }
-                // Presented over Matters, so it carries its own way out.
-                if let onDone {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done", action: onDone)
-                    }
-                }
             }
             .sheet(isPresented: $isSubscribing) {
                 CalendarSubscriptionSheet()
@@ -100,15 +92,18 @@ struct CalendarView: View {
                 await created.load()
             }
         }
-        // Both, as the Cases tab does: a tab never shown before is created by the switch the
-        // request causes, and one already alive sees the request change instead.
+        // Both, as the Matters tab does: a tab never shown before is created by the switch the
+        // request causes, and one already alive sees the request change instead. The request
+        // counter is observed too, so asking for the day already showing is still a change.
         .onAppear { openRequestedDay() }
         .onChange(of: navigator.pendingDay) { _, _ in openRequestedDay() }
+        .onChange(of: navigator.calendarRequest) { _, _ in openRequestedDay() }
     }
 
-    /// Selects a day asked for from outside. Left waiting until the model exists — the `.task`
-    /// above takes it then.
+    /// Selects a day asked for from outside. The request itself is taken whether it carried a
+    /// day or not; left waiting until the model exists — the `.task` above takes it then.
     private func openRequestedDay() {
+        _ = navigator.takeCalendarRequest()
         guard let model, let day = navigator.takePendingDay() else { return }
         model.select(day: day)
         openedDays += 1
@@ -273,7 +268,7 @@ struct CalendarView: View {
         HStack(spacing: 14) {
             HStack(spacing: 5) {
                 marker(.listed, isSelected: false)
-                Text("Cases listed")
+                Text("Matters listed")
             }
             HStack(spacing: 5) {
                 marker(.diary, isSelected: false)
@@ -286,7 +281,7 @@ struct CalendarView: View {
         .padding(.top, Spacing.sm)
         .padding(.leading, Spacing.xs)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("A dot marks a day with cases listed; a ring, a day with only diary entries.")
+        .accessibilityLabel("A dot marks a day with matters listed; a ring, a day with only diary entries.")
         // Text, not a control — see the weekday row above.
         .accessibilityAddTraits(.isStaticText)
     }
@@ -439,7 +434,7 @@ struct CalendarView: View {
         .listRowBackground(theme.surface)
     }
 
-    /// A listing, which opens its case on the Cases tab — see the type's documentation for why
+    /// A listing, which opens its case on the Matters tab — see the type's documentation for why
     /// it is not pushed here. A button with a chevron rather than a `NavigationLink`, because it
     /// leaves this tab; it still looks like every other row that leads somewhere.
     private func listingButton(_ listing: CauseListing) -> some View {
@@ -455,7 +450,7 @@ struct CalendarView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(listing.display.spokenLeadingWithTime(listing))
-        .accessibilityHint("Opens the case on the Cases tab")
+        .accessibilityHint("Opens the case on the Matters tab")
         .accessibilityIdentifier("calendar-listing-\(listing.caseID)")
     }
 

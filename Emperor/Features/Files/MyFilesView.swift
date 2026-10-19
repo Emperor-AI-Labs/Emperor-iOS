@@ -30,8 +30,9 @@ struct MyFilesView: View {
     private let opening: DocumentRoute?
     /// How Done closes the screen when it was not presented by SwiftUI — see `TopPresenter`.
     private let onDone: (() -> Void)?
-    /// Whether this is the Files tab — no Done, and the tab's own title — rather than a
-    /// presented screen.
+    /// Whether this is the Files tab — the tab's own title — rather than a presented screen.
+    /// Done is drawn whenever `onDone` is set, even here: More presents Files in a sheet and
+    /// needs both the title and the way out.
     private let isTab: Bool
 
     init(isTab: Bool = false, opening: DocumentRoute? = nil, onDone: (() -> Void)? = nil) {
@@ -53,9 +54,10 @@ struct MyFilesView: View {
             .navigationTitle(rootTitle)
             // On the root rather than inside the screen, so it is there in every state —
             // including the spinner before the first load returns. Presented over the app for a
-            // search result, iOS gives it no back button; as the Files tab it needs none.
+            // search result, iOS gives it no back button; as the Files tab it needs none — but
+            // More's sheet carries its own Done through `onDone`.
             .toolbar {
-                if !isTab {
+                if !isTab || onDone != nil {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Done") {
                             if let onDone { onDone() } else { dismiss() }

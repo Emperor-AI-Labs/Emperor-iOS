@@ -40,6 +40,11 @@ struct MarkdownContentView: View {
                     isTail: isStreaming && offset == cited.blocks.count - 1)
             }
         }
+        // **New York carries the prose** — an answer is the app speaking in sentences, which is
+        // exactly what the serif is for. Headings, markers and reference text override below or
+        // above this only to keep their own weight; badges stay in SF because they are links,
+        // not prose. The reader's own words and every label around this stay SF.
+        .font(.serif(.body))
         .frame(maxWidth: .infinity, alignment: .leading)
         // A badge is a link to a private scheme, intercepted here. Anything else — a real link
         // in the answer — is handed back to the system and opens as it always did.
@@ -79,7 +84,7 @@ struct MarkdownContentView: View {
         switch block {
         case .heading(let level, let text):
             InlineMarkdownText(text: text, citations: citations, holdingTrailingMarker: isTail)
-                .font(.brand(headingStyle(level), weight: .bold))
+                .font(.serif(headingStyle(level), weight: .bold))
                 .foregroundStyle(theme.textPrimary)
                 .padding(.top, level <= 2 ? 6 : 2)
 
@@ -129,7 +134,7 @@ struct MarkdownContentView: View {
     ) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(marker)
-                .font(.brand(.subheadline))
+                .font(.serif(.subheadline))
                 .foregroundStyle(theme.textSecondary)
                 // Fixed, so the text of every item in a list starts at the same place however
                 // wide its marker is — "10." against "1." otherwise sets up a ragged edge.
@@ -255,10 +260,11 @@ private struct MarkdownTableView: View {
         // Read as inline markdown like every other line of the answer, so a chronology's
         // authority column carries the same citation badges as the prose above it — and bold
         // in a cell is bold, as it already is in the exported file.
-        CitedText(text: text, citations: citations)
+            CitedText(text: text, citations: citations)
             // Spelled out on both sides: `font(_:)` takes an `Optional`, the shape the type
-            // checker argues with when both branches are implicit members.
-            .font((isHeader ? Font.brand(.caption, weight: .semibold) : Font.brand(.caption))
+            // checker argues with when both branches are implicit members. The answer's own
+            // prose face, digit-aligned — a chronology's dates line up in a column.
+            .font((isHeader ? Font.serif(.caption, weight: .semibold) : Font.serif(.caption))
                 .monospacedDigit())
             .multilineTextAlignment(alignment == .trailing ? .trailing : .leading)
             // Wide enough to read a date or a short phrase; capped so one long cell cannot

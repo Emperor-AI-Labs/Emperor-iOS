@@ -1,22 +1,22 @@
 import XCTest
 @testable import EmperorCore
 
-/// Cross-tab navigation: the Calendar asking the Cases tab to open a matter.
+/// Cross-tab navigation: the Calendar asking the Matters tab to open a matter.
 final class AppNavigatorTests: XCTestCase {
 
-    /// Asking for a case switches to Cases and leaves the request for that tab to take.
+    /// Asking for a case switches to Matters and leaves the request for that tab to take.
     func testOpeningACaseSwitchesToCasesAndLeavesTheRequest() async {
         await onMain {
-            let navigator = AppNavigator(selectedTab: .files)
+            let navigator = AppNavigator(selectedTab: .more)
             navigator.openCase("case1")
 
-            XCTAssertEqual(navigator.selectedTab, .cases)
+            XCTAssertEqual(navigator.selectedTab, .matters)
             XCTAssertEqual(navigator.pendingCase?.caseID, "case1")
         }
     }
 
-    /// The Cases tab's stack becomes just that case — replaced, not appended to — so Back from it
-    /// lands on the docket rather than on whatever was open before.
+    /// The Matters tab's stack becomes just that case — replaced, not appended to — so Back from
+    /// it lands on the docket rather than on whatever was open before.
     func testTheStackBecomesJustTheCase() async {
         await onMain {
             let navigator = AppNavigator()
@@ -28,7 +28,7 @@ final class AppNavigatorTests: XCTestCase {
         }
     }
 
-    /// Taken once. The Cases tab takes the request both when it appears and when the request
+    /// Taken once. The Matters tab takes the request both when it appears and when the request
     /// changes; coming back to the tab later must not push the case a second time.
     func testTheRequestIsTakenOnce() async {
         await onMain {
@@ -75,10 +75,10 @@ final class AppNavigatorTests: XCTestCase {
     /// — taken once, the latest winning, and never with nothing to ask.
     func testAskingFromAnotherTabFillsTheComposerOnce() async {
         await onMain {
-            let navigator = AppNavigator(selectedTab: .cases)
+            let navigator = AppNavigator(selectedTab: .matters)
             navigator.ask("  ")
             XCTAssertNil(navigator.pendingQuestion)
-            XCTAssertEqual(navigator.selectedTab, .cases)
+            XCTAssertEqual(navigator.selectedTab, .matters)
 
             let file = ChatAttachment(name: "AWARD.pdf", folderName: "EESL")
             navigator.ask("What is listed?")
@@ -118,7 +118,7 @@ final class AppNavigatorTests: XCTestCase {
         }
     }
 
-    /// A matter pinned from outside Cases asks the docket to reload: numbered, and taken once.
+    /// A matter pinned from outside Matters asks the docket to reload: numbered, and taken once.
     func testTheDocketRefreshIsRequestedAndTakenOnce() async {
         await onMain {
             let navigator = AppNavigator()

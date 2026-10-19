@@ -3,7 +3,7 @@ import Foundation
 import Observation
 #endif
 
-/// A matter pushed onto the Cases tab's navigation stack.
+/// A matter pushed onto the Matters tab's navigation stack.
 struct CaseRoute: Hashable, Sendable {
     let caseID: String
     /// Which request pushed it: `0` for a row tapped in the docket itself, otherwise the
@@ -52,7 +52,7 @@ struct DocumentRoute: Hashable, Sendable {
 }
 
 /// Navigation that crosses tabs: which tab is showing, and a case some other tab has asked the
-/// Cases tab to open.
+/// Matters tab to open.
 ///
 /// One per signed-in app, made by `MainTabView` and handed down the environment. A tab that wants
 /// another tab to show something says so here rather than reaching into it, so neither has to
@@ -60,12 +60,12 @@ struct DocumentRoute: Hashable, Sendable {
 ///
 /// ## Opening a case from another tab
 ///
-/// `openCase(_:)` records the request and switches to Cases. The Cases tab takes it with
+/// `openCase(_:)` records the request and switches to Matters. The Matters tab takes it with
 /// `takePendingCaseStack()` — when it appears, or when the request changes while it is already
 /// on screen — and replaces its stack with what that returns. Taking clears the request, so it is
 /// applied once: coming back to the tab later must not push the case a second time.
 ///
-/// The stack is **replaced, not appended to**. Whatever the Cases tab was last showing is not
+/// The stack is **replaced, not appended to**. Whatever the Matters tab was last showing is not
 /// what the user asked for, and Back from the case should land on the docket — the place the
 /// case lives — rather than on a matter opened an hour ago.
 ///
@@ -76,16 +76,16 @@ struct DocumentRoute: Hashable, Sendable {
 @MainActor
 final class AppNavigator {
 
-    /// The tab bar, in order — the redesign's five destinations: **Home · Cases · Ask · Files ·
-    /// History**. You left the bar and opens from Home's profile button. See `MainTabView` for
-    /// where everything else went.
+    /// The tab bar, in order — **Home · Matters · Ask · Calendar · More**. Files and History
+    /// left the bar and hang off More; You opens from Home's profile button. See `MainTabView`
+    /// for where everything else went.
     enum Tab: Hashable, Sendable {
-        case home, cases, ask, files, history
+        case home, matters, ask, calendar, more
     }
 
     var selectedTab: Tab
 
-    /// A case another tab has asked to open, not yet taken by the Cases tab.
+    /// A case another tab has asked to open, not yet taken by the Matters tab.
     private(set) var pendingCase: CaseRoute?
 
     /// Requests so far. Starts above zero, which is reserved for a row tapped in the docket.
@@ -95,7 +95,7 @@ final class AppNavigator {
         self.selectedTab = selectedTab
     }
 
-    /// Shows a case on the Cases tab, opened on its overview.
+    /// Shows a case on the Matters tab, opened on its overview.
     ///
     /// The latest request wins: a second one before the first is taken replaces it, because the
     /// user has since asked for something else.
@@ -103,10 +103,10 @@ final class AppNavigator {
         guard !caseID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         requestCount += 1
         pendingCase = CaseRoute(caseID: caseID, request: requestCount)
-        selectedTab = .cases
+        selectedTab = .matters
     }
 
-    /// The Cases tab's new stack, or `nil` when nothing is waiting. Taking the request clears it.
+    /// The Matters tab's new stack, or `nil` when nothing is waiting. Taking the request clears it.
     func takePendingCaseStack() -> [CaseRoute]? {
         guard let route = pendingCase else { return nil }
         pendingCase = nil
@@ -171,14 +171,14 @@ final class AppNavigator {
 
     // MARK: - Docket refresh
 
-    /// A matter pinned from outside the Cases tab — the court lookup, offered from Home. Numbered
+    /// A matter pinned from outside the Matters tab — the court lookup, offered from Home. Numbered
     /// like the other requests so a second pin before the first is taken is still a change.
     ///
     /// The docket is loaded once per session and kept, so a matter added from Home's lookup would
-    /// not appear on Cases until its next cold load. Cases takes this and reloads.
+    /// not appear on Matters until its next cold load. Matters takes this and reloads.
     private(set) var docketRefreshRequest: Int?
 
-    /// Asks the Cases tab to reload its docket. Does not switch tabs: the lookup sheet says it
+    /// Asks the Matters tab to reload its docket. Does not switch tabs: the lookup sheet says it
     /// has saved, and the docket is ready whenever the tab is opened.
     func requestDocketRefresh() {
         requestCount += 1
@@ -207,13 +207,13 @@ final class AppNavigator {
     /// A day something outside the Calendar has asked it to show — a tapped hearing reminder, the
     /// Today widget, a link — not yet taken by it. India's `YYYY-MM-DD`.
     ///
-    /// Taken the way the Cases tab takes `pendingCase`: by `takePendingDay()`, when the Calendar
-    /// appears or when this changes while it is on screen, and cleared by taking.
+    /// Taken by `takePendingDay()` when the Calendar appears or when this changes while it is
+    /// on screen, and cleared by taking.
     private(set) var pendingDay: String?
 
     /// A request for the Calendar not yet taken, numbered so a second request while the first
-    /// waits is still a change. The Calendar lives on the Cases tab now, presented over it; the
-    /// tab takes this and presents it, and the Calendar takes `pendingDay` itself.
+    /// waits is still a change. The Calendar is a tab of its own; it takes this and takes
+    /// `pendingDay` itself.
     private(set) var calendarRequest: Int?
 
     /// Whether the Calendar was asked for. Taking clears the request.
@@ -223,7 +223,7 @@ final class AppNavigator {
         return true
     }
 
-    /// Shows the Calendar — over the Cases tab — on `day` when that is a real day.
+    /// Shows the Calendar tab, on `day` when that is a real day.
     ///
     /// The day is checked by round trip, as a notification's is (`NotificationTarget`), so a
     /// malformed one cannot open the Calendar somewhere odd; the Calendar then opens on whatever
@@ -234,7 +234,7 @@ final class AppNavigator {
         updatesRequest = nil
         requestCount += 1
         calendarRequest = requestCount
-        selectedTab = .cases
+        selectedTab = .calendar
     }
 
     /// The day the Calendar should select, or `nil` when nothing is waiting. Taking clears it.
@@ -250,9 +250,9 @@ final class AppNavigator {
     ///
     /// **It does not switch tabs.** The screen is a sheet, and something else may be presented
     /// when the request arrives — a half-written diary entry, say. Whoever presents Updates waits
-    /// until nothing is, then switches to Ask and shows it (`NotificationTapRouting`); an Updates
-    /// screen already open takes the request itself and reloads. Switching tabs now could take
-    /// the sheet the person is working in away with it.
+    /// until nothing is, then switches to Home — where its bell lives — and shows it
+    /// (`NotificationTapRouting`); an Updates screen already open takes the request itself and
+    /// reloads. Switching tabs now could take the sheet the person is working in away with it.
     private(set) var updatesRequest: Int?
 
     /// Asks for the Updates screen.
