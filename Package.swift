@@ -46,6 +46,9 @@ let package = Package(
                 // The Limitation Radar's suit types and answers, from the platform's `audit.js` —
                 // `scripts/generate-limitation-fixtures.mjs`.
                 .copy("Resources/limitation-radar.json"),
+                // What a folder upload drops as operating-system debris, and where each of its
+                // files lands — `scripts/generate-upload-junk-fixtures.mjs`.
+                .copy("Resources/upload-folder"),
             ]),
     ]
 )

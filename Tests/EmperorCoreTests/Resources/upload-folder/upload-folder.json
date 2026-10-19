@@ -1,0 +1,383 @@
+{
+  "junk": [
+    {
+      "path": "Wadhwa/Plaint.pdf",
+      "isJunkPath": false,
+      "pathReason": null,
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa/.DS_Store",
+      "isJunkPath": true,
+      "pathReason": "macOS Finder directory state (.DS_Store)",
+      "isJunkName": true,
+      "nameReason": "macOS Finder directory state (.DS_Store)"
+    },
+    {
+      "path": "Wadhwa/.ds_store",
+      "isJunkPath": true,
+      "pathReason": "macOS Finder directory state (.DS_Store)",
+      "isJunkName": true,
+      "nameReason": "macOS Finder directory state (.DS_Store)"
+    },
+    {
+      "path": "Wadhwa/Orders/._Order.pdf",
+      "isJunkPath": true,
+      "pathReason": "AppleDouble resource-fork sidecar (._ prefix)",
+      "isJunkName": true,
+      "nameReason": "AppleDouble resource-fork sidecar (._ prefix)"
+    },
+    {
+      "path": "Wadhwa/._.DS_Store",
+      "isJunkPath": true,
+      "pathReason": "AppleDouble sidecar of .DS_Store",
+      "isJunkName": true,
+      "nameReason": "AppleDouble sidecar of .DS_Store"
+    },
+    {
+      "path": "Wadhwa/__MACOSX/Plaint.pdf",
+      "isJunkPath": true,
+      "pathReason": "macOS zip metadata directory (__MACOSX) — in path segment \"__MACOSX\"",
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa/__macosx/Orders/._x.pdf",
+      "isJunkPath": true,
+      "pathReason": "macOS zip metadata directory (__MACOSX) — in path segment \"__macosx\"",
+      "isJunkName": true,
+      "nameReason": "AppleDouble resource-fork sidecar (._ prefix)"
+    },
+    {
+      "path": "Wadhwa/Thumbs.db",
+      "isJunkPath": true,
+      "pathReason": "Windows Explorer thumbnail cache (Thumbs.db)",
+      "isJunkName": true,
+      "nameReason": "Windows Explorer thumbnail cache (Thumbs.db)"
+    },
+    {
+      "path": "Wadhwa/THUMBS.DB",
+      "isJunkPath": true,
+      "pathReason": "Windows Explorer thumbnail cache (Thumbs.db)",
+      "isJunkName": true,
+      "nameReason": "Windows Explorer thumbnail cache (Thumbs.db)"
+    },
+    {
+      "path": "Wadhwa/Thumbs.db:encryptable",
+      "isJunkPath": true,
+      "pathReason": "Windows thumbnail cache alternate data stream",
+      "isJunkName": true,
+      "nameReason": "Windows thumbnail cache alternate data stream"
+    },
+    {
+      "path": "Wadhwa/desktop.ini",
+      "isJunkPath": true,
+      "pathReason": "Windows Explorer folder customisation (desktop.ini)",
+      "isJunkName": true,
+      "nameReason": "Windows Explorer folder customisation (desktop.ini)"
+    },
+    {
+      "path": "Wadhwa/Icon\r",
+      "isJunkPath": true,
+      "pathReason": "macOS Finder custom-icon file (Icon\\r)",
+      "isJunkName": true,
+      "nameReason": "macOS Finder custom-icon file (Icon\\r)"
+    },
+    {
+      "path": "Wadhwa/Icon",
+      "isJunkPath": false,
+      "pathReason": null,
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa/Icon\r\r",
+      "isJunkPath": true,
+      "pathReason": "macOS Finder custom-icon file (Icon\\r)",
+      "isJunkName": true,
+      "nameReason": "macOS Finder custom-icon file (Icon\\r)"
+    },
+    {
+      "path": "Wadhwa/._",
+      "isJunkPath": false,
+      "pathReason": null,
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa/._a",
+      "isJunkPath": true,
+      "pathReason": "AppleDouble resource-fork sidecar (._ prefix)",
+      "isJunkName": true,
+      "nameReason": "AppleDouble resource-fork sidecar (._ prefix)"
+    },
+    {
+      "path": "Wadhwa/$RECYCLE.BIN/x.pdf",
+      "isJunkPath": true,
+      "pathReason": "Windows Recycle Bin directory — in path segment \"$RECYCLE.BIN\"",
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa/System Volume Information/x.pdf",
+      "isJunkPath": true,
+      "pathReason": "Windows NTFS volume metadata directory — in path segment \"System Volume Information\"",
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa/.Spotlight-V100/store.db",
+      "isJunkPath": true,
+      "pathReason": "macOS Spotlight index directory — in path segment \".Spotlight-V100\"",
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa/.Trashes/x.pdf",
+      "isJunkPath": true,
+      "pathReason": "macOS per-volume trash directory — in path segment \".Trashes\"",
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa/.Trash-1000/files/x.pdf",
+      "isJunkPath": true,
+      "pathReason": "Linux freedesktop trash directory — in path segment \".Trash-1000\"",
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa/.directory",
+      "isJunkPath": true,
+      "pathReason": "KDE folder view settings (.directory)",
+      "isJunkName": true,
+      "nameReason": "KDE folder view settings (.directory)"
+    },
+    {
+      "path": "Wadhwa/.localized",
+      "isJunkPath": true,
+      "pathReason": "macOS Finder localisation marker",
+      "isJunkName": true,
+      "nameReason": "macOS Finder localisation marker"
+    },
+    {
+      "path": "Wadhwa/.apdisk",
+      "isJunkPath": true,
+      "pathReason": "macOS Time Machine volume-exclusion marker",
+      "isJunkName": true,
+      "nameReason": "macOS Time Machine volume-exclusion marker"
+    },
+    {
+      "path": "Wadhwa/recycler/x.pdf",
+      "isJunkPath": true,
+      "pathReason": "Windows Recycle Bin directory (legacy) — in path segment \"recycler\"",
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa\\Thumbs.db",
+      "isJunkPath": true,
+      "pathReason": "Windows Explorer thumbnail cache (Thumbs.db)",
+      "isJunkName": true,
+      "nameReason": "Windows Explorer thumbnail cache (Thumbs.db)"
+    },
+    {
+      "path": "Wadhwa\\Orders\\Plaint.pdf",
+      "isJunkPath": false,
+      "pathReason": null,
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa/Orders/",
+      "isJunkPath": false,
+      "pathReason": null,
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa/.hidden.pdf",
+      "isJunkPath": false,
+      "pathReason": null,
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa/..",
+      "isJunkPath": false,
+      "pathReason": null,
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "Wadhwa/.",
+      "isJunkPath": false,
+      "pathReason": null,
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": ".DS_Store",
+      "isJunkPath": true,
+      "pathReason": "macOS Finder directory state (.DS_Store)",
+      "isJunkName": true,
+      "nameReason": "macOS Finder directory state (.DS_Store)"
+    },
+    {
+      "path": "Plaint.pdf",
+      "isJunkPath": false,
+      "pathReason": null,
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "ehthumbs_vista.db",
+      "isJunkPath": true,
+      "pathReason": "Windows Media Center thumbnail cache (Vista)",
+      "isJunkName": true,
+      "nameReason": "Windows Media Center thumbnail cache (Vista)"
+    },
+    {
+      "path": "Wadhwa/देखिए.pdf",
+      "isJunkPath": false,
+      "pathReason": null,
+      "isJunkName": false,
+      "nameReason": null
+    },
+    {
+      "path": "",
+      "isJunkPath": false,
+      "pathReason": null,
+      "isJunkName": false,
+      "nameReason": null
+    }
+  ],
+  "destinations": [
+    {
+      "relativePath": "Wadhwa/Plaint.pdf",
+      "name": "Plaint.pdf",
+      "folder": "Clients",
+      "folderName": "Clients/Wadhwa",
+      "fileName": "Plaint.pdf"
+    },
+    {
+      "relativePath": "Wadhwa/Orders/Order.pdf",
+      "name": "Order.pdf",
+      "folder": "Clients",
+      "folderName": "Clients/Wadhwa/Orders",
+      "fileName": "Order.pdf"
+    },
+    {
+      "relativePath": "Wadhwa/Orders/2025/Order.pdf",
+      "name": "Order.pdf",
+      "folder": "Clients/Matters",
+      "folderName": "Clients/Matters/Wadhwa/Orders/2025",
+      "fileName": "Order.pdf"
+    },
+    {
+      "relativePath": "Wadhwa/Plaint.pdf",
+      "name": "Plaint.pdf",
+      "folder": "Wadhwa",
+      "folderName": "Wadhwa",
+      "fileName": "Plaint.pdf"
+    },
+    {
+      "relativePath": "Wadhwa/Orders/Order.pdf",
+      "name": "Order.pdf",
+      "folder": "Wadhwa",
+      "folderName": "Wadhwa/Orders",
+      "fileName": "Order.pdf"
+    },
+    {
+      "relativePath": "Wadhwa/Plaint.pdf",
+      "name": "Plaint.pdf",
+      "folder": "Clients/Wadhwa",
+      "folderName": "Clients/Wadhwa",
+      "fileName": "Plaint.pdf"
+    },
+    {
+      "relativePath": "Wadhwa Matter/Plaint.pdf",
+      "name": "Plaint.pdf",
+      "folder": "Wadhwa_Matter",
+      "folderName": "Wadhwa_Matter",
+      "fileName": "Plaint.pdf"
+    },
+    {
+      "relativePath": "WADHWA/Plaint.pdf",
+      "name": "Plaint.pdf",
+      "folder": "wadhwa",
+      "folderName": "wadhwa",
+      "fileName": "Plaint.pdf"
+    },
+    {
+      "relativePath": "Wadhwa/Plaint.pdf",
+      "name": "Plaint.pdf",
+      "folder": "Clients/Wadhwa/",
+      "folderName": "Clients/Wadhwa/",
+      "fileName": "Plaint.pdf"
+    },
+    {
+      "relativePath": "Bakshi/Wadhwa/Plaint.pdf",
+      "name": "Plaint.pdf",
+      "folder": "Wadhwa",
+      "folderName": "Wadhwa/Bakshi/Wadhwa",
+      "fileName": "Plaint.pdf"
+    },
+    {
+      "relativePath": "Wadhwa//Orders/Order.pdf",
+      "name": "Order.pdf",
+      "folder": "Clients",
+      "folderName": "Clients/Wadhwa/Orders",
+      "fileName": "Order.pdf"
+    },
+    {
+      "relativePath": "मामला/आदेश.pdf",
+      "name": "आदेश.pdf",
+      "folder": "मामला",
+      "folderName": "मामला",
+      "fileName": "आदेश.pdf"
+    },
+    {
+      "relativePath": "",
+      "name": "Plaint.pdf",
+      "folder": "Clients",
+      "folderName": "Clients",
+      "fileName": "Plaint.pdf"
+    }
+  ],
+  "normFolder": [
+    {
+      "raw": "Wadhwa Matter",
+      "normalized": "wadhwa_matter"
+    },
+    {
+      "raw": "  Clients/Wadhwa  ",
+      "normalized": "clients/wadhwa"
+    },
+    {
+      "raw": "A&B (2025)",
+      "normalized": "a_b__2025_"
+    },
+    {
+      "raw": "ÉCOLE",
+      "normalized": "_cole"
+    },
+    {
+      "raw": "देखिए",
+      "normalized": "_____"
+    },
+    {
+      "raw": "a  b",
+      "normalized": "a__b"
+    },
+    {
+      "raw": "x.y-z_w/v",
+      "normalized": "x.y-z_w/v"
+    },
+    {
+      "raw": "",
+      "normalized": ""
+    }
+  ]
+}
