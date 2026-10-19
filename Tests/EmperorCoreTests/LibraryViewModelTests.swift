@@ -720,7 +720,7 @@ final class JudgmentReaderViewModelTests: XCTestCase {
 
         service.judgmentErrors[257_708] = APIError.invalidCredentials
         await model.load()
-        XCTAssertEqual(model.state.failure?.kind, .unauthenticated)
+        XCTAssertTrue(model.state.requiresReauthentication)
         XCTAssertTrue(model.failureHint.contains("Sign in again"))
         }
     }

@@ -49,9 +49,10 @@ struct CourtSearchView: View {
                 model = CourtSearchViewModel(
                     service: session.courtSearch,
                     metadata: session.courtMetadata,
-                    onSaved: onSaved)
+                    onSaved: onSaved,
+                    recent: RecentLookups(store: Preferences()))
             }
-            .sheet(item: $reading) { result in
+            .sheet(item: $reading, onDismiss: { model?.refreshRecent() }) { result in
                 CourtRecordView(card: result) { _ in
                     // Added from the record: the docket behind this sheet has a new row.
                     onSaved()
@@ -66,6 +67,9 @@ struct CourtSearchView: View {
         @Bindable var model = model
 
         return Form {
+            if purpose == .lookup {
+                LookupIntroSection()
+            }
             Section {
                 NavigationLink {
                     CourtPicker(model: model)
@@ -122,6 +126,10 @@ struct CourtSearchView: View {
             }
 
             resultsSection(model)
+
+            if purpose == .lookup, !model.recentLookups.isEmpty {
+                RecentLookupsSection(model: model) { reading = $0 }
+            }
         }
         .font(.brand(.body))
         .scrollContentBackground(.hidden)
@@ -655,5 +663,90 @@ private struct CaptchaSheet: View {
                 }
             }
         }
+    }
+}
+
+/// Fetch Orders' front door: one line saying what this is, and the three steps from "I have a
+/// case number" to "I have it in Matters" — the web's `LookupSearch`.
+private struct LookupIntroSection: View {
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text(CourtSearchViewModel.Copy.lookupLead)
+                    .font(.display(size: 22, relativeTo: .title2))
+                    .foregroundStyle(theme.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                Text(CourtSearchViewModel.Copy.lookupBlurb)
+                    .font(.brand(.footnote))
+                    .foregroundStyle(theme.textFaint)
+                    .fixedSize(horizontal: false, vertical: true)
+                ForEach(Array(CourtSearchViewModel.Copy.lookupSteps.enumerated()), id: \.offset) { index, step in
+                    HStack(alignment: .top, spacing: Spacing.sm) {
+                        IconTile(systemImage: step.symbol, size: .small)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("\(index + 1). \(step.title)")
+                                .font(.brand(.footnote, weight: .semibold))
+                                .foregroundStyle(theme.textPrimary)
+                            Text(step.text)
+                                .font(.brand(.caption))
+                                .foregroundStyle(theme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .padding(.vertical, Spacing.xs)
+        }
+        .listRowBackground(theme.surface)
+    }
+}
+
+/// The cases looked up lately on this device — a shortcut back, not a record.
+private struct RecentLookupsSection: View {
+    @Environment(\.theme) private var theme
+    let model: CourtSearchViewModel
+    let onOpen: (CourtSearchResult) -> Void
+
+    var body: some View {
+        Section {
+            ForEach(model.recentLookups) { entry in
+                Button {
+                    onOpen(entry.card)
+                } label: {
+                    HStack(spacing: Spacing.sm) {
+                        IconTile(systemImage: "building.columns", size: .small)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.displayTitle)
+                                .font(.brand(.subheadline, weight: .medium))
+                                .foregroundStyle(theme.textPrimary)
+                                .dynamicLineLimit(2)
+                            Text(entry.detailLine)
+                                .font(.brand(.caption2))
+                                .foregroundStyle(theme.textTertiary)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                        RowChevron()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Reads the case from the court's records again")
+                .swipeActions {
+                    Button(role: .destructive) {
+                        model.forgetRecent(entry)
+                    } label: {
+                        Label("Forget", systemImage: "trash")
+                    }
+                }
+            }
+        } header: {
+            SectionHeader(title: CourtSearchViewModel.Copy.lookedUpRecently)
+        }
+        .listRowBackground(theme.surface)
     }
 }

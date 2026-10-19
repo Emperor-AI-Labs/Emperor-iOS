@@ -75,6 +75,24 @@ struct LibraryCollectionTheme: Equatable, Sendable {
     /// The gilt of rules and spine bands. Decorative only.
     static let coverGilt = "#D4B46A"
 
+    /// A `#RRGGBB` string as a palette colour; nil for anything else.
+    static func color(_ hex: String) -> PaletteColor? {
+        var digits = hex.trimmingCharacters(in: .whitespaces)
+        if digits.hasPrefix("#") { digits.removeFirst() }
+        guard digits.count == 6, let value = UInt32(digits, radix: 16) else { return nil }
+        return PaletteColor(hex: value)
+    }
+
+    /// The collection's ink on the surface it is drawn on.
+    func ink(dark: Bool) -> PaletteColor {
+        LibraryCollectionTheme.color(dark ? inkDark : ink) ?? PaletteColor(hex: 0x2B4373)
+    }
+
+    func clothColor(at index: Int) -> PaletteColor {
+        let shade = cloth.isEmpty ? LibraryCollectionTheme.fallback.cloth[0] : cloth[min(max(index, 0), cloth.count - 1)]
+        return LibraryCollectionTheme.color(shade) ?? PaletteColor(hex: 0x3A3F5C)
+    }
+
     private static let themes: [String: LibraryCollectionTheme] = [
         "bare-acts": LibraryCollectionTheme(
             key: "bare-acts", label: "Bare acts", cap: "Bare act", untitled: "Untitled Act",
@@ -125,7 +143,7 @@ struct LibraryCollectionTheme: Equatable, Sendable {
 }
 
 /// `GET /categories` → one row per collection with its live count.
-struct LibraryCategoryCount: Codable, Equatable, Identifiable, Sendable {
+struct LibraryCategoryCount: Codable, Equatable, Hashable, Identifiable, Sendable {
     let key: String
     var label: String?
     var count: Int?

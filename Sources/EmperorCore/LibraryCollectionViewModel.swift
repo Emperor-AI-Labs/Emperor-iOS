@@ -136,6 +136,8 @@ final class LibraryCollectionViewModel {
     private(set) var filters: LibraryBrowseFilters
     /// Words inside judgments rather than titles and parties (case law, with a search).
     private(set) var inText = false
+    /// The search the documents on screen answer, so clearing an empty box asks nothing.
+    private(set) var appliedQuery: String?
     var layout: LibraryCollectionProfile.Layout
     var query: String
 
@@ -223,6 +225,7 @@ final class LibraryCollectionViewModel {
         var request = filters
         request.page = 1
         request.query = hasQuery ? query.trimmingCharacters(in: .whitespaces) : nil
+        appliedQuery = request.query
         do {
             let result = try await fetch(request)
             guard ticket == generation else { return }
@@ -323,6 +326,7 @@ final class LibraryCollectionViewModel {
     func clearQuery() async {
         query = ""
         inText = false
+        guard appliedQuery != nil else { return }
         await reload()
     }
 

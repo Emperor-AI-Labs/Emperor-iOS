@@ -434,3 +434,40 @@ final class JudgmentReaderModelTests: XCTestCase {
         XCTAssertTrue(JudgmentReaderModel.isCopyLine("Copy to:"))
     }
 }
+
+final class LibraryPaletteTests: XCTestCase {
+
+    /// A cover is a physical object: its cloth is the same in both themes, and the cream
+    /// lettering must clear 4.5:1 on every cloth — the web's worst is ochre at 4.8:1.
+    func testCoverLetteringClearsEveryCloth() throws {
+        let ink = try XCTUnwrap(LibraryCollectionTheme.color(LibraryCollectionTheme.coverInk))
+        for collection in LibraryCollection.allCases {
+            for shade in collection.theme.cloth {
+                let cloth = try XCTUnwrap(LibraryCollectionTheme.color(shade), shade)
+                XCTAssertGreaterThanOrEqual(ink.contrastRatio(against: cloth), 4.5, "\(collection.rawValue) \(shade)")
+            }
+        }
+        for shade in LibraryActText.stateCloths + ["#3A3F5C"] {
+            let cloth = try XCTUnwrap(LibraryCollectionTheme.color(shade))
+            XCTAssertGreaterThanOrEqual(ink.contrastRatio(against: cloth), 4.5, shade)
+        }
+    }
+
+    /// Each collection's and each court's ink is re-cut per theme: 4.5:1 on white and on the
+    /// dark surface.
+    func testInksClearTheirSurfaces() throws {
+        let light = PaletteColor(hex: 0xFFFFFF)
+        let dark = PaletteColor(hex: 0x1B1F36)
+        for collection in LibraryCollection.allCases {
+            XCTAssertGreaterThanOrEqual(collection.theme.ink(dark: false).contrastRatio(against: light), 4.5, collection.rawValue)
+            XCTAssertGreaterThanOrEqual(collection.theme.ink(dark: true).contrastRatio(against: dark), 4.5, collection.rawValue)
+        }
+        for key in CaseLawVocabulary.courtOrder {
+            let court = CaseLawVocabulary.court(key)
+            XCTAssertGreaterThanOrEqual(try XCTUnwrap(LibraryCollectionTheme.color(court.ink)).contrastRatio(against: light), 4.5, key)
+            XCTAssertGreaterThanOrEqual(try XCTUnwrap(LibraryCollectionTheme.color(court.inkDark)).contrastRatio(against: dark), 4.5, key)
+        }
+        XCTAssertNil(LibraryCollectionTheme.color("red"))
+        XCTAssertNotNil(LibraryCollectionTheme.color("1F2E4D"))
+    }
+}

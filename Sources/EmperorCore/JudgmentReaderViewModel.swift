@@ -131,7 +131,7 @@ final class JudgmentReaderViewModel {
     var failureHint: String {
         if isMissing { return "It is listed in the catalogue, but its text has not been copied to this server yet." }
         if isTooLarge { return "The reader opens judgments up to \(LibraryService.maxReaderBytes / 1_048_576) MB. Download the original to read all of it." }
-        if state.failure?.kind == .unauthenticated { return "Your session has ended. Sign in again, then reopen it." }
+        if state.requiresReauthentication { return "Your session has ended. Sign in again, then reopen it." }
         return "Something went wrong on the way. Try again."
     }
 
@@ -205,8 +205,11 @@ final class JudgmentReaderViewModel {
     var paragraphMarks: [(id: String, n: Int)] { JudgmentReaderModel.paragraphMarks(blocks) }
     var lastParagraph: String? { JudgmentReaderModel.lastParagraphNumber(blocks) }
 
+    /// The header card's anchor, above the first block.
+    static let topID = "jv-top"
+
     func jump(to blockID: String, flash: Bool = true) {
-        guard JudgmentReaderModel.index(of: blockID, in: blocks) >= 0 else { return }
+        guard blockID == Self.topID || JudgmentReaderModel.index(of: blockID, in: blocks) >= 0 else { return }
         jumpToken += 1
         scrollTarget = ScrollTarget(blockID: blockID, flash: flash, token: jumpToken)
     }
