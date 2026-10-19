@@ -1,0 +1,1137 @@
+{
+ "today": "2026-10-19",
+ "updates": [
+  {
+   "id": "u1",
+   "kind": "event",
+   "title": "Agreement to sell executed",
+   "body": "Sale consideration ₹1.2 crore; ₹20 lakh paid as advance.",
+   "event_date": "2023-01-15",
+   "created_at": "2026-09-01 10:00:00",
+   "source": "manual",
+   "source_ref": null
+  },
+  {
+   "id": "u2",
+   "kind": "event",
+   "title": "Legal notice sent",
+   "body": "",
+   "event_date": "2024-03-02",
+   "created_at": "2026-09-01 10:01:00",
+   "source": "ai",
+   "source_ref": "Notice.pdf, p. 1"
+  },
+  {
+   "id": "u3",
+   "kind": "filing",
+   "title": "Suit filed:",
+   "body": "Plaint with documents.",
+   "event_date": "2024-06-10",
+   "created_at": "2026-09-01 10:02:00",
+   "source": "manual"
+  },
+  {
+   "id": "u4",
+   "kind": "note",
+   "title": "Call client before the hearing",
+   "body": "",
+   "event_date": "2026-08-11",
+   "created_at": "2026-09-01 10:03:00",
+   "source": "manual"
+  },
+  {
+   "id": "u5",
+   "kind": "task",
+   "title": "Draft rejoinder",
+   "body": "",
+   "event_date": "2026-08-20",
+   "created_at": "2026-09-01 10:04:00",
+   "source": "manual"
+  },
+  {
+   "id": "u6",
+   "kind": "hearing",
+   "title": "Listed — FOR ARGUMENTS",
+   "body": "",
+   "event_date": "2026-08-12",
+   "created_at": "2026-08-12 06:00:00",
+   "source": "court"
+  },
+  {
+   "id": "u7",
+   "kind": "milestone",
+   "title": "",
+   "body": "Issues framed by the court",
+   "event_date": "2025-02-20",
+   "created_at": "2026-09-01 10:05:00",
+   "source": "manual"
+  },
+  {
+   "id": "u8",
+   "kind": "event",
+   "title": "Undated thought",
+   "body": "No date yet",
+   "event_date": null,
+   "created_at": null,
+   "source": "manual"
+  },
+  {
+   "id": "u9",
+   "kind": "order",
+   "title": "Interim order noted",
+   "body": "Status quo",
+   "event_date": "2026-08-12T18:30:00Z",
+   "created_at": "2026-08-13 09:00:00",
+   "source": "manual"
+  },
+  {
+   "id": "u10",
+   "kind": "event",
+   "title": "Rejoinder due",
+   "body": "",
+   "event_date": "2026-11-02",
+   "created_at": "2026-09-01 10:06:00",
+   "source": "manual"
+  },
+  {
+   "id": "u11",
+   "kind": "event",
+   "title": "Earlier note",
+   "body": "",
+   "event_date": null,
+   "created_at": "2026-01-05 20:00:00",
+   "source": "manual"
+  }
+ ],
+ "courtHistory": [
+  {
+   "id": "c1",
+   "section": "hearings",
+   "title": "FOR ARGUMENTS",
+   "subtitle": null,
+   "item_date": "2026-08-12",
+   "status": null,
+   "source": "scrape",
+   "data": {
+    "courtNo": "COURT NO. 4",
+    "itemNo": 12,
+    "coram": "HON'BLE MR. JUSTICE A. KUMAR",
+    "time": "10:30 AM"
+   }
+  },
+  {
+   "id": "c2",
+   "section": "hearings",
+   "title": "Listing",
+   "subtitle": "Justice B",
+   "item_date": "2025-11-03",
+   "status": null,
+   "source": "scrape",
+   "data": {
+    "courtNo": "Registrar Court 1",
+    "remarks": "Adjourned"
+   }
+  },
+  {
+   "id": "c3",
+   "section": "orders",
+   "title": "O",
+   "subtitle": null,
+   "item_date": "2025-11-03",
+   "status": null,
+   "source": "scrape",
+   "data": {
+    "type": "Interim Order",
+    "url": "https://example.test/o1.pdf"
+   }
+  },
+  {
+   "id": "c4",
+   "section": "orders",
+   "title": "Order dated 12.08.2026",
+   "subtitle": null,
+   "item_date": "2026-08-12",
+   "status": null,
+   "source": "scrape",
+   "data": {
+    "type": "order"
+   }
+  },
+  {
+   "id": "c5",
+   "section": "hearings",
+   "title": "TO BE LISTED IN COURT NO.42)",
+   "subtitle": null,
+   "item_date": "2026-10-28",
+   "status": null,
+   "source": "scrape",
+   "data": null
+  },
+  {
+   "id": "c6",
+   "section": "documents",
+   "title": "Vakalatnama",
+   "item_date": "2024-06-10",
+   "data": {}
+  },
+  {
+   "id": "c7",
+   "section": "orders",
+   "title": "",
+   "subtitle": null,
+   "item_date": "2024-09-09",
+   "status": null,
+   "source": "scrape",
+   "data": "{\"title\":\"J\"}"
+  },
+  {
+   "id": "c8",
+   "section": "hearings",
+   "title": "Mention",
+   "item_date": null,
+   "data": {}
+  },
+  {
+   "id": "c9",
+   "section": "hearings",
+   "title": "listing",
+   "subtitle": null,
+   "item_date": "2024-09-09",
+   "source": "scrape",
+   "data": {
+    "bench": "DB-II",
+    "purpose": "For orders",
+    "itemNo": "0"
+   }
+  }
+ ],
+ "entries": [
+  {
+   "key": "u:u1",
+   "id": "u1",
+   "src": "manual",
+   "own": true,
+   "kind": "event",
+   "day": "2023-01-15",
+   "title": "Agreement to sell executed",
+   "body": "Sale consideration ₹1.2 crore; ₹20 lakh paid as advance.",
+   "sourceRef": "",
+   "created": "2026-09-01 10:00:00",
+   "eventText": "Agreement to sell executed. Sale consideration ₹1.2 crore; ₹20 lakh paid as advance."
+  },
+  {
+   "key": "u:u2",
+   "id": "u2",
+   "src": "ai",
+   "own": true,
+   "kind": "event",
+   "day": "2024-03-02",
+   "title": "Legal notice sent",
+   "body": "",
+   "sourceRef": "Notice.pdf, p. 1",
+   "created": "2026-09-01 10:01:00",
+   "eventText": "Legal notice sent"
+  },
+  {
+   "key": "u:u3",
+   "id": "u3",
+   "src": "manual",
+   "own": true,
+   "kind": "filing",
+   "day": "2024-06-10",
+   "title": "Suit filed:",
+   "body": "Plaint with documents.",
+   "sourceRef": "",
+   "created": "2026-09-01 10:02:00",
+   "eventText": "Suit filed: Plaint with documents."
+  },
+  {
+   "key": "u:u4",
+   "id": "u4",
+   "src": "manual",
+   "own": true,
+   "kind": "note",
+   "day": "2026-08-11",
+   "title": "Call client before the hearing",
+   "body": "",
+   "sourceRef": "",
+   "created": "2026-09-01 10:03:00",
+   "eventText": "Call client before the hearing"
+  },
+  {
+   "key": "u:u5",
+   "id": "u5",
+   "src": "manual",
+   "own": true,
+   "kind": "task",
+   "day": "2026-08-20",
+   "title": "Draft rejoinder",
+   "body": "",
+   "sourceRef": "",
+   "created": "2026-09-01 10:04:00",
+   "eventText": "Draft rejoinder"
+  },
+  {
+   "key": "u:u6",
+   "id": "u6",
+   "src": "court",
+   "own": true,
+   "kind": "hearing",
+   "day": "2026-08-12",
+   "title": "Listed — FOR ARGUMENTS",
+   "body": "",
+   "sourceRef": "",
+   "created": "2026-08-12 06:00:00",
+   "eventText": "Listed — FOR ARGUMENTS"
+  },
+  {
+   "key": "u:u7",
+   "id": "u7",
+   "src": "manual",
+   "own": true,
+   "kind": "milestone",
+   "day": "2025-02-20",
+   "title": "",
+   "body": "Issues framed by the court",
+   "sourceRef": "",
+   "created": "2026-09-01 10:05:00",
+   "eventText": "Issues framed by the court"
+  },
+  {
+   "key": "u:u8",
+   "id": "u8",
+   "src": "manual",
+   "own": true,
+   "kind": "event",
+   "day": "",
+   "title": "Undated thought",
+   "body": "No date yet",
+   "sourceRef": "",
+   "created": "",
+   "eventText": "Undated thought. No date yet"
+  },
+  {
+   "key": "u:u9",
+   "id": "u9",
+   "src": "manual",
+   "own": true,
+   "kind": "order",
+   "day": "2026-08-13",
+   "title": "Interim order noted",
+   "body": "Status quo",
+   "sourceRef": "",
+   "created": "2026-08-13 09:00:00",
+   "eventText": "Interim order noted. Status quo"
+  },
+  {
+   "key": "u:u10",
+   "id": "u10",
+   "src": "manual",
+   "own": true,
+   "kind": "event",
+   "day": "2026-11-02",
+   "title": "Rejoinder due",
+   "body": "",
+   "sourceRef": "",
+   "created": "2026-09-01 10:06:00",
+   "eventText": "Rejoinder due"
+  },
+  {
+   "key": "u:u11",
+   "id": "u11",
+   "src": "manual",
+   "own": true,
+   "kind": "event",
+   "day": "2026-01-06",
+   "title": "Earlier note",
+   "body": "",
+   "sourceRef": "",
+   "created": "2026-01-05 20:00:00",
+   "eventText": "Earlier note"
+  },
+  {
+   "key": "c:c2",
+   "id": "c2",
+   "src": "court",
+   "own": false,
+   "kind": "hearing",
+   "day": "2025-11-03",
+   "title": "Listed before the court",
+   "body": "Justice B · Registrar Court 1 · Adjourned",
+   "sourceRef": "",
+   "created": "",
+   "eventText": "The matter was listed before Justice B."
+  },
+  {
+   "key": "c:c3",
+   "id": "c3",
+   "src": "court",
+   "own": false,
+   "kind": "order",
+   "day": "2025-11-03",
+   "title": "Order",
+   "body": "Interim Order",
+   "sourceRef": "",
+   "created": "",
+   "eventText": "Order"
+  },
+  {
+   "key": "c:c4",
+   "id": "c4",
+   "src": "court",
+   "own": false,
+   "kind": "order",
+   "day": "2026-08-12",
+   "title": "Order dated 12.08.2026",
+   "body": "",
+   "sourceRef": "",
+   "created": "",
+   "eventText": "Order passed by the Court."
+  },
+  {
+   "key": "c:c5",
+   "id": "c5",
+   "src": "court",
+   "own": false,
+   "kind": "hearing",
+   "day": "2026-10-28",
+   "title": "Listed — TO BE LISTED IN COURT NO.42)",
+   "body": "",
+   "sourceRef": "",
+   "created": "",
+   "eventText": "The matter was listed for TO BE LISTED IN COURT NO.42)."
+  },
+  {
+   "key": "c:c7",
+   "id": "c7",
+   "src": "court",
+   "own": false,
+   "kind": "order",
+   "day": "2024-09-09",
+   "title": "Judgment",
+   "body": "",
+   "sourceRef": "",
+   "created": "",
+   "eventText": "Judgment"
+  },
+  {
+   "key": "c:c9",
+   "id": "c9",
+   "src": "court",
+   "own": false,
+   "kind": "hearing",
+   "day": "2024-09-09",
+   "title": "Listed before the court",
+   "body": "DB-II · Item 0",
+   "sourceRef": "",
+   "created": "",
+   "eventText": "The matter was listed before DB-II."
+  }
+ ],
+ "oldestFirst": [
+  "u:u1",
+  "u:u2",
+  "u:u3",
+  "c:c9",
+  "c:c7",
+  "u:u7",
+  "c:c2",
+  "c:c3",
+  "u:u11",
+  "u:u4",
+  "c:c4",
+  "u:u6",
+  "u:u9",
+  "u:u5",
+  "c:c5",
+  "u:u10",
+  "u:u8"
+ ],
+ "newestFirst": [
+  "u:u10",
+  "c:c5",
+  "u:u5",
+  "u:u9",
+  "u:u6",
+  "c:c4",
+  "u:u4",
+  "u:u11",
+  "c:c3",
+  "c:c2",
+  "u:u7",
+  "c:c7",
+  "c:c9",
+  "u:u3",
+  "u:u2",
+  "u:u1",
+  "u:u8"
+ ],
+ "exports": [
+  {
+   "name": "default-selection",
+   "project": {
+    "name": "Acme v. Beta",
+    "client": "Acme Private Limited",
+    "opposite_party": "Beta Builders LLP",
+    "our_side": "plaintiff",
+    "forum_name": "High Court of Delhi at New Delhi",
+    "case_type": "CS(OS)",
+    "case_number": "512",
+    "case_year": "2024"
+   },
+   "linkedCase": {
+    "id": "lc1",
+    "court_name": "High Court of Delhi",
+    "case_type": "CS(OS)",
+    "case_number": "512",
+    "case_year": "2024",
+    "next_hearing_date": "2026-10-28"
+   },
+   "keys": [
+    "u:u1",
+    "u:u2",
+    "u:u3",
+    "u:u7",
+    "u:u9",
+    "u:u10",
+    "u:u11",
+    "c:c3",
+    "c:c4",
+    "c:c7"
+   ],
+   "html": "<p style=\"text-align:center\"><strong>IN THE HIGH COURT OF DELHI AT NEW DELHI</strong></p>\n<p style=\"text-align:center\"><strong>CS(OS) NO. 512 OF 2024</strong></p>\n<p style=\"text-align:center\">IN THE MATTER OF:</p>\n<p style=\"text-align:center\"><strong>Acme Private Limited</strong> … Plaintiff</p>\n<p style=\"text-align:center\">VERSUS</p>\n<p style=\"text-align:center\"><strong>Beta Builders LLP</strong> … Defendant</p>\n<h1>LIST OF DATES AND EVENTS</h1>\n<table><thead><tr><th>Date</th><th>Event</th></tr></thead><tbody>\n<tr><td>15.01.2023</td><td><p>Agreement to sell executed. Sale consideration ₹1.2 crore; ₹20 lakh paid as advance.</p></td></tr>\n<tr><td>02.03.2024</td><td><p>Legal notice sent</p></td></tr>\n<tr><td>10.06.2024</td><td><p>Suit filed: Plaint with documents.</p></td></tr>\n<tr><td>09.09.2024</td><td><p>Judgment</p></td></tr>\n<tr><td>20.02.2025</td><td><p>Issues framed by the court</p></td></tr>\n<tr><td>03.11.2025</td><td><p>Order</p></td></tr>\n<tr><td>06.01.2026</td><td><p>Earlier note</p></td></tr>\n<tr><td>12.08.2026</td><td><p>Order passed by the Court.</p></td></tr>\n<tr><td>13.08.2026</td><td><p>Interim order noted. Status quo</p></td></tr>\n<tr><td>02.11.2026</td><td><p>Rejoinder due</p></td></tr>\n</tbody></table>"
+  },
+  {
+   "name": "everything",
+   "project": {
+    "name": "Acme v. Beta",
+    "client": "Acme Private Limited",
+    "opposite_party": "Beta Builders LLP",
+    "our_side": "plaintiff",
+    "forum_name": "High Court of Delhi at New Delhi",
+    "case_type": "CS(OS)",
+    "case_number": "512",
+    "case_year": "2024"
+   },
+   "linkedCase": {
+    "id": "lc1",
+    "court_name": "High Court of Delhi",
+    "case_type": "CS(OS)",
+    "case_number": "512",
+    "case_year": "2024",
+    "next_hearing_date": "2026-10-28"
+   },
+   "keys": [
+    "u:u1",
+    "u:u2",
+    "u:u3",
+    "u:u4",
+    "u:u5",
+    "u:u6",
+    "u:u7",
+    "u:u8",
+    "u:u9",
+    "u:u10",
+    "u:u11",
+    "c:c2",
+    "c:c3",
+    "c:c4",
+    "c:c5",
+    "c:c7",
+    "c:c9"
+   ],
+   "html": "<p style=\"text-align:center\"><strong>IN THE HIGH COURT OF DELHI AT NEW DELHI</strong></p>\n<p style=\"text-align:center\"><strong>CS(OS) NO. 512 OF 2024</strong></p>\n<p style=\"text-align:center\">IN THE MATTER OF:</p>\n<p style=\"text-align:center\"><strong>Acme Private Limited</strong> … Plaintiff</p>\n<p style=\"text-align:center\">VERSUS</p>\n<p style=\"text-align:center\"><strong>Beta Builders LLP</strong> … Defendant</p>\n<h1>LIST OF DATES AND EVENTS</h1>\n<table><thead><tr><th>Date</th><th>Event</th></tr></thead><tbody>\n<tr><td>15.01.2023</td><td><p>Agreement to sell executed. Sale consideration ₹1.2 crore; ₹20 lakh paid as advance.</p></td></tr>\n<tr><td>02.03.2024</td><td><p>Legal notice sent</p></td></tr>\n<tr><td>10.06.2024</td><td><p>Suit filed: Plaint with documents.</p></td></tr>\n<tr><td>09.09.2024</td><td><p>The matter was listed before DB-II.</p><p>Judgment</p></td></tr>\n<tr><td>20.02.2025</td><td><p>Issues framed by the court</p></td></tr>\n<tr><td>03.11.2025</td><td><p>The matter was listed before Justice B.</p><p>Order</p></td></tr>\n<tr><td>06.01.2026</td><td><p>Earlier note</p></td></tr>\n<tr><td>11.08.2026</td><td><p>Call client before the hearing</p></td></tr>\n<tr><td>12.08.2026</td><td><p>Order passed by the Court.</p><p>Listed — FOR ARGUMENTS</p></td></tr>\n<tr><td>13.08.2026</td><td><p>Interim order noted. Status quo</p></td></tr>\n<tr><td>20.08.2026</td><td><p>Draft rejoinder</p></td></tr>\n<tr><td>28.10.2026</td><td><p>The matter was listed for TO BE LISTED IN COURT NO.42).</p></td></tr>\n<tr><td>02.11.2026</td><td><p>Rejoinder due</p></td></tr>\n</tbody></table>"
+  },
+  {
+   "name": "respondent-escaped",
+   "project": {
+    "name": "Beta matter",
+    "client": "Beta & Sons",
+    "opposite_party": "State <of> \"Delhi\"",
+    "our_side": "Respondent",
+    "forum_name": "",
+    "case_type": "W.P.(C)",
+    "case_number": "W.P.(C) 1234",
+    "case_year": "2026"
+   },
+   "linkedCase": null,
+   "keys": [
+    "u:u1",
+    "u:u2",
+    "u:u3",
+    "u:u7",
+    "u:u9",
+    "u:u10",
+    "u:u11",
+    "c:c3",
+    "c:c4",
+    "c:c7"
+   ],
+   "html": "<p style=\"text-align:center\"><strong>W.P.(C) NO. 1234 OF 2026</strong></p>\n<p style=\"text-align:center\">IN THE MATTER OF:</p>\n<p style=\"text-align:center\"><strong>State &lt;of&gt; &quot;Delhi&quot;</strong> … Petitioner</p>\n<p style=\"text-align:center\">VERSUS</p>\n<p style=\"text-align:center\"><strong>Beta &amp; Sons</strong> … Respondent</p>\n<h1>LIST OF DATES AND EVENTS</h1>\n<table><thead><tr><th>Date</th><th>Event</th></tr></thead><tbody>\n<tr><td>15.01.2023</td><td><p>Agreement to sell executed. Sale consideration ₹1.2 crore; ₹20 lakh paid as advance.</p></td></tr>\n<tr><td>02.03.2024</td><td><p>Legal notice sent</p></td></tr>\n<tr><td>10.06.2024</td><td><p>Suit filed: Plaint with documents.</p></td></tr>\n<tr><td>09.09.2024</td><td><p>Judgment</p></td></tr>\n<tr><td>20.02.2025</td><td><p>Issues framed by the court</p></td></tr>\n<tr><td>03.11.2025</td><td><p>Order</p></td></tr>\n<tr><td>06.01.2026</td><td><p>Earlier note</p></td></tr>\n<tr><td>12.08.2026</td><td><p>Order passed by the Court.</p></td></tr>\n<tr><td>13.08.2026</td><td><p>Interim order noted. Status quo</p></td></tr>\n<tr><td>02.11.2026</td><td><p>Rejoinder due</p></td></tr>\n</tbody></table>"
+  },
+  {
+   "name": "no-forum-falls-to-case",
+   "project": {
+    "name": "",
+    "client": "Only client",
+    "opposite_party": "",
+    "our_side": "petitioner",
+    "forum_name": "NCLT",
+    "case_number": ""
+   },
+   "linkedCase": {
+    "id": "lc1",
+    "court_name": "High Court of Delhi",
+    "case_type": "CS(OS)",
+    "case_number": "512",
+    "case_year": "2024",
+    "next_hearing_date": "2026-10-28"
+   },
+   "keys": [
+    "u:u6",
+    "c:c2",
+    "c:c3",
+    "c:c4",
+    "c:c5",
+    "c:c7",
+    "c:c9"
+   ],
+   "html": "<p style=\"text-align:center\"><strong>IN THE NCLT</strong></p>\n<p style=\"text-align:center\"><strong>CS(OS) NO. 512 OF 2024</strong></p>\n<p style=\"text-align:center\">IN THE MATTER OF:</p>\n<p style=\"text-align:center\"><strong>Untitled matter</strong></p>\n<h1>LIST OF DATES AND EVENTS</h1>\n<table><thead><tr><th>Date</th><th>Event</th></tr></thead><tbody>\n<tr><td>09.09.2024</td><td><p>The matter was listed before DB-II.</p><p>Judgment</p></td></tr>\n<tr><td>03.11.2025</td><td><p>The matter was listed before Justice B.</p><p>Order</p></td></tr>\n<tr><td>12.08.2026</td><td><p>Order passed by the Court.</p><p>Listed — FOR ARGUMENTS</p></td></tr>\n<tr><td>28.10.2026</td><td><p>The matter was listed for TO BE LISTED IN COURT NO.42).</p></td></tr>\n</tbody></table>"
+  },
+  {
+   "name": "unknown-side",
+   "project": {
+    "name": "Odd side",
+    "client": "A",
+    "opposite_party": "B",
+    "our_side": "other",
+    "case_number": "IA No. 77/2025"
+   },
+   "linkedCase": null,
+   "keys": [],
+   "html": "<p style=\"text-align:center\"><strong>IA NO. NO. 77/2025</strong></p>\n<p style=\"text-align:center\">IN THE MATTER OF:</p>\n<p style=\"text-align:center\"><strong>Odd side</strong></p>\n<h1>LIST OF DATES AND EVENTS</h1>\n<table><thead><tr><th>Date</th><th>Event</th></tr></thead><tbody>\n</tbody></table>"
+  }
+ ],
+ "nextHearings": [
+  {
+   "project": {
+    "next_hearing_date": "2026-10-25"
+   },
+   "linkedCase": {
+    "next_hearing_date": "2026-10-28"
+   },
+   "next": {
+    "day": "2026-10-25",
+    "from": "project",
+    "days": 6,
+    "listing": null,
+    "latest": "c5"
+   }
+  },
+  {
+   "project": {
+    "next_hearing_date": "2026-10-30"
+   },
+   "linkedCase": {
+    "next_hearing_date": "2026-10-28"
+   },
+   "next": {
+    "day": "2026-10-28",
+    "from": "court",
+    "days": 9,
+    "listing": "c5",
+    "latest": null
+   }
+  },
+  {
+   "project": {
+    "next_hearing_date": "2026-10-19"
+   },
+   "linkedCase": null,
+   "next": {
+    "day": "2026-10-19",
+    "from": "project",
+    "days": 0,
+    "listing": null,
+    "latest": "c5"
+   }
+  },
+  {
+   "project": {
+    "next_hearing_date": "2026-09-01"
+   },
+   "linkedCase": {
+    "next_hearing_date": "2026-08-12"
+   },
+   "next": {
+    "day": "2026-09-01",
+    "from": "project",
+    "days": -48,
+    "listing": null,
+    "latest": "c5"
+   }
+  },
+  {
+   "project": {
+    "next_hearing_date": "2026-10-28"
+   },
+   "linkedCase": {
+    "next_hearing_date": "2026-10-28"
+   },
+   "next": {
+    "day": "2026-10-28",
+    "from": "court",
+    "days": 9,
+    "listing": "c5",
+    "latest": null
+   }
+  },
+  {
+   "project": {},
+   "linkedCase": {},
+   "next": null
+  }
+ ],
+ "timeline": [
+  {
+   "name": "with-next-hearing",
+   "day": "2026-10-19",
+   "project": {
+    "next_hearing_date": "2026-10-25"
+   },
+   "linkedCase": {
+    "id": "lc1",
+    "court_name": "High Court of Delhi",
+    "case_type": "CS(OS)",
+    "case_number": "512",
+    "case_year": "2024",
+    "next_hearing_date": "2026-10-28"
+   },
+   "rows": [
+    {
+     "next": true,
+     "i": 0,
+     "date": "25 Oct 2026",
+     "title": "Next hearing",
+     "sub": "in 6 days"
+    },
+    {
+     "year": "2026"
+    },
+    {
+     "key": "u:u9",
+     "i": 2,
+     "kind": "order",
+     "src": "manual",
+     "date": "13 Aug",
+     "title": "Interim order noted",
+     "sub": "Order"
+    },
+    {
+     "key": "u:u6",
+     "i": 3,
+     "kind": "hearing",
+     "src": "court",
+     "date": "12 Aug",
+     "title": "For arguments",
+     "sub": "Hearing"
+    },
+    {
+     "key": "c:c4",
+     "i": 4,
+     "kind": "order",
+     "src": "court",
+     "date": "12 Aug",
+     "title": "Order dated 12.08.2026",
+     "sub": "Order"
+    },
+    {
+     "key": "u:u4",
+     "i": 5,
+     "kind": "note",
+     "src": "manual",
+     "date": "11 Aug",
+     "title": "Call client before the hearing",
+     "sub": "Note"
+    },
+    {
+     "key": "u:u11",
+     "i": 6,
+     "kind": "event",
+     "src": "manual",
+     "date": "06 Jan",
+     "title": "Earlier note",
+     "sub": "Event"
+    },
+    {
+     "year": "2025"
+    },
+    {
+     "key": "c:c3",
+     "i": 8,
+     "kind": "order",
+     "src": "court",
+     "date": "03 Nov",
+     "title": "Order",
+     "sub": ""
+    },
+    {
+     "key": "c:c2",
+     "i": 9,
+     "kind": "hearing",
+     "src": "court",
+     "date": "03 Nov",
+     "title": "Listed before the court",
+     "sub": "Hearing"
+    },
+    {
+     "key": "u:u7",
+     "i": 10,
+     "kind": "milestone",
+     "src": "manual",
+     "date": "20 Feb",
+     "title": "Milestone",
+     "sub": ""
+    },
+    {
+     "year": "2024"
+    },
+    {
+     "key": "c:c7",
+     "i": 12,
+     "kind": "order",
+     "src": "court",
+     "date": "09 Sep",
+     "title": "Judgment",
+     "sub": "Order"
+    },
+    {
+     "key": "c:c9",
+     "i": 13,
+     "kind": "hearing",
+     "src": "court",
+     "date": "09 Sep",
+     "title": "Listed before the court",
+     "sub": "Hearing"
+    },
+    {
+     "key": "u:u3",
+     "i": 14,
+     "kind": "filing",
+     "src": "manual",
+     "date": "10 Jun",
+     "title": "Suit filed:",
+     "sub": "Filing"
+    },
+    {
+     "key": "u:u2",
+     "i": 15,
+     "kind": "event",
+     "src": "ai",
+     "date": "02 Mar",
+     "title": "Legal notice sent",
+     "sub": "Event"
+    },
+    {
+     "year": "2023"
+    },
+    {
+     "key": "u:u1",
+     "i": 17,
+     "kind": "event",
+     "src": "manual",
+     "date": "15 Jan",
+     "title": "Agreement to sell executed",
+     "sub": "Event"
+    }
+   ]
+  },
+  {
+   "name": "next-hearing-passed",
+   "day": "2026-11-05",
+   "project": {},
+   "linkedCase": {
+    "id": "lc1",
+    "court_name": "High Court of Delhi",
+    "case_type": "CS(OS)",
+    "case_number": "512",
+    "case_year": "2024",
+    "next_hearing_date": "2026-10-28"
+   },
+   "rows": [
+    {
+     "year": "2026"
+    },
+    {
+     "key": "u:u10",
+     "i": 1,
+     "kind": "event",
+     "src": "manual",
+     "date": "02 Nov",
+     "title": "Rejoinder due",
+     "sub": "Event"
+    },
+    {
+     "key": "c:c5",
+     "i": 2,
+     "kind": "hearing",
+     "src": "court",
+     "date": "28 Oct",
+     "title": "To be listed in Court 42",
+     "sub": "Hearing"
+    },
+    {
+     "key": "u:u9",
+     "i": 3,
+     "kind": "order",
+     "src": "manual",
+     "date": "13 Aug",
+     "title": "Interim order noted",
+     "sub": "Order"
+    },
+    {
+     "key": "u:u6",
+     "i": 4,
+     "kind": "hearing",
+     "src": "court",
+     "date": "12 Aug",
+     "title": "For arguments",
+     "sub": "Hearing"
+    },
+    {
+     "key": "c:c4",
+     "i": 5,
+     "kind": "order",
+     "src": "court",
+     "date": "12 Aug",
+     "title": "Order dated 12.08.2026",
+     "sub": "Order"
+    },
+    {
+     "key": "u:u4",
+     "i": 6,
+     "kind": "note",
+     "src": "manual",
+     "date": "11 Aug",
+     "title": "Call client before the hearing",
+     "sub": "Note"
+    },
+    {
+     "key": "u:u11",
+     "i": 7,
+     "kind": "event",
+     "src": "manual",
+     "date": "06 Jan",
+     "title": "Earlier note",
+     "sub": "Event"
+    },
+    {
+     "year": "2025"
+    },
+    {
+     "key": "c:c3",
+     "i": 9,
+     "kind": "order",
+     "src": "court",
+     "date": "03 Nov",
+     "title": "Order",
+     "sub": ""
+    },
+    {
+     "key": "c:c2",
+     "i": 10,
+     "kind": "hearing",
+     "src": "court",
+     "date": "03 Nov",
+     "title": "Listed before the court",
+     "sub": "Hearing"
+    },
+    {
+     "key": "u:u7",
+     "i": 11,
+     "kind": "milestone",
+     "src": "manual",
+     "date": "20 Feb",
+     "title": "Milestone",
+     "sub": ""
+    },
+    {
+     "year": "2024"
+    },
+    {
+     "key": "c:c7",
+     "i": 13,
+     "kind": "order",
+     "src": "court",
+     "date": "09 Sep",
+     "title": "Judgment",
+     "sub": "Order"
+    },
+    {
+     "key": "c:c9",
+     "i": 14,
+     "kind": "hearing",
+     "src": "court",
+     "date": "09 Sep",
+     "title": "Listed before the court",
+     "sub": "Hearing"
+    },
+    {
+     "key": "u:u3",
+     "i": 15,
+     "kind": "filing",
+     "src": "manual",
+     "date": "10 Jun",
+     "title": "Suit filed:",
+     "sub": "Filing"
+    },
+    {
+     "key": "u:u2",
+     "i": 16,
+     "kind": "event",
+     "src": "ai",
+     "date": "02 Mar",
+     "title": "Legal notice sent",
+     "sub": "Event"
+    },
+    {
+     "year": "2023"
+    },
+    {
+     "key": "u:u1",
+     "i": 18,
+     "kind": "event",
+     "src": "manual",
+     "date": "15 Jan",
+     "title": "Agreement to sell executed",
+     "sub": "Event"
+    }
+   ]
+  },
+  {
+   "name": "early-day",
+   "day": "2024-12-31",
+   "project": {},
+   "linkedCase": null,
+   "rows": [
+    {
+     "year": "2024"
+    },
+    {
+     "key": "c:c7",
+     "i": 1,
+     "kind": "order",
+     "src": "court",
+     "date": "09 Sep",
+     "title": "Judgment",
+     "sub": "Order"
+    },
+    {
+     "key": "c:c9",
+     "i": 2,
+     "kind": "hearing",
+     "src": "court",
+     "date": "09 Sep",
+     "title": "Listed before the court",
+     "sub": "Hearing"
+    },
+    {
+     "key": "u:u3",
+     "i": 3,
+     "kind": "filing",
+     "src": "manual",
+     "date": "10 Jun",
+     "title": "Suit filed:",
+     "sub": "Filing"
+    },
+    {
+     "key": "u:u2",
+     "i": 4,
+     "kind": "event",
+     "src": "ai",
+     "date": "02 Mar",
+     "title": "Legal notice sent",
+     "sub": "Event"
+    },
+    {
+     "year": "2023"
+    },
+    {
+     "key": "u:u1",
+     "i": 6,
+     "kind": "event",
+     "src": "manual",
+     "date": "15 Jan",
+     "title": "Agreement to sell executed",
+     "sub": "Event"
+    }
+   ]
+  }
+ ],
+ "plainCourtText": [
+  {
+   "in": "TO BE LISTED IN COURT NO.42)",
+   "out": "To be listed in Court 42"
+  },
+  {
+   "in": "For arguments",
+   "out": "For arguments"
+  },
+  {
+   "in": "LISTED IN COURT NO 7",
+   "out": "Listed in Court 7"
+  },
+  {
+   "in": "AB",
+   "out": "AB"
+  },
+  {
+   "in": "  mixed   Case court no. 3 ",
+   "out": "mixed Case Court 3"
+  }
+ ],
+ "orderTitle": [
+  {
+   "in": "O",
+   "out": "Order"
+  },
+  {
+   "in": "j",
+   "out": "Judgment"
+  },
+  {
+   "in": "OJ",
+   "out": "Order / Judgment"
+  },
+  {
+   "in": " Judgment  dated ",
+   "out": "Judgment dated"
+  },
+  {
+   "in": "",
+   "out": ""
+  }
+ ],
+ "fmtDots": [
+  {
+   "in": "2026-08-12",
+   "out": "12.08.2026"
+  },
+  {
+   "in": "2026-08-12T20:00:00Z",
+   "out": "13.08.2026"
+  },
+  {
+   "in": "2026-08-12 20:00:00",
+   "out": "13.08.2026"
+  },
+  {
+   "in": "",
+   "out": ""
+  },
+  {
+   "in": "soon",
+   "out": ""
+  }
+ ]
+}

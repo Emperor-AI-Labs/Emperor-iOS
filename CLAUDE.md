@@ -147,8 +147,9 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   `generate-worklog-fixtures.mjs` (the work log the web stores with each answer, and a
   `/messages` body),
   `generate-phone-fixtures.mjs`, `generate-tile-fixtures.mjs` (tool tile colours and symbols),
-  `generate-cause-list-fixtures.mjs`, `generate-compliance-feed-fixture.mjs` and
-  `generate-file-date-fixtures.mjs`. When a golden test fails after a platform change,
+  `generate-cause-list-fixtures.mjs`, `generate-compliance-feed-fixture.mjs`,
+  `generate-compliance-schedule-fixtures.mjs`, `generate-fee-receipt-fixtures.mjs`,
+  `generate-matter-record-fixtures.mjs` and `generate-file-date-fixtures.mjs`. When a golden test fails after a platform change,
   regenerate; do not edit the fixture to match.
 - **The UI is seen through CI, on an iPhone and an iPad.** Every UI test and
   `UITests/ScreenshotTour.swift` (every main screen, both themes) run on both devices. The
@@ -325,6 +326,9 @@ Full detail in `README.md`. The short list:
 43. **`DELETE /case` removes the case for its whole team** and only for a team owner or admin
     (403 otherwise, worded by `CaseRemovalCopy`). A matter made from the case is kept and stops
     showing the court's record. Refetch the docket afterwards; never patch it. See `CaseRemoving`.
+44. **A court row's `data` is a string on `/case` and an object on `/project`.** `GET /project`'s
+    `courtHistory` parses `case_items.data` before sending it; a strict `String?` threw and the
+    whole matter failed to load. `CaseItem`'s decoder keeps either as text.
 
 ## Runtime connectivity
 

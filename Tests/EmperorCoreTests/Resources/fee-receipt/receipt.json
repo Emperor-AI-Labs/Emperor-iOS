@@ -1,0 +1,867 @@
+{
+ "words": [
+  {
+   "paise": 0,
+   "text": "Rupees Zero Only"
+  },
+  {
+   "paise": 1,
+   "text": "One Paise Only"
+  },
+  {
+   "paise": 50,
+   "text": "Fifty Paise Only"
+  },
+  {
+   "paise": 99,
+   "text": "Ninety Nine Paise Only"
+  },
+  {
+   "paise": 100,
+   "text": "Rupees One Only"
+  },
+  {
+   "paise": 101,
+   "text": "Rupees One and One Paise Only"
+  },
+  {
+   "paise": 1900,
+   "text": "Rupees Nineteen Only"
+  },
+  {
+   "paise": 2000,
+   "text": "Rupees Twenty Only"
+  },
+  {
+   "paise": 2100,
+   "text": "Rupees Twenty One Only"
+  },
+  {
+   "paise": 9900,
+   "text": "Rupees Ninety Nine Only"
+  },
+  {
+   "paise": 10000,
+   "text": "Rupees One Hundred Only"
+  },
+  {
+   "paise": 10100,
+   "text": "Rupees One Hundred One Only"
+  },
+  {
+   "paise": 99900,
+   "text": "Rupees Nine Hundred Ninety Nine Only"
+  },
+  {
+   "paise": 100000,
+   "text": "Rupees One Thousand Only"
+  },
+  {
+   "paise": 100100,
+   "text": "Rupees One Thousand One Only"
+  },
+  {
+   "paise": 1000000,
+   "text": "Rupees Ten Thousand Only"
+  },
+  {
+   "paise": 9999900,
+   "text": "Rupees Ninety Nine Thousand Nine Hundred Ninety Nine Only"
+  },
+  {
+   "paise": 10000000,
+   "text": "Rupees One Lakh Only"
+  },
+  {
+   "paise": 12345678950,
+   "text": "Rupees Twelve Crore Thirty Four Lakh Fifty Six Thousand Seven Hundred Eighty Nine and Fifty Paise Only"
+  },
+  {
+   "paise": 100000000000,
+   "text": "Rupees One Hundred Crore Only"
+  },
+  {
+   "paise": 120000000000,
+   "text": "Rupees One Hundred Twenty Crore Only"
+  },
+  {
+   "paise": 1234567890123,
+   "text": "Rupees One Thousand Two Hundred Thirty Four Crore Fifty Six Lakh Seventy Eight Thousand Nine Hundred One and Twenty Three Paise Only"
+  },
+  {
+   "paise": 100000000000000,
+   "text": "Rupees One Lakh Crore Only"
+  },
+  {
+   "paise": 100000000000001,
+   "text": ""
+  },
+  {
+   "paise": -500,
+   "text": ""
+  },
+  {
+   "paise": 29,
+   "text": "Twenty Nine Paise Only"
+  },
+  {
+   "paise": 2500005,
+   "text": "Rupees Twenty Five Thousand and Five Paise Only"
+  },
+  {
+   "paise": 500000,
+   "text": "Rupees Five Thousand Only"
+  },
+  {
+   "paise": 500001,
+   "text": "Rupees Five Thousand and One Paise Only"
+  }
+ ],
+ "figures": [
+  {
+   "paise": 0,
+   "text": "₹0/-"
+  },
+  {
+   "paise": 1,
+   "text": "₹0.01"
+  },
+  {
+   "paise": 50,
+   "text": "₹0.50"
+  },
+  {
+   "paise": 99,
+   "text": "₹0.99"
+  },
+  {
+   "paise": 100,
+   "text": "₹1/-"
+  },
+  {
+   "paise": 101,
+   "text": "₹1.01"
+  },
+  {
+   "paise": 1900,
+   "text": "₹19/-"
+  },
+  {
+   "paise": 2000,
+   "text": "₹20/-"
+  },
+  {
+   "paise": 2100,
+   "text": "₹21/-"
+  },
+  {
+   "paise": 9900,
+   "text": "₹99/-"
+  },
+  {
+   "paise": 10000,
+   "text": "₹100/-"
+  },
+  {
+   "paise": 10100,
+   "text": "₹101/-"
+  },
+  {
+   "paise": 99900,
+   "text": "₹999/-"
+  },
+  {
+   "paise": 100000,
+   "text": "₹1,000/-"
+  },
+  {
+   "paise": 100100,
+   "text": "₹1,001/-"
+  },
+  {
+   "paise": 1000000,
+   "text": "₹10,000/-"
+  },
+  {
+   "paise": 9999900,
+   "text": "₹99,999/-"
+  },
+  {
+   "paise": 10000000,
+   "text": "₹1,00,000/-"
+  },
+  {
+   "paise": 12345678950,
+   "text": "₹12,34,56,789.50"
+  },
+  {
+   "paise": 100000000000,
+   "text": "₹1,00,00,00,000/-"
+  },
+  {
+   "paise": 120000000000,
+   "text": "₹1,20,00,00,000/-"
+  },
+  {
+   "paise": 1234567890123,
+   "text": "₹12,34,56,78,901.23"
+  },
+  {
+   "paise": 100000000000000,
+   "text": "₹10,00,00,00,00,000/-"
+  },
+  {
+   "paise": 100000000000001,
+   "text": "₹10,00,00,00,00,000.01"
+  },
+  {
+   "paise": -500,
+   "text": ""
+  },
+  {
+   "paise": 29,
+   "text": "₹0.29"
+  },
+  {
+   "paise": 2500005,
+   "text": "₹25,000.05"
+  },
+  {
+   "paise": 500000,
+   "text": "₹5,000/-"
+  },
+  {
+   "paise": 500001,
+   "text": "₹5,000.01"
+  }
+ ],
+ "financialYears": [
+  {
+   "day": "2026-03-31",
+   "text": "2025-26"
+  },
+  {
+   "day": "2026-04-01",
+   "text": "2026-27"
+  },
+  {
+   "day": "1999-12-31",
+   "text": "1999-00"
+  },
+  {
+   "day": "2000-01-15",
+   "text": "1999-00"
+  },
+  {
+   "day": "",
+   "text": ""
+  },
+  {
+   "day": "soon",
+   "text": ""
+  },
+  {
+   "day": "2026-10-19T10:00:00Z",
+   "text": "2026-27"
+  }
+ ],
+ "receiptNumbers": [
+  {
+   "entry": {
+    "id": "led_m3k9x2_ab12cd",
+    "entry_date": "2026-10-01"
+   },
+   "text": "2026-27/AB12CD"
+  },
+  {
+   "entry": {
+    "id": "led-1",
+    "entry_date": "2026-03-31"
+   },
+   "text": "2025-26/LED1"
+  },
+  {
+   "entry": {
+    "id": "",
+    "entry_date": "2026-04-01"
+   },
+   "text": "2026-27/000000"
+  },
+  {
+   "entry": {
+    "id": "x_y-z",
+    "entry_date": "",
+    "created_at": "2025-06-01 10:00:00"
+   },
+   "text": "2025-26/XYZ"
+  },
+  {
+   "entry": {
+    "id": "abcdefghij",
+    "entry_date": null
+   },
+   "text": "EFGHIJ"
+  }
+ ],
+ "caseNumbers": [
+  {
+   "project": {
+    "name": "Acme v. Beta",
+    "case_type": "W.P.(C)",
+    "case_number": "1234",
+    "case_year": "2026",
+    "forum_name": "High Court of Delhi",
+    "client": "Acme Private Limited"
+   },
+   "text": "W.P.(C) 1234/2026"
+  },
+  {
+   "project": {
+    "name": "Suit",
+    "case_type": "CS(OS)",
+    "case_number": "CS(OS) 55",
+    "case_year": "2018",
+    "forum_name": "The Saket District Court",
+    "client": "R. Sharma"
+   },
+   "text": "CS(OS) 55/2018"
+  },
+  {
+   "project": {
+    "name": "Appeal",
+    "case_type": "",
+    "case_number": "77/2024",
+    "case_year": "2024",
+    "forum_name": "",
+    "client": ""
+   },
+   "text": "77/2024"
+  },
+  {
+   "project": {
+    "name": "  Spaced   name  ",
+    "case_number": "",
+    "case_year": "2024",
+    "client": "  Mehta & Sons  "
+   },
+   "text": ""
+  },
+  {
+   "project": {
+    "name": "<b>Odd</b> \"matter\"",
+    "case_type": "O.A.",
+    "case_number": "9",
+    "forum_name": "NCLT <Mumbai>",
+    "client": "Tom & Jerry"
+   },
+   "text": "O.A. 9"
+  }
+ ],
+ "matters": [
+  {
+   "project": {
+    "name": "Acme v. Beta",
+    "case_type": "W.P.(C)",
+    "case_number": "1234",
+    "case_year": "2026",
+    "forum_name": "High Court of Delhi",
+    "client": "Acme Private Limited"
+   },
+   "matter": {
+    "title": "Acme v. Beta",
+    "caseNo": "W.P.(C) 1234/2026",
+    "forum": "High Court of Delhi"
+   }
+  },
+  {
+   "project": {
+    "name": "Suit",
+    "case_type": "CS(OS)",
+    "case_number": "CS(OS) 55",
+    "case_year": "2018",
+    "forum_name": "The Saket District Court",
+    "client": "R. Sharma"
+   },
+   "matter": {
+    "title": "Suit",
+    "caseNo": "CS(OS) 55/2018",
+    "forum": "The Saket District Court"
+   }
+  },
+  {
+   "project": {
+    "name": "Appeal",
+    "case_type": "",
+    "case_number": "77/2024",
+    "case_year": "2024",
+    "forum_name": "",
+    "client": ""
+   },
+   "matter": {
+    "title": "Appeal",
+    "caseNo": "77/2024",
+    "forum": ""
+   }
+  },
+  {
+   "project": {
+    "name": "  Spaced   name  ",
+    "case_number": "",
+    "case_year": "2024",
+    "client": "  Mehta & Sons  "
+   },
+   "matter": {
+    "title": "Spaced name",
+    "caseNo": "",
+    "forum": ""
+   }
+  },
+  {
+   "project": {
+    "name": "<b>Odd</b> \"matter\"",
+    "case_type": "O.A.",
+    "case_number": "9",
+    "forum_name": "NCLT <Mumbai>",
+    "client": "Tom & Jerry"
+   },
+   "matter": {
+    "title": "<b>Odd</b> \"matter\"",
+    "caseNo": "O.A. 9",
+    "forum": "NCLT <Mumbai>"
+   }
+  }
+ ],
+ "clients": [
+  {
+   "project": {
+    "name": "Acme v. Beta",
+    "case_type": "W.P.(C)",
+    "case_number": "1234",
+    "case_year": "2026",
+    "forum_name": "High Court of Delhi",
+    "client": "Acme Private Limited"
+   },
+   "people": [
+    {
+     "role": "client",
+     "name": "acme private limited",
+     "address": "12, Nehru Place,\n New Delhi"
+    },
+    {
+     "role": "client",
+     "name": "Someone Else",
+     "address": "Elsewhere"
+    },
+    {
+     "role": "opposite",
+     "name": "Beta Ltd",
+     "address": "Gurugram"
+    }
+   ],
+   "client": {
+    "name": "Acme Private Limited",
+    "address": "12, Nehru Place, New Delhi"
+   }
+  },
+  {
+   "project": {
+    "name": "Appeal",
+    "case_type": "",
+    "case_number": "77/2024",
+    "case_year": "2024",
+    "forum_name": "",
+    "client": ""
+   },
+   "people": [
+    {
+     "role": "client",
+     "name": "acme private limited",
+     "address": "12, Nehru Place,\n New Delhi"
+    },
+    {
+     "role": "client",
+     "name": "Someone Else",
+     "address": "Elsewhere"
+    },
+    {
+     "role": "opposite",
+     "name": "Beta Ltd",
+     "address": "Gurugram"
+    }
+   ],
+   "client": {
+    "name": "acme private limited",
+    "address": "12, Nehru Place, New Delhi"
+   }
+  },
+  {
+   "project": {
+    "name": "Appeal",
+    "case_type": "",
+    "case_number": "77/2024",
+    "case_year": "2024",
+    "forum_name": "",
+    "client": ""
+   },
+   "people": [
+    {
+     "role": "client",
+     "name": "  ",
+     "address": "x"
+    },
+    {
+     "role": "client",
+     "name": "Someone Else",
+     "address": "Elsewhere"
+    }
+   ],
+   "client": {
+    "name": "Someone Else",
+    "address": "Elsewhere"
+   }
+  },
+  {
+   "project": {
+    "name": "Suit",
+    "case_type": "CS(OS)",
+    "case_number": "CS(OS) 55",
+    "case_year": "2018",
+    "forum_name": "The Saket District Court",
+    "client": "R. Sharma"
+   },
+   "people": [],
+   "client": {
+    "name": "R. Sharma",
+    "address": ""
+   }
+  },
+  {
+   "project": {
+    "name": "Suit",
+    "case_type": "CS(OS)",
+    "case_number": "CS(OS) 55",
+    "case_year": "2018",
+    "forum_name": "The Saket District Court",
+    "client": "R. Sharma"
+   },
+   "people": null,
+   "client": {
+    "name": "R. Sharma",
+    "address": ""
+   }
+  }
+ ],
+ "advocates": [
+  {
+   "user": {
+    "id": 1,
+    "name": "Asha Rao",
+    "title": "Advocate",
+    "organization": "Rao Chambers",
+    "phone": "+919876543210",
+    "email": "asha@example.test"
+   },
+   "advocate": {
+    "name": "Asha Rao",
+    "designation": "Advocate",
+    "chambers": "Rao Chambers",
+    "phone": "+91 98765 43210",
+    "email": "asha@example.test"
+   }
+  },
+  {
+   "user": {
+    "id": 2,
+    "name": "",
+    "title": "",
+    "organization": "",
+    "phone": "12345",
+    "email": "clerk@example.test"
+   },
+   "advocate": {
+    "name": "",
+    "designation": "",
+    "chambers": "",
+    "phone": "12345",
+    "email": "clerk@example.test"
+   }
+  },
+  {
+   "user": {
+    "id": 3,
+    "name": " Vikram  Seth ",
+    "title": "Senior Advocate",
+    "organization": "",
+    "phone": "09876543210",
+    "email": ""
+   },
+   "advocate": {
+    "name": "Vikram Seth",
+    "designation": "Senior Advocate",
+    "chambers": "",
+    "phone": "+91 98765 43210",
+    "email": ""
+   }
+  },
+  {
+   "user": {
+    "id": 4
+   },
+   "advocate": {
+    "name": "",
+    "designation": "",
+    "chambers": "",
+    "phone": "",
+    "email": ""
+   }
+  }
+ ],
+ "receipts": [
+  {
+   "name": "upi-full",
+   "user": {
+    "id": 1,
+    "name": "Asha Rao",
+    "title": "Advocate",
+    "organization": "Rao Chambers",
+    "phone": "+919876543210",
+    "email": "asha@example.test"
+   },
+   "project": {
+    "name": "Acme v. Beta",
+    "case_type": "W.P.(C)",
+    "case_number": "1234",
+    "case_year": "2026",
+    "forum_name": "High Court of Delhi",
+    "client": "Acme Private Limited"
+   },
+   "people": [
+    {
+     "role": "client",
+     "name": "acme private limited",
+     "address": "12, Nehru Place,\n New Delhi"
+    },
+    {
+     "role": "client",
+     "name": "Someone Else",
+     "address": "Elsewhere"
+    },
+    {
+     "role": "opposite",
+     "name": "Beta Ltd",
+     "address": "Gurugram"
+    }
+   ],
+   "entry": {
+    "id": "led_m3k9x2_ab12cd",
+    "kind": "payment",
+    "title": "",
+    "amount": 25000,
+    "amount_paise": 2500000,
+    "entry_date": "2026-10-01",
+    "mode": "upi",
+    "reference": "41290031",
+    "created_at": "2026-10-01 09:00:00"
+   },
+   "html": "<!doctype html>\n<html lang=\"en-IN\">\n<head>\n<meta charset=\"utf-8\">\n<title>Receipt 2026-27/AB12CD — Acme Private Limited</title>\n<style>\n  @page { size: A4; margin: 16mm 18mm; }\n  * { box-sizing: border-box; }\n  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n  /* Times New Roman, the face Indian courts ask for, and lining figures: Georgia's old-style\n     digits dip below the line, which is wrong on a column of amounts and case numbers. */\n  body { margin: 0; background: #ECEEF5; color: #0F1424; font: 16px/1.6 'Times New Roman', Times, 'Liberation Serif', serif;\n    font-variant-numeric: lining-nums; }\n  .bar { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 12px; background: #F7F8FC;\n    border-bottom: 1px solid #E8EAF2; font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; color: #454B63; }\n  .bar button { height: 34px; padding: 0 18px; border: 0; border-radius: 4px; cursor: pointer; color: #fff;\n    font: 600 13px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #464E85 0%, #547592 100%); }\n  .sheet { width: 190mm; margin: 24px auto; padding: 16mm 15mm 14mm; background: #fff;\n    box-shadow: 0 1px 2px rgba(15, 20, 36, .08), 0 10px 28px -14px rgba(15, 20, 36, .22); }\n  .head { text-align: center; padding-bottom: 12px; border-bottom: 2px solid #0F1424; }\n  .who { font-size: 21px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }\n  .sub { font-size: 13.5px; color: #454B63; }\n  .title { margin: 22px 0 0; text-align: center; font-size: 15px; font-weight: 700; letter-spacing: .32em; }\n  .meta { display: flex; justify-content: space-between; gap: 16px; margin: 18px 0 20px; font-size: 14px; }\n  .meta .no { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size: 13.5px; }\n  .text { margin: 0; text-align: justify; }\n  .blank { display: inline-block; min-width: 46mm; border-bottom: 1px solid #0F1424; }\n  .foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-top: 30px; }\n  .figure { padding: 8px 16px; border: 1.5px solid #0F1424; font-size: 18px; font-weight: 700; white-space: nowrap; }\n  .sign { display: flex; align-items: flex-end; gap: 16px; }\n  .stamp { display: grid; place-items: center; width: 24mm; height: 28mm; border: 1px dashed #8C93B0;\n    font: 10.5px/1.3 system-ui, sans-serif; color: #8C93B0; text-align: center; }\n  .sig { min-width: 62mm; text-align: center; font-size: 13.5px; line-height: 1.45; }\n  .sig .rule { height: 16mm; border-bottom: 1px solid #0F1424; margin-bottom: 6px; }\n  @media print {\n    body { background: #fff; }\n    .bar { display: none; }\n    .sheet { width: auto; margin: 0; padding: 0; box-shadow: none; }\n  }\n</style>\n</head>\n<body>\n<div class=\"bar\"><button type=\"button\" id=\"receipt-print\">Print</button><span>To keep a copy, choose “Save as PDF” in the print dialog.</span></div>\n<main class=\"sheet\">\n  <header class=\"head\">\n    <div class=\"who\">Asha Rao</div>\n    <div class=\"sub\">Advocate</div>\n    <div class=\"sub\">Rao Chambers</div>\n    <div class=\"sub\">+91 98765 43210 &middot; asha@example.test</div>\n  </header>\n  <div class=\"title\">RECEIPT</div>\n  <div class=\"meta\"><span>Receipt No. <b class=\"no\">2026-27/AB12CD</b></span><span>Date: <b>01 Oct 2026</b></span></div>\n  <p class=\"text\">Received with thanks from <b>Acme Private Limited</b>, 12, Nehru Place, New Delhi,\n    the sum of <b>₹25,000/-</b> (<b>Rupees Twenty Five Thousand Only</b>) by UPI (ref. 41290031) towards professional fees in the\n    matter of <b>Acme v. Beta</b>, W.P.(C) 1234/2026, before the High Court of Delhi.</p>\n  <div class=\"foot\">\n    <div class=\"figure\">₹25,000/-</div>\n    <div class=\"sign\">\n      <div class=\"stamp\">Revenue<br>stamp</div>\n      <div class=\"sig\"><div class=\"rule\"></div><b>Asha Rao</b><br>Advocate</div>\n    </div>\n  </div>\n</main>\n</body>\n</html>"
+  },
+  {
+   "name": "cheque-paise-the-forum",
+   "user": {
+    "id": 1,
+    "name": "Asha Rao",
+    "title": "Advocate",
+    "organization": "Rao Chambers",
+    "phone": "+919876543210",
+    "email": "asha@example.test"
+   },
+   "project": {
+    "name": "Suit",
+    "case_type": "CS(OS)",
+    "case_number": "CS(OS) 55",
+    "case_year": "2018",
+    "forum_name": "The Saket District Court",
+    "client": "R. Sharma"
+   },
+   "people": [],
+   "entry": {
+    "id": "led_q1_zz9",
+    "kind": "payment",
+    "title": "Drafting of reply",
+    "amount": 4999.5,
+    "amount_paise": 499950,
+    "entry_date": "2026-03-31",
+    "mode": "cheque",
+    "reference": "004512, HDFC Bank",
+    "created_at": "2026-04-02 09:00:00"
+   },
+   "html": "<!doctype html>\n<html lang=\"en-IN\">\n<head>\n<meta charset=\"utf-8\">\n<title>Receipt 2025-26/DQ1ZZ9 — R. Sharma</title>\n<style>\n  @page { size: A4; margin: 16mm 18mm; }\n  * { box-sizing: border-box; }\n  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n  /* Times New Roman, the face Indian courts ask for, and lining figures: Georgia's old-style\n     digits dip below the line, which is wrong on a column of amounts and case numbers. */\n  body { margin: 0; background: #ECEEF5; color: #0F1424; font: 16px/1.6 'Times New Roman', Times, 'Liberation Serif', serif;\n    font-variant-numeric: lining-nums; }\n  .bar { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 12px; background: #F7F8FC;\n    border-bottom: 1px solid #E8EAF2; font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; color: #454B63; }\n  .bar button { height: 34px; padding: 0 18px; border: 0; border-radius: 4px; cursor: pointer; color: #fff;\n    font: 600 13px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #464E85 0%, #547592 100%); }\n  .sheet { width: 190mm; margin: 24px auto; padding: 16mm 15mm 14mm; background: #fff;\n    box-shadow: 0 1px 2px rgba(15, 20, 36, .08), 0 10px 28px -14px rgba(15, 20, 36, .22); }\n  .head { text-align: center; padding-bottom: 12px; border-bottom: 2px solid #0F1424; }\n  .who { font-size: 21px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }\n  .sub { font-size: 13.5px; color: #454B63; }\n  .title { margin: 22px 0 0; text-align: center; font-size: 15px; font-weight: 700; letter-spacing: .32em; }\n  .meta { display: flex; justify-content: space-between; gap: 16px; margin: 18px 0 20px; font-size: 14px; }\n  .meta .no { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size: 13.5px; }\n  .text { margin: 0; text-align: justify; }\n  .blank { display: inline-block; min-width: 46mm; border-bottom: 1px solid #0F1424; }\n  .foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-top: 30px; }\n  .figure { padding: 8px 16px; border: 1.5px solid #0F1424; font-size: 18px; font-weight: 700; white-space: nowrap; }\n  .sign { display: flex; align-items: flex-end; gap: 16px; }\n  .stamp { display: grid; place-items: center; width: 24mm; height: 28mm; border: 1px dashed #8C93B0;\n    font: 10.5px/1.3 system-ui, sans-serif; color: #8C93B0; text-align: center; }\n  .sig { min-width: 62mm; text-align: center; font-size: 13.5px; line-height: 1.45; }\n  .sig .rule { height: 16mm; border-bottom: 1px solid #0F1424; margin-bottom: 6px; }\n  @media print {\n    body { background: #fff; }\n    .bar { display: none; }\n    .sheet { width: auto; margin: 0; padding: 0; box-shadow: none; }\n  }\n</style>\n</head>\n<body>\n<div class=\"bar\"><button type=\"button\" id=\"receipt-print\">Print</button><span>To keep a copy, choose “Save as PDF” in the print dialog.</span></div>\n<main class=\"sheet\">\n  <header class=\"head\">\n    <div class=\"who\">Asha Rao</div>\n    <div class=\"sub\">Advocate</div>\n    <div class=\"sub\">Rao Chambers</div>\n    <div class=\"sub\">+91 98765 43210 &middot; asha@example.test</div>\n  </header>\n  <div class=\"title\">RECEIPT</div>\n  <div class=\"meta\"><span>Receipt No. <b class=\"no\">2025-26/DQ1ZZ9</b></span><span>Date: <b>31 Mar 2026</b></span></div>\n  <p class=\"text\">Received with thanks from <b>R. Sharma</b>\n    the sum of <b>₹4,999.50</b> (<b>Rupees Four Thousand Nine Hundred Ninety Nine and Fifty Paise Only</b>) by cheque no. 004512, HDFC Bank towards Drafting of reply in the\n    matter of <b>Suit</b>, CS(OS) 55/2018, before The Saket District Court.</p>\n  <div class=\"foot\">\n    <div class=\"figure\">₹4,999.50</div>\n    <div class=\"sign\">\n      \n      <div class=\"sig\"><div class=\"rule\"></div><b>Asha Rao</b><br>Advocate</div>\n    </div>\n  </div>\n</main>\n</body>\n</html>"
+  },
+  {
+   "name": "cash-at-the-stamp-line",
+   "user": {
+    "id": 3,
+    "name": " Vikram  Seth ",
+    "title": "Senior Advocate",
+    "organization": "",
+    "phone": "09876543210",
+    "email": ""
+   },
+   "project": {
+    "name": "Suit",
+    "case_type": "CS(OS)",
+    "case_number": "CS(OS) 55",
+    "case_year": "2018",
+    "forum_name": "The Saket District Court",
+    "client": "R. Sharma"
+   },
+   "people": [],
+   "entry": {
+    "id": "led_cash",
+    "kind": "payment",
+    "title": "Appearance fee",
+    "amount": 5000,
+    "amount_paise": 500000,
+    "entry_date": "2026-04-01",
+    "mode": "cash",
+    "reference": "",
+    "created_at": ""
+   },
+   "html": "<!doctype html>\n<html lang=\"en-IN\">\n<head>\n<meta charset=\"utf-8\">\n<title>Receipt 2026-27/EDCASH — R. Sharma</title>\n<style>\n  @page { size: A4; margin: 16mm 18mm; }\n  * { box-sizing: border-box; }\n  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n  /* Times New Roman, the face Indian courts ask for, and lining figures: Georgia's old-style\n     digits dip below the line, which is wrong on a column of amounts and case numbers. */\n  body { margin: 0; background: #ECEEF5; color: #0F1424; font: 16px/1.6 'Times New Roman', Times, 'Liberation Serif', serif;\n    font-variant-numeric: lining-nums; }\n  .bar { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 12px; background: #F7F8FC;\n    border-bottom: 1px solid #E8EAF2; font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; color: #454B63; }\n  .bar button { height: 34px; padding: 0 18px; border: 0; border-radius: 4px; cursor: pointer; color: #fff;\n    font: 600 13px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #464E85 0%, #547592 100%); }\n  .sheet { width: 190mm; margin: 24px auto; padding: 16mm 15mm 14mm; background: #fff;\n    box-shadow: 0 1px 2px rgba(15, 20, 36, .08), 0 10px 28px -14px rgba(15, 20, 36, .22); }\n  .head { text-align: center; padding-bottom: 12px; border-bottom: 2px solid #0F1424; }\n  .who { font-size: 21px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }\n  .sub { font-size: 13.5px; color: #454B63; }\n  .title { margin: 22px 0 0; text-align: center; font-size: 15px; font-weight: 700; letter-spacing: .32em; }\n  .meta { display: flex; justify-content: space-between; gap: 16px; margin: 18px 0 20px; font-size: 14px; }\n  .meta .no { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size: 13.5px; }\n  .text { margin: 0; text-align: justify; }\n  .blank { display: inline-block; min-width: 46mm; border-bottom: 1px solid #0F1424; }\n  .foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-top: 30px; }\n  .figure { padding: 8px 16px; border: 1.5px solid #0F1424; font-size: 18px; font-weight: 700; white-space: nowrap; }\n  .sign { display: flex; align-items: flex-end; gap: 16px; }\n  .stamp { display: grid; place-items: center; width: 24mm; height: 28mm; border: 1px dashed #8C93B0;\n    font: 10.5px/1.3 system-ui, sans-serif; color: #8C93B0; text-align: center; }\n  .sig { min-width: 62mm; text-align: center; font-size: 13.5px; line-height: 1.45; }\n  .sig .rule { height: 16mm; border-bottom: 1px solid #0F1424; margin-bottom: 6px; }\n  @media print {\n    body { background: #fff; }\n    .bar { display: none; }\n    .sheet { width: auto; margin: 0; padding: 0; box-shadow: none; }\n  }\n</style>\n</head>\n<body>\n<div class=\"bar\"><button type=\"button\" id=\"receipt-print\">Print</button><span>To keep a copy, choose “Save as PDF” in the print dialog.</span></div>\n<main class=\"sheet\">\n  <header class=\"head\">\n    <div class=\"who\">Vikram Seth</div>\n    <div class=\"sub\">Senior Advocate</div>\n    \n    <div class=\"sub\">+91 98765 43210</div>\n  </header>\n  <div class=\"title\">RECEIPT</div>\n  <div class=\"meta\"><span>Receipt No. <b class=\"no\">2026-27/EDCASH</b></span><span>Date: <b>01 Apr 2026</b></span></div>\n  <p class=\"text\">Received with thanks from <b>R. Sharma</b>\n    the sum of <b>₹5,000/-</b> (<b>Rupees Five Thousand Only</b>) in cash towards Appearance fee in the\n    matter of <b>Suit</b>, CS(OS) 55/2018, before The Saket District Court.</p>\n  <div class=\"foot\">\n    <div class=\"figure\">₹5,000/-</div>\n    <div class=\"sign\">\n      \n      <div class=\"sig\"><div class=\"rule\"></div><b>Vikram Seth</b><br>Senior Advocate</div>\n    </div>\n  </div>\n</main>\n</body>\n</html>"
+  },
+  {
+   "name": "escaped-everything",
+   "user": {
+    "id": 2,
+    "name": "",
+    "title": "",
+    "organization": "",
+    "phone": "12345",
+    "email": "clerk@example.test"
+   },
+   "project": {
+    "name": "<b>Odd</b> \"matter\"",
+    "case_type": "O.A.",
+    "case_number": "9",
+    "forum_name": "NCLT <Mumbai>",
+    "client": "Tom & Jerry"
+   },
+   "people": [
+    {
+     "role": "client",
+     "name": "Tom & Jerry",
+     "address": "\"Flat\" <3>"
+    }
+   ],
+   "entry": {
+    "id": "led_bank",
+    "kind": "payment",
+    "title": "<script>x</script>",
+    "amount": 100000.01,
+    "amount_paise": 10000001,
+    "entry_date": "2026-11-15",
+    "mode": "bank",
+    "reference": "UTR<1>",
+    "created_at": ""
+   },
+   "html": "<!doctype html>\n<html lang=\"en-IN\">\n<head>\n<meta charset=\"utf-8\">\n<title>Receipt 2026-27/EDBANK — Tom &amp; Jerry</title>\n<style>\n  @page { size: A4; margin: 16mm 18mm; }\n  * { box-sizing: border-box; }\n  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n  /* Times New Roman, the face Indian courts ask for, and lining figures: Georgia's old-style\n     digits dip below the line, which is wrong on a column of amounts and case numbers. */\n  body { margin: 0; background: #ECEEF5; color: #0F1424; font: 16px/1.6 'Times New Roman', Times, 'Liberation Serif', serif;\n    font-variant-numeric: lining-nums; }\n  .bar { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 12px; background: #F7F8FC;\n    border-bottom: 1px solid #E8EAF2; font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; color: #454B63; }\n  .bar button { height: 34px; padding: 0 18px; border: 0; border-radius: 4px; cursor: pointer; color: #fff;\n    font: 600 13px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #464E85 0%, #547592 100%); }\n  .sheet { width: 190mm; margin: 24px auto; padding: 16mm 15mm 14mm; background: #fff;\n    box-shadow: 0 1px 2px rgba(15, 20, 36, .08), 0 10px 28px -14px rgba(15, 20, 36, .22); }\n  .head { text-align: center; padding-bottom: 12px; border-bottom: 2px solid #0F1424; }\n  .who { font-size: 21px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }\n  .sub { font-size: 13.5px; color: #454B63; }\n  .title { margin: 22px 0 0; text-align: center; font-size: 15px; font-weight: 700; letter-spacing: .32em; }\n  .meta { display: flex; justify-content: space-between; gap: 16px; margin: 18px 0 20px; font-size: 14px; }\n  .meta .no { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size: 13.5px; }\n  .text { margin: 0; text-align: justify; }\n  .blank { display: inline-block; min-width: 46mm; border-bottom: 1px solid #0F1424; }\n  .foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-top: 30px; }\n  .figure { padding: 8px 16px; border: 1.5px solid #0F1424; font-size: 18px; font-weight: 700; white-space: nowrap; }\n  .sign { display: flex; align-items: flex-end; gap: 16px; }\n  .stamp { display: grid; place-items: center; width: 24mm; height: 28mm; border: 1px dashed #8C93B0;\n    font: 10.5px/1.3 system-ui, sans-serif; color: #8C93B0; text-align: center; }\n  .sig { min-width: 62mm; text-align: center; font-size: 13.5px; line-height: 1.45; }\n  .sig .rule { height: 16mm; border-bottom: 1px solid #0F1424; margin-bottom: 6px; }\n  @media print {\n    body { background: #fff; }\n    .bar { display: none; }\n    .sheet { width: auto; margin: 0; padding: 0; box-shadow: none; }\n  }\n</style>\n</head>\n<body>\n<div class=\"bar\"><button type=\"button\" id=\"receipt-print\">Print</button><span>To keep a copy, choose “Save as PDF” in the print dialog.</span></div>\n<main class=\"sheet\">\n  <header class=\"head\">\n    <div class=\"who\">&nbsp;</div>\n    \n    \n    <div class=\"sub\">12345 &middot; clerk@example.test</div>\n  </header>\n  <div class=\"title\">RECEIPT</div>\n  <div class=\"meta\"><span>Receipt No. <b class=\"no\">2026-27/EDBANK</b></span><span>Date: <b>15 Nov 2026</b></span></div>\n  <p class=\"text\">Received with thanks from <b>Tom &amp; Jerry</b>, &quot;Flat&quot; &lt;3&gt;,\n    the sum of <b>₹1,00,000.01</b> (<b>Rupees One Lakh and One Paise Only</b>) by bank transfer (UTR UTR&lt;1&gt;) towards &lt;script&gt;x&lt;/script&gt; in the\n    matter of <b>&lt;b&gt;Odd&lt;/b&gt; &quot;matter&quot;</b>, O.A. 9, before the NCLT &lt;Mumbai&gt;.</p>\n  <div class=\"foot\">\n    <div class=\"figure\">₹1,00,000.01</div>\n    <div class=\"sign\">\n      <div class=\"stamp\">Revenue<br>stamp</div>\n      <div class=\"sig\"><div class=\"rule\"></div><b>clerk@example.test</b><br>Advocate</div>\n    </div>\n  </div>\n</main>\n</body>\n</html>"
+  },
+  {
+   "name": "card-no-date",
+   "user": {
+    "id": 4
+   },
+   "project": {
+    "name": "Appeal",
+    "case_type": "",
+    "case_number": "77/2024",
+    "case_year": "2024",
+    "forum_name": "",
+    "client": ""
+   },
+   "people": [
+    {
+     "role": "client",
+     "name": "acme private limited",
+     "address": "12, Nehru Place,\n New Delhi"
+    },
+    {
+     "role": "client",
+     "name": "Someone Else",
+     "address": "Elsewhere"
+    },
+    {
+     "role": "opposite",
+     "name": "Beta Ltd",
+     "address": "Gurugram"
+    }
+   ],
+   "entry": {
+    "id": "led_card",
+    "kind": "payment",
+    "amount": 1200000,
+    "entry_date": "",
+    "mode": "card",
+    "reference": "T9",
+    "created_at": "2027-01-05 10:00:00"
+   },
+   "html": "<!doctype html>\n<html lang=\"en-IN\">\n<head>\n<meta charset=\"utf-8\">\n<title>Receipt 2026-27/EDCARD — acme private limited</title>\n<style>\n  @page { size: A4; margin: 16mm 18mm; }\n  * { box-sizing: border-box; }\n  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n  /* Times New Roman, the face Indian courts ask for, and lining figures: Georgia's old-style\n     digits dip below the line, which is wrong on a column of amounts and case numbers. */\n  body { margin: 0; background: #ECEEF5; color: #0F1424; font: 16px/1.6 'Times New Roman', Times, 'Liberation Serif', serif;\n    font-variant-numeric: lining-nums; }\n  .bar { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 12px; background: #F7F8FC;\n    border-bottom: 1px solid #E8EAF2; font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; color: #454B63; }\n  .bar button { height: 34px; padding: 0 18px; border: 0; border-radius: 4px; cursor: pointer; color: #fff;\n    font: 600 13px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #464E85 0%, #547592 100%); }\n  .sheet { width: 190mm; margin: 24px auto; padding: 16mm 15mm 14mm; background: #fff;\n    box-shadow: 0 1px 2px rgba(15, 20, 36, .08), 0 10px 28px -14px rgba(15, 20, 36, .22); }\n  .head { text-align: center; padding-bottom: 12px; border-bottom: 2px solid #0F1424; }\n  .who { font-size: 21px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }\n  .sub { font-size: 13.5px; color: #454B63; }\n  .title { margin: 22px 0 0; text-align: center; font-size: 15px; font-weight: 700; letter-spacing: .32em; }\n  .meta { display: flex; justify-content: space-between; gap: 16px; margin: 18px 0 20px; font-size: 14px; }\n  .meta .no { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size: 13.5px; }\n  .text { margin: 0; text-align: justify; }\n  .blank { display: inline-block; min-width: 46mm; border-bottom: 1px solid #0F1424; }\n  .foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-top: 30px; }\n  .figure { padding: 8px 16px; border: 1.5px solid #0F1424; font-size: 18px; font-weight: 700; white-space: nowrap; }\n  .sign { display: flex; align-items: flex-end; gap: 16px; }\n  .stamp { display: grid; place-items: center; width: 24mm; height: 28mm; border: 1px dashed #8C93B0;\n    font: 10.5px/1.3 system-ui, sans-serif; color: #8C93B0; text-align: center; }\n  .sig { min-width: 62mm; text-align: center; font-size: 13.5px; line-height: 1.45; }\n  .sig .rule { height: 16mm; border-bottom: 1px solid #0F1424; margin-bottom: 6px; }\n  @media print {\n    body { background: #fff; }\n    .bar { display: none; }\n    .sheet { width: auto; margin: 0; padding: 0; box-shadow: none; }\n  }\n</style>\n</head>\n<body>\n<div class=\"bar\"><button type=\"button\" id=\"receipt-print\">Print</button><span>To keep a copy, choose “Save as PDF” in the print dialog.</span></div>\n<main class=\"sheet\">\n  <header class=\"head\">\n    <div class=\"who\">&nbsp;</div>\n    \n    \n    \n  </header>\n  <div class=\"title\">RECEIPT</div>\n  <div class=\"meta\"><span>Receipt No. <b class=\"no\">2026-27/EDCARD</b></span><span>Date: <b><span class=\"blank\"></span></b></span></div>\n  <p class=\"text\">Received with thanks from <b>acme private limited</b>, 12, Nehru Place, New Delhi,\n    the sum of <b>₹12,00,000/-</b> (<b>Rupees Twelve Lakh Only</b>) by card (txn T9) towards professional fees in the\n    matter of <b>Appeal</b>, 77/2024.</p>\n  <div class=\"foot\">\n    <div class=\"figure\">₹12,00,000/-</div>\n    <div class=\"sign\">\n      <div class=\"stamp\">Revenue<br>stamp</div>\n      <div class=\"sig\"><div class=\"rule\"></div>Advocate</div>\n    </div>\n  </div>\n</main>\n</body>\n</html>"
+  },
+  {
+   "name": "other-mode-bad-date",
+   "user": {
+    "id": 1,
+    "name": "Asha Rao",
+    "title": "Advocate",
+    "organization": "Rao Chambers",
+    "phone": "+919876543210",
+    "email": "asha@example.test"
+   },
+   "project": {
+    "name": "  Spaced   name  ",
+    "case_number": "",
+    "case_year": "2024",
+    "client": "  Mehta & Sons  "
+   },
+   "people": [],
+   "entry": {
+    "id": "led_other",
+    "kind": "payment",
+    "title": "Retainer",
+    "amount": 0.5,
+    "entry_date": "2026-02-30",
+    "mode": "other",
+    "reference": "note 7"
+   },
+   "html": "<!doctype html>\n<html lang=\"en-IN\">\n<head>\n<meta charset=\"utf-8\">\n<title>Receipt 2025-26/DOTHER — Mehta &amp; Sons</title>\n<style>\n  @page { size: A4; margin: 16mm 18mm; }\n  * { box-sizing: border-box; }\n  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n  /* Times New Roman, the face Indian courts ask for, and lining figures: Georgia's old-style\n     digits dip below the line, which is wrong on a column of amounts and case numbers. */\n  body { margin: 0; background: #ECEEF5; color: #0F1424; font: 16px/1.6 'Times New Roman', Times, 'Liberation Serif', serif;\n    font-variant-numeric: lining-nums; }\n  .bar { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 12px; background: #F7F8FC;\n    border-bottom: 1px solid #E8EAF2; font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; color: #454B63; }\n  .bar button { height: 34px; padding: 0 18px; border: 0; border-radius: 4px; cursor: pointer; color: #fff;\n    font: 600 13px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #464E85 0%, #547592 100%); }\n  .sheet { width: 190mm; margin: 24px auto; padding: 16mm 15mm 14mm; background: #fff;\n    box-shadow: 0 1px 2px rgba(15, 20, 36, .08), 0 10px 28px -14px rgba(15, 20, 36, .22); }\n  .head { text-align: center; padding-bottom: 12px; border-bottom: 2px solid #0F1424; }\n  .who { font-size: 21px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }\n  .sub { font-size: 13.5px; color: #454B63; }\n  .title { margin: 22px 0 0; text-align: center; font-size: 15px; font-weight: 700; letter-spacing: .32em; }\n  .meta { display: flex; justify-content: space-between; gap: 16px; margin: 18px 0 20px; font-size: 14px; }\n  .meta .no { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size: 13.5px; }\n  .text { margin: 0; text-align: justify; }\n  .blank { display: inline-block; min-width: 46mm; border-bottom: 1px solid #0F1424; }\n  .foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-top: 30px; }\n  .figure { padding: 8px 16px; border: 1.5px solid #0F1424; font-size: 18px; font-weight: 700; white-space: nowrap; }\n  .sign { display: flex; align-items: flex-end; gap: 16px; }\n  .stamp { display: grid; place-items: center; width: 24mm; height: 28mm; border: 1px dashed #8C93B0;\n    font: 10.5px/1.3 system-ui, sans-serif; color: #8C93B0; text-align: center; }\n  .sig { min-width: 62mm; text-align: center; font-size: 13.5px; line-height: 1.45; }\n  .sig .rule { height: 16mm; border-bottom: 1px solid #0F1424; margin-bottom: 6px; }\n  @media print {\n    body { background: #fff; }\n    .bar { display: none; }\n    .sheet { width: auto; margin: 0; padding: 0; box-shadow: none; }\n  }\n</style>\n</head>\n<body>\n<div class=\"bar\"><button type=\"button\" id=\"receipt-print\">Print</button><span>To keep a copy, choose “Save as PDF” in the print dialog.</span></div>\n<main class=\"sheet\">\n  <header class=\"head\">\n    <div class=\"who\">Asha Rao</div>\n    <div class=\"sub\">Advocate</div>\n    <div class=\"sub\">Rao Chambers</div>\n    <div class=\"sub\">+91 98765 43210 &middot; asha@example.test</div>\n  </header>\n  <div class=\"title\">RECEIPT</div>\n  <div class=\"meta\"><span>Receipt No. <b class=\"no\">2025-26/DOTHER</b></span><span>Date: <b><span class=\"blank\"></span></b></span></div>\n  <p class=\"text\">Received with thanks from <b>Mehta &amp; Sons</b>\n    the sum of <b>₹0.50</b> (<b>Fifty Paise Only</b>) (ref. note 7) towards Retainer in the\n    matter of <b>Spaced name</b>.</p>\n  <div class=\"foot\">\n    <div class=\"figure\">₹0.50</div>\n    <div class=\"sign\">\n      \n      <div class=\"sig\"><div class=\"rule\"></div><b>Asha Rao</b><br>Advocate</div>\n    </div>\n  </div>\n</main>\n</body>\n</html>"
+  },
+  {
+   "name": "paise-only-no-mode",
+   "user": {
+    "id": 3,
+    "name": " Vikram  Seth ",
+    "title": "Senior Advocate",
+    "organization": "",
+    "phone": "09876543210",
+    "email": ""
+   },
+   "project": {
+    "name": "Acme v. Beta",
+    "case_type": "W.P.(C)",
+    "case_number": "1234",
+    "case_year": "2026",
+    "forum_name": "High Court of Delhi",
+    "client": "Acme Private Limited"
+   },
+   "people": [],
+   "entry": {
+    "id": "led_none",
+    "kind": "payment",
+    "title": "Misc",
+    "amount_paise": 7500,
+    "entry_date": "2026-12-01"
+   },
+   "html": "<!doctype html>\n<html lang=\"en-IN\">\n<head>\n<meta charset=\"utf-8\">\n<title>Receipt 2026-27/EDNONE — Acme Private Limited</title>\n<style>\n  @page { size: A4; margin: 16mm 18mm; }\n  * { box-sizing: border-box; }\n  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n  /* Times New Roman, the face Indian courts ask for, and lining figures: Georgia's old-style\n     digits dip below the line, which is wrong on a column of amounts and case numbers. */\n  body { margin: 0; background: #ECEEF5; color: #0F1424; font: 16px/1.6 'Times New Roman', Times, 'Liberation Serif', serif;\n    font-variant-numeric: lining-nums; }\n  .bar { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 12px; background: #F7F8FC;\n    border-bottom: 1px solid #E8EAF2; font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; color: #454B63; }\n  .bar button { height: 34px; padding: 0 18px; border: 0; border-radius: 4px; cursor: pointer; color: #fff;\n    font: 600 13px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #464E85 0%, #547592 100%); }\n  .sheet { width: 190mm; margin: 24px auto; padding: 16mm 15mm 14mm; background: #fff;\n    box-shadow: 0 1px 2px rgba(15, 20, 36, .08), 0 10px 28px -14px rgba(15, 20, 36, .22); }\n  .head { text-align: center; padding-bottom: 12px; border-bottom: 2px solid #0F1424; }\n  .who { font-size: 21px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }\n  .sub { font-size: 13.5px; color: #454B63; }\n  .title { margin: 22px 0 0; text-align: center; font-size: 15px; font-weight: 700; letter-spacing: .32em; }\n  .meta { display: flex; justify-content: space-between; gap: 16px; margin: 18px 0 20px; font-size: 14px; }\n  .meta .no { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size: 13.5px; }\n  .text { margin: 0; text-align: justify; }\n  .blank { display: inline-block; min-width: 46mm; border-bottom: 1px solid #0F1424; }\n  .foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-top: 30px; }\n  .figure { padding: 8px 16px; border: 1.5px solid #0F1424; font-size: 18px; font-weight: 700; white-space: nowrap; }\n  .sign { display: flex; align-items: flex-end; gap: 16px; }\n  .stamp { display: grid; place-items: center; width: 24mm; height: 28mm; border: 1px dashed #8C93B0;\n    font: 10.5px/1.3 system-ui, sans-serif; color: #8C93B0; text-align: center; }\n  .sig { min-width: 62mm; text-align: center; font-size: 13.5px; line-height: 1.45; }\n  .sig .rule { height: 16mm; border-bottom: 1px solid #0F1424; margin-bottom: 6px; }\n  @media print {\n    body { background: #fff; }\n    .bar { display: none; }\n    .sheet { width: auto; margin: 0; padding: 0; box-shadow: none; }\n  }\n</style>\n</head>\n<body>\n<div class=\"bar\"><button type=\"button\" id=\"receipt-print\">Print</button><span>To keep a copy, choose “Save as PDF” in the print dialog.</span></div>\n<main class=\"sheet\">\n  <header class=\"head\">\n    <div class=\"who\">Vikram Seth</div>\n    <div class=\"sub\">Senior Advocate</div>\n    \n    <div class=\"sub\">+91 98765 43210</div>\n  </header>\n  <div class=\"title\">RECEIPT</div>\n  <div class=\"meta\"><span>Receipt No. <b class=\"no\">2026-27/EDNONE</b></span><span>Date: <b>01 Dec 2026</b></span></div>\n  <p class=\"text\">Received with thanks from <b>Acme Private Limited</b>\n    the sum of <b>₹75/-</b> (<b>Rupees Seventy Five Only</b>) towards Misc in the\n    matter of <b>Acme v. Beta</b>, W.P.(C) 1234/2026, before the High Court of Delhi.</p>\n  <div class=\"foot\">\n    <div class=\"figure\">₹75/-</div>\n    <div class=\"sign\">\n      \n      <div class=\"sig\"><div class=\"rule\"></div><b>Vikram Seth</b><br>Senior Advocate</div>\n    </div>\n  </div>\n</main>\n</body>\n</html>"
+  }
+ ]
+}

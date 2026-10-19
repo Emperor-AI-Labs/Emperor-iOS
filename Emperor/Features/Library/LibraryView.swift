@@ -111,7 +111,7 @@ struct LibraryHomeBody: View {
                                 path.append(.collection(category))
                             }
                             if model.isSearching {
-                                LibrarySearchResults(model: model, path: $path)
+                                LibrarySearchResultsList(model: model, path: $path)
                             } else {
                                 LibraryShelves(model: model, path: $path)
                             }
@@ -263,7 +263,7 @@ private struct LibraryCategoryShelf: View {
 
 /// What the search box shows when no collection is chosen: passages inside judgments, then one
 /// section per collection with title matches and "See all N".
-private struct LibrarySearchResults: View {
+private struct LibrarySearchResultsList: View {
     @Environment(\.theme) private var theme
     let model: LibraryViewModel
     @Binding var path: [LibraryRoute]

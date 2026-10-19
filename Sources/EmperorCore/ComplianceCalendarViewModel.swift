@@ -15,13 +15,24 @@ import Observation
 /// is added beside them, because "everything RBI wants from us" is the other way a company
 /// secretary asks the question.
 ///
+/// ## Companies
+///
+/// As on the web, the user can describe their companies (`CompanyProfile`, kept on the device by
+/// `CompanyProfileStore`, never sent to the server). With none, the screen is the pipeline's
+/// general calendar. With one chosen, its statutory deadlines are generated here for the web's
+/// window — 60 days back, 366 ahead — and shown with the feed's other obligations, the feed's
+/// copy of anything the generator produces being dropped (`ComplianceSchedule.merge`).
+///
+/// ## Done
+///
+/// A deadline is marked done, or open again, with the web's own write: a `compliance_events`
+/// row whose id is the deadline's (`StatutoryMarker`). The tick shows at once and is taken back
+/// if the write fails.
+///
 /// ## What it does not do
 ///
-/// - **No company profiles.** The web can also generate deadlines from companies the user
-///   describes, kept in that browser's `localStorage` and never sent to the server. With no
-///   company it shows exactly this feed, which is what this screen is: the general calendar.
-/// - **No "mark done".** What the web has recorded as done is shown; recording it from here is
-///   held back — see `ComplianceCalendarService.statutoryMarkers()`.
+/// - **No custom events.** The web's Corporate Calendar shows only statutory deadlines; a
+///   person's own entries are on their own calendar, which is `CalendarViewModel` here.
 /// - **No pipeline history.** The web has a page listing every circular the pipeline read
 ///   (`ComplianceHistory.jsx`), but it reads a service the platform does not serve through its
 ///   API. Held back until it does.
@@ -63,10 +74,14 @@ final class ComplianceCalendarViewModel {
         }
     }
 
-    /// What is cached, so a cold launch offline still has the calendar.
+    /// What is cached, so a cold launch offline still has the calendar. The company's own
+    /// deadlines are not: they are generated again from the profile on the device.
     struct Snapshot: Codable, Equatable, Sendable {
         var deadlines: [StatutoryDeadline]
         var doneIDs: [String]
+        /// Each marker's notes, by id, so ticking a deadline sends them back rather than
+        /// clearing them. Absent from a cache written before this was kept.
+        var markerNotes: [String: String]? = nil
     }
 
     /// The web's three counts, over whatever the filters leave.
@@ -113,9 +128,19 @@ final class ComplianceCalendarViewModel {
 
     /// Every row the feed returned, dated or not, in the server's order.
     private(set) var rows: [StatutoryDeadline] = []
-    /// The dated rows, soonest first — what the screen is made of.
+    /// The dated rows — the company's own and the feed's — soonest first: what the screen is
+    /// made of.
     private(set) var deadlines: [StatutoryDeadline] = []
     private(set) var doneIDs: Set<String> = []
+    private var markerNotes: [String: String] = [:]
+
+    /// The companies the user has described, in the order they were added.
+    private(set) var companies: [CompanyProfile] = []
+    private(set) var activeCompanyID: String?
+    /// Ids being written, so a second tap waits for the first.
+    private(set) var writingIDs: Set<String> = []
+    /// Why the last tick did not stick, worded for the screen.
+    var writeError: String?
     private(set) var state: LoadState = .idle
     private(set) var cachedAt: Date?
 
@@ -125,16 +150,26 @@ final class ComplianceCalendarViewModel {
 
     private let service: any ComplianceCalendarProviding
     private let cache: ResponseCache?
+    private let companyStore: CompanyProfileStore?
     private let now: @Sendable () -> Date
 
     init(
         service: any ComplianceCalendarProviding,
         cache: ResponseCache? = nil,
+        companies: CompanyProfileStore? = nil,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.service = service
         self.cache = cache
+        self.companyStore = companies
         self.now = now
+        if let companies {
+            self.companies = companies.companies()
+            let saved = companies.activeID()
+            activeCompanyID = self.companies.contains { $0.id == saved }
+                ? saved : self.companies.first?.id
+        }
+        rebuild()
     }
 
     // MARK: - Presentation
@@ -162,7 +197,7 @@ final class ComplianceCalendarViewModel {
     /// How many tracked obligations have no date, because they run from the company's own
     /// events — the AGM, a director change, an allotment. The web drops them silently; here
     /// they are counted in a footnote, so a short list is not read as a complete one.
-    var undatedCount: Int { rows.count - deadlines.count }
+    var undatedCount: Int { rows.filter { $0.dueDay == nil }.count }
 
     var undatedFootnote: String? {
         switch undatedCount {
@@ -304,9 +339,13 @@ final class ComplianceCalendarViewModel {
             // for want of the second request.
             async let fetchedRows = service.deadlines()
             async let fetchedMarkers = service.statutoryMarkers()
+            let markers = try await fetchedMarkers
             let snapshot = Snapshot(
                 deadlines: try await fetchedRows,
-                doneIDs: try await fetchedMarkers.filter(\.isDone).map(\.id))
+                doneIDs: markers.filter(\.isDone).map(\.id),
+                markerNotes: Dictionary(
+                    markers.compactMap { m in m.notes?.nilIfEmpty.map { (m.id, $0) } },
+                    uniquingKeysWith: { first, _ in first }))
             apply(snapshot)
             cachedAt = nil
             cache?.save(snapshot, for: .complianceCalendar)
@@ -317,10 +356,23 @@ final class ComplianceCalendarViewModel {
     }
 
     private func apply(_ snapshot: Snapshot) {
-        let done = Set(snapshot.doneIDs)
         rows = snapshot.deadlines
-        doneIDs = done
-        deadlines = snapshot.deadlines
+        doneIDs = Set(snapshot.doneIDs)
+        markerNotes = snapshot.markerNotes ?? [:]
+        rebuild()
+    }
+
+    /// The company's deadlines for today's window, merged with the feed's dated rows.
+    private func rebuild() {
+        var generated: [StatutoryDeadline] = []
+        if let company = activeCompany,
+           let window = ComplianceSchedule.window(around: todayKey) {
+            generated = ComplianceSchedule.generate(
+                from: window.from, to: window.to, profile: company
+            ).compactMap(ComplianceSchedule.row(for:))
+        }
+        let done = doneIDs
+        deadlines = ComplianceSchedule.merge(generated: generated, feed: rows)
             .filter { $0.dueDay != nil }
             .sorted(by: Self.agendaOrder(isDone: { done.contains($0.id) }))
 
@@ -342,11 +394,107 @@ final class ComplianceCalendarViewModel {
         }
     }
 
+    // MARK: - Companies
+
+    var activeCompany: CompanyProfile? {
+        companies.first { $0.id == activeCompanyID } ?? companies.first
+    }
+
+    /// Whether the screen can offer companies at all (a store was given).
+    var offersCompanies: Bool { companyStore != nil }
+
+    /// The line under the company picker, or the invitation to add one.
+    var companyLine: String {
+        guard let activeCompany else {
+            return "Showing the general statutory calendar. Add your company to tailor it — AGM-linked ROC filings and anything that depends on GST, payroll or a listing."
+        }
+        return activeCompany.summary
+    }
+
+    /// A blank company for the Add sheet, with a fresh id.
+    func newCompany() -> CompanyProfile {
+        CompanyProfile(id: CompanyProfile.newID(now: now()))
+    }
+
+    func isSaved(_ company: CompanyProfile) -> Bool { companies.contains { $0.id == company.id } }
+
+    func selectCompany(_ id: String) {
+        guard companies.contains(where: { $0.id == id }) else { return }
+        activeCompanyID = id
+        companyStore?.setActiveID(id)
+        rebuild()
+    }
+
+    /// Adds or replaces the company and makes it the chosen one — the web's `saveCompany`.
+    /// Returns the form's complaint instead when the name is missing.
+    @discardableResult
+    func saveCompany(_ company: CompanyProfile) -> String? {
+        if let error = company.validationError { return error }
+        var clean = company
+        clean.name = company.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let index = companies.firstIndex(where: { $0.id == clean.id }) {
+            companies[index] = clean
+        } else {
+            companies.append(clean)
+        }
+        companyStore?.setCompanies(companies)
+        selectCompany(clean.id)
+        return nil
+    }
+
+    /// Removes a company; the first remaining one becomes the chosen one, as on the web.
+    func deleteCompany(id: String) {
+        companies.removeAll { $0.id == id }
+        companyStore?.setCompanies(companies)
+        if !companies.contains(where: { $0.id == activeCompanyID }) {
+            activeCompanyID = companies.first?.id
+            companyStore?.setActiveID(activeCompanyID)
+        }
+        rebuild()
+    }
+
+    // MARK: - Done
+
+    func isWriting(_ deadline: StatutoryDeadline) -> Bool { writingIDs.contains(deadline.id) }
+
+    /// Marks the deadline done, or open again — the web's `toggleDone`.
+    ///
+    /// Shown at once; put back, with a reason, if the server does not take it.
+    func toggleDone(_ deadline: StatutoryDeadline) async {
+        guard deadline.dueDay != nil, !writingIDs.contains(deadline.id) else { return }
+        let wasDone = isDone(deadline)
+        let marker = StatutoryMarker(
+            deadline: deadline, done: !wasDone, notes: markerNotes[deadline.id])
+        writingIDs.insert(deadline.id)
+        writeError = nil
+        setDone(deadline.id, !wasDone)
+        defer { writingIDs.remove(deadline.id) }
+        do {
+            try await service.saveMarker(marker)
+            cache?.save(
+                Snapshot(deadlines: rows, doneIDs: doneIDs.sorted(), markerNotes: markerNotes),
+                for: .complianceCalendar)
+        } catch {
+            setDone(deadline.id, wasDone)
+            writeError = wasDone
+                ? "Could not mark this open again. \(DisplayText.message(for: error))"
+                : "Could not mark this done. \(DisplayText.message(for: error))"
+        }
+    }
+
+    private func setDone(_ id: String, _ done: Bool) {
+        if done { doneIDs.insert(id) } else { doneIDs.remove(id) }
+        rebuild()
+    }
+
     // MARK: - Detail
 
     func detail(for deadline: StatutoryDeadline) -> DeadlineDetail {
         DeadlineDetail(deadline: deadline, urgency: urgency(of: deadline), isDone: isDone(deadline))
     }
+
+    /// The deadline as it is now, by id — for a detail screen that outlives a refresh.
+    func deadline(id: String) -> StatutoryDeadline? { deadlines.first { $0.id == id } }
 }
 
 /// Everything the detail screen says about one deadline, worked out here so the view only lays
@@ -364,6 +512,8 @@ struct DeadlineDetail: Equatable, Sendable {
     let differsFromUsualSchedule: Bool
     let note: String?
     let verification: DeadlineVerification
+    /// Generated from the user's company profile rather than read from the pipeline's feed.
+    let fromCompanyProfile: Bool
 
     init(deadline: StatutoryDeadline, urgency: DeadlineUrgency, isDone: Bool) {
         title = deadline.displayTitle
@@ -378,6 +528,7 @@ struct DeadlineDetail: Equatable, Sendable {
         differsFromUsualSchedule = deadline.differsFromUsualSchedule
         note = deadline.note
         verification = deadline.verification
+        fromCompanyProfile = deadline.fromCompanyProfile
     }
 
     var dueLong: String? { dueDay.map(DisplayText.longDay) }

@@ -1,0 +1,4709 @@
+{
+ "categoryOrder": [
+  "mca",
+  "incometax",
+  "tds",
+  "gst",
+  "epf",
+  "labour",
+  "sebi",
+  "fema",
+  "cyber",
+  "trade",
+  "licensing",
+  "ip"
+ ],
+ "categoryLabels": {
+  "mca": "MCA / ROC",
+  "incometax": "Income Tax",
+  "tds": "TDS / TCS",
+  "gst": "GST",
+  "epf": "EPF & ESI",
+  "labour": "Labour & POSH",
+  "sebi": "SEBI (listed)",
+  "fema": "FEMA / RBI",
+  "cyber": "Cyber & Data",
+  "trade": "Trade / Exports",
+  "licensing": "Sector Licensing",
+  "ip": "IP / Trademark"
+ },
+ "ptStates": [
+  "Andhra Pradesh",
+  "Assam",
+  "Bihar",
+  "Gujarat",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Puducherry",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "West Bengal"
+ ],
+ "indianStates": [
+  "Andhra Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Delhi",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Puducherry",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal"
+ ],
+ "newCompany": {
+  "name": "",
+  "listed": false,
+  "hasEmployees": false,
+  "gstRegistered": false,
+  "foreignDealings": false,
+  "taxAudit": false,
+  "csr": false,
+  "state": "",
+  "agmMonth": 9,
+  "agmDay": 30
+ },
+ "obligations": [
+  {
+   "id": "aoc4",
+   "category": "mca",
+   "name": "AOC-4 — Financial Statements",
+   "frequency": "Annual",
+   "authority": "Companies Act 2013, s.137",
+   "schedule": {
+    "kind": "agm",
+    "offsetDays": 30
+   },
+   "description": "File the audited financial statements with the ROC within 30 days of the AGM.",
+   "conditional": false
+  },
+  {
+   "id": "mgt7",
+   "category": "mca",
+   "name": "MGT-7 — Annual Return",
+   "frequency": "Annual",
+   "authority": "Companies Act 2013, s.92",
+   "schedule": {
+    "kind": "agm",
+    "offsetDays": 60
+   },
+   "description": "File the annual return with the ROC within 60 days of the AGM.",
+   "conditional": false
+  },
+  {
+   "id": "adt1",
+   "category": "mca",
+   "name": "ADT-1 — Auditor Appointment",
+   "frequency": "On appointment",
+   "authority": "Companies Act 2013, s.139",
+   "schedule": {
+    "kind": "agm",
+    "offsetDays": 15
+   },
+   "description": "Intimate the ROC of an auditor appointment/ratification within 15 days of the AGM.",
+   "conditional": false
+  },
+  {
+   "id": "dir3kyc",
+   "category": "mca",
+   "name": "DIR-3 KYC — Director KYC",
+   "frequency": "Annual",
+   "authority": "Companies (Appt. & Qual. of Directors) Rules, r.12A",
+   "schedule": {
+    "kind": "annual",
+    "month": 9,
+    "day": 30
+   },
+   "description": "Every DIN holder must file KYC by 30 September each year.",
+   "conditional": false
+  },
+  {
+   "id": "dpt3",
+   "category": "mca",
+   "name": "DPT-3 — Return of Deposits",
+   "frequency": "Annual",
+   "authority": "Companies (Acceptance of Deposits) Rules, r.16",
+   "schedule": {
+    "kind": "annual",
+    "month": 6,
+    "day": 30
+   },
+   "description": "Annual return of deposits and outstanding non-deposit money as on 31 March.",
+   "conditional": false
+  },
+  {
+   "id": "msme1",
+   "category": "mca",
+   "name": "MSME-1 — Dues to MSME suppliers",
+   "frequency": "Half-yearly",
+   "authority": "Companies Act 2013, s.405",
+   "schedule": {
+    "kind": "custom",
+    "dates": [
+     {
+      "month": 4,
+      "day": 30
+     },
+     {
+      "month": 10,
+      "day": 31
+     }
+    ]
+   },
+   "description": "Half-yearly return of outstanding payments to MSME vendors pending beyond 45 days.",
+   "conditional": false
+  },
+  {
+   "id": "csr2",
+   "category": "mca",
+   "name": "CSR-2 — CSR Report",
+   "frequency": "Annual",
+   "authority": "Companies Act 2013, s.135",
+   "schedule": {
+    "kind": "agm",
+    "offsetDays": 30
+   },
+   "description": "Report on CSR spending (filed as an addendum to AOC-4).",
+   "conditional": true
+  },
+  {
+   "id": "agm",
+   "category": "mca",
+   "name": "Annual General Meeting",
+   "frequency": "Annual",
+   "authority": "Companies Act 2013, s.96",
+   "schedule": {
+    "kind": "annual",
+    "month": 9,
+    "day": 30
+   },
+   "description": "Hold the AGM within 6 months of the financial-year end (by 30 September).",
+   "conditional": false
+  },
+  {
+   "id": "board",
+   "category": "mca",
+   "name": "Board Meeting",
+   "frequency": "Quarterly",
+   "authority": "Companies Act 2013, s.173",
+   "schedule": {
+    "kind": "quarterly",
+    "dates": [
+     {
+      "month": 6,
+      "day": 30
+     },
+     {
+      "month": 9,
+      "day": 30
+     },
+     {
+      "month": 12,
+      "day": 31
+     },
+     {
+      "month": 3,
+      "day": 31
+     }
+    ]
+   },
+   "description": "Hold a board meeting — minimum 4 per year with a gap of no more than 120 days.",
+   "conditional": false
+  },
+  {
+   "id": "advtax1",
+   "category": "incometax",
+   "name": "Advance Tax — 1st instalment (15%)",
+   "frequency": "Quarterly",
+   "authority": "Income-tax Act, s.211",
+   "schedule": {
+    "kind": "annual",
+    "month": 6,
+    "day": 15
+   },
+   "description": "Pay 15% of the estimated annual tax by 15 June.",
+   "conditional": false
+  },
+  {
+   "id": "advtax2",
+   "category": "incometax",
+   "name": "Advance Tax — 2nd instalment (45%)",
+   "frequency": "Quarterly",
+   "authority": "Income-tax Act, s.211",
+   "schedule": {
+    "kind": "annual",
+    "month": 9,
+    "day": 15
+   },
+   "description": "Cumulative 45% of the estimated annual tax by 15 September.",
+   "conditional": false
+  },
+  {
+   "id": "advtax3",
+   "category": "incometax",
+   "name": "Advance Tax — 3rd instalment (75%)",
+   "frequency": "Quarterly",
+   "authority": "Income-tax Act, s.211",
+   "schedule": {
+    "kind": "annual",
+    "month": 12,
+    "day": 15
+   },
+   "description": "Cumulative 75% of the estimated annual tax by 15 December.",
+   "conditional": false
+  },
+  {
+   "id": "advtax4",
+   "category": "incometax",
+   "name": "Advance Tax — 4th instalment (100%)",
+   "frequency": "Quarterly",
+   "authority": "Income-tax Act, s.211",
+   "schedule": {
+    "kind": "annual",
+    "month": 3,
+    "day": 15
+   },
+   "description": "Cumulative 100% of the estimated annual tax by 15 March.",
+   "conditional": false
+  },
+  {
+   "id": "taxaudit",
+   "category": "incometax",
+   "name": "Tax Audit Report (3CA/3CB-3CD)",
+   "frequency": "Annual",
+   "authority": "Income-tax Act, s.44AB",
+   "schedule": {
+    "kind": "annual",
+    "month": 9,
+    "day": 30
+   },
+   "description": "File the tax audit report by 30 September.",
+   "conditional": true
+  },
+  {
+   "id": "itr6",
+   "category": "incometax",
+   "name": "Income Tax Return (ITR-6)",
+   "frequency": "Annual",
+   "authority": "Income-tax Act, s.139(1)",
+   "schedule": {
+    "kind": "annual",
+    "month": 10,
+    "day": 31
+   },
+   "description": "File the company income tax return by 31 October (audit cases).",
+   "conditional": false
+  },
+  {
+   "id": "tp3ceb",
+   "category": "incometax",
+   "name": "Form 3CEB — Transfer Pricing",
+   "frequency": "Annual",
+   "authority": "Income-tax Act, s.92E",
+   "schedule": {
+    "kind": "annual",
+    "month": 10,
+    "day": 31
+   },
+   "description": "Accountant's report on international / specified domestic transactions.",
+   "conditional": true
+  },
+  {
+   "id": "tdspay",
+   "category": "tds",
+   "name": "TDS Payment",
+   "frequency": "Monthly",
+   "authority": "Income-tax Act, s.200",
+   "schedule": {
+    "kind": "monthly",
+    "day": 7,
+    "overrides": {
+     "4": {
+      "day": 30,
+      "note": "TDS deducted in March is due 30 April."
+     }
+    }
+   },
+   "description": "Deposit TDS by the 7th of the following month (March deductions by 30 April).",
+   "conditional": false
+  },
+  {
+   "id": "tdsreturn",
+   "category": "tds",
+   "name": "TDS Return (24Q / 26Q / 27Q)",
+   "frequency": "Quarterly",
+   "authority": "Income-tax Act, s.200(3)",
+   "schedule": {
+    "kind": "quarterly",
+    "dates": [
+     {
+      "month": 7,
+      "day": 31
+     },
+     {
+      "month": 10,
+      "day": 31
+     },
+     {
+      "month": 1,
+      "day": 31
+     },
+     {
+      "month": 5,
+      "day": 31
+     }
+    ]
+   },
+   "description": "File the quarterly TDS statement (Q4 is due 31 May).",
+   "conditional": false
+  },
+  {
+   "id": "gstr1",
+   "category": "gst",
+   "name": "GSTR-1 — Outward Supplies",
+   "frequency": "Monthly",
+   "authority": "CGST Act",
+   "schedule": {
+    "kind": "monthly",
+    "day": 11
+   },
+   "description": "Monthly statement of outward supplies by the 11th (QRMP filers: 13th of the month after the quarter).",
+   "conditional": true
+  },
+  {
+   "id": "gstr3b",
+   "category": "gst",
+   "name": "GSTR-3B — Summary Return",
+   "frequency": "Monthly",
+   "authority": "CGST Act",
+   "schedule": {
+    "kind": "monthly",
+    "day": 20
+   },
+   "description": "Monthly summary return and tax payment by the 20th.",
+   "conditional": true
+  },
+  {
+   "id": "gstr9",
+   "category": "gst",
+   "name": "GSTR-9 / 9C — Annual Return",
+   "frequency": "Annual",
+   "authority": "CGST Act",
+   "schedule": {
+    "kind": "annual",
+    "month": 12,
+    "day": 31
+   },
+   "description": "Annual GST return (9C reconciliation if turnover exceeds ₹5 crore).",
+   "conditional": true
+  },
+  {
+   "id": "epf",
+   "category": "epf",
+   "name": "EPF — ECR & Contribution",
+   "frequency": "Monthly",
+   "authority": "EPF & MP Act 1952",
+   "schedule": {
+    "kind": "monthly",
+    "day": 15
+   },
+   "description": "Upload the ECR and pay the EPF contribution by the 15th.",
+   "conditional": true
+  },
+  {
+   "id": "esi",
+   "category": "epf",
+   "name": "ESI — Contribution",
+   "frequency": "Monthly",
+   "authority": "ESI Act 1948",
+   "schedule": {
+    "kind": "monthly",
+    "day": 15
+   },
+   "description": "Pay the ESI contribution by the 15th.",
+   "conditional": true
+  },
+  {
+   "id": "pt",
+   "category": "labour",
+   "name": "Professional Tax",
+   "frequency": "Monthly",
+   "authority": "State Professional Tax Act",
+   "schedule": {
+    "kind": "monthly",
+    "day": 21
+   },
+   "description": "Deposit Professional Tax (due date and rates vary by state).",
+   "conditional": true
+  },
+  {
+   "id": "posh",
+   "category": "labour",
+   "name": "POSH — Annual Report",
+   "frequency": "Annual",
+   "authority": "POSH Act 2013, s.21-22",
+   "schedule": {
+    "kind": "annual",
+    "month": 1,
+    "day": 31
+   },
+   "description": "Internal Committee files its annual report with the District Officer (required at 10+ employees).",
+   "conditional": true
+  },
+  {
+   "id": "sebiresults",
+   "category": "sebi",
+   "name": "Financial Results",
+   "frequency": "Quarterly",
+   "authority": "SEBI LODR, Reg. 33",
+   "schedule": {
+    "kind": "custom",
+    "dates": [
+     {
+      "month": 8,
+      "day": 14
+     },
+     {
+      "month": 11,
+      "day": 14
+     },
+     {
+      "month": 2,
+      "day": 14
+     },
+     {
+      "month": 5,
+      "day": 30
+     }
+    ]
+   },
+   "description": "Quarterly results within 45 days of quarter-end (annual within 60 days).",
+   "conditional": true
+  },
+  {
+   "id": "sebishp",
+   "category": "sebi",
+   "name": "Shareholding Pattern",
+   "frequency": "Quarterly",
+   "authority": "SEBI LODR, Reg. 31",
+   "schedule": {
+    "kind": "custom",
+    "dates": [
+     {
+      "month": 7,
+      "day": 21
+     },
+     {
+      "month": 10,
+      "day": 21
+     },
+     {
+      "month": 1,
+      "day": 21
+     },
+     {
+      "month": 4,
+      "day": 21
+     }
+    ]
+   },
+   "description": "File the shareholding pattern within 21 days of quarter-end.",
+   "conditional": true
+  },
+  {
+   "id": "sebicg",
+   "category": "sebi",
+   "name": "Corporate Governance Report",
+   "frequency": "Quarterly",
+   "authority": "SEBI LODR, Reg. 27(2)",
+   "schedule": {
+    "kind": "custom",
+    "dates": [
+     {
+      "month": 7,
+      "day": 21
+     },
+     {
+      "month": 10,
+      "day": 21
+     },
+     {
+      "month": 1,
+      "day": 21
+     },
+     {
+      "month": 4,
+      "day": 21
+     }
+    ]
+   },
+   "description": "File the corporate governance report within 21 days of quarter-end.",
+   "conditional": true
+  },
+  {
+   "id": "fla",
+   "category": "fema",
+   "name": "FLA Return",
+   "frequency": "Annual",
+   "authority": "FEMA 1999 (RBI)",
+   "schedule": {
+    "kind": "annual",
+    "month": 7,
+    "day": 15
+   },
+   "description": "Annual Foreign Liabilities & Assets return (position as on 31 March).",
+   "conditional": true
+  },
+  {
+   "id": "apr",
+   "category": "fema",
+   "name": "APR — Overseas Investment",
+   "frequency": "Annual",
+   "authority": "FEMA (OI Rules 2022)",
+   "schedule": {
+    "kind": "annual",
+    "month": 12,
+    "day": 31
+   },
+   "description": "Annual Performance Report for overseas direct investment.",
+   "conditional": true
+  }
+ ],
+ "cases": [
+  {
+   "name": "page-window-2026-10-19/nothing-on",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:adt1:2026-10-15"
+    },
+    {
+     "id": "stat:aoc4:2026-10-30"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:mgt7:2026-11-29"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    },
+    {
+     "id": "stat:adt1:2027-10-15"
+    }
+   ]
+  },
+  {
+   "name": "page-window-2026-10-19/listed",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": true,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Listed company",
+   "events": [
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:adt1:2026-10-15"
+    },
+    {
+     "id": "stat:sebishp:2026-10-21"
+    },
+    {
+     "id": "stat:sebicg:2026-10-21"
+    },
+    {
+     "id": "stat:aoc4:2026-10-30"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:sebiresults:2026-11-14"
+    },
+    {
+     "id": "stat:mgt7:2026-11-29"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:sebishp:2027-01-21"
+    },
+    {
+     "id": "stat:sebicg:2027-01-21"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:sebiresults:2027-02-14"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:sebishp:2027-04-21"
+    },
+    {
+     "id": "stat:sebicg:2027-04-21"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:sebiresults:2027-05-30"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:sebishp:2027-07-21"
+    },
+    {
+     "id": "stat:sebicg:2027-07-21"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:sebiresults:2027-08-14"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    },
+    {
+     "id": "stat:adt1:2027-10-15"
+    }
+   ]
+  },
+  {
+   "name": "page-window-2026-10-19/employees-pt-state",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": true,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "Maharashtra",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Unlisted company · with employees · Maharashtra",
+   "events": [
+    {
+     "id": "stat:pt:2026-08-21"
+    },
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:epf:2026-09-15"
+    },
+    {
+     "id": "stat:esi:2026-09-15"
+    },
+    {
+     "id": "stat:pt:2026-09-21"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:adt1:2026-10-15"
+    },
+    {
+     "id": "stat:epf:2026-10-15"
+    },
+    {
+     "id": "stat:esi:2026-10-15"
+    },
+    {
+     "id": "stat:pt:2026-10-21"
+    },
+    {
+     "id": "stat:aoc4:2026-10-30"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:epf:2026-11-15"
+    },
+    {
+     "id": "stat:esi:2026-11-15"
+    },
+    {
+     "id": "stat:pt:2026-11-21"
+    },
+    {
+     "id": "stat:mgt7:2026-11-29"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:epf:2026-12-15"
+    },
+    {
+     "id": "stat:esi:2026-12-15"
+    },
+    {
+     "id": "stat:pt:2026-12-21"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:epf:2027-01-15"
+    },
+    {
+     "id": "stat:esi:2027-01-15"
+    },
+    {
+     "id": "stat:pt:2027-01-21"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:posh:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:epf:2027-02-15"
+    },
+    {
+     "id": "stat:esi:2027-02-15"
+    },
+    {
+     "id": "stat:pt:2027-02-21"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:epf:2027-03-15"
+    },
+    {
+     "id": "stat:esi:2027-03-15"
+    },
+    {
+     "id": "stat:pt:2027-03-21"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:epf:2027-04-15"
+    },
+    {
+     "id": "stat:esi:2027-04-15"
+    },
+    {
+     "id": "stat:pt:2027-04-21"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:epf:2027-05-15"
+    },
+    {
+     "id": "stat:esi:2027-05-15"
+    },
+    {
+     "id": "stat:pt:2027-05-21"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:epf:2027-06-15"
+    },
+    {
+     "id": "stat:esi:2027-06-15"
+    },
+    {
+     "id": "stat:pt:2027-06-21"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:epf:2027-07-15"
+    },
+    {
+     "id": "stat:esi:2027-07-15"
+    },
+    {
+     "id": "stat:pt:2027-07-21"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:epf:2027-08-15"
+    },
+    {
+     "id": "stat:esi:2027-08-15"
+    },
+    {
+     "id": "stat:pt:2027-08-21"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:epf:2027-09-15"
+    },
+    {
+     "id": "stat:esi:2027-09-15"
+    },
+    {
+     "id": "stat:pt:2027-09-21"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    },
+    {
+     "id": "stat:adt1:2027-10-15"
+    },
+    {
+     "id": "stat:epf:2027-10-15"
+    },
+    {
+     "id": "stat:esi:2027-10-15"
+    }
+   ]
+  },
+  {
+   "name": "page-window-2026-10-19/employees-no-pt-state",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": true,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "Delhi",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Unlisted company · with employees · Delhi",
+   "events": [
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:epf:2026-09-15"
+    },
+    {
+     "id": "stat:esi:2026-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:adt1:2026-10-15"
+    },
+    {
+     "id": "stat:epf:2026-10-15"
+    },
+    {
+     "id": "stat:esi:2026-10-15"
+    },
+    {
+     "id": "stat:aoc4:2026-10-30"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:epf:2026-11-15"
+    },
+    {
+     "id": "stat:esi:2026-11-15"
+    },
+    {
+     "id": "stat:mgt7:2026-11-29"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:epf:2026-12-15"
+    },
+    {
+     "id": "stat:esi:2026-12-15"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:epf:2027-01-15"
+    },
+    {
+     "id": "stat:esi:2027-01-15"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:posh:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:epf:2027-02-15"
+    },
+    {
+     "id": "stat:esi:2027-02-15"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:epf:2027-03-15"
+    },
+    {
+     "id": "stat:esi:2027-03-15"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:epf:2027-04-15"
+    },
+    {
+     "id": "stat:esi:2027-04-15"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:epf:2027-05-15"
+    },
+    {
+     "id": "stat:esi:2027-05-15"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:epf:2027-06-15"
+    },
+    {
+     "id": "stat:esi:2027-06-15"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:epf:2027-07-15"
+    },
+    {
+     "id": "stat:esi:2027-07-15"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:epf:2027-08-15"
+    },
+    {
+     "id": "stat:esi:2027-08-15"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:epf:2027-09-15"
+    },
+    {
+     "id": "stat:esi:2027-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    },
+    {
+     "id": "stat:adt1:2027-10-15"
+    },
+    {
+     "id": "stat:epf:2027-10-15"
+    },
+    {
+     "id": "stat:esi:2027-10-15"
+    }
+   ]
+  },
+  {
+   "name": "page-window-2026-10-19/employees-no-state",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": true,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Unlisted company · with employees",
+   "events": [
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:epf:2026-09-15"
+    },
+    {
+     "id": "stat:esi:2026-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:adt1:2026-10-15"
+    },
+    {
+     "id": "stat:epf:2026-10-15"
+    },
+    {
+     "id": "stat:esi:2026-10-15"
+    },
+    {
+     "id": "stat:aoc4:2026-10-30"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:epf:2026-11-15"
+    },
+    {
+     "id": "stat:esi:2026-11-15"
+    },
+    {
+     "id": "stat:mgt7:2026-11-29"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:epf:2026-12-15"
+    },
+    {
+     "id": "stat:esi:2026-12-15"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:epf:2027-01-15"
+    },
+    {
+     "id": "stat:esi:2027-01-15"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:posh:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:epf:2027-02-15"
+    },
+    {
+     "id": "stat:esi:2027-02-15"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:epf:2027-03-15"
+    },
+    {
+     "id": "stat:esi:2027-03-15"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:epf:2027-04-15"
+    },
+    {
+     "id": "stat:esi:2027-04-15"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:epf:2027-05-15"
+    },
+    {
+     "id": "stat:esi:2027-05-15"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:epf:2027-06-15"
+    },
+    {
+     "id": "stat:esi:2027-06-15"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:epf:2027-07-15"
+    },
+    {
+     "id": "stat:esi:2027-07-15"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:epf:2027-08-15"
+    },
+    {
+     "id": "stat:esi:2027-08-15"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:epf:2027-09-15"
+    },
+    {
+     "id": "stat:esi:2027-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    },
+    {
+     "id": "stat:adt1:2027-10-15"
+    },
+    {
+     "id": "stat:epf:2027-10-15"
+    },
+    {
+     "id": "stat:esi:2027-10-15"
+    }
+   ]
+  },
+  {
+   "name": "page-window-2026-10-19/gst",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": true,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Unlisted company · GST-registered",
+   "events": [
+    {
+     "id": "stat:gstr3b:2026-08-20"
+    },
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:gstr1:2026-09-11"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:gstr3b:2026-09-20"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:gstr1:2026-10-11"
+    },
+    {
+     "id": "stat:adt1:2026-10-15"
+    },
+    {
+     "id": "stat:gstr3b:2026-10-20"
+    },
+    {
+     "id": "stat:aoc4:2026-10-30"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:gstr1:2026-11-11"
+    },
+    {
+     "id": "stat:gstr3b:2026-11-20"
+    },
+    {
+     "id": "stat:mgt7:2026-11-29"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:gstr1:2026-12-11"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:gstr3b:2026-12-20"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:gstr9:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:gstr1:2027-01-11"
+    },
+    {
+     "id": "stat:gstr3b:2027-01-20"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:gstr1:2027-02-11"
+    },
+    {
+     "id": "stat:gstr3b:2027-02-20"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:gstr1:2027-03-11"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-03-20"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:gstr1:2027-04-11"
+    },
+    {
+     "id": "stat:gstr3b:2027-04-20"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:gstr1:2027-05-11"
+    },
+    {
+     "id": "stat:gstr3b:2027-05-20"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:gstr1:2027-06-11"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-06-20"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:gstr1:2027-07-11"
+    },
+    {
+     "id": "stat:gstr3b:2027-07-20"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:gstr1:2027-08-11"
+    },
+    {
+     "id": "stat:gstr3b:2027-08-20"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:gstr1:2027-09-11"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-09-20"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    },
+    {
+     "id": "stat:gstr1:2027-10-11"
+    },
+    {
+     "id": "stat:adt1:2027-10-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-10-20"
+    }
+   ]
+  },
+  {
+   "name": "page-window-2026-10-19/foreign",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": true,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Unlisted company · FDI/ODI",
+   "events": [
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:adt1:2026-10-15"
+    },
+    {
+     "id": "stat:aoc4:2026-10-30"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tp3ceb:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:mgt7:2026-11-29"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:apr:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:fla:2027-07-15"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    },
+    {
+     "id": "stat:adt1:2027-10-15"
+    }
+   ]
+  },
+  {
+   "name": "page-window-2026-10-19/tax-audit",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": true,
+    "csr": false,
+    "state": "",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:taxaudit:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:adt1:2026-10-15"
+    },
+    {
+     "id": "stat:aoc4:2026-10-30"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:mgt7:2026-11-29"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:taxaudit:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    },
+    {
+     "id": "stat:adt1:2027-10-15"
+    }
+   ]
+  },
+  {
+   "name": "page-window-2026-10-19/csr",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": true,
+    "state": "",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:adt1:2026-10-15"
+    },
+    {
+     "id": "stat:aoc4:2026-10-30"
+    },
+    {
+     "id": "stat:csr2:2026-10-30"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:mgt7:2026-11-29"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    },
+    {
+     "id": "stat:adt1:2027-10-15"
+    }
+   ]
+  },
+  {
+   "name": "page-window-2026-10-19/everything",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": true,
+    "hasEmployees": true,
+    "gstRegistered": true,
+    "foreignDealings": true,
+    "taxAudit": true,
+    "csr": true,
+    "state": "Karnataka",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Listed company · GST-registered · with employees · FDI/ODI · Karnataka",
+   "events": [
+    {
+     "id": "stat:gstr3b:2026-08-20"
+    },
+    {
+     "id": "stat:pt:2026-08-21"
+    },
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:gstr1:2026-09-11"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:epf:2026-09-15"
+    },
+    {
+     "id": "stat:esi:2026-09-15"
+    },
+    {
+     "id": "stat:gstr3b:2026-09-20"
+    },
+    {
+     "id": "stat:pt:2026-09-21"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:taxaudit:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:gstr1:2026-10-11"
+    },
+    {
+     "id": "stat:adt1:2026-10-15"
+    },
+    {
+     "id": "stat:epf:2026-10-15"
+    },
+    {
+     "id": "stat:esi:2026-10-15"
+    },
+    {
+     "id": "stat:gstr3b:2026-10-20"
+    },
+    {
+     "id": "stat:pt:2026-10-21"
+    },
+    {
+     "id": "stat:sebishp:2026-10-21"
+    },
+    {
+     "id": "stat:sebicg:2026-10-21"
+    },
+    {
+     "id": "stat:aoc4:2026-10-30"
+    },
+    {
+     "id": "stat:csr2:2026-10-30"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tp3ceb:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:gstr1:2026-11-11"
+    },
+    {
+     "id": "stat:sebiresults:2026-11-14"
+    },
+    {
+     "id": "stat:epf:2026-11-15"
+    },
+    {
+     "id": "stat:esi:2026-11-15"
+    },
+    {
+     "id": "stat:gstr3b:2026-11-20"
+    },
+    {
+     "id": "stat:pt:2026-11-21"
+    },
+    {
+     "id": "stat:mgt7:2026-11-29"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:gstr1:2026-12-11"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:epf:2026-12-15"
+    },
+    {
+     "id": "stat:esi:2026-12-15"
+    },
+    {
+     "id": "stat:gstr3b:2026-12-20"
+    },
+    {
+     "id": "stat:pt:2026-12-21"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:gstr9:2026-12-31"
+    },
+    {
+     "id": "stat:apr:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:gstr1:2027-01-11"
+    },
+    {
+     "id": "stat:epf:2027-01-15"
+    },
+    {
+     "id": "stat:esi:2027-01-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-01-20"
+    },
+    {
+     "id": "stat:pt:2027-01-21"
+    },
+    {
+     "id": "stat:sebishp:2027-01-21"
+    },
+    {
+     "id": "stat:sebicg:2027-01-21"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:posh:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:gstr1:2027-02-11"
+    },
+    {
+     "id": "stat:sebiresults:2027-02-14"
+    },
+    {
+     "id": "stat:epf:2027-02-15"
+    },
+    {
+     "id": "stat:esi:2027-02-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-02-20"
+    },
+    {
+     "id": "stat:pt:2027-02-21"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:gstr1:2027-03-11"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:epf:2027-03-15"
+    },
+    {
+     "id": "stat:esi:2027-03-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-03-20"
+    },
+    {
+     "id": "stat:pt:2027-03-21"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:gstr1:2027-04-11"
+    },
+    {
+     "id": "stat:epf:2027-04-15"
+    },
+    {
+     "id": "stat:esi:2027-04-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-04-20"
+    },
+    {
+     "id": "stat:pt:2027-04-21"
+    },
+    {
+     "id": "stat:sebishp:2027-04-21"
+    },
+    {
+     "id": "stat:sebicg:2027-04-21"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:gstr1:2027-05-11"
+    },
+    {
+     "id": "stat:epf:2027-05-15"
+    },
+    {
+     "id": "stat:esi:2027-05-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-05-20"
+    },
+    {
+     "id": "stat:pt:2027-05-21"
+    },
+    {
+     "id": "stat:sebiresults:2027-05-30"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:gstr1:2027-06-11"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:epf:2027-06-15"
+    },
+    {
+     "id": "stat:esi:2027-06-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-06-20"
+    },
+    {
+     "id": "stat:pt:2027-06-21"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:gstr1:2027-07-11"
+    },
+    {
+     "id": "stat:epf:2027-07-15"
+    },
+    {
+     "id": "stat:esi:2027-07-15"
+    },
+    {
+     "id": "stat:fla:2027-07-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-07-20"
+    },
+    {
+     "id": "stat:pt:2027-07-21"
+    },
+    {
+     "id": "stat:sebishp:2027-07-21"
+    },
+    {
+     "id": "stat:sebicg:2027-07-21"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:gstr1:2027-08-11"
+    },
+    {
+     "id": "stat:sebiresults:2027-08-14"
+    },
+    {
+     "id": "stat:epf:2027-08-15"
+    },
+    {
+     "id": "stat:esi:2027-08-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-08-20"
+    },
+    {
+     "id": "stat:pt:2027-08-21"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:gstr1:2027-09-11"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:epf:2027-09-15"
+    },
+    {
+     "id": "stat:esi:2027-09-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-09-20"
+    },
+    {
+     "id": "stat:pt:2027-09-21"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:taxaudit:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    },
+    {
+     "id": "stat:gstr1:2027-10-11"
+    },
+    {
+     "id": "stat:adt1:2027-10-15"
+    },
+    {
+     "id": "stat:epf:2027-10-15"
+    },
+    {
+     "id": "stat:esi:2027-10-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-10-20"
+    }
+   ]
+  },
+  {
+   "name": "page-window-2026-10-19/agm-year-end",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": true,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 12,
+    "agmDay": 31
+   },
+   "summary": "Unlisted company · GST-registered",
+   "events": [
+    {
+     "id": "stat:gstr3b:2026-08-20"
+    },
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:gstr1:2026-09-11"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:gstr3b:2026-09-20"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:gstr1:2026-10-11"
+    },
+    {
+     "id": "stat:gstr3b:2026-10-20"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:gstr1:2026-11-11"
+    },
+    {
+     "id": "stat:gstr3b:2026-11-20"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:gstr1:2026-12-11"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:gstr3b:2026-12-20"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:gstr9:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:gstr1:2027-01-11"
+    },
+    {
+     "id": "stat:adt1:2027-01-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-01-20"
+    },
+    {
+     "id": "stat:aoc4:2027-01-30"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:gstr1:2027-02-11"
+    },
+    {
+     "id": "stat:gstr3b:2027-02-20"
+    },
+    {
+     "id": "stat:mgt7:2027-03-01"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:gstr1:2027-03-11"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-03-20"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:gstr1:2027-04-11"
+    },
+    {
+     "id": "stat:gstr3b:2027-04-20"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:gstr1:2027-05-11"
+    },
+    {
+     "id": "stat:gstr3b:2027-05-20"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:gstr1:2027-06-11"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-06-20"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:gstr1:2027-07-11"
+    },
+    {
+     "id": "stat:gstr3b:2027-07-20"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:gstr1:2027-08-11"
+    },
+    {
+     "id": "stat:gstr3b:2027-08-20"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:gstr1:2027-09-11"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-09-20"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    },
+    {
+     "id": "stat:gstr1:2027-10-11"
+    },
+    {
+     "id": "stat:gstr3b:2027-10-20"
+    }
+   ]
+  },
+  {
+   "name": "page-window-2026-10-19/agm-january",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": true,
+    "state": "",
+    "agmMonth": 1,
+    "agmDay": 31
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:adt1:2027-02-15"
+    },
+    {
+     "id": "stat:aoc4:2027-03-02"
+    },
+    {
+     "id": "stat:csr2:2027-03-02"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:mgt7:2027-04-01"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    }
+   ]
+  },
+  {
+   "name": "page-window-2026-10-19/agm-missing",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 0,
+    "agmDay": 0
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:adt1:2026-10-15"
+    },
+    {
+     "id": "stat:aoc4:2026-10-30"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:mgt7:2026-11-29"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    },
+    {
+     "id": "stat:adt1:2027-10-15"
+    }
+   ]
+  },
+  {
+   "name": "page-window-2026-10-19/default-profile",
+   "from": "2026-08-20",
+   "to": "2027-10-20",
+   "profile": {
+    "configured": false,
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:tdspay:2026-09-07"
+    },
+    {
+     "id": "stat:advtax2:2026-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2026-09-30"
+    },
+    {
+     "id": "stat:agm:2026-09-30"
+    },
+    {
+     "id": "stat:board:2026-09-30"
+    },
+    {
+     "id": "stat:tdspay:2026-10-07"
+    },
+    {
+     "id": "stat:adt1:2026-10-15"
+    },
+    {
+     "id": "stat:aoc4:2026-10-30"
+    },
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    },
+    {
+     "id": "stat:tdspay:2026-11-07"
+    },
+    {
+     "id": "stat:mgt7:2026-11-29"
+    },
+    {
+     "id": "stat:tdspay:2026-12-07"
+    },
+    {
+     "id": "stat:advtax3:2026-12-15"
+    },
+    {
+     "id": "stat:board:2026-12-31"
+    },
+    {
+     "id": "stat:tdspay:2027-01-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-01-31"
+    },
+    {
+     "id": "stat:tdspay:2027-02-07"
+    },
+    {
+     "id": "stat:tdspay:2027-03-07"
+    },
+    {
+     "id": "stat:advtax4:2027-03-15"
+    },
+    {
+     "id": "stat:board:2027-03-31"
+    },
+    {
+     "id": "stat:msme1:2027-04-30"
+    },
+    {
+     "id": "stat:tdspay:2027-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2027-05-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-05-31"
+    },
+    {
+     "id": "stat:tdspay:2027-06-07"
+    },
+    {
+     "id": "stat:advtax1:2027-06-15"
+    },
+    {
+     "id": "stat:dpt3:2027-06-30"
+    },
+    {
+     "id": "stat:board:2027-06-30"
+    },
+    {
+     "id": "stat:tdspay:2027-07-07"
+    },
+    {
+     "id": "stat:tdsreturn:2027-07-31"
+    },
+    {
+     "id": "stat:tdspay:2027-08-07"
+    },
+    {
+     "id": "stat:tdspay:2027-09-07"
+    },
+    {
+     "id": "stat:advtax2:2027-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2027-09-30"
+    },
+    {
+     "id": "stat:agm:2027-09-30"
+    },
+    {
+     "id": "stat:board:2027-09-30"
+    },
+    {
+     "id": "stat:tdspay:2027-10-07"
+    },
+    {
+     "id": "stat:adt1:2027-10-15"
+    }
+   ]
+  },
+  {
+   "name": "leap-year-2024/nothing-on",
+   "from": "2024-01-01",
+   "to": "2024-12-31",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:tdspay:2024-01-07"
+    },
+    {
+     "id": "stat:tdsreturn:2024-01-31"
+    },
+    {
+     "id": "stat:tdspay:2024-02-07"
+    },
+    {
+     "id": "stat:tdspay:2024-03-07"
+    },
+    {
+     "id": "stat:advtax4:2024-03-15"
+    },
+    {
+     "id": "stat:board:2024-03-31"
+    },
+    {
+     "id": "stat:msme1:2024-04-30"
+    },
+    {
+     "id": "stat:tdspay:2024-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2024-05-07"
+    },
+    {
+     "id": "stat:tdsreturn:2024-05-31"
+    },
+    {
+     "id": "stat:tdspay:2024-06-07"
+    },
+    {
+     "id": "stat:advtax1:2024-06-15"
+    },
+    {
+     "id": "stat:dpt3:2024-06-30"
+    },
+    {
+     "id": "stat:board:2024-06-30"
+    },
+    {
+     "id": "stat:tdspay:2024-07-07"
+    },
+    {
+     "id": "stat:tdsreturn:2024-07-31"
+    },
+    {
+     "id": "stat:tdspay:2024-08-07"
+    },
+    {
+     "id": "stat:tdspay:2024-09-07"
+    },
+    {
+     "id": "stat:advtax2:2024-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2024-09-30"
+    },
+    {
+     "id": "stat:agm:2024-09-30"
+    },
+    {
+     "id": "stat:board:2024-09-30"
+    },
+    {
+     "id": "stat:tdspay:2024-10-07"
+    },
+    {
+     "id": "stat:adt1:2024-10-15"
+    },
+    {
+     "id": "stat:aoc4:2024-10-30"
+    },
+    {
+     "id": "stat:msme1:2024-10-31"
+    },
+    {
+     "id": "stat:itr6:2024-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2024-10-31"
+    },
+    {
+     "id": "stat:tdspay:2024-11-07"
+    },
+    {
+     "id": "stat:mgt7:2024-11-29"
+    },
+    {
+     "id": "stat:tdspay:2024-12-07"
+    },
+    {
+     "id": "stat:advtax3:2024-12-15"
+    },
+    {
+     "id": "stat:board:2024-12-31"
+    }
+   ]
+  },
+  {
+   "name": "leap-year-2024/everything",
+   "from": "2024-01-01",
+   "to": "2024-12-31",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": true,
+    "hasEmployees": true,
+    "gstRegistered": true,
+    "foreignDealings": true,
+    "taxAudit": true,
+    "csr": true,
+    "state": "Karnataka",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Listed company · GST-registered · with employees · FDI/ODI · Karnataka",
+   "events": [
+    {
+     "id": "stat:tdspay:2024-01-07"
+    },
+    {
+     "id": "stat:gstr1:2024-01-11"
+    },
+    {
+     "id": "stat:epf:2024-01-15"
+    },
+    {
+     "id": "stat:esi:2024-01-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-01-20"
+    },
+    {
+     "id": "stat:pt:2024-01-21"
+    },
+    {
+     "id": "stat:sebishp:2024-01-21"
+    },
+    {
+     "id": "stat:sebicg:2024-01-21"
+    },
+    {
+     "id": "stat:tdsreturn:2024-01-31"
+    },
+    {
+     "id": "stat:posh:2024-01-31"
+    },
+    {
+     "id": "stat:tdspay:2024-02-07"
+    },
+    {
+     "id": "stat:gstr1:2024-02-11"
+    },
+    {
+     "id": "stat:sebiresults:2024-02-14"
+    },
+    {
+     "id": "stat:epf:2024-02-15"
+    },
+    {
+     "id": "stat:esi:2024-02-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-02-20"
+    },
+    {
+     "id": "stat:pt:2024-02-21"
+    },
+    {
+     "id": "stat:tdspay:2024-03-07"
+    },
+    {
+     "id": "stat:gstr1:2024-03-11"
+    },
+    {
+     "id": "stat:advtax4:2024-03-15"
+    },
+    {
+     "id": "stat:epf:2024-03-15"
+    },
+    {
+     "id": "stat:esi:2024-03-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-03-20"
+    },
+    {
+     "id": "stat:pt:2024-03-21"
+    },
+    {
+     "id": "stat:board:2024-03-31"
+    },
+    {
+     "id": "stat:gstr1:2024-04-11"
+    },
+    {
+     "id": "stat:epf:2024-04-15"
+    },
+    {
+     "id": "stat:esi:2024-04-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-04-20"
+    },
+    {
+     "id": "stat:pt:2024-04-21"
+    },
+    {
+     "id": "stat:sebishp:2024-04-21"
+    },
+    {
+     "id": "stat:sebicg:2024-04-21"
+    },
+    {
+     "id": "stat:msme1:2024-04-30"
+    },
+    {
+     "id": "stat:tdspay:2024-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2024-05-07"
+    },
+    {
+     "id": "stat:gstr1:2024-05-11"
+    },
+    {
+     "id": "stat:epf:2024-05-15"
+    },
+    {
+     "id": "stat:esi:2024-05-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-05-20"
+    },
+    {
+     "id": "stat:pt:2024-05-21"
+    },
+    {
+     "id": "stat:sebiresults:2024-05-30"
+    },
+    {
+     "id": "stat:tdsreturn:2024-05-31"
+    },
+    {
+     "id": "stat:tdspay:2024-06-07"
+    },
+    {
+     "id": "stat:gstr1:2024-06-11"
+    },
+    {
+     "id": "stat:advtax1:2024-06-15"
+    },
+    {
+     "id": "stat:epf:2024-06-15"
+    },
+    {
+     "id": "stat:esi:2024-06-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-06-20"
+    },
+    {
+     "id": "stat:pt:2024-06-21"
+    },
+    {
+     "id": "stat:dpt3:2024-06-30"
+    },
+    {
+     "id": "stat:board:2024-06-30"
+    },
+    {
+     "id": "stat:tdspay:2024-07-07"
+    },
+    {
+     "id": "stat:gstr1:2024-07-11"
+    },
+    {
+     "id": "stat:epf:2024-07-15"
+    },
+    {
+     "id": "stat:esi:2024-07-15"
+    },
+    {
+     "id": "stat:fla:2024-07-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-07-20"
+    },
+    {
+     "id": "stat:pt:2024-07-21"
+    },
+    {
+     "id": "stat:sebishp:2024-07-21"
+    },
+    {
+     "id": "stat:sebicg:2024-07-21"
+    },
+    {
+     "id": "stat:tdsreturn:2024-07-31"
+    },
+    {
+     "id": "stat:tdspay:2024-08-07"
+    },
+    {
+     "id": "stat:gstr1:2024-08-11"
+    },
+    {
+     "id": "stat:sebiresults:2024-08-14"
+    },
+    {
+     "id": "stat:epf:2024-08-15"
+    },
+    {
+     "id": "stat:esi:2024-08-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-08-20"
+    },
+    {
+     "id": "stat:pt:2024-08-21"
+    },
+    {
+     "id": "stat:tdspay:2024-09-07"
+    },
+    {
+     "id": "stat:gstr1:2024-09-11"
+    },
+    {
+     "id": "stat:advtax2:2024-09-15"
+    },
+    {
+     "id": "stat:epf:2024-09-15"
+    },
+    {
+     "id": "stat:esi:2024-09-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-09-20"
+    },
+    {
+     "id": "stat:pt:2024-09-21"
+    },
+    {
+     "id": "stat:dir3kyc:2024-09-30"
+    },
+    {
+     "id": "stat:agm:2024-09-30"
+    },
+    {
+     "id": "stat:board:2024-09-30"
+    },
+    {
+     "id": "stat:taxaudit:2024-09-30"
+    },
+    {
+     "id": "stat:tdspay:2024-10-07"
+    },
+    {
+     "id": "stat:gstr1:2024-10-11"
+    },
+    {
+     "id": "stat:adt1:2024-10-15"
+    },
+    {
+     "id": "stat:epf:2024-10-15"
+    },
+    {
+     "id": "stat:esi:2024-10-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-10-20"
+    },
+    {
+     "id": "stat:pt:2024-10-21"
+    },
+    {
+     "id": "stat:sebishp:2024-10-21"
+    },
+    {
+     "id": "stat:sebicg:2024-10-21"
+    },
+    {
+     "id": "stat:aoc4:2024-10-30"
+    },
+    {
+     "id": "stat:csr2:2024-10-30"
+    },
+    {
+     "id": "stat:msme1:2024-10-31"
+    },
+    {
+     "id": "stat:itr6:2024-10-31"
+    },
+    {
+     "id": "stat:tp3ceb:2024-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2024-10-31"
+    },
+    {
+     "id": "stat:tdspay:2024-11-07"
+    },
+    {
+     "id": "stat:gstr1:2024-11-11"
+    },
+    {
+     "id": "stat:sebiresults:2024-11-14"
+    },
+    {
+     "id": "stat:epf:2024-11-15"
+    },
+    {
+     "id": "stat:esi:2024-11-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-11-20"
+    },
+    {
+     "id": "stat:pt:2024-11-21"
+    },
+    {
+     "id": "stat:mgt7:2024-11-29"
+    },
+    {
+     "id": "stat:tdspay:2024-12-07"
+    },
+    {
+     "id": "stat:gstr1:2024-12-11"
+    },
+    {
+     "id": "stat:advtax3:2024-12-15"
+    },
+    {
+     "id": "stat:epf:2024-12-15"
+    },
+    {
+     "id": "stat:esi:2024-12-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-12-20"
+    },
+    {
+     "id": "stat:pt:2024-12-21"
+    },
+    {
+     "id": "stat:board:2024-12-31"
+    },
+    {
+     "id": "stat:gstr9:2024-12-31"
+    },
+    {
+     "id": "stat:apr:2024-12-31"
+    }
+   ]
+  },
+  {
+   "name": "leap-year-2024/agm-year-end",
+   "from": "2024-01-01",
+   "to": "2024-12-31",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": true,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 12,
+    "agmDay": 31
+   },
+   "summary": "Unlisted company · GST-registered",
+   "events": [
+    {
+     "id": "stat:tdspay:2024-01-07"
+    },
+    {
+     "id": "stat:gstr1:2024-01-11"
+    },
+    {
+     "id": "stat:gstr3b:2024-01-20"
+    },
+    {
+     "id": "stat:tdsreturn:2024-01-31"
+    },
+    {
+     "id": "stat:tdspay:2024-02-07"
+    },
+    {
+     "id": "stat:gstr1:2024-02-11"
+    },
+    {
+     "id": "stat:gstr3b:2024-02-20"
+    },
+    {
+     "id": "stat:tdspay:2024-03-07"
+    },
+    {
+     "id": "stat:gstr1:2024-03-11"
+    },
+    {
+     "id": "stat:advtax4:2024-03-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-03-20"
+    },
+    {
+     "id": "stat:board:2024-03-31"
+    },
+    {
+     "id": "stat:gstr1:2024-04-11"
+    },
+    {
+     "id": "stat:gstr3b:2024-04-20"
+    },
+    {
+     "id": "stat:msme1:2024-04-30"
+    },
+    {
+     "id": "stat:tdspay:2024-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2024-05-07"
+    },
+    {
+     "id": "stat:gstr1:2024-05-11"
+    },
+    {
+     "id": "stat:gstr3b:2024-05-20"
+    },
+    {
+     "id": "stat:tdsreturn:2024-05-31"
+    },
+    {
+     "id": "stat:tdspay:2024-06-07"
+    },
+    {
+     "id": "stat:gstr1:2024-06-11"
+    },
+    {
+     "id": "stat:advtax1:2024-06-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-06-20"
+    },
+    {
+     "id": "stat:dpt3:2024-06-30"
+    },
+    {
+     "id": "stat:board:2024-06-30"
+    },
+    {
+     "id": "stat:tdspay:2024-07-07"
+    },
+    {
+     "id": "stat:gstr1:2024-07-11"
+    },
+    {
+     "id": "stat:gstr3b:2024-07-20"
+    },
+    {
+     "id": "stat:tdsreturn:2024-07-31"
+    },
+    {
+     "id": "stat:tdspay:2024-08-07"
+    },
+    {
+     "id": "stat:gstr1:2024-08-11"
+    },
+    {
+     "id": "stat:gstr3b:2024-08-20"
+    },
+    {
+     "id": "stat:tdspay:2024-09-07"
+    },
+    {
+     "id": "stat:gstr1:2024-09-11"
+    },
+    {
+     "id": "stat:advtax2:2024-09-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-09-20"
+    },
+    {
+     "id": "stat:dir3kyc:2024-09-30"
+    },
+    {
+     "id": "stat:agm:2024-09-30"
+    },
+    {
+     "id": "stat:board:2024-09-30"
+    },
+    {
+     "id": "stat:tdspay:2024-10-07"
+    },
+    {
+     "id": "stat:gstr1:2024-10-11"
+    },
+    {
+     "id": "stat:gstr3b:2024-10-20"
+    },
+    {
+     "id": "stat:msme1:2024-10-31"
+    },
+    {
+     "id": "stat:itr6:2024-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2024-10-31"
+    },
+    {
+     "id": "stat:tdspay:2024-11-07"
+    },
+    {
+     "id": "stat:gstr1:2024-11-11"
+    },
+    {
+     "id": "stat:gstr3b:2024-11-20"
+    },
+    {
+     "id": "stat:tdspay:2024-12-07"
+    },
+    {
+     "id": "stat:gstr1:2024-12-11"
+    },
+    {
+     "id": "stat:advtax3:2024-12-15"
+    },
+    {
+     "id": "stat:gstr3b:2024-12-20"
+    },
+    {
+     "id": "stat:board:2024-12-31"
+    },
+    {
+     "id": "stat:gstr9:2024-12-31"
+    }
+   ]
+  },
+  {
+   "name": "leap-year-2024/agm-january",
+   "from": "2024-01-01",
+   "to": "2024-12-31",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": true,
+    "state": "",
+    "agmMonth": 1,
+    "agmDay": 31
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:tdspay:2024-01-07"
+    },
+    {
+     "id": "stat:tdsreturn:2024-01-31"
+    },
+    {
+     "id": "stat:tdspay:2024-02-07"
+    },
+    {
+     "id": "stat:adt1:2024-02-15"
+    },
+    {
+     "id": "stat:aoc4:2024-03-01"
+    },
+    {
+     "id": "stat:csr2:2024-03-01"
+    },
+    {
+     "id": "stat:tdspay:2024-03-07"
+    },
+    {
+     "id": "stat:advtax4:2024-03-15"
+    },
+    {
+     "id": "stat:mgt7:2024-03-31"
+    },
+    {
+     "id": "stat:board:2024-03-31"
+    },
+    {
+     "id": "stat:msme1:2024-04-30"
+    },
+    {
+     "id": "stat:tdspay:2024-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2024-05-07"
+    },
+    {
+     "id": "stat:tdsreturn:2024-05-31"
+    },
+    {
+     "id": "stat:tdspay:2024-06-07"
+    },
+    {
+     "id": "stat:advtax1:2024-06-15"
+    },
+    {
+     "id": "stat:dpt3:2024-06-30"
+    },
+    {
+     "id": "stat:board:2024-06-30"
+    },
+    {
+     "id": "stat:tdspay:2024-07-07"
+    },
+    {
+     "id": "stat:tdsreturn:2024-07-31"
+    },
+    {
+     "id": "stat:tdspay:2024-08-07"
+    },
+    {
+     "id": "stat:tdspay:2024-09-07"
+    },
+    {
+     "id": "stat:advtax2:2024-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2024-09-30"
+    },
+    {
+     "id": "stat:agm:2024-09-30"
+    },
+    {
+     "id": "stat:board:2024-09-30"
+    },
+    {
+     "id": "stat:tdspay:2024-10-07"
+    },
+    {
+     "id": "stat:msme1:2024-10-31"
+    },
+    {
+     "id": "stat:itr6:2024-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2024-10-31"
+    },
+    {
+     "id": "stat:tdspay:2024-11-07"
+    },
+    {
+     "id": "stat:tdspay:2024-12-07"
+    },
+    {
+     "id": "stat:advtax3:2024-12-15"
+    },
+    {
+     "id": "stat:board:2024-12-31"
+    }
+   ]
+  },
+  {
+   "name": "leap-year-2024/agm-missing",
+   "from": "2024-01-01",
+   "to": "2024-12-31",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 0,
+    "agmDay": 0
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:tdspay:2024-01-07"
+    },
+    {
+     "id": "stat:tdsreturn:2024-01-31"
+    },
+    {
+     "id": "stat:tdspay:2024-02-07"
+    },
+    {
+     "id": "stat:tdspay:2024-03-07"
+    },
+    {
+     "id": "stat:advtax4:2024-03-15"
+    },
+    {
+     "id": "stat:board:2024-03-31"
+    },
+    {
+     "id": "stat:msme1:2024-04-30"
+    },
+    {
+     "id": "stat:tdspay:2024-04-30",
+     "overrideNote": "TDS deducted in March is due 30 April."
+    },
+    {
+     "id": "stat:tdspay:2024-05-07"
+    },
+    {
+     "id": "stat:tdsreturn:2024-05-31"
+    },
+    {
+     "id": "stat:tdspay:2024-06-07"
+    },
+    {
+     "id": "stat:advtax1:2024-06-15"
+    },
+    {
+     "id": "stat:dpt3:2024-06-30"
+    },
+    {
+     "id": "stat:board:2024-06-30"
+    },
+    {
+     "id": "stat:tdspay:2024-07-07"
+    },
+    {
+     "id": "stat:tdsreturn:2024-07-31"
+    },
+    {
+     "id": "stat:tdspay:2024-08-07"
+    },
+    {
+     "id": "stat:tdspay:2024-09-07"
+    },
+    {
+     "id": "stat:advtax2:2024-09-15"
+    },
+    {
+     "id": "stat:dir3kyc:2024-09-30"
+    },
+    {
+     "id": "stat:agm:2024-09-30"
+    },
+    {
+     "id": "stat:board:2024-09-30"
+    },
+    {
+     "id": "stat:tdspay:2024-10-07"
+    },
+    {
+     "id": "stat:adt1:2024-10-15"
+    },
+    {
+     "id": "stat:aoc4:2024-10-30"
+    },
+    {
+     "id": "stat:msme1:2024-10-31"
+    },
+    {
+     "id": "stat:itr6:2024-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2024-10-31"
+    },
+    {
+     "id": "stat:tdspay:2024-11-07"
+    },
+    {
+     "id": "stat:mgt7:2024-11-29"
+    },
+    {
+     "id": "stat:tdspay:2024-12-07"
+    },
+    {
+     "id": "stat:advtax3:2024-12-15"
+    },
+    {
+     "id": "stat:board:2024-12-31"
+    }
+   ]
+  },
+  {
+   "name": "year-end-2027/nothing-on",
+   "from": "2027-12-15",
+   "to": "2028-03-05",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:advtax3:2027-12-15"
+    },
+    {
+     "id": "stat:board:2027-12-31"
+    },
+    {
+     "id": "stat:tdspay:2028-01-07"
+    },
+    {
+     "id": "stat:tdsreturn:2028-01-31"
+    },
+    {
+     "id": "stat:tdspay:2028-02-07"
+    }
+   ]
+  },
+  {
+   "name": "year-end-2027/everything",
+   "from": "2027-12-15",
+   "to": "2028-03-05",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": true,
+    "hasEmployees": true,
+    "gstRegistered": true,
+    "foreignDealings": true,
+    "taxAudit": true,
+    "csr": true,
+    "state": "Karnataka",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Listed company · GST-registered · with employees · FDI/ODI · Karnataka",
+   "events": [
+    {
+     "id": "stat:advtax3:2027-12-15"
+    },
+    {
+     "id": "stat:epf:2027-12-15"
+    },
+    {
+     "id": "stat:esi:2027-12-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-12-20"
+    },
+    {
+     "id": "stat:pt:2027-12-21"
+    },
+    {
+     "id": "stat:board:2027-12-31"
+    },
+    {
+     "id": "stat:gstr9:2027-12-31"
+    },
+    {
+     "id": "stat:apr:2027-12-31"
+    },
+    {
+     "id": "stat:tdspay:2028-01-07"
+    },
+    {
+     "id": "stat:gstr1:2028-01-11"
+    },
+    {
+     "id": "stat:epf:2028-01-15"
+    },
+    {
+     "id": "stat:esi:2028-01-15"
+    },
+    {
+     "id": "stat:gstr3b:2028-01-20"
+    },
+    {
+     "id": "stat:pt:2028-01-21"
+    },
+    {
+     "id": "stat:sebishp:2028-01-21"
+    },
+    {
+     "id": "stat:sebicg:2028-01-21"
+    },
+    {
+     "id": "stat:tdsreturn:2028-01-31"
+    },
+    {
+     "id": "stat:posh:2028-01-31"
+    },
+    {
+     "id": "stat:tdspay:2028-02-07"
+    },
+    {
+     "id": "stat:gstr1:2028-02-11"
+    },
+    {
+     "id": "stat:sebiresults:2028-02-14"
+    },
+    {
+     "id": "stat:epf:2028-02-15"
+    },
+    {
+     "id": "stat:esi:2028-02-15"
+    },
+    {
+     "id": "stat:gstr3b:2028-02-20"
+    },
+    {
+     "id": "stat:pt:2028-02-21"
+    }
+   ]
+  },
+  {
+   "name": "year-end-2027/agm-year-end",
+   "from": "2027-12-15",
+   "to": "2028-03-05",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": true,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 12,
+    "agmDay": 31
+   },
+   "summary": "Unlisted company · GST-registered",
+   "events": [
+    {
+     "id": "stat:advtax3:2027-12-15"
+    },
+    {
+     "id": "stat:gstr3b:2027-12-20"
+    },
+    {
+     "id": "stat:board:2027-12-31"
+    },
+    {
+     "id": "stat:gstr9:2027-12-31"
+    },
+    {
+     "id": "stat:tdspay:2028-01-07"
+    },
+    {
+     "id": "stat:gstr1:2028-01-11"
+    },
+    {
+     "id": "stat:adt1:2028-01-15"
+    },
+    {
+     "id": "stat:gstr3b:2028-01-20"
+    },
+    {
+     "id": "stat:aoc4:2028-01-30"
+    },
+    {
+     "id": "stat:tdsreturn:2028-01-31"
+    },
+    {
+     "id": "stat:tdspay:2028-02-07"
+    },
+    {
+     "id": "stat:gstr1:2028-02-11"
+    },
+    {
+     "id": "stat:gstr3b:2028-02-20"
+    },
+    {
+     "id": "stat:mgt7:2028-02-29"
+    }
+   ]
+  },
+  {
+   "name": "year-end-2027/agm-january",
+   "from": "2027-12-15",
+   "to": "2028-03-05",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": true,
+    "state": "",
+    "agmMonth": 1,
+    "agmDay": 31
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:advtax3:2027-12-15"
+    },
+    {
+     "id": "stat:board:2027-12-31"
+    },
+    {
+     "id": "stat:tdspay:2028-01-07"
+    },
+    {
+     "id": "stat:tdsreturn:2028-01-31"
+    },
+    {
+     "id": "stat:tdspay:2028-02-07"
+    },
+    {
+     "id": "stat:adt1:2028-02-15"
+    },
+    {
+     "id": "stat:aoc4:2028-03-01"
+    },
+    {
+     "id": "stat:csr2:2028-03-01"
+    }
+   ]
+  },
+  {
+   "name": "year-end-2027/agm-missing",
+   "from": "2027-12-15",
+   "to": "2028-03-05",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 0,
+    "agmDay": 0
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:advtax3:2027-12-15"
+    },
+    {
+     "id": "stat:board:2027-12-31"
+    },
+    {
+     "id": "stat:tdspay:2028-01-07"
+    },
+    {
+     "id": "stat:tdsreturn:2028-01-31"
+    },
+    {
+     "id": "stat:tdspay:2028-02-07"
+    }
+   ]
+  },
+  {
+   "name": "one-day/nothing-on",
+   "from": "2026-10-31",
+   "to": "2026-10-31",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    }
+   ]
+  },
+  {
+   "name": "one-day/everything",
+   "from": "2026-10-31",
+   "to": "2026-10-31",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": true,
+    "hasEmployees": true,
+    "gstRegistered": true,
+    "foreignDealings": true,
+    "taxAudit": true,
+    "csr": true,
+    "state": "Karnataka",
+    "agmMonth": 9,
+    "agmDay": 30
+   },
+   "summary": "Listed company · GST-registered · with employees · FDI/ODI · Karnataka",
+   "events": [
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tp3ceb:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    }
+   ]
+  },
+  {
+   "name": "one-day/agm-year-end",
+   "from": "2026-10-31",
+   "to": "2026-10-31",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": true,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 12,
+    "agmDay": 31
+   },
+   "summary": "Unlisted company · GST-registered",
+   "events": [
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    }
+   ]
+  },
+  {
+   "name": "one-day/agm-january",
+   "from": "2026-10-31",
+   "to": "2026-10-31",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": true,
+    "state": "",
+    "agmMonth": 1,
+    "agmDay": 31
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    }
+   ]
+  },
+  {
+   "name": "one-day/agm-missing",
+   "from": "2026-10-31",
+   "to": "2026-10-31",
+   "profile": {
+    "name": "Acme Private Limited",
+    "listed": false,
+    "hasEmployees": false,
+    "gstRegistered": false,
+    "foreignDealings": false,
+    "taxAudit": false,
+    "csr": false,
+    "state": "",
+    "agmMonth": 0,
+    "agmDay": 0
+   },
+   "summary": "Unlisted company",
+   "events": [
+    {
+     "id": "stat:msme1:2026-10-31"
+    },
+    {
+     "id": "stat:itr6:2026-10-31"
+    },
+    {
+     "id": "stat:tdsreturn:2026-10-31"
+    }
+   ]
+  }
+ ]
+}

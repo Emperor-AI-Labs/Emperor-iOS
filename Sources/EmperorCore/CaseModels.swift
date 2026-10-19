@@ -127,7 +127,9 @@ struct CaseItem: Codable, Equatable, Identifiable, Sendable {
     var title: String?
     var subtitle: String?
     /// A JSON **object serialised into a string** — it arrives as a string that must be parsed
-    /// a second time (`sync-server.js:9852`).
+    /// a second time (`sync-server.js:9852`). On `GET /project`'s `courtHistory` the same column
+    /// arrives **already parsed**, as an object (`lib/projects/store.js`, `courtHistoryOf`); the
+    /// decoder below takes either and keeps the text.
     var dataRaw: String?
     var itemDateRaw: String?
     var status: String?
@@ -169,6 +171,35 @@ struct CaseItem: Codable, Equatable, Identifiable, Sendable {
         case createdAtRaw = "created_at"
         case updatedAtRaw = "updated_at"
         case extKey = "ext_key"
+    }
+}
+
+extension CaseItem {
+    /// Synthesised but for `data`, which is a string on `/case` and an object on `/project`. A
+    /// strict `String?` threw on the object and took the whole matter down with it.
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        caseID = try c.decodeIfPresent(String.self, forKey: .caseID)
+        section = try c.decode(String.self, forKey: .section)
+        title = try c.decodeIfPresent(String.self, forKey: .title)
+        subtitle = try c.decodeIfPresent(String.self, forKey: .subtitle)
+        if let text = try? c.decodeIfPresent(String.self, forKey: .dataRaw) {
+            dataRaw = text
+        } else if let value = try? c.decodeIfPresent(JSONValue.self, forKey: .dataRaw), value != .null,
+                  let bytes = try? JSONEncoder().encode(value) {
+            dataRaw = String(data: bytes, encoding: .utf8)
+        } else {
+            dataRaw = nil
+        }
+        itemDateRaw = try c.decodeIfPresent(String.self, forKey: .itemDateRaw)
+        status = try c.decodeIfPresent(String.self, forKey: .status)
+        amount = try c.decodeIfPresent(Double.self, forKey: .amount)
+        createdByUserID = try c.decodeIfPresent(String.self, forKey: .createdByUserID)
+        createdAtRaw = try c.decodeIfPresent(String.self, forKey: .createdAtRaw)
+        updatedAtRaw = try c.decodeIfPresent(String.self, forKey: .updatedAtRaw)
+        extKey = try c.decodeIfPresent(String.self, forKey: .extKey)
+        source = try c.decodeIfPresent(String.self, forKey: .source)
     }
 }
 

@@ -11,7 +11,9 @@ import SwiftUI
 ///
 /// - Important: **the two records stay two sections, never one chronology.** The court record is
 ///   evidence of what the court did; the chronology is what the user (or the AI, or the court
-///   sync) recorded. Interleaved they would read with the same weight. See the view model.
+///   sync) recorded. Interleaved they would read with the same weight. See the view model. The
+///   two places the web merges them — the Overview's timeline and the List of Dates & Events —
+///   merge them here too, and there every row says whose it is (`MatterRecordViews`).
 struct ProjectDetailView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
@@ -38,6 +40,10 @@ struct ProjectDetailView: View {
     /// A matter's document being renamed, and the name typed so far.
     @State private var renamingFile: FileNode.StoredFile?
     @State private var renameText = ""
+    /// The List of Dates & Events sheet, from the Chronology.
+    @State private var isExportingChronology = false
+    /// A ledger entry's attached slip, open in the viewer.
+    @State private var openedFile: MatterOpenedFile?
 
     var body: some View {
         Group {
@@ -170,6 +176,8 @@ struct ProjectDetailView: View {
         }
         .sheet(isPresented: $isCheckingLimitation) { LimitationRadarView().pageSizedSheet() }
         .modifier(MatterDocumentPrompts(model: model, renaming: $renamingFile, renameText: $renameText))
+        .modifier(MatterRecordSheets(
+            model: model, isExportingChronology: $isExportingChronology, openedFile: $openedFile))
         .sheet(isPresented: $isConfirmingDelete) {
             MatterDeleteSheet(model: model) {
                 onDeleted?()
@@ -307,6 +315,9 @@ struct ProjectDetailView: View {
         }
         .listRowBackground(theme.surface)
 
+        // The record drawn as one line — the court's rows and the user's, each saying whose.
+        OverviewTimelineSection(rows: model.timelineRows()) { model.section = .chronology }
+
         facts(model.facts, title: "This matter")
 
         MatterDeleteRow { isConfirmingDelete = true }
@@ -405,6 +416,9 @@ struct ProjectDetailView: View {
     @ViewBuilder
     private func chronology(_ model: ProjectDetailViewModel) -> some View {
         ChronologyBuildRow { chronologyBuild = model.chronologyBuilder() }
+        if !model.recordEntries.isEmpty {
+            ChronologyExportRow { isExportingChronology = true }
+        }
 
         if model.updates.isEmpty {
             Section {
@@ -604,28 +618,40 @@ struct ProjectDetailView: View {
         } else {
             Section {
                 ForEach(model.ledger) { entry in
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(entry.displayTitle).font(.brand(.subheadline))
-                            HStack(spacing: 6) {
-                                if let day = entry.entryDate {
-                                    Text(DisplayText.longDay(WireDate.dayKey(day)))
+                    HStack(alignment: .center, spacing: Spacing.xs) {
+                        HStack(alignment: .firstTextBaseline) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(entry.displayTitle).font(.brand(.subheadline))
+                                HStack(spacing: 6) {
+                                    if let day = entry.entryDate {
+                                        Text(DisplayText.longDay(WireDate.dayKey(day)))
+                                    }
+                                    if let detail = entry.detail {
+                                        if entry.entryDate != nil { SeparatorDot() }
+                                        Text(detail)
+                                    }
                                 }
-                                if let detail = entry.detail {
-                                    if entry.entryDate != nil { SeparatorDot() }
-                                    Text(detail)
+                                .font(.brand(.caption2))
+                                .foregroundStyle(theme.textTertiary)
+                                if let slip = FeeReceipt.attachedFileName(entry.receiptFile) {
+                                    Label(DisplayText.fileName(slip), systemImage: "paperclip")
+                                        .font(.brand(.caption2))
+                                        .foregroundStyle(theme.accentText)
+                                        .lineLimit(1)
                                 }
                             }
-                            .font(.brand(.caption2))
-                            .foregroundStyle(theme.textTertiary)
+                            Spacer(minLength: Spacing.md)
+                            Text(model.amountLabel(for: entry))
+                                .font(.brand(.subheadline, weight: .semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(entry.entryKind == .payment ? theme.success : theme.textPrimary)
                         }
-                        Spacer(minLength: Spacing.md)
-                        Text(model.amountLabel(for: entry))
-                            .font(.brand(.subheadline, weight: .semibold))
-                            .monospacedDigit()
-                            .foregroundStyle(entry.entryKind == .payment ? theme.success : theme.textPrimary)
+                        .accessibilityElement(children: .combine)
+                        // The fee receipt for a payment, and the slip the entry names.
+                        LedgerEntryMenu(entry: entry, model: model, user: session.currentUser) {
+                            openedFile = MatterOpenedFile(attachment: $0)
+                        }
                     }
-                    .accessibilityElement(children: .combine)
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) {
                             Task { await model.deleteLedgerEntry(entry) }
