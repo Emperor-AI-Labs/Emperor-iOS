@@ -410,8 +410,9 @@ final class BareActsIndexViewModelTests: XCTestCase {
         XCTAssertEqual(model.headerStat, "5,369 documents, 3,154 volumes.")
         XCTAssertEqual(model.letters.count, 2)
         XCTAssertEqual(model.letterTotal, 214)
+        // The index and the featured shelf load at once, in no fixed order.
         XCTAssertTrue(service.actIndexCalls.contains { $0.kind == "featured" && $0.pageSize == 40 })
-        XCTAssertNil(service.actIndexCalls.first?.kind)
+        XCTAssertTrue(service.actIndexCalls.contains { $0.kind == nil && $0.pageSize == 60 })
         }
     }
 
