@@ -44,6 +44,10 @@ struct ToolsListView: View {
                         title: "Analysis",
                         detail: "Run against a document you have attached")
                         .accessibilityIdentifier("tools-header-analysis")
+                } footer: {
+                    Text("The server-run Doc Index, List of Dates and Devil's Advocate are under You → Analysis tools.")
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textTertiary)
                 }
                 .listRowBackground(theme.surface)
 
