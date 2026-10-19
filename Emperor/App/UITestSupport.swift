@@ -191,6 +191,14 @@ enum UITestSupport {
             // to draw — including one running low and one used up.
             case "/billing/entitlements":
                 return #"{"success":true,"signedIn":true,"planLabel":"Junior Associate","expired":false,"metered":true,"limits":{"matters":-1,"storageGb":10,"documents":-1,"scannedPages":6000,"chatQueries":1000,"deepThinkingQueries":150},"usage":{"resetsAt":"2026-10-31T18:30:00.000Z","chatQueries":812,"deepThinkingQueries":150,"scannedPages":120,"documents":44,"matters":7,"storageUsedBytes":2400000000,"storageAllowanceBytes":10000000000}}"#
+            // You → Plan → Billing: the same plan, one paid order with its invoice and one that
+            // failed, and the catalogue that names them.
+            case "/billing/me":
+                return #"{"success":true,"plan":{"plan":"pro","planSource":"purchase","expiresAt":"2026-11-18T10:00:00.000Z","expired":false,"marketingPlan":"essential_monthly","marketingPlanLabel":"Junior Associate","displayLabel":"Junior Associate"},"orders":[{"razorpay_order_id":"order_UI1","plan_key":"essential_monthly","tier":"pro","amount_paise":299900,"currency":"INR","status":"paid","created_at":"2026-10-18 09:00:00","paid_at":"2026-10-18 09:02:11"},{"razorpay_order_id":"order_UI0","plan_key":"essential_monthly","tier":"pro","amount_paise":299900,"currency":"INR","status":"failed","created_at":"2026-10-17 09:00:00","paid_at":null}]}"#
+            case "/billing/config":
+                return #"{"success":true,"plans":[{"key":"essential_monthly","label":"Junior Associate","periodMonths":1,"totalPaise":299900,"action":"renew"},{"key":"premium_monthly","label":"Premium","periodMonths":1,"totalPaise":499900,"action":"upgrade"}]}"#
+            case "/billing/invoice":
+                return #"{"success":true,"invoice":{"number":"EA-000012","orderId":"order_UI1","paymentId":"pay_UI1","status":"paid","issuedAt":"2026-10-18 09:02:11","billTo":{"name":"John Doe","email":"john.doe@firm.com"},"plan":{"key":"essential_monthly","tier":"pro","periodMonths":1,"periodDays":0},"lines":{"basePaise":299900,"gstPaise":null,"discountPaise":0,"couponCode":null,"totalPaise":299900},"currency":"INR"}}"#
             // Two, so the iPad's list beside its conversation has another row to choose; `c2`
             // answers `/messages` with an exchange of its own (`itemBody`).
             case "/chats":

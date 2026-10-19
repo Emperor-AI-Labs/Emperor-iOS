@@ -332,6 +332,15 @@ struct BillingInvoiceLayout: Equatable, Sendable {
         paymentLine = invoice.paymentId.flatMap { $0.isEmpty ? nil : "Payment \($0)" }
     }
 
+    /// The invoice as plain text, for the share sheet — the phone's stand-in for the web's Print.
+    var plainText: String {
+        var parts = [title, issued, "", "Billed to", billedToName, billedToEmail, ""]
+        parts += lines.map { "\($0.label): \($0.value)" }
+        parts += ["", orderLine]
+        if let paymentLine { parts.append(paymentLine) }
+        return parts.joined(separator: "\n")
+    }
+
     /// "Plan — Premium (1 month)", "Plan — day_pass (1 day)". The plan's name where the catalogue
     /// knows it, else the key the web prints.
     static func planLabel(_ plan: BillingInvoice.Plan?, name: String?) -> String {

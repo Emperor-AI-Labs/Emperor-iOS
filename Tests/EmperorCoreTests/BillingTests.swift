@@ -512,6 +512,22 @@ final class BillingViewModelTests: XCTestCase {
         XCTAssertEqual(layout.lines.map(\.kind), [.charge, .charge, .discount, .total])
         XCTAssertEqual(layout.orderLine, "Order order_A")
         XCTAssertEqual(layout.paymentLine, "Payment pay_1")
+        XCTAssertEqual(layout.plainText, """
+            Invoice EA-000007
+            Issued 18 October 2026
+
+            Billed to
+            —
+            asha@chambers.in
+
+            Plan — day_pass (1 day): ₹199.00
+            GST: ₹35.82
+            Discount — LAUNCH: −₹50.00
+            Total (INR): ₹184.82
+
+            Order order_A
+            Payment pay_1
+            """)
 
         // No GST charged, no discount, no payment id: none of those lines.
         let bare = BillingInvoice(
