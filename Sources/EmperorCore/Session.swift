@@ -74,6 +74,8 @@ final class Session {
     let analysis: AnalysisService
     /// The Limitation Radar's audit.
     let limitationRadar: LimitationRadarService
+    /// "Report a bug" — the support inbox the web's Help menu writes to.
+    let supportFeedback: SupportFeedbackService
 
     let cache: ResponseCache
 
@@ -128,6 +130,7 @@ final class Session {
         self.calendarFeed = CalendarFeedService(client: client, baseURL: config.baseURL)
         self.analysis = AnalysisService(client: client)
         self.limitationRadar = LimitationRadarService(client: client)
+        self.supportFeedback = SupportFeedbackService(client: client)
         self.store = store
         self.cache = cache
         self.signInFlow = SignInFlow(auth: auth)

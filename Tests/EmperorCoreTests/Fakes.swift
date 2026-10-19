@@ -344,3 +344,24 @@ final class FakeLimitationRadar: LimitationRadarProviding, @unchecked Sendable {
         return audit
     }
 }
+
+/// A `SupportFeedbackProviding` that records each report and answers as told.
+final class FakeSupportFeedback: SupportFeedbackProviding, @unchecked Sendable {
+    struct Sent: Equatable {
+        var description: String
+        var kind: SupportFeedbackKind
+        var pageURL: String
+        var attachments: [SupportAttachment]
+    }
+    var error: Error?
+    private(set) var sent: [Sent] = []
+
+    func submit(
+        description: String, kind: SupportFeedbackKind, pageURL: String,
+        attachments: [SupportAttachment]
+    ) async throws -> Int? {
+        sent.append(Sent(description: description, kind: kind, pageURL: pageURL, attachments: attachments))
+        if let error { throw error }
+        return sent.count
+    }
+}
