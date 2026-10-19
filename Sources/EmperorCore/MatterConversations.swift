@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(Darwin)
+import Observation
+#endif
 
 // A matter's own conversations and the files they read (docs/projects.md, "Ask Emperor").
 //
@@ -130,4 +133,60 @@ struct MatterFile: Equatable, Identifiable, Hashable, Sendable {
         walk(tree)
         return out
     }
+}
+
+/// Picks documents for a matter's conversation from the matter's own storage — never My Files.
+///
+/// See `ChatViewModel` for why `@Observable` is Apple-only.
+#if canImport(Darwin)
+@Observable
+#endif
+@MainActor
+final class MatterFilePickerViewModel {
+    let projectID: String
+    private(set) var files: [MatterFile] = []
+    private(set) var state: LoadState = .idle
+    /// What is ticked, keyed as the platform keys a document: `{name, folderName}`.
+    private(set) var chosen: Set<ChatAttachment>
+
+    private let service: any ProjectProviding
+
+    init(projectID: String, service: any ProjectProviding, alreadyAttached: [ChatAttachment]) {
+        self.projectID = projectID
+        self.service = service
+        self.chosen = Set(alreadyAttached)
+    }
+
+    var presentation: ListPresentation { ListPresentation(state: state, isEmpty: files.isEmpty) }
+
+    func load() async {
+        state = .loading
+        do {
+            files = MatterFile.flatten(try await service.projectFiles(projectID: projectID), projectID: projectID)
+            state = .loaded
+        } catch {
+            state = .failed(LoadFailure(error))
+        }
+    }
+
+    func isChosen(_ file: MatterFile) -> Bool { chosen.contains(file.attachment) }
+
+    /// A document still being read cannot be chosen; one already attached can always be taken off.
+    func toggle(_ file: MatterFile) {
+        let attachment = file.attachment
+        if chosen.contains(attachment) {
+            chosen.remove(attachment)
+        } else if file.isReady {
+            chosen.insert(attachment)
+        }
+    }
+
+    /// The selection in the matter's own order, then anything attached that is no longer listed.
+    var selection: [ChatAttachment] {
+        let listed = files.map(\.attachment).filter { chosen.contains($0) }
+        let unlisted = chosen.subtracting(listed).sorted { ($0.folderName ?? "", $0.name) < ($1.folderName ?? "", $1.name) }
+        return listed + unlisted
+    }
+
+    static let emptyLine = "This matter has no documents yet. Attach them from My Files in the matter's Files section."
 }

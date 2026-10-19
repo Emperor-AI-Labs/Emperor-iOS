@@ -75,4 +75,18 @@ enum BannerImage {
         }
         return "data:\(type);base64,\(data.base64EncodedString())"
     }
+
+    /// The widest a banner picture is drawn at before it is sent.
+    static let maxWidth = 1600.0
+
+    /// The JPEG qualities the view tries in turn until the picture fits under `maxBytes`.
+    static let jpegQualities = [0.85, 0.75, 0.6, 0.45, 0.3]
+
+    /// The size, in pixels, to draw a picture of this size at: no wider than `maxWidth`, never
+    /// enlarged, the proportions kept.
+    static func targetSize(width: Double, height: Double) -> (width: Double, height: Double)? {
+        guard width > 0, height > 0 else { return nil }
+        let scale = min(1, maxWidth / width)
+        return ((width * scale).rounded(), max(1, (height * scale).rounded()))
+    }
 }

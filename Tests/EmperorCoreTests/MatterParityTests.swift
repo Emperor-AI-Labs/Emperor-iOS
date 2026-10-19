@@ -859,3 +859,38 @@ final class MatterParityWireTests: XCTestCase {
 }
 
 private typealias Reply = HTTPStub.Reply
+
+// MARK: - The matter's own picker, and the banner's size
+
+final class MatterFilePickerTests: XCTestCase {
+
+    func testOnlyTheMattersReadyDocumentsCanBeChosen() async {
+        await runPicker()
+    }
+
+    func testAPictureIsShrunkToSixteenHundredWideAndNeverEnlarged() {
+        XCTAssertEqual(BannerImage.targetSize(width: 4032, height: 3024)?.width, 1600)
+        XCTAssertEqual(BannerImage.targetSize(width: 4032, height: 3024)?.height, 1200)
+        XCTAssertEqual(BannerImage.targetSize(width: 800, height: 200)?.width, 800)
+        XCTAssertNil(BannerImage.targetSize(width: 0, height: 10))
+    }
+}
+
+@MainActor
+private func runPicker() async {
+    let fake = FakeWorkspace()
+    fake.tree = [folder("_projects/prj_1/Pleadings", [
+        .file(readyFile("_projects/prj_1/Pleadings/Plaint.pdf")),
+        .file(FileNode.StoredFile(name: "Wip.pdf", path: "_projects/prj_1/Pleadings/Wip.pdf", status: "Reading")),
+    ])]
+    let gone = ChatAttachment(name: "Old.pdf", folderName: "_projects/prj_1/Orders")
+    let model = MatterFilePickerViewModel(projectID: "prj_1", service: fake, alreadyAttached: [gone])
+    await model.load()
+    XCTAssertEqual(model.files.count, 2)
+    model.toggle(model.files[1])
+    XCTAssertFalse(model.isChosen(model.files[1]))
+    model.toggle(model.files[0])
+    XCTAssertEqual(model.selection, [ChatAttachment(name: "Plaint.pdf", folderName: "_projects/prj_1/Pleadings"), gone])
+    model.toggle(model.files[0])
+    XCTAssertEqual(model.selection, [gone])
+}
