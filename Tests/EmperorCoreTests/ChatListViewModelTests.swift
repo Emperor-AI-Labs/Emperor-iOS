@@ -54,6 +54,56 @@ final class ChatListViewModelTests: XCTestCase {
     func testNewChatIDsAreUnique() {
         XCTAssertNotEqual(ChatListViewModel.newChatID(), ChatListViewModel.newChatID())
     }
+
+    // MARK: - Search
+
+    private static let searchable = [
+        ChatSummary(id: "a", title: "Partition suit", lastPreview: "Draft the plaint"),
+        ChatSummary(id: "b", title: "Bail application", lastPreview: "Section 439 CrPC"),
+        ChatSummary(id: "c", title: nil, lastPreview: "Limitation for a PARTITION claim"),
+    ]
+
+    func testEmptySearchShowsEveryConversation() async {
+        await withList { service, model in
+            service.chats = Self.searchable
+            await model.load()
+            model.searchText = "   "
+            XCTAssertEqual(model.visibleChats.map(\.id), ["a", "b", "c"])
+            XCTAssertNil(model.activeSearch)
+            XCTAssertNil(model.noResultsMessage)
+        }
+    }
+
+    func testSearchMatchesTitleAndLastLineIgnoringCase() async {
+        await withList { service, model in
+            service.chats = Self.searchable
+            await model.load()
+            model.searchText = "  partition "
+            XCTAssertEqual(model.visibleChats.map(\.id), ["a", "c"])
+            model.searchText = "439"
+            XCTAssertEqual(model.visibleChats.map(\.id), ["b"])
+            XCTAssertEqual(model.chats.count, 3, "the search narrows the view, never the list held")
+        }
+    }
+
+    func testASearchThatMatchesNothingSaysSoInTheWebsWords() async {
+        await withList { service, model in
+            service.chats = Self.searchable
+            await model.load()
+            model.searchText = " arbitration "
+            XCTAssertTrue(model.visibleChats.isEmpty)
+            XCTAssertEqual(model.noResultsMessage, "We couldn't find any results for \"arbitration\"")
+        }
+    }
+
+    /// An account with no conversations is the empty state, not a failed search.
+    func testNoResultsIsNotClaimedForAnEmptyAccount() async {
+        await withList { _, model in
+            await model.load()
+            model.searchText = "bail"
+            XCTAssertNil(model.noResultsMessage)
+        }
+    }
 }
 
 @MainActor

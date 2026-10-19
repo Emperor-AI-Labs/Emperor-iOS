@@ -133,6 +133,8 @@ struct ChatListView: View {
             .scrollContentBackground(.hidden)
             .background(theme.groupedBackground)
             .refreshable { await model.load() }
+            // The web's History filter: titles and last lines, as you type (`ChatListViewModel`).
+            .searchable(text: Bindable(model).searchText, prompt: "Search conversations")
         } empty: {
             EmptyStateView(
                 "No conversations yet",
@@ -150,9 +152,23 @@ struct ChatListView: View {
 
     /// The conversations. Each link carries the conversation's id, which a phone pushes and the
     /// list beside the detail takes as its selection.
+    @ViewBuilder
     private func recent(_ model: ChatListViewModel) -> some View {
+        if let message = model.noResultsMessage {
+            Section {
+                Text(message)
+                    .font(.brand(.subheadline))
+                    .foregroundStyle(theme.textSecondary)
+            }
+            .listRowBackground(ListRowCard(isSelected: false))
+        } else {
+            conversations(model)
+        }
+    }
+
+    private func conversations(_ model: ChatListViewModel) -> some View {
         Section {
-            ForEach(model.chats) { chat in
+            ForEach(model.visibleChats) { chat in
                 let isOpen = isBesideDetail && path.last == chat.id
                 NavigationLink(value: chat.id) {
                     row(for: chat)
@@ -163,7 +179,7 @@ struct ChatListView: View {
                 .listRowBackground(ListRowCard(isSelected: isOpen))
             }
         } header: {
-            SectionHeader(title: "Recent", detail: "\(model.chats.count)")
+            SectionHeader(title: "Recent", detail: "\(model.visibleChats.count)")
         }
     }
 
