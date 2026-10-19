@@ -45,6 +45,9 @@ final class CourtSearchViewModel {
     private let metadata: CourtMetadataProviding
     /// Called after a case is pinned, so the dashboard behind this screen refreshes.
     private let onSaved: (() -> Void)?
+    /// Fetch Orders: the cases looked up lately on this device, offered as a way back.
+    private let recent: RecentLookups?
+    private(set) var recentLookups: [RecentLookup] = []
 
     #if canImport(Darwin)
     @ObservationIgnored private var task: Task<Void, Never>?
@@ -58,11 +61,24 @@ final class CourtSearchViewModel {
     init(
         service: CourtSearching,
         metadata: CourtMetadataProviding,
-        onSaved: (() -> Void)? = nil
+        onSaved: (() -> Void)? = nil,
+        recent: RecentLookups? = nil
     ) {
         self.service = service
         self.metadata = metadata
         self.onSaved = onSaved
+        self.recent = recent
+        self.recentLookups = recent?.read() ?? []
+    }
+
+    /// Re-reads the recent list — after a record was read, which adds to it.
+    func refreshRecent() {
+        recentLookups = recent?.read() ?? []
+    }
+
+    func forgetRecent(_ entry: RecentLookup) {
+        recent?.forget(entry.key)
+        refreshRecent()
     }
 
     var canSearch: Bool { !isSearching && query.isComplete }
@@ -463,6 +479,16 @@ final class CourtSearchViewModel {
         static let lookupTitle = "Fetch Orders"
         static let readFirst = "Read it first"
         static let fetchThisCase = "Fetch this case"
+        static let lookedUpRecently = "Looked up recently"
+        /// Fetch Orders' front door: what this is, in one line.
+        static let lookupLead = "Read any court case, in one place."
+        static let lookupBlurb = "Orders, hearing history, parties and advocates — straight from the court’s own records, without adding the case to your dashboard."
+        /// The three steps from "I have a case number" to "I have it in Matters".
+        static let lookupSteps: [(title: String, text: String, symbol: String)] = [
+            ("Search", "Pick the court, type the case number or diary number.", "magnifyingglass"),
+            ("Read", "Every order, hearing, party and advocate on one page. Nothing is saved.", "book"),
+            ("Keep it, if you want", "Add it to Matters for hourly tracking and alerts. Or just close the page.", "folder.badge.plus"),
+        ]
         static let searchButton = "Search the court"
         static let searching = "Asking the court…"
         /// Said out loud because ten seconds of silence reads as a hang.

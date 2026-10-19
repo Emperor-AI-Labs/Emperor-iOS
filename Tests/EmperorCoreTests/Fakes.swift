@@ -297,36 +297,124 @@ final class FakeCalendar: CalendarProviding, @unchecked Sendable {
 }
 
 final class FakeLibrary: LibraryProviding, @unchecked Sendable {
-    var categories: [LibraryCategory] = []
-    var subFilters: [String] = []
-    var pages: [[LibraryDocument]] = []
-    var total = 0
+    var categories: [LibraryCategoryCount] = []
+    var facets: [String: LibraryFacets] = [:]
+    /// Pages served by `browse`, in order; the last repeats.
+    var pages: [LibraryPage] = []
+    var searchPages: [LibraryPage] = []
+    var grouped = LibraryGroupedSearch()
+    var shelves: [String: LibraryShelf] = [:]
+    var seriesShelves = LibrarySeriesShelves()
+    var documents: [Int: LibraryDocumentDetail] = [:]
+    var acts: [Int: ActBundle] = [:]
+    var actIndexPages: [ActIndexPage] = []
+    var judgments: [Int: JudgmentDocument] = [:]
+    var covers: [Int: LibraryCoverOutcome] = [:]
+    var files: [Int: Data] = [:]
+    var fileErrors: [Int: Error] = [:]
+    var judgmentErrors: [Int: Error] = [:]
     var error: Error?
-    var documentData = Data("%PDF-1.4".utf8)
-    private(set) var browseCalls: [(category: String, page: Int, search: String?, sort: LibrarySort)] = []
+    var shelfError: Error?
+    var groupedError: Error?
+    var searchError: Error?
 
-    func categories() async throws -> [LibraryCategory] {
+    private(set) var browseCalls: [LibraryBrowseFilters] = []
+    private(set) var searchCalls: [LibraryBrowseFilters] = []
+    private(set) var actIndexCalls: [ActIndexFilters] = []
+    private(set) var coverCalls: [Int] = []
+    private(set) var fileCalls: [(id: Int, prefer: LibraryFilePreference)] = []
+    private(set) var headCalls: [Int] = []
+    private(set) var shelfCalls: [String] = []
+
+    func categories() async throws -> [LibraryCategoryCount] {
         if let error { throw error }
         return categories
     }
 
-    func subFilters(category: String) async throws -> [String] {
+    func facets(category: String) async throws -> LibraryFacets {
         if let error { throw error }
-        return subFilters
+        return facets[category] ?? LibraryFacets()
     }
 
-    func browse(
-        category: String, subFilter: String?, search: String?,
-        sort: LibrarySort, page: Int, pageSize: Int
-    ) async throws -> (items: [LibraryDocument], total: Int) {
-        browseCalls.append((category, page, search, sort))
+    func browse(_ filters: LibraryBrowseFilters) async throws -> LibraryPage {
+        browseCalls.append(filters)
         if let error { throw error }
-        let index = page - 1
-        return (index < pages.count ? pages[index] : [], total)
+        let index = min(max(filters.page - 1, 0), max(pages.count - 1, 0))
+        guard pages.indices.contains(index) else { return LibraryPage() }
+        var page = pages[index]
+        page.page = filters.page
+        return page
     }
 
-    func document(id: Int) async throws -> Data {
+    func browseGrouped(query: String, pageSize: Int) async throws -> LibraryGroupedSearch {
+        if let groupedError { throw groupedError }
         if let error { throw error }
-        return documentData
+        return grouped
+    }
+
+    func search(_ filters: LibraryBrowseFilters) async throws -> LibraryPage {
+        searchCalls.append(filters)
+        if let searchError { throw searchError }
+        if let error { throw error }
+        let index = min(max(filters.page - 1, 0), max(searchPages.count - 1, 0))
+        return searchPages.indices.contains(index) ? searchPages[index] : LibraryPage()
+    }
+
+    func shelf(category: String, limit: Int) async throws -> LibraryShelf {
+        shelfCalls.append(category)
+        if let shelfError { throw shelfError }
+        if let error { throw error }
+        return shelves[category] ?? LibraryShelf(category: category)
+    }
+
+    func seriesShelves(limit: Int, per: Int) async throws -> LibrarySeriesShelves {
+        if let error { throw error }
+        return seriesShelves
+    }
+
+    func document(id: Int) async throws -> LibraryDocumentDetail {
+        if let error { throw error }
+        guard let detail = documents[id] else { throw LibraryCatalogueError(status: 404, code: "not_found") }
+        return detail
+    }
+
+    func act(id: Int) async throws -> ActBundle {
+        if let error { throw error }
+        guard let bundle = acts[id] else { throw LibraryCatalogueError(status: 404, code: "not_found") }
+        return bundle
+    }
+
+    func actIndex(_ filters: ActIndexFilters) async throws -> ActIndexPage {
+        actIndexCalls.append(filters)
+        if let error { throw error }
+        let index = min(max(filters.page - 1, 0), max(actIndexPages.count - 1, 0))
+        return actIndexPages.indices.contains(index) ? actIndexPages[index] : ActIndexPage()
+    }
+
+    func judgment(id: Int) async throws -> JudgmentDocument {
+        if let error = judgmentErrors[id] { throw error }
+        if let error { throw error }
+        guard let judgment = judgments[id] else { throw LibraryCatalogueError(status: 404, code: "not_found") }
+        return judgment
+    }
+
+    func cover(id: Int, width: Int) async throws -> LibraryCoverOutcome {
+        coverCalls.append(id)
+        if let error { throw error }
+        return covers[id] ?? .none(reason: "not_pdf")
+    }
+
+    func fileExists(id: Int) async throws -> Bool {
+        headCalls.append(id)
+        if let error { throw error }
+        return files[id] != nil
+    }
+
+    func file(id: Int, prefer: LibraryFilePreference) async throws -> Data {
+        fileCalls.append((id, prefer))
+        if let error = fileErrors[id] { throw error }
+        if let error { throw error }
+        guard let data = files[id] else { throw LibraryCatalogueError(status: 404, code: "not_found") }
+        return data
     }
 }
