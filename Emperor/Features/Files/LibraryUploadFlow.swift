@@ -228,6 +228,9 @@ struct UploadBatchPanel: View {
     let batch: UploadBatch
     let onDismiss: () -> Void
 
+    /// The countdown over a clean batch; `nil` while there is nothing to count down to.
+    @State private var autoClose: UploadAutoClose?
+
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(alignment: .top, spacing: 10) {
@@ -242,6 +245,9 @@ struct UploadBatchPanel: View {
                 }
                 .accessibilityElement(children: .combine)
                 Spacer(minLength: 0)
+                if let autoClose {
+                    UploadAutoCloseLabel(countdown: autoClose)
+                }
                 // Only once nothing is still being sent or read: closing a running batch would
                 // hide an upload that is still going.
                 if !batch.isActive {
@@ -249,6 +255,12 @@ struct UploadBatchPanel: View {
                         onDismiss()
                     }
                 }
+            }
+            // A batch that finished cleanly closes its own panel after a few seconds, as the web's
+            // tray does. Keyed on the rule rather than on time: a failure or a new upload turns
+            // `finishedCleanly` false, which cancels this task and takes the label away.
+            .task(id: batch.finishedCleanly) {
+                await runAutoClose()
             }
 
             if let speedLine = batch.speedLine {
@@ -298,6 +310,45 @@ struct UploadBatchPanel: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    /// Counts down once a second, then clears the batch. Ends quietly when cancelled — which is
+    /// what happens when the batch stops being clean, or the panel leaves the screen.
+    private func runAutoClose() async {
+        guard batch.finishedCleanly else {
+            autoClose = nil
+            return
+        }
+        var countdown = UploadAutoClose()
+        autoClose = countdown
+        while !countdown.isDue {
+            do {
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+            } catch {
+                autoClose = nil
+                return
+            }
+            countdown.tick()
+            autoClose = countdown
+        }
+        autoClose = nil
+        onDismiss()
+    }
+}
+
+/// "Closing in 3s", beside the panel's close button. Read once by VoiceOver rather than on every
+/// tick, and never animated — a number changing by itself is enough movement.
+struct UploadAutoCloseLabel: View {
+    @Environment(\.theme) private var theme
+    let countdown: UploadAutoClose
+
+    var body: some View {
+        Text(countdown.label)
+            .font(.brand(.caption2))
+            .foregroundStyle(theme.textTertiary)
+            .monospacedDigit()
+            .padding(.top, 4)
+            .accessibilityLabel(countdown.accessibilityLabel)
     }
 }
 

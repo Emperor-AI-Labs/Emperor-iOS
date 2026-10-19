@@ -359,4 +359,47 @@ struct UploadBatch: Equatable, Sendable {
         }
         return nil
     }
+
+    // MARK: - Closing by itself
+
+    /// Seconds a clean batch stays on screen before the panel closes itself — the web's upload
+    /// tray (`src/components/upload/UploadTray.jsx`, `AutoCloseTimer seconds={5}`).
+    static let autoCloseSeconds = 5
+
+    /// Whether the panel may close itself: every file reached the server and was read, and none
+    /// needs attention. The web's rule is "nothing running, nothing failed, something uploaded";
+    /// a file whose reading was left unconfirmed counts as finished here, as it does there — it
+    /// is not a failure, and the document turns up in the library when it is ready.
+    ///
+    /// A failure, or a new upload joining the batch, makes this false again, which is what
+    /// cancels a countdown already under way.
+    var finishedCleanly: Bool {
+        !isEmpty && !isActive && !files.contains(where: \.needsAttention)
+    }
+}
+
+/// The countdown the panel shows over a clean batch: "Closing in 5s" … "Closing in 1s", then
+/// it is gone. A value the view ticks once a second; it never closes anything itself.
+struct UploadAutoClose: Equatable, Sendable {
+    private(set) var secondsLeft: Int
+
+    init(seconds: Int = UploadBatch.autoCloseSeconds) {
+        secondsLeft = max(0, seconds)
+    }
+
+    /// Whether the time is up and the panel should close.
+    var isDue: Bool { secondsLeft <= 0 }
+
+    /// One second has passed.
+    mutating func tick() {
+        secondsLeft = max(0, secondsLeft - 1)
+    }
+
+    /// The label beside the close button, as the web words it.
+    var label: String { "Closing in \(secondsLeft)s" }
+
+    /// Said once for VoiceOver, so the ticking number is not read out five times.
+    var accessibilityLabel: String {
+        "Closes by itself in \(secondsLeft) second\(secondsLeft == 1 ? "" : "s")"
+    }
 }

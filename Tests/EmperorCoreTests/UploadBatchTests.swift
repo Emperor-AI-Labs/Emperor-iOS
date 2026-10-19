@@ -214,4 +214,53 @@ final class UploadBatchTests: XCTestCase {
         batch.dismiss()
         XCTAssertTrue(batch.isEmpty)
     }
+
+    // MARK: - Closing by itself
+
+    func testACleanBatchMayCloseItself() {
+        var batch = UploadBatch()
+        XCTAssertFalse(batch.finishedCleanly, "an empty panel has nothing to close")
+        batch.add(id: "a", name: "a.pdf", size: 10, folderName: "", at: at(0))
+        batch.add(id: "b", name: "b.jpg", size: 10, folderName: "", at: at(0))
+        XCTAssertFalse(batch.finishedCleanly)
+        batch.markProcessing("a")
+        batch.markProcessing("b")
+        XCTAssertFalse(batch.finishedCleanly, "still being read")
+        batch.markDone("a")
+        batch.markUnconfirmed("b", message: "Still processing")
+        XCTAssertTrue(batch.finishedCleanly, "unconfirmed is not a failure")
+    }
+
+    func testAFailureOrANewUploadStopsTheCountdown() {
+        var batch = UploadBatch()
+        batch.add(id: "a", name: "a.pdf", size: 10, folderName: "", at: at(0))
+        batch.markDone("a")
+        XCTAssertTrue(batch.finishedCleanly)
+        // A new file starts a new batch, which is not finished.
+        batch.add(id: "b", name: "b.pdf", size: 10, folderName: "", at: at(1))
+        XCTAssertFalse(batch.finishedCleanly)
+        batch.markProcessingFailed("b", message: "Could not read it")
+        XCTAssertFalse(batch.finishedCleanly, "a failure keeps the panel open")
+
+        var failed = UploadBatch()
+        failed.add(id: "c", name: "c.pdf", size: 10, folderName: "", at: at(0))
+        failed.markFailed("c", message: "Declined")
+        XCTAssertFalse(failed.finishedCleanly)
+    }
+
+    func testTheCountdownWordsAndEnds() {
+        var countdown = UploadAutoClose()
+        XCTAssertEqual(UploadBatch.autoCloseSeconds, 5, "the web's tray closes after five seconds")
+        XCTAssertEqual(countdown.label, "Closing in 5s")
+        XCTAssertEqual(countdown.accessibilityLabel, "Closes by itself in 5 seconds")
+        XCTAssertFalse(countdown.isDue)
+        for _ in 0..<4 { countdown.tick() }
+        XCTAssertEqual(countdown.label, "Closing in 1s")
+        XCTAssertEqual(countdown.accessibilityLabel, "Closes by itself in 1 second")
+        XCTAssertFalse(countdown.isDue)
+        countdown.tick()
+        XCTAssertTrue(countdown.isDue)
+        countdown.tick()
+        XCTAssertEqual(countdown.secondsLeft, 0, "never negative")
+    }
 }
