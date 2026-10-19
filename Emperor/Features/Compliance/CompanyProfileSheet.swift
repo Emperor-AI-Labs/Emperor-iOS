@@ -93,8 +93,8 @@ struct CompanyProfileSheet: View {
         Section {
             ForEach(CompanyProfileSwitch.allCases) { flag in
                 CompanySwitchRow(flag: flag, isOn: Binding(
-                    get: { company[flag: flag] },
-                    set: { company[flag: flag] = $0 }))
+                    get: { company[flag] },
+                    set: { company[flag] = $0 }))
             }
         }
         .listRowBackground(theme.surface)
