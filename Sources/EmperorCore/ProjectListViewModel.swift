@@ -19,16 +19,19 @@ final class ProjectListViewModel {
     /// Framing copy, kept in one place so the list and its empty state cannot drift apart about
     /// what this screen is.
     enum Copy {
-        static let title = "Projects"
-        /// Said on the empty state because it is the only place a reader can learn it. Nothing
-        /// on this screen creates a matter — see `ProjectService` for why the writes are held
-        /// back — so "there is nothing here" would otherwise read as "this feature is broken".
+        /// "Matters" is the tab; these are the workspaces behind them — the web's Matters page.
+        static let title = "Matter workspaces"
+        static let newMatter = "New matter"
+        /// Said on the empty state because it is the only place a reader can learn where a
+        /// workspace comes from: a tracked case opened here, the web, or the button above.
         static let openedOnTheWeb =
-            "Matters opened on the web appear here, with their hearing dates, their timeline and the court's record of any case they are linked to."
+            "A workspace holds a matter's chronology, tasks, fees, people and documents. Open one from a case on your docket, or start one here."
     }
 
     private(set) var projects: [Project] = []
     private(set) var state: LoadState = .idle
+    private(set) var isCreating = false
+    var createError: String?
 
     var query = ""
     /// Whether archived matters were asked for. Changing this must be followed by a `load()`;
@@ -108,6 +111,28 @@ final class ProjectListViewModel {
             // The rows already on screen are kept. A dropped connection must not blank a list
             // someone is reading — `ListPresentation.showsStaleBanner` covers the caveat.
             state = .failed(LoadFailure(error))
+        }
+    }
+
+    /// Starts a matter with a name and nothing else, as the web's New matter does, and returns
+    /// its id so the screen can open it. The rest is filled in from the workspace.
+    func create(named name: String, practiceArea: String? = nil) async -> String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            createError = "Give the matter a name."
+            return nil
+        }
+        guard !isCreating else { return nil }
+        isCreating = true
+        createError = nil
+        defer { isCreating = false }
+        do {
+            let project = try await service.create(MatterDraft(name: trimmed, practiceArea: practiceArea))
+            await load()
+            return project.id
+        } catch {
+            createError = DisplayText.message(for: error)
+            return nil
         }
     }
 

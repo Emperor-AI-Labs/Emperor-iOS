@@ -43,12 +43,41 @@ final class CaseDetailViewModel {
         caseID: String,
         service: any CaseProviding,
         offline: OfflineStore? = nil,
-        connectivity: (any ConnectivityReporting)? = nil
+        connectivity: (any ConnectivityReporting)? = nil,
+        projects: (any ProjectProviding)? = nil
     ) {
         self.caseID = caseID
         self.service = service
         self.offline = offline
         self.connectivity = connectivity
+        self.projects = projects
+    }
+
+    // MARK: - The matter behind the case
+
+    /// The matter routes, when the screen offers the workspace. `nil` keeps the button off.
+    private let projects: (any ProjectProviding)?
+    private(set) var isOpeningMatter = false
+    var matterError: String?
+
+    /// Whether "Open matter workspace" is offered: the routes are wired and the case is live
+    /// (a kept copy cannot say whether the server still has the case).
+    var canOpenMatter: Bool { projects != nil && detail != nil && cachedAt == nil }
+
+    /// The id of this case's matter — the caller's existing one, or one made now
+    /// (`POST /project-from-case`, idempotent). `nil` when it could not be had; `matterError`
+    /// says why.
+    func openMatter() async -> String? {
+        guard let projects, !isOpeningMatter else { return nil }
+        isOpeningMatter = true
+        matterError = nil
+        defer { isOpeningMatter = false }
+        do {
+            return try await projects.projectFromCase(caseID: caseID).project.id
+        } catch {
+            matterError = DisplayText.message(for: error)
+            return nil
+        }
     }
 
     var legalCase: LegalCase? { detail?.legalCase }

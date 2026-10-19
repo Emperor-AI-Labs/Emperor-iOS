@@ -52,6 +52,19 @@ struct Project: Codable, Equatable, Identifiable, Sendable {
     var color: String?
     var updatedAtRaw: String?
 
+    // MARK: - Added with Matters (docs/projects.md, 2026-10-12)
+
+    /// One of `MatterVocabulary.practiceAreas`.
+    var practiceArea: String?
+    /// Which side the client is on — `petitioner`, `respondent`, … or free text.
+    var ourSide: String?
+    var oppositeParty: String?
+    /// A banner preset key, or `image` when a picture was uploaded. Carried, not drawn here.
+    var banner: String?
+    /// `not_filed` when the matter has no court case yet by the user's own say-so — which is
+    /// what lets the setup count the court step as done instead of nagging about it.
+    var courtStatus: String?
+
     // MARK: - List-only, computed by the query
 
     // The list route selects `p.*` plus four correlated sub-selects (`sync-server.js:9919-9927`).
@@ -68,6 +81,12 @@ struct Project: Codable, Equatable, Identifiable, Sendable {
     /// `COALESCE(u.event_date, u.created_at)` of the newest update — so it is a bare day on some
     /// rows and a zoneless SQLite timestamp on others. `parseAny` covers both.
     var lastActivityRaw: String?
+    /// Open tasks, and the soonest of their due days (`YYYY-MM-DD`). List route only.
+    var openTasks: Int?
+    var nextTaskDueRaw: String?
+    /// Rupees billed and received, summed by the list route.
+    var billed: Double?
+    var received: Double?
 
     // MARK: - Derived
 
@@ -103,6 +122,34 @@ struct Project: Codable, Equatable, Identifiable, Sendable {
 
     var isArchived: Bool { status?.caseInsensitiveCompare("archived") == .orderedSame }
 
+    /// The user has said there is no court case to track yet.
+    var isNotFiledYet: Bool { courtStatus?.caseInsensitiveCompare("not_filed") == .orderedSame }
+
+    var hasLinkedCase: Bool {
+        !(linkedCaseID?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+    }
+
+    var practiceAreaLabel: String? { MatterVocabulary.label(for: practiceArea, in: MatterVocabulary.practiceAreas) }
+    var ourSideLabel: String? { MatterVocabulary.label(for: ourSide, in: MatterVocabulary.ourSides) }
+    var statusLabel: String? {
+        guard let status = Self.text(status) else { return nil }
+        switch status.lowercased() {
+        case "active": return "Active"
+        case "on_hold": return "On hold"
+        case "disposed": return "Disposed"
+        case "archived": return "Archived"
+        default: return status.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    var nextTaskDue: Date? { WireDate.parseDay(nextTaskDueRaw) }
+
+    /// Rupees still to come in, from the list route's two sums.
+    var outstanding: Double? {
+        guard let billed, let received else { return nil }
+        return billed - received
+    }
+
     var nextHearingDate: Date? { WireDate.parseDay(nextHearingDateRaw) }
     var filingDate: Date? { WireDate.parseDay(filingDateRaw) }
     var updatedAt: Date? { WireDate.parseAny(updatedAtRaw) }
@@ -129,6 +176,14 @@ struct Project: Codable, Equatable, Identifiable, Sendable {
         case chatCount = "chat_count"
         case updateCount = "update_count"
         case lastActivityRaw = "last_activity"
+        case practiceArea = "practice_area"
+        case ourSide = "our_side"
+        case oppositeParty = "opposite_party"
+        case banner
+        case courtStatus = "court_status"
+        case openTasks = "open_tasks"
+        case nextTaskDueRaw = "next_task_due"
+        case billed, received
     }
 }
 
@@ -150,6 +205,22 @@ struct ProjectUpdate: Codable, Equatable, Identifiable, Sendable {
     var status: String?
     /// Zoneless SQLite `CURRENT_TIMESTAMP`, not ISO8601 — the DDL default fires.
     var createdAtRaw: String?
+    /// `manual` (typed in), `court` (from the linked case), or `ai` (extracted from the
+    /// documents and accepted). Where the entry came from is part of what it says.
+    var source: String?
+    /// "Plaint.pdf, p. 4" — the page an extracted fact was read from.
+    var sourceRef: String?
+
+    var kindLabel: String { MatterVocabulary.label(for: kind, in: MatterVocabulary.updateKinds) ?? "Note" }
+
+    /// A short word for where the entry came from, for everything but a typed-in one.
+    var sourceLabel: String? {
+        switch source?.lowercased() {
+        case "court": return "From the court"
+        case "ai": return sourceRef.flatMap { $0.isEmpty ? nil : "From \($0)" } ?? "From the documents"
+        default: return nil
+        }
+    }
 
     /// When this entry belongs on the timeline, falling back the same way the server's own
     /// `ORDER BY` does.
@@ -167,9 +238,10 @@ struct ProjectUpdate: Codable, Equatable, Identifiable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, kind, title, body, status
+        case id, kind, title, body, status, source
         case eventDateRaw = "event_date"
         case createdAtRaw = "created_at"
+        case sourceRef = "source_ref"
     }
 }
 
@@ -200,6 +272,13 @@ struct ProjectDetailResponse: Codable, Sendable {
     /// columns straight out of that table for the linked case. Every other field on `CaseItem`
     /// is optional, so the narrower projection decodes without a shim.
     var courtHistory: [CaseItem]?
+    // The Matters workspace (docs/projects.md). Every one camelCase, like `courtHistory`, because
+    // the server builds the payload in JavaScript (`store.projectPayload`).
+    var linkedCase: LinkedCaseSummary?
+    var tasks: [ProjectTask]?
+    var ledger: [LedgerEntry]?
+    var people: [ProjectPerson]?
+    var totals: LedgerTotals?
     var error: String?
 }
 
