@@ -176,6 +176,11 @@ enum UITestSupport {
     enum Fixtures {
         static func body(for path: String) -> String {
             if isEmpty, let empty = emptyBody(for: path) { return empty }
+            // A shared conversation (`emperor://share/<id>`), as `/shared-chat/:shareId` answers:
+            // a question carrying a document, and an answer with a heading and a list.
+            if path.hasPrefix("/shared-chat/") {
+                return #"{"id":"c9","title":"Bail in a commercial dispute","role":"Litigator","updated_at":"2026-10-17 10:12:30","messages":[{"role":"user","content":"Is anticipatory bail available here?","attachments":[{"name":"FIR_Copy.pdf"}]},{"role":"assistant","content":"Yes. The dispute is commercial.\n\n## Why\n\n1. The FIR discloses no custodial need.\n2. The accused has joined the investigation."}]}"#
+            }
             switch path {
             // `success` is **not** optional on `AuthResponse`. Omitting it fails the decode and
             // sign-in never happens.

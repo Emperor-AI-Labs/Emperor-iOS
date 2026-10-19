@@ -62,8 +62,8 @@ final class TodayWidgetBridge {
     }
 }
 
-/// The app's own links (`EmperorLink`), opened by `RootView.onOpenURL` and by the "Open my
-/// calendar" shortcut.
+/// The app's own links (`EmperorLink`, `SharedChatLink`), opened by `RootView.onOpenURL` and by
+/// the "Open my calendar" shortcut.
 ///
 /// A link is handed to the same inbox a tapped notification is (`NotificationInbox`), so the two
 /// take one path to the screen: `NotificationTapRouting` opens the Calendar on the day, or Updates
@@ -75,10 +75,20 @@ enum AppLinks {
     /// a document handed to the app, say — so its own handler can have it.
     @discardableResult
     static func open(_ url: URL) -> Bool {
+        // A shared conversation needs no account, so it does not wait in the inbox for the tab
+        // view: `SharedChatPresenting` shows it over whatever is on screen.
+        if let shareID = SharedChatLink.shareID(
+            in: url, webHosts: SharedChatLink.webHosts(for: APIConfig.resolvedEnvironment)) {
+            sharedChats.open(shareID)
+            return true
+        }
         guard let link = EmperorLink(url: url) else { return false }
         open(link)
         return true
     }
+
+    /// Shared conversations a link has asked for, waiting to be shown — see `SharedChatRequests`.
+    static let sharedChats = SharedChatRequests()
 
     static func open(_ link: EmperorLink) {
         AppNotifications.shared.inbox.open(link.target(now: Date()))

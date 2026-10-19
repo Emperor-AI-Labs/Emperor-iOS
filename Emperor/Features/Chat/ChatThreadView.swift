@@ -925,7 +925,10 @@ private struct MessageBubble: View {
     }
 }
 
-private struct AnswerView: View {
+/// A finished or streaming answer: its prose, citations, drafts and notices. Not private: the
+/// read-only shared conversation (`SharedChatView`) draws its answers with it too, so a shared
+/// answer reads as an answer.
+struct AnswerView: View {
     @Environment(\.theme) private var theme
     let content: StreamContent
     let isStreaming: Bool

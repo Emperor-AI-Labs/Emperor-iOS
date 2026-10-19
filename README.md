@@ -231,7 +231,8 @@ device at its next refresh.
   then `group.` + the installed bundle id — a sideloading tool may rename it. With none, the app
   is unaffected and the widget says to open the app.
 - **Links**: `emperor://calendar[?day=YYYY-MM-DD]` and `emperor://updates`. They only navigate
-  (`EmperorLink`), through the same path as a notification tap.
+  (`EmperorLink`), through the same path as a notification tap. `emperor://share/<id>` opens a
+  shared conversation (see "Shared conversations").
 - **Siri and Shortcuts** (App Intents): What's Listed Today / Tomorrow, from the cached cause
   list (its age said past six hours; requires the device unlocked), and Open My Calendar.
 - **Signing**: the widget is a second bundle (`com.emperorailabs.emperor.widget`) and needs its
@@ -486,6 +487,33 @@ plan rows it never reached pending, where the web ticks every row.
   simulator does not evict apps the way a phone under memory pressure does.
   `docs/RELEASING.md` lists what to try, in order.
 
+### Shared conversations
+
+A conversation shared from the web opens read-only in the app, as the web's `/share/:shareId`
+page shows it: the title, the role it was asked in, when it was last updated (in IST), then every
+question — with the documents it carried, by name — and every answer, drawn by the same
+`AnswerView` the conversation screen uses, each in a framed card. Drafts open full screen. An
+answer's citation chips are left out: they open documents in the asker's library. Nothing can be
+continued, changed or saved.
+
+- **Links** (`SharedChatLink`): `emperor://share/<id>`, and the web's
+  `https://<host>/share/<id>` on the host this build talks to (`APIEnvironment` — the dev host in
+  Debug, `app.emperorailabs.com` in Release). An id is letters, digits, `-` and `_`; anything
+  else is not a link. Like every `emperor://` link it only navigates.
+- **No account needed**, as on the web: `SharedChatService` reads `GET /shared-chat/:shareId`
+  with no token and no `userId`, signed in or not. The sheet (`SharedChatPresenting`) is shown
+  over whatever is on screen — the sign-in screen included — once the first-launch disclaimer is
+  answered and any open sheet has closed. It is not routed through `AppNavigator`, which belongs
+  to the signed-in tab view and ends at sign-out.
+- **Universal Links are not switched on.** The https link is read by `onOpenURL`, but iOS hands
+  it to the app only when the app carries the `com.apple.developer.associated-domains`
+  entitlement (`applinks:app.emperorailabs.com`) and the web serves an
+  `apple-app-site-association` file naming the app. Neither is in place: the entitlement cannot be
+  switched off per build the way `EMPEROR_APP_GROUP` and `EMPEROR_WEB_PLANS` are, a free Apple ID
+  cannot sign it, and CI's unsigned build clears the entitlements altogether. Until both exist, a
+  web link opens the web page, and `emperor://share/<id>` opens the app.
+- Creating a link stays held back — see below.
+
 ### Built and deliberately held back
 These exist, are tested, and have no caller. Each is marked at its definition. **Do not wire one
 up without reading why it is held.**
@@ -496,8 +524,9 @@ up without reading why it is held.**
   delete is local-only — the conversation returns on the next load and never left any other
   device. A delete that does not delete is worse than none.
 - **Auction watchlists.**
-- **Sharing a conversation.** These are privileged legal conversations; held back until the
-  endpoint contract is confirmed. No screen creates a share link.
+- **Sharing a conversation** (creating a link, `POST /share-chat`). These are privileged legal
+  conversations; held back until the endpoint contract is confirmed. No screen creates a share
+  link — the web has none either. A link made elsewhere opens read-only (above).
 - **Marking a statutory deadline done** on the Corporate calendar. The screen reads the web's
   done markers but does not write them, until the endpoint contract is confirmed.
 - **The compliance pipeline's history page.** The web's version reads from a service the app

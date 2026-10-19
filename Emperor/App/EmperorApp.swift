@@ -226,6 +226,9 @@ struct RootView: View {
                 ProgressView().controlSize(.large)
             }
         }
+        // A shared conversation a link asked for, over whatever is showing — signed in or not,
+        // once the disclaimer is answered. Inside the theme, so the sheet wears it.
+        .presentsSharedChats(isReady: hasAcknowledgedDisclaimer == true)
         .environment(\.theme, theme)
         .environment(\.practice, practice)
         // The device's appearance unless the user has chosen one — `ThemePreference.default` is
@@ -342,7 +345,9 @@ private struct AccountLifecycle: ViewModifier {
                 }
             }
             // URLs handed to the app, through one handler: the app's own `emperor://` links (the
-            // Today widget's tap, chiefly — see `AppLinks`), then documents another app handed over
+            // Today widget's tap, chiefly — see `AppLinks`) and shared-conversation links, both the
+            // app's own and the web's `https://…/share/<id>` should it arrive as a Universal Link
+            // (`SharedChatLink`), then documents another app handed over
             // ("Open in Emperor"), which arrive as file URLs. One handler rather than one each,
             // because how SwiftUI treats several `onOpenURL`s on one view is not something to rely on.
             .onOpenURL { url in
