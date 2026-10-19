@@ -1811,6 +1811,23 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(app.tab("Home").isSelected, "Updates opens over Home, where its bell is")
     }
 
+    /// A shared conversation's link opens it read-only, over whatever is showing — its title, the
+    /// question and the answer, and nothing that writes.
+    func testASharedConversationLinkOpensItReadOnly() {
+        let app = signIn(launch("-UITestLinkOnReturn", "emperor://share/k3j9x2abq81mz"))
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
+
+        leaveAndReturn(app)
+        let sheet = app.navigationBars["Shared conversation"]
+        XCTAssertTrue(sheet.waitForExistence(timeout: 10), "the shared conversation did not open")
+        XCTAssertTrue(
+            app.staticTexts["Bail in a commercial dispute"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Is anticipatory bail available here?"].exists)
+
+        sheet.buttons["Done"].tap()
+        XCTAssertFalse(sheet.waitForExistence(timeout: 2))
+    }
+
     /// Sends the app to the background and brings it back — the moment a link handed over with
     /// `-UITestLinkOnReturn` is opened. The Home button as the app-lock tests press it, with
     /// SpringBoard brought forward if the press alone does not move the app off screen.

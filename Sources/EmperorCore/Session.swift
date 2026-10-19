@@ -78,6 +78,8 @@ final class Session {
     let supportFeedback: SupportFeedbackService
     /// The List of Annexures under a draft, and the filing-ready package — see `FilingPackage`.
     let filingAnnexures: FilingAnnexureService
+    /// Shared conversations, read without an account — the web's `/share/:shareId` (share package).
+    let sharedChats: SharedChatService
 
     let cache: ResponseCache
 
@@ -134,6 +136,7 @@ final class Session {
         self.limitationRadar = LimitationRadarService(client: client)
         self.supportFeedback = SupportFeedbackService(client: client)
         self.filingAnnexures = FilingAnnexureService(client: client)
+        self.sharedChats = SharedChatService(client: client)
         self.store = store
         self.cache = cache
         self.signInFlow = SignInFlow(auth: auth)
