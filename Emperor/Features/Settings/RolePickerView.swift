@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Choosing what you practise as — the role selector, as the web's top bar offers it.
 ///
-/// A pushed list rather than a menu or a segmented control: there are seven of these and each one
+/// A pushed list rather than a menu or a segmented control: there are eight of these and each one
 /// needs a sentence to tell it from its neighbours — Senior Counsel and Litigator are not
 /// distinguishable from two words, and picking the wrong one quietly hands somebody the wrong
 /// toolkit for the rest of their use of the app.

@@ -9,6 +9,10 @@ import SwiftUI
 ///
 /// Litigator has no deck. Its Home on the web is the drafting taxonomy, so that is what it is
 /// shown here — `LitigatorWorkspaceView`, which owns its own stack and its own Done.
+///
+/// Devil's Advocate's filter is the side under attack, which `Practice` remembers, because every
+/// tool prompt names it. Its Limitation card is not a prompt: it opens the Limitation Radar, as
+/// the web's card opens that page.
 struct RoleHomeView: View {
     @Environment(\.theme) private var theme
     @Environment(\.practice) private var practice
@@ -17,6 +21,7 @@ struct RoleHomeView: View {
     /// Which mode, tag, level or context the grid is filtered to. `nil` until the role's own
     /// first filter is applied on appear — a grid has no "all" for the roles that gate.
     @State private var filterID: String?
+    @State private var isCheckingLimitation = false
 
     var body: some View {
         if practice.role.usesDraftingTaxonomy {
@@ -83,8 +88,11 @@ struct RoleHomeView: View {
             .onAppear {
                 // The platform's grids open on their first filter, not on everything: for
                 // Arbitrators & Judges the two lists are a compliance boundary, so there is no
-                // combined view to fall back to.
-                if filterID == nil { filterID = practice.role.cardFilters.first?.id }
+                // combined view to fall back to. Devil's Advocate reopens on its last side.
+                if filterID == nil { filterID = practice.initialCardFilter }
+            }
+            .sheet(isPresented: $isCheckingLimitation) {
+                LimitationRadarView().pageSizedSheet()
             }
         }
     }
@@ -111,6 +119,7 @@ struct RoleHomeView: View {
                     let isSelected = active == filter.id
                     Button {
                         filterID = filter.id
+                        practice.chooseCardFilter(filter.id)
                     } label: {
                         ChipLabel(title: filter.label, isSelected: isSelected)
                     }
@@ -125,15 +134,35 @@ struct RoleHomeView: View {
 
     /// A card as the web's deck draws it: a tile in the colour `toolColor` gives the card's tool
     /// id, with the document the web puts on it, then the card's words.
+    @ViewBuilder
     private func row(_ card: RoleCard) -> some View {
-        NavigationLink(value: card.toolID) {
-            HStack(alignment: .top, spacing: Spacing.md) {
-                IconTile(
-                    systemImage: ToolSymbol.symbol(for: card.toolID),
-                    hue: TileHue.forTool(card.toolID))
-                cardText(card)
+        switch card.opensScreen {
+        case .limitationRadar:
+            // A screen of its own rather than a prompt; drawn as the other rows are.
+            Button {
+                isCheckingLimitation = true
+            } label: {
+                HStack(alignment: .top, spacing: Spacing.md) {
+                    IconTile(systemImage: "hourglass", hue: TileHue.forTool(card.toolID))
+                    cardText(card)
+                    Spacer(minLength: Spacing.sm)
+                    RowChevron()
+                }
+                .padding(.vertical, Spacing.xxs)
+                .contentShape(Rectangle())
             }
-            .padding(.vertical, Spacing.xxs)
+            .buttonStyle(.plain)
+            .accessibilityHint(Text("Opens the Limitation Radar"))
+        case nil:
+            NavigationLink(value: card.toolID) {
+                HStack(alignment: .top, spacing: Spacing.md) {
+                    IconTile(
+                        systemImage: ToolSymbol.symbol(for: card.toolID),
+                        hue: TileHue.forTool(card.toolID))
+                    cardText(card)
+                }
+                .padding(.vertical, Spacing.xxs)
+            }
         }
     }
 
