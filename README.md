@@ -297,6 +297,23 @@ Settings → Storage shows and clears it.
 - **`/cause-list` text fields can arrive as numbers** — the server copies some straight out of
   stored JSON. `CauseListing` decodes either.
 
+### Analysis tools
+
+Doc Index, List of Dates and Devil's Advocate run on the server as background jobs (You →
+Tools → Analysis tools; `AnalysisService`, `AnalysisRunViewModel`). The client sends up to ten
+documents already in My Files — by `{name, folderName}`, never an upload, and never a document
+at the top of My Files or inside a matter, which the tools do not read — with an optional note
+trimmed to 2,000 characters. `POST /analysis/start` answers at once with a job id, and the
+client polls `/analysis/job` every two seconds, showing the server's own stage line, until the
+job is done or failed, giving up after 25 minutes as the web does. **A job lives in the server's
+memory**: one that finished over an hour ago, or that was running when the server restarted,
+answers 404, and the only thing to do is run it again. Results are validated and repaired
+server-side, so `AnalysisResult` decodes exactly what that repair guarantees and treats anything
+else as a contract break rather than drawing half a page. Every finished run is saved
+automatically — at most 50 per tool — and listed by `/analysis/history`, per tool or for all
+tools; deleting a run that is already gone counts as done. The web's Highlighter page is not
+offered: it is a sample with no route behind it.
+
 ### A caution on reading the platform
 
 The platform's own `AGENTS.md` was corrected on 2026-08-25 and now carries a `file:line`
