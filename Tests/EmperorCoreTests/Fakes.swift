@@ -318,13 +318,22 @@ final class FakeLibrary: LibraryProviding, @unchecked Sendable {
     var groupedError: Error?
     var searchError: Error?
 
-    private(set) var browseCalls: [LibraryBrowseFilters] = []
-    private(set) var searchCalls: [LibraryBrowseFilters] = []
-    private(set) var actIndexCalls: [ActIndexFilters] = []
-    private(set) var coverCalls: [Int] = []
-    private(set) var fileCalls: [(id: Int, prefer: LibraryFilePreference)] = []
-    private(set) var headCalls: [Int] = []
-    private(set) var shelfCalls: [String] = []
+    // The home loads every shelf at once, so the records are appended from several tasks.
+    private let lock = NSLock()
+    private var _browseCalls: [LibraryBrowseFilters] = []
+    private var _searchCalls: [LibraryBrowseFilters] = []
+    private var _actIndexCalls: [ActIndexFilters] = []
+    private var _coverCalls: [Int] = []
+    private var _fileCalls: [(id: Int, prefer: LibraryFilePreference)] = []
+    private var _headCalls: [Int] = []
+    private var _shelfCalls: [String] = []
+    var browseCalls: [LibraryBrowseFilters] { lock.withLock { _browseCalls } }
+    var searchCalls: [LibraryBrowseFilters] { lock.withLock { _searchCalls } }
+    var actIndexCalls: [ActIndexFilters] { lock.withLock { _actIndexCalls } }
+    var coverCalls: [Int] { lock.withLock { _coverCalls } }
+    var fileCalls: [(id: Int, prefer: LibraryFilePreference)] { lock.withLock { _fileCalls } }
+    var headCalls: [Int] { lock.withLock { _headCalls } }
+    var shelfCalls: [String] { lock.withLock { _shelfCalls } }
 
     func categories() async throws -> [LibraryCategoryCount] {
         if let error { throw error }
@@ -337,7 +346,7 @@ final class FakeLibrary: LibraryProviding, @unchecked Sendable {
     }
 
     func browse(_ filters: LibraryBrowseFilters) async throws -> LibraryPage {
-        browseCalls.append(filters)
+        lock.withLock { _browseCalls.append(filters) }
         if let error { throw error }
         let index = min(max(filters.page - 1, 0), max(pages.count - 1, 0))
         guard pages.indices.contains(index) else { return LibraryPage() }
@@ -353,7 +362,7 @@ final class FakeLibrary: LibraryProviding, @unchecked Sendable {
     }
 
     func search(_ filters: LibraryBrowseFilters) async throws -> LibraryPage {
-        searchCalls.append(filters)
+        lock.withLock { _searchCalls.append(filters) }
         if let searchError { throw searchError }
         if let error { throw error }
         let index = min(max(filters.page - 1, 0), max(searchPages.count - 1, 0))
@@ -361,7 +370,7 @@ final class FakeLibrary: LibraryProviding, @unchecked Sendable {
     }
 
     func shelf(category: String, limit: Int) async throws -> LibraryShelf {
-        shelfCalls.append(category)
+        lock.withLock { _shelfCalls.append(category) }
         if let shelfError { throw shelfError }
         if let error { throw error }
         return shelves[category] ?? LibraryShelf(category: category)
@@ -385,7 +394,7 @@ final class FakeLibrary: LibraryProviding, @unchecked Sendable {
     }
 
     func actIndex(_ filters: ActIndexFilters) async throws -> ActIndexPage {
-        actIndexCalls.append(filters)
+        lock.withLock { _actIndexCalls.append(filters) }
         if let error { throw error }
         let index = min(max(filters.page - 1, 0), max(actIndexPages.count - 1, 0))
         return actIndexPages.indices.contains(index) ? actIndexPages[index] : ActIndexPage()
@@ -399,19 +408,19 @@ final class FakeLibrary: LibraryProviding, @unchecked Sendable {
     }
 
     func cover(id: Int, width: Int) async throws -> LibraryCoverOutcome {
-        coverCalls.append(id)
+        lock.withLock { _coverCalls.append(id) }
         if let error { throw error }
         return covers[id] ?? .none(reason: "not_pdf")
     }
 
     func fileExists(id: Int) async throws -> Bool {
-        headCalls.append(id)
+        lock.withLock { _headCalls.append(id) }
         if let error { throw error }
         return files[id] != nil
     }
 
     func file(id: Int, prefer: LibraryFilePreference) async throws -> Data {
-        fileCalls.append((id, prefer))
+        lock.withLock { _fileCalls.append((id, prefer)) }
         if let error = fileErrors[id] { throw error }
         if let error { throw error }
         guard let data = files[id] else { throw LibraryCatalogueError(status: 404, code: "not_found") }

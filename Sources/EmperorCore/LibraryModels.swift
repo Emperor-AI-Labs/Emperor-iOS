@@ -883,6 +883,14 @@ struct LibraryCatalogueError: LocalizedError, Equatable, Sendable {
     var reason: String?
     var retryAfter: Int?
 
+    init(status: Int, code: String, message: String? = nil, reason: String? = nil, retryAfter: Int? = nil) {
+        self.status = status
+        self.code = code
+        self.message = message
+        self.reason = reason
+        self.retryAfter = retryAfter
+    }
+
     var isMissingRoute: Bool { status == 404 && code == "unknown_library_route" }
     var isUnavailable: Bool { code == "catalogue_unavailable" }
     var isFileMissing: Bool { code == "file_missing" || (code == "no_cover" && reason == "file_missing") }
