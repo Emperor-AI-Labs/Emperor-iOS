@@ -326,6 +326,23 @@ automatically — at most 50 per tool — and listed by `/analysis/history`, per
 tools; deleting a run that is already gone counts as done. The web's Highlighter page is not
 offered: it is a sample with no route behind it.
 
+### Annexures and the filing-ready package
+
+When a draft cites a document as an annexure (the model's `<@file.pdf:P-1>` token), the platform
+records it in a per-conversation filing registry; this client only reads that registry
+(`FilingAnnexureService`). Under the last finished draft in a conversation, `AnnexuresCard`
+shows the List of Annexures — rows in the registry's order, then by mark, P-2 before P-10 —
+and each row opens the original document or its true typed copy, fetched only when opened. The
+card is drawn only when the list has something in it. The draft's download menu then offers a
+**filing-ready package** as Word or PDF (`FilingPackage`): the draft, a List of Annexures
+table, and each annexure in list order on a fresh page. The PDF merges each original's own pages
+after its heading; Word, which cannot hold a PDF, carries each page as a picture the platform
+renders. An original that cannot be read stops the package with a sentence naming it, rather
+than delivering a filing that silently lacks an annexure; a file kind that cannot be attached,
+a duplicate citation, and a typed copy whose document has not been read yet are named on their
+own page instead. Filing Ready is outside the Free plan, and that refusal arrives as a
+`Refusal`, worded by this client.
+
 ### A caution on reading the platform
 
 The platform's own `AGENTS.md` was corrected on 2026-08-25 and now carries a `file:line`
