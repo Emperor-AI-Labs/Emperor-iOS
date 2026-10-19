@@ -290,6 +290,12 @@ Full detail in `README.md`. The short list:
     worth retrying; `/judgment` says `file_missing` for a row whose text is not on the host and
     `too_large` past 8 MB; a row's `ext` carries the dot (`.pdf`). `/file` answers a JSON 404 for
     a missing file, so the reading room HEADs first and sniffs the bytes. See `LibraryService`.
+36. **Connecting Google Drive or OneDrive never returns to the app.** `/cloud/connect` gives the
+    drive's consent page; the drive redirects to the server, which stores the token and lands on
+    the *web* app's Settings page. Read `/cloud/connections` again when the in-app Safari view
+    closes — that is the only signal. The `/cloud/*` refusals are sentences meant for the person
+    (409 not connected or too little access, 404 no such document) that name the web's Settings;
+    `CloudDriveWording` points them at You → Connected services. See `CloudDriveService`.
 
 ## Runtime connectivity
 

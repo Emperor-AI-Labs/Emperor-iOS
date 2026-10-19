@@ -138,6 +138,13 @@ private working in front of a client.
 **Attachments must be sent twice** — the top-level array and the last message are read by
 different passes, so both must carry them or the model sees an incomplete set.
 
+**Connecting a drive never comes back to the app.** `GET /cloud/connect` returns the drive's
+consent page; the drive redirects to the server, which keeps the token and then lands on the
+**web** app's Settings page. The only way to learn the outcome is to read `/cloud/connections`
+again once the browser is closed. The `/cloud/*` refusals are sentences for the person (409 for
+a drive that is not connected or granted too little, 404 for a missing document) and name the
+web's Settings, so this client points them at You → Connected services (`CloudDriveWording`).
+
 ### Accounts, plans and refusals
 
 **Creating an account does not sign anyone in.** `/register` emails a confirmation link and
@@ -485,6 +492,21 @@ plan rows it never reached pending, where the web ticks every row.
   delegate callbacks, and above all the terminate-and-relaunch path, need a physical device. A
   simulator does not evict apps the way a phone under memory pressure does.
   `docs/RELEASING.md` lists what to try, in order.
+
+### Connected services: Google Drive and OneDrive
+
+You → Connected services is the web's Settings card of that name (`CloudConnectionsViewModel`):
+each drive says whether this server has it set up, whether the account is connected and as
+whom, with Connect or Disconnect. The connection belongs to the account, so one made on the web
+shows here. Connect opens the drive's sign-in page in an in-app Safari view — Google refuses its
+sign-in inside an embedded web view, and the flow finishes on the web app rather than returning
+— and the connections are read again when it is closed, and whenever the app comes back to the
+front. Once a drive is connected, My Files' + menu offers Import from it (`CloudImportSheet`):
+the drive's fifty most recent files, ticked, into a chosen folder, one at a time, each row saying
+how it went; a plan refusal stops the run rather than repeating it for every file. The top level
+is not offered as a destination, as for uploads. A document's menu offers "Save to Google Drive"
+and "Save to OneDrive" for the connected drives — the web offers Google Drive alone. Cloud Sync is
+outside the Free plan, and that refusal arrives as a `Refusal`, worded by this client.
 
 ### Built and deliberately held back
 These exist, are tested, and have no caller. Each is marked at its definition. **Do not wire one
