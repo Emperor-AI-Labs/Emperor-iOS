@@ -1,0 +1,436 @@
+{
+  "profiles": [
+    {
+      "key": "contract_compensation",
+      "label": "Compensation for breach of contract",
+      "article": "Article 55",
+      "years": 3,
+      "runsFrom": "When the contract is broken; for successive breaches, when the breach sued on occurs; for a continuing breach, when it ceases."
+    },
+    {
+      "key": "money_lent",
+      "label": "Money payable for money lent",
+      "article": "Article 19",
+      "years": 3,
+      "runsFrom": "When the loan is made."
+    },
+    {
+      "key": "specific_performance",
+      "label": "Specific performance of a contract",
+      "article": "Article 54",
+      "years": 3,
+      "runsFrom": "The date fixed for performance or, if none was fixed, when the plaintiff had notice that performance was refused."
+    },
+    {
+      "key": "declaration",
+      "label": "Any other declaration",
+      "article": "Article 58",
+      "years": 3,
+      "runsFrom": "When the right to sue first accrues."
+    },
+    {
+      "key": "mortgage_money",
+      "label": "Money secured by a mortgage or charged on immovable property",
+      "article": "Article 62",
+      "years": 12,
+      "runsFrom": "When the money sued for becomes due."
+    },
+    {
+      "key": "mortgage_foreclosure",
+      "label": "Foreclosure by a mortgagee",
+      "article": "Article 63(a)",
+      "years": 30,
+      "runsFrom": "When the money secured by the mortgage becomes due."
+    },
+    {
+      "key": "residuary",
+      "label": "Any other suit (residuary)",
+      "article": "Article 113",
+      "years": 3,
+      "runsFrom": "When the right to sue accrues."
+    }
+  ],
+  "defaultKey": "contract_compensation",
+  "cases": [
+    {
+      "name": "safe-on-the-last-day",
+      "input": {
+        "profile": "contract_compensation",
+        "cause_of_action": "2023-01-15",
+        "intended_filing": "2026-01-15"
+      },
+      "output": {
+        "success": true,
+        "status": "SAFE / WITHIN TIME",
+        "status_color": "emerald",
+        "statute_applied": "Article 55, Limitation Act, 1963 — 3 years (Compensation for breach of contract)",
+        "days_overdue": 0,
+        "fatal_flaw": "Counting 3 years under Article 55 from 15 January 2023, the last day to file is 15 January 2026. The filing on 15 January 2026 is within time, with 0 days to spare.",
+        "curative_strategies": [
+          "File on or before 15 January 2026. That leaves 0 days.",
+          "Confirm the date entered is the one Article 55 counts from — \"When the contract is broken; for successive breaches, when the breach sued on occurs; for a continuing breach, when it ceases.\" A correct period counted from the wrong day is still wrong.",
+          "If the last day falls on a day the court is closed, Section 4 allows filing on the day it reopens — but do not plan around it."
+        ],
+        "profile": "contract_compensation",
+        "profile_label": "Compensation for breach of contract",
+        "article": "Article 55",
+        "limitation_years": 3,
+        "period_runs_from": "When the contract is broken; for successive breaches, when the breach sued on occurs; for a continuing breach, when it ceases.",
+        "cause_of_action": "2023-01-15",
+        "intended_filing": "2026-01-15",
+        "bare_deadline": "2026-01-15",
+        "mediation": null,
+        "adjusted_deadline": "2026-01-15",
+        "adjusted_days_overdue": 0,
+        "relies_on_mediation_exclusion": false
+      },
+      "display": {
+        "days": "0 days remaining",
+        "lastDay": "15 January 2026",
+        "mediationExcluded": null,
+        "withExclusion": null
+      }
+    },
+    {
+      "name": "barred-by-one-day",
+      "input": {
+        "profile": "specific_performance",
+        "cause_of_action": "2020-02-29",
+        "intended_filing": "2023-03-01"
+      },
+      "output": {
+        "success": true,
+        "status": "LEGALLY BARRED / EXPIRED",
+        "status_color": "red",
+        "statute_applied": "Article 54, Limitation Act, 1963 — 3 years (Specific performance of a contract)",
+        "days_overdue": 1,
+        "fatal_flaw": "Counting 3 years under Article 54 from 29 February 2020, the last day to file is 28 February 2023. The filing on 1 March 2023 is 1 day late. Under Section 3 a suit filed after the prescribed period must be dismissed, even if limitation is not raised as a defence.",
+        "curative_strategies": [
+          "Delay in filing a suit cannot be condoned. Section 5 applies only to appeals and applications, so the remedy lies in showing that the period has not in fact expired.",
+          "Section 18: a written acknowledgment of liability, signed by the defendant before 28 February 2023, starts a fresh period from the date it was signed.",
+          "Section 19: a payment on account of the debt or interest, made before the period expired, starts a fresh period from the date of payment.",
+          "Section 14: if a civil proceeding on the same matter was prosecuted in good faith in a court without jurisdiction, the time it was pending is excluded.",
+          "Section 17: where the right or the facts were concealed by fraud, or the suit is for relief from a mistake, time runs from when it was discovered.",
+          "Check whether the suit, as actually framed, falls under a different article with a longer period or a later starting point."
+        ],
+        "profile": "specific_performance",
+        "profile_label": "Specific performance of a contract",
+        "article": "Article 54",
+        "limitation_years": 3,
+        "period_runs_from": "The date fixed for performance or, if none was fixed, when the plaintiff had notice that performance was refused.",
+        "cause_of_action": "2020-02-29",
+        "intended_filing": "2023-03-01",
+        "bare_deadline": "2023-02-28",
+        "mediation": null,
+        "adjusted_deadline": "2023-02-28",
+        "adjusted_days_overdue": 1,
+        "relies_on_mediation_exclusion": false
+      },
+      "display": {
+        "days": "1 day past the last day to file",
+        "lastDay": "28 February 2023",
+        "mediationExcluded": null,
+        "withExclusion": null
+      }
+    },
+    {
+      "name": "barred-despite-mediation",
+      "input": {
+        "profile": "contract_compensation",
+        "cause_of_action": "2021-01-01",
+        "intended_filing": "2024-06-01",
+        "mediation_start": "2023-10-01",
+        "mediation_end": "2023-11-01"
+      },
+      "output": {
+        "success": true,
+        "status": "LEGALLY BARRED / EXPIRED",
+        "status_color": "red",
+        "statute_applied": "Article 55, Limitation Act, 1963 — 3 years (Compensation for breach of contract)",
+        "days_overdue": 152,
+        "fatal_flaw": "Counting 3 years under Article 55 from 1 January 2021, the last day to file is 1 January 2024. The filing on 1 June 2024 is 152 days late. Excluding the 31 days of pre-institution mediation still leaves it 121 days late. Under Section 3 a suit filed after the prescribed period must be dismissed, even if limitation is not raised as a defence.",
+        "curative_strategies": [
+          "Delay in filing a suit cannot be condoned. Section 5 applies only to appeals and applications, so the remedy lies in showing that the period has not in fact expired.",
+          "Section 18: a written acknowledgment of liability, signed by the defendant before 1 January 2024, starts a fresh period from the date it was signed.",
+          "Section 19: a payment on account of the debt or interest, made before the period expired, starts a fresh period from the date of payment.",
+          "Section 14: if a civil proceeding on the same matter was prosecuted in good faith in a court without jurisdiction, the time it was pending is excluded.",
+          "Section 17: where the right or the facts were concealed by fraud, or the suit is for relief from a mistake, time runs from when it was discovered.",
+          "Check whether the suit, as actually framed, falls under a different article with a longer period or a later starting point."
+        ],
+        "profile": "contract_compensation",
+        "profile_label": "Compensation for breach of contract",
+        "article": "Article 55",
+        "limitation_years": 3,
+        "period_runs_from": "When the contract is broken; for successive breaches, when the breach sued on occurs; for a continuing breach, when it ceases.",
+        "cause_of_action": "2021-01-01",
+        "intended_filing": "2024-06-01",
+        "bare_deadline": "2024-01-01",
+        "mediation": {
+          "start": "2023-10-01",
+          "end": "2023-11-01",
+          "end_assumed": false,
+          "capped": false,
+          "began_after_expiry": false,
+          "excluded_days": 31
+        },
+        "adjusted_deadline": "2024-02-01",
+        "adjusted_days_overdue": 121,
+        "relies_on_mediation_exclusion": false
+      },
+      "display": {
+        "days": "152 days past the last day to file",
+        "lastDay": "1 January 2024",
+        "mediationExcluded": "31 days (1 October 2023 to 1 November 2023)",
+        "withExclusion": "1 February 2024"
+      }
+    },
+    {
+      "name": "mediation-only",
+      "input": {
+        "profile": "contract_compensation",
+        "cause_of_action": "2022-01-10",
+        "intended_filing": "2025-03-01",
+        "mediation_start": "2024-11-01",
+        "mediation_end": "2025-02-15"
+      },
+      "output": {
+        "success": true,
+        "status": "WITHIN TIME ONLY WITH THE SECTION 12A EXCLUSION",
+        "status_color": "amber",
+        "statute_applied": "Article 55, Limitation Act, 1963 — 3 years (Compensation for breach of contract)",
+        "days_overdue": 50,
+        "fatal_flaw": "Counting 3 years under Article 55 from 10 January 2022, the last day to file is 10 January 2025. The filing on 1 March 2025 is 50 days after that, and is in time only if the 106 days spent in pre-institution mediation are excluded under Section 12A(5) of the Commercial Courts Act, 2015, which moves the last day to 26 April 2025.",
+        "curative_strategies": [
+          "File on or before 26 April 2025, and plead the Section 12A(5) exclusion expressly in the plaint.",
+          "The exclusion applies only to a commercial dispute of specified value in which pre-institution mediation under Section 12A was actually undertaken. Confirm both before relying on it.",
+          "Keep the mediation application and the Mediation Authority's report: they are the proof of the dates excluded.",
+          "Without the exclusion the suit is 50 days late, and delay in filing a suit cannot be condoned — Section 5 applies to appeals and applications, not suits."
+        ],
+        "profile": "contract_compensation",
+        "profile_label": "Compensation for breach of contract",
+        "article": "Article 55",
+        "limitation_years": 3,
+        "period_runs_from": "When the contract is broken; for successive breaches, when the breach sued on occurs; for a continuing breach, when it ceases.",
+        "cause_of_action": "2022-01-10",
+        "intended_filing": "2025-03-01",
+        "bare_deadline": "2025-01-10",
+        "mediation": {
+          "start": "2024-11-01",
+          "end": "2025-02-15",
+          "end_assumed": false,
+          "capped": false,
+          "began_after_expiry": false,
+          "excluded_days": 106
+        },
+        "adjusted_deadline": "2025-04-26",
+        "adjusted_days_overdue": -56,
+        "relies_on_mediation_exclusion": true
+      },
+      "display": {
+        "days": "50 days late without the exclusion · 56 days remaining with it",
+        "lastDay": "10 January 2025",
+        "mediationExcluded": "106 days (1 November 2024 to 15 February 2025)",
+        "withExclusion": "26 April 2025"
+      }
+    },
+    {
+      "name": "capped-mediation",
+      "input": {
+        "profile": "contract_compensation",
+        "cause_of_action": "2022-01-10",
+        "intended_filing": "2025-05-01",
+        "mediation_start": "2024-06-01",
+        "mediation_end": "2025-03-01"
+      },
+      "output": {
+        "success": true,
+        "status": "WITHIN TIME ONLY WITH THE SECTION 12A EXCLUSION",
+        "status_color": "amber",
+        "statute_applied": "Article 55, Limitation Act, 1963 — 3 years (Compensation for breach of contract)",
+        "days_overdue": 111,
+        "fatal_flaw": "Counting 3 years under Article 55 from 10 January 2022, the last day to file is 10 January 2025. The filing on 1 May 2025 is 111 days after that, and is in time only if the 153 days spent in pre-institution mediation are excluded under Section 12A(5) of the Commercial Courts Act, 2015, which moves the last day to 12 June 2025.",
+        "curative_strategies": [
+          "File on or before 12 June 2025, and plead the Section 12A(5) exclusion expressly in the plaint.",
+          "The exclusion applies only to a commercial dispute of specified value in which pre-institution mediation under Section 12A was actually undertaken. Confirm both before relying on it.",
+          "Keep the mediation application and the Mediation Authority's report: they are the proof of the dates excluded.",
+          "Without the exclusion the suit is 111 days late, and delay in filing a suit cannot be condoned — Section 5 applies to appeals and applications, not suits.",
+          "The mediation period was capped at five months from 1 June 2024: Section 12A(3) allows three months, extendable by two with consent, and no more."
+        ],
+        "profile": "contract_compensation",
+        "profile_label": "Compensation for breach of contract",
+        "article": "Article 55",
+        "limitation_years": 3,
+        "period_runs_from": "When the contract is broken; for successive breaches, when the breach sued on occurs; for a continuing breach, when it ceases.",
+        "cause_of_action": "2022-01-10",
+        "intended_filing": "2025-05-01",
+        "bare_deadline": "2025-01-10",
+        "mediation": {
+          "start": "2024-06-01",
+          "end": "2024-11-01",
+          "end_assumed": false,
+          "capped": true,
+          "began_after_expiry": false,
+          "excluded_days": 153
+        },
+        "adjusted_deadline": "2025-06-12",
+        "adjusted_days_overdue": -42,
+        "relies_on_mediation_exclusion": true
+      },
+      "display": {
+        "days": "111 days late without the exclusion · 42 days remaining with it",
+        "lastDay": "10 January 2025",
+        "mediationExcluded": "153 days (1 June 2024 to 1 November 2024, capped at five months)",
+        "withExclusion": "12 June 2025"
+      }
+    },
+    {
+      "name": "began-after-expiry",
+      "input": {
+        "profile": "residuary",
+        "cause_of_action": "2020-01-01",
+        "intended_filing": "2023-05-01",
+        "mediation_start": "2023-03-01",
+        "mediation_end": "2023-04-01"
+      },
+      "output": {
+        "success": true,
+        "status": "LEGALLY BARRED / EXPIRED",
+        "status_color": "red",
+        "statute_applied": "Article 113, Limitation Act, 1963 — 3 years (Any other suit (residuary))",
+        "days_overdue": 120,
+        "fatal_flaw": "Counting 3 years under Article 113 from 1 January 2020, the last day to file is 1 January 2023. The filing on 1 May 2023 is 120 days late. Under Section 3 a suit filed after the prescribed period must be dismissed, even if limitation is not raised as a defence.",
+        "curative_strategies": [
+          "Delay in filing a suit cannot be condoned. Section 5 applies only to appeals and applications, so the remedy lies in showing that the period has not in fact expired.",
+          "Section 18: a written acknowledgment of liability, signed by the defendant before 1 January 2023, starts a fresh period from the date it was signed.",
+          "Section 19: a payment on account of the debt or interest, made before the period expired, starts a fresh period from the date of payment.",
+          "Section 14: if a civil proceeding on the same matter was prosecuted in good faith in a court without jurisdiction, the time it was pending is excluded.",
+          "Section 17: where the right or the facts were concealed by fraud, or the suit is for relief from a mistake, time runs from when it was discovered.",
+          "Check whether the suit, as actually framed, falls under a different article with a longer period or a later starting point.",
+          "Mediation began on 1 March 2023, after the period had already run out on 1 January 2023. An exclusion pauses a running period; it cannot revive one that has expired, so it does not help here."
+        ],
+        "profile": "residuary",
+        "profile_label": "Any other suit (residuary)",
+        "article": "Article 113",
+        "limitation_years": 3,
+        "period_runs_from": "When the right to sue accrues.",
+        "cause_of_action": "2020-01-01",
+        "intended_filing": "2023-05-01",
+        "bare_deadline": "2023-01-01",
+        "mediation": {
+          "start": "2023-03-01",
+          "end": "2023-04-01",
+          "end_assumed": false,
+          "capped": false,
+          "began_after_expiry": true,
+          "excluded_days": 0
+        },
+        "adjusted_deadline": "2023-01-01",
+        "adjusted_days_overdue": 120,
+        "relies_on_mediation_exclusion": false
+      },
+      "display": {
+        "days": "120 days past the last day to file",
+        "lastDay": "1 January 2023",
+        "mediationExcluded": "None — it began after the period had expired",
+        "withExclusion": null
+      }
+    },
+    {
+      "name": "end-assumed",
+      "input": {
+        "profile": "contract_compensation",
+        "cause_of_action": "2022-01-10",
+        "intended_filing": "2025-02-01",
+        "mediation_start": "2024-12-01"
+      },
+      "output": {
+        "success": true,
+        "status": "WITHIN TIME ONLY WITH THE SECTION 12A EXCLUSION",
+        "status_color": "amber",
+        "statute_applied": "Article 55, Limitation Act, 1963 — 3 years (Compensation for breach of contract)",
+        "days_overdue": 22,
+        "fatal_flaw": "Counting 3 years under Article 55 from 10 January 2022, the last day to file is 10 January 2025. The filing on 1 February 2025 is 22 days after that, and is in time only if the 62 days spent in pre-institution mediation are excluded under Section 12A(5) of the Commercial Courts Act, 2015, which moves the last day to 13 March 2025.",
+        "curative_strategies": [
+          "File on or before 13 March 2025, and plead the Section 12A(5) exclusion expressly in the plaint.",
+          "The exclusion applies only to a commercial dispute of specified value in which pre-institution mediation under Section 12A was actually undertaken. Confirm both before relying on it.",
+          "Keep the mediation application and the Mediation Authority's report: they are the proof of the dates excluded.",
+          "Without the exclusion the suit is 22 days late, and delay in filing a suit cannot be condoned — Section 5 applies to appeals and applications, not suits.",
+          "No end date was entered for mediation, so it was taken to run until 1 February 2025. Enter the date of the Authority's report for an exact figure."
+        ],
+        "profile": "contract_compensation",
+        "profile_label": "Compensation for breach of contract",
+        "article": "Article 55",
+        "limitation_years": 3,
+        "period_runs_from": "When the contract is broken; for successive breaches, when the breach sued on occurs; for a continuing breach, when it ceases.",
+        "cause_of_action": "2022-01-10",
+        "intended_filing": "2025-02-01",
+        "bare_deadline": "2025-01-10",
+        "mediation": {
+          "start": "2024-12-01",
+          "end": "2025-02-01",
+          "end_assumed": true,
+          "capped": false,
+          "began_after_expiry": false,
+          "excluded_days": 62
+        },
+        "adjusted_deadline": "2025-03-13",
+        "adjusted_days_overdue": -40,
+        "relies_on_mediation_exclusion": true
+      },
+      "display": {
+        "days": "22 days late without the exclusion · 40 days remaining with it",
+        "lastDay": "10 January 2025",
+        "mediationExcluded": "62 days (1 December 2024 to 1 February 2025, end date assumed)",
+        "withExclusion": "13 March 2025"
+      }
+    },
+    {
+      "name": "safe-exclusion-not-needed",
+      "input": {
+        "cause_of_action": "2023-06-01",
+        "intended_filing": "2024-06-01",
+        "mediation_start": "2024-01-01",
+        "mediation_end": "2024-02-01"
+      },
+      "output": {
+        "success": true,
+        "status": "SAFE / WITHIN TIME",
+        "status_color": "emerald",
+        "statute_applied": "Article 55, Limitation Act, 1963 — 3 years (Compensation for breach of contract)",
+        "days_overdue": -730,
+        "fatal_flaw": "Counting 3 years under Article 55 from 1 June 2023, the last day to file is 1 June 2026. The filing on 1 June 2024 is within time, with 730 days to spare.",
+        "curative_strategies": [
+          "File on or before 1 June 2026. That leaves 730 days.",
+          "Confirm the date entered is the one Article 55 counts from — \"When the contract is broken; for successive breaches, when the breach sued on occurs; for a continuing breach, when it ceases.\" A correct period counted from the wrong day is still wrong.",
+          "If the last day falls on a day the court is closed, Section 4 allows filing on the day it reopens — but do not plan around it.",
+          "The mediation exclusion would extend the last day to 2 July 2026, but on these dates it is not needed."
+        ],
+        "profile": "contract_compensation",
+        "profile_label": "Compensation for breach of contract",
+        "article": "Article 55",
+        "limitation_years": 3,
+        "period_runs_from": "When the contract is broken; for successive breaches, when the breach sued on occurs; for a continuing breach, when it ceases.",
+        "cause_of_action": "2023-06-01",
+        "intended_filing": "2024-06-01",
+        "bare_deadline": "2026-06-01",
+        "mediation": {
+          "start": "2024-01-01",
+          "end": "2024-02-01",
+          "end_assumed": false,
+          "capped": false,
+          "began_after_expiry": false,
+          "excluded_days": 31
+        },
+        "adjusted_deadline": "2026-07-02",
+        "adjusted_days_overdue": -761,
+        "relies_on_mediation_exclusion": false
+      },
+      "display": {
+        "days": "730 days remaining",
+        "lastDay": "1 June 2026",
+        "mediationExcluded": "31 days (1 January 2024 to 1 February 2024)",
+        "withExclusion": "2 July 2026"
+      }
+    }
+  ]
+}

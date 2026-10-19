@@ -72,6 +72,8 @@ final class Session {
     let calendarFeed: CalendarFeedService
     /// The server-run analysis tools — Doc Index, List of Dates, Devil's Advocate.
     let analysis: AnalysisService
+    /// The Limitation Radar's audit.
+    let limitationRadar: LimitationRadarService
 
     let cache: ResponseCache
 
@@ -125,6 +127,7 @@ final class Session {
         self.complianceCalendar = ComplianceCalendarService(client: client)
         self.calendarFeed = CalendarFeedService(client: client, baseURL: config.baseURL)
         self.analysis = AnalysisService(client: client)
+        self.limitationRadar = LimitationRadarService(client: client)
         self.store = store
         self.cache = cache
         self.signInFlow = SignInFlow(auth: auth)
