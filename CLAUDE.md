@@ -290,6 +290,12 @@ Full detail in `README.md`. The short list:
     worth retrying; `/judgment` says `file_missing` for a row whose text is not on the host and
     `too_large` past 8 MB; a row's `ext` carries the dot (`.pdf`). `/file` answers a JSON 404 for
     a missing file, so the reading room HEADs first and sniffs the bytes. See `LibraryService`.
+36. **`searchMode: "web"` is a request, not a switch.** The server searches on keywords anyway,
+    and skips the search on a turn that carries attachments. The web's research Sources reach no
+    request; only Web search does, and only from this client (`ResearchSources`).
+37. **`/draft-feedback` answers `ok`, not `success`** — `{ok: true, id}`, or `400 {ok: false,
+    error}` when there is neither a rating nor a comment. It trims a long comment or draft
+    rather than refusing it; `FeedbackService` caps both first.
 
 ## Runtime connectivity
 
