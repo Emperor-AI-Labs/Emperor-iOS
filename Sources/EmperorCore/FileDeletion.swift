@@ -16,6 +16,8 @@ struct FileDeletion: Identifiable, Equatable, Sendable {
     }
 
     let target: Target
+    /// Whether the document belongs to a matter, which changes how its going is described.
+    private(set) var isInMatter = false
 
     var id: String {
         switch target {
@@ -40,6 +42,14 @@ struct FileDeletion: Identifiable, Equatable, Sendable {
 
     init(file: FileNode.StoredFile) {
         target = .file(file)
+    }
+
+    /// A document in a matter's Files, worded as the web's matter Files section words it
+    /// (`src/components/projects/sections/FilesSection.jsx`, `DeleteDialog`): it goes from the
+    /// matter, and the conversations that already quoted it keep what they said.
+    init(matterFile file: FileNode.StoredFile) {
+        target = .file(file)
+        isInMatter = true
     }
 
     /// `nil` for the storage root.
@@ -67,6 +77,10 @@ struct FileDeletion: Identifiable, Equatable, Sendable {
 
     var message: String {
         switch target {
+        case .file where isInMatter:
+            return "It will be permanently deleted from this matter, with the text and search index "
+                + "built from it. Conversations that already quoted it keep what they said. This "
+                + "cannot be undone."
         case .file(let file):
             return "It will be permanently deleted from \(FileBrowser.location(of: file)), along with "
                 + "the text and search index built from it. This cannot be undone."

@@ -34,15 +34,20 @@ final class ProjectDetailViewModel {
 
     private let service: any ProjectProviding
     private let todayKey: () -> String
+    /// Rename and delete for the matter's own documents — the routes My Files uses, addressed by
+    /// the matter's folder. Without it neither is offered.
+    private let fileManager: (any FileManaging)?
 
     init(
         projectID: String,
         service: any ProjectProviding,
-        todayKey: @escaping () -> String = { WireDate.todayKey() }
+        todayKey: @escaping () -> String = { WireDate.todayKey() },
+        fileManager: (any FileManaging)? = nil
     ) {
         self.projectID = projectID
         self.service = service
         self.todayKey = todayKey
+        self.fileManager = fileManager
     }
 
     var project: Project? { detail?.project }
@@ -601,6 +606,73 @@ final class ProjectDetailViewModel {
         }
         if ok { await loadFiles() }
         return ok
+    }
+
+    // MARK: - The matter's documents: rename and delete
+
+    /// Whether a matter's document can be renamed and deleted from here.
+    var offersFileEditing: Bool { fileManager != nil }
+
+    /// Non-nil while a deletion's confirmation is on screen.
+    var pendingFileDeletion: FileDeletion?
+
+    /// The document an edit is running against, so its row shows it.
+    private(set) var busyFilePath: String?
+
+    func isBusy(_ file: FileNode.StoredFile) -> Bool { busyFilePath == file.path }
+
+    /// Asks before deleting, in the matter's own words (`FileDeletion.init(matterFile:)`).
+    func requestDeletion(of file: FileNode.StoredFile) {
+        guard fileManager != nil else { return }
+        pendingFileDeletion = FileDeletion(matterFile: file)
+    }
+
+    func cancelFileDeletion() { pendingFileDeletion = nil }
+
+    /// Deletes what the confirmation named, then lists the matter's files again.
+    ///
+    /// Addressed by the folder the server listed it in — `_projects/<id>/Pleadings` — exactly as
+    /// the web's Files section addresses it, so a document of the same name in My Files or in
+    /// another matter is never the one touched. The re-read is unconditional: the route answers
+    /// success for a path that is not there, so only the listing says what the matter holds.
+    func confirmFileDeletion(_ plan: FileDeletion) async {
+        pendingFileDeletion = nil
+        guard case .file(let file) = plan.target else { return }
+        await editFile(file) { manager in
+            try await manager.delete(name: file.name, folderName: file.folderPath)
+            return plan.doneNotice
+        }
+    }
+
+    /// Renames a matter's document where it stands.
+    ///
+    /// - Important: the name typed is a request. The server keeps the extension and sanitises the
+    ///   rest, so what is said afterwards is the name it echoed (`FileEditWording`).
+    func renameFile(_ file: FileNode.StoredFile, to newName: String) async {
+        let requested = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !requested.isEmpty, requested != file.name else { return }
+        await editFile(file) { manager in
+            let result = try await manager.rename(name: file.name, in: file.folderPath, to: requested)
+            return FileEditWording.renamed(result, requested: requested)
+        }
+    }
+
+    private func editFile(
+        _ file: FileNode.StoredFile, _ body: (any FileManaging) async throws -> String
+    ) async {
+        guard let fileManager, !isWriting else { return }
+        isWriting = true
+        busyFilePath = file.path
+        writeError = nil
+        notice = nil
+        do {
+            notice = try await body(fileManager)
+        } catch {
+            writeError = DisplayText.message(for: error)
+        }
+        isWriting = false
+        busyFilePath = nil
+        await loadFiles()
     }
 
     /// The attach report in one line: "2 attached · 1 skipped".
