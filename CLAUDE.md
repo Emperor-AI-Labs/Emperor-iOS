@@ -225,9 +225,10 @@ Full detail in `README.md`. The short list:
     whose incoming `messages` array is shorter than the count it holds, so a metadata-only
     update — which is what a rename is — does nothing at all to a conversation that has ever
     been used, and says it worked. Sending the messages instead makes it delete and re-insert
-    every one of them. This is why chat rename has no caller; see `ChatMetadataService`. The one
-    thing this client writes through `/sync` is a finished turn's work log, under `WorkLogSync`'s
-    conditions (fresh read, exact match, the stored bytes sent back).
+    every one of them. This is why chat rename has no caller; see `ChatMetadataService`. The two
+    things this client writes through `/sync` are a finished turn's work log, under `WorkLogSync`'s
+    conditions (fresh read, exact match, the stored bytes sent back), and an edited draft, under
+    the same conditions (`DraftEditSync`).
 20. **`/check-duplicates` is the one route that refuses a client-supplied `userId`**, because
     its answer says which folders hold a document. It 401s without a real token, and that
     **must not block an upload** — the prompt is a courtesy and the server dedupes on arrival
@@ -290,6 +291,11 @@ Full detail in `README.md`. The short list:
     worth retrying; `/judgment` says `file_missing` for a row whose text is not on the host and
     `too_large` past 8 MB; a row's `ext` carries the dot (`.pdf`). `/file` answers a JSON 404 for
     a missing file, so the reading room HEADs first and sniffs the bytes. See `LibraryService`.
+36. **Every write of a conversation re-files its drafts.** `/chat` and `/sync` derive a Drafts
+    row from each assistant message and recognise one they already hold only by a hash of its
+    cleaned body, so an edited draft synced on its own appears twice in Drafts. Save the edit over
+    the original row by id (`POST /save-document`) with the body exactly as the server derives it
+    (`DraftEdit.storedDraft`) *before* the sync. See `DraftEditService`.
 
 ## Runtime connectivity
 

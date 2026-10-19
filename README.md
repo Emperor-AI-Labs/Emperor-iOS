@@ -76,9 +76,9 @@ with exactly what the request contained, plus the new answer. Anything omitted f
 message with every key it was stored with. A field this client does not model (the web's work
 log, `serverRun`) is deleted unless it goes back; `ChatMessage.extra` keeps them.
 
-**`POST /sync` after a chat turn is for the work log only, and only when it is provably
-safe.** `/chat` already persists the turn, and `/sync` either silently ignores a chat whose
-message count is lower than the server's or deletes and re-inserts every message of it. The web
+**`POST /sync` after a chat turn is for the work log and an edited draft only, and only when
+it is provably safe.** `/chat` already persists the turn, and `/sync` either silently ignores a
+chat whose message count is lower than the server's or deletes and re-inserts every message of it. The web
 calls it at the end of every turn to store the turn's work log — safe for the web because at
 that instant its array is exactly what the server holds. This client does the same only when
 `WorkLogSync` allows: the turn ended cleanly, the history loaded whole, `/stream-status`
@@ -86,7 +86,16 @@ reports nothing running, and a fresh `GET /messages` matches the transcript mess
 message, ending in this client's own question (by id) and the server's finished answer. What it
 posts is those stored bytes with the log added to the last message — never a re-encoding — and
 its next turn waits for it. A save that does not happen is silent; the answer is stored either
-way.
+way. An edited draft is written back under the same discipline (`DraftEditSync`): a fresh read
+must match message for message, and the stored bytes go back with the one turn's `content`
+replaced.
+
+**The server files a Drafts row from every assistant message on every write**, `/chat` and
+`/sync` alike, and recognises a draft it already holds only by a hash of its cleaned body. An
+edited body, synced on its own, is therefore filed as a second row beside the original. Saving
+the edit over the original row by id first — with the body exactly as the server will derive it
+(`DraftEdit.storedDraft`, held to `setMessages` by `scripts/generate-draft-edit-fixtures.mjs`)
+— is what makes the sync that follows land on that row instead.
 
 **A 200 on the final upload chunk means "bytes received", not "file ready".** Assembly,
 OCR and indexing all run after the response has closed, so a failure there produces no HTTP
@@ -485,6 +494,32 @@ plan rows it never reached pending, where the web ticks every row.
   delegate callbacks, and above all the terminate-and-relaunch path, need a physical device. A
   simulator does not evict apps the way a phone under memory pressure does.
   `docs/RELEASING.md` lists what to try, in order.
+
+### Editing a draft in place
+
+The last draft of a conversation can be edited where it is read, as on the web
+(`src/tools/useDocEditor.js`): Edit in the draft viewer switches the page itself into editing,
+with a bar above the keyboard — undo, redo, bold, italic, underline, bulleted and numbered lists,
+left, centre and right — each one `document.execCommand`, so the page keeps its own undo. The
+scripts are `DraftEditScript`, run in the app's script world; the page's own JavaScript stays off.
+Done reads the page back through the web's export rules (`DraftEdit.scrub`: edit attributes out,
+`align` to `text-align`, `<font>` unwrapped, script, style, meta, link and base dropped, WebKit's
+paste marker gone) and folds it into the assistant turn the draft came from, exactly where the
+web's `withEditedDraft` would (`DraftEdit.withEditedDraft`, held to the web's own function by
+`scripts/generate-draft-edit-fixtures.mjs`). Citation tokens the edit lost are carried, unseen.
+Only the last assistant turn takes an edit: position is identity, as on the web, and a question
+asked since stops it. A Markdown List of Dates is edited as the HTML table it is drawn as, and
+stored as that, inside its own `<table_content>`.
+
+The fold alone guarantees what the web's chat path does — every later question carries the edit.
+`ChatViewModel.commitDraftEdit` then stores it (`DraftEditService`): the Drafts row the original
+was filed under is found (`GET /documents?chatId=`, each candidate's content read back) and
+rewritten with `POST /save-document` and its id, then the conversation goes back through the
+guarded `/sync`. The order matters — see "The server files a Drafts row" above. The viewer says
+where the edit stands: saved; kept in the conversation and stored with the next question (the stored
+conversation had moved on); or not saved, with Retry. Cancel asks before throwing typing away.
+The outline button lists the draft's headings — `h1`–`h4`, and a paragraph that is one short bold
+run, as the web's rail reads them (`DraftEdit.anchored`) — and scrolls the page to each.
 
 ### Built and deliberately held back
 These exist, are tested, and have no caller. Each is marked at its definition. **Do not wire one
