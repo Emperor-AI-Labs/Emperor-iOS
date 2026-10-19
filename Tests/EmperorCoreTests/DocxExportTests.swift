@@ -130,7 +130,7 @@ final class DocxExportTests: XCTestCase {
 
     /// The grid is sized to the page it will be printed on, not left to chance.
     func testColumnsShareTheUsablePageWidth() {
-        // A4 is 11906 twips; the margins take 1418 and 1134, leaving 9354 to divide.
+        // A4 is 11906 twips; the default margins take 1417 and 1134, leaving 9355 to divide.
         XCTAssertTrue(document("<table><tr><td>a</td><td>b</td></tr></table>")
             .contains("<w:gridCol w:w=\"4677\"/>"))
     }
@@ -271,9 +271,10 @@ final class DocxExportTests: XCTestCase {
         let text = String(
             decoding: DocxDocument.make(fromHTML: "<p><img src=\"\(uri)\"></p>"), as: UTF8.self)
 
-        // The usable column is 9354 twips, and a twip is 635 EMU.
-        XCTAssertTrue(text.contains("cx=\"5939790\""), "clamped to the column")
-        XCTAssertTrue(text.contains("cy=\"2969895\""), "and the aspect ratio is kept")
+        // On the default page (A4, the web's 25/20 mm margins) the usable column is 9355 twips,
+        // and a twip is 635 EMU.
+        XCTAssertTrue(text.contains("cx=\"5940425\""), "clamped to the column")
+        XCTAssertTrue(text.contains("cy=\"2970213\""), "and the aspect ratio is kept")
     }
 
     /// An export must not depend on the network or on a credential, so a remote picture is not

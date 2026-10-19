@@ -29,11 +29,17 @@ enum DocxDocument {
 
     private static let font = "Bookman Old Style"
 
-    /// The finished `.docx` for a drafted HTML fragment.
-    static func make(fromHTML fragment: String) -> Data {
-        var pictures: [Picture] = []
-        let body = paragraphs(from: HTMLFragment.parse(fragment), pictures: &pictures)
-        return archive(documentBody: body.isEmpty ? emptyParagraph : body, pictures: pictures)
+    /// The finished `.docx` for a drafted HTML fragment, laid out on `pageSetup` — the sheet and
+    /// margins in the section properties, and every table and picture fitted to the width left
+    /// between the margins.
+    static func make(fromHTML fragment: String, pageSetup: DocumentPageSetup = .default) -> Data {
+        $usableWidthTwips.withValue(pageSetup.contentWidthTwips) {
+            var pictures: [Picture] = []
+            let body = paragraphs(from: HTMLFragment.parse(fragment), pictures: &pictures)
+            return archive(
+                documentBody: body.isEmpty ? emptyParagraph : body, pictures: pictures,
+                sectionProperties: pageSetup.docxSectionProperties)
+        }
     }
 
     /// A picture on its way into the package: its bytes, and the relationship the document
@@ -49,7 +55,9 @@ enum DocxDocument {
 
     // MARK: - Assembling the package
 
-    private static func archive(documentBody: String, pictures: [Picture]) -> Data {
+    private static func archive(
+        documentBody: String, pictures: [Picture], sectionProperties: String
+    ) -> Data {
         var zip = ZipArchive()
         // `[Content_Types].xml` must be the first entry. Word will not open a package whose
         // content types it cannot find before the parts they describe.
@@ -111,12 +119,6 @@ enum DocxDocument {
         return out + "</Relationships>"
     }
 
-    /// A4 with the margins a registry expects, in twentieths of a point.
-    private static let sectionProperties = """
-        <w:sectPr><w:pgSz w:w="11906" w:h="16838"/>\
-        <w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1418" w:gutter="0"/></w:sectPr>
-        """
-
     private static let styles = """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <w:styles xmlns:w="\(wordNamespace)">\
@@ -168,8 +170,10 @@ enum DocxDocument {
 
     private static let emptyParagraph = "<w:p/>"
 
-    /// A4 less the margins declared in `sectionProperties`, in twips — what a table has to fit.
-    private static let usableWidthTwips = 11906 - 1418 - 1134
+    /// The page's width less its margins, in twips — what a table or a picture has to fit. Set
+    /// for the length of one `make` from its page setup; the block walkers below read it rather
+    /// than each taking the setup as one more parameter.
+    @TaskLocal private static var usableWidthTwips = DocumentPageSetup.default.contentWidthTwips
 
     // MARK: - Blocks
 

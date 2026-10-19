@@ -46,6 +46,9 @@ let package = Package(
                 // The Limitation Radar's suit types and answers, from the platform's `audit.js` —
                 // `scripts/generate-limitation-fixtures.mjs`.
                 .copy("Resources/limitation-radar.json"),
+                // The composer and export options — draft length, research sources, page setup —
+                // from `scripts/generate-{draft-depth,research-sources,page-setup}-fixtures.mjs`.
+                .copy("Resources/composer"),
             ]),
     ]
 )
