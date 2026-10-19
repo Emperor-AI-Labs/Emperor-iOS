@@ -70,6 +70,8 @@ final class Session {
     /// The private calendar-subscription link. Takes the base URL because the route answers a
     /// path that has to be resolved against it.
     let calendarFeed: CalendarFeedService
+    /// The server-run analysis tools — Doc Index, List of Dates, Devil's Advocate.
+    let analysis: AnalysisService
 
     let cache: ResponseCache
 
@@ -122,6 +124,7 @@ final class Session {
         self.officePreview = OfficePreviewService(client: client)
         self.complianceCalendar = ComplianceCalendarService(client: client)
         self.calendarFeed = CalendarFeedService(client: client, baseURL: config.baseURL)
+        self.analysis = AnalysisService(client: client)
         self.store = store
         self.cache = cache
         self.signInFlow = SignInFlow(auth: auth)
