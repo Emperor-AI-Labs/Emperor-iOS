@@ -1,111 +1,196 @@
 import SwiftUI
 
-/// Reports a generated answer.
+/// Feedback on a draft, a table or an answer — the web's `DraftFeedbackButton` modal: Good or
+/// Needs work, any of six categories, and what to fix. A rating or a comment is enough.
 ///
 /// Both stores expect a product that publishes AI-generated content to give the reader a way to
-/// flag it, and this app had none. It matters beyond the requirement: the model can cite a page
-/// that does not say what it claims, and a practitioner who spots that has, until now, had
-/// nowhere to put it.
+/// flag it, and this is that way: the model can cite a page that does not say what it claims, and
+/// a practitioner who spots it needs somewhere to put it.
 ///
-/// The answer's own text is **not** attached — only the conversation id. The reported answer is
-/// already stored server-side, and copying privileged client material into a second table buys
-/// a reviewer nothing they cannot already reach.
-struct ReportAnswerSheet: View {
+/// When the feedback is about a draft, the draft's text goes with it, as on the web — a rating
+/// with no document to look at tells a reviewer nothing. The footer says so before the tap; an
+/// answer with no draft sends only its conversation's id.
+struct DraftFeedbackSheet: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
     @Environment(Session.self) private var session
 
-    let chatID: String?
+    let target: DraftFeedbackTarget
+    /// The rating the sheet opens on — a thumb tapped under an answer.
+    var initialRating: DraftFeedbackRating?
 
-    @State private var reason: ReportReason = .wrongLaw
-    @State private var comment = ""
-    @State private var isSending = false
-    @State private var failure: String?
-    @State private var didSend = false
-
-    private var remaining: Int { FeedbackService.commentLimit - comment.count }
+    @State private var model: DraftFeedbackViewModel?
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    Picker("Reason", selection: $reason) {
-                        ForEach(ReportReason.allCases) { option in
-                            Text(option.label).tag(option)
-                        }
-                    }
-                    .pickerStyle(.inline)
-                } header: {
-                    SectionHeader(title: "What is wrong with it")
+            Group {
+                if let model {
+                    DraftFeedbackForm(model: model)
+                } else {
+                    ProgressView()
                 }
-                .listRowBackground(theme.surface)
-
-                Section {
-                    TextField("Anything that would help (optional)", text: $comment, axis: .vertical)
-                        .lineLimit(3...8)
-                } footer: {
-                    // Said before the tap. The server truncates a long comment rather than
-                    // rejecting it, so someone typing past the limit would otherwise lose the
-                    // end of their explanation and never be told.
-                    if remaining < 500 {
-                        Text("\(max(remaining, 0)) characters left.")
-                            .font(.brand(.caption))
-                            .monospacedDigit()
-                            .foregroundStyle(remaining < 0 ? theme.danger : theme.textTertiary)
-                    } else {
-                        Text("The answer itself is not sent — only this conversation's id, so a reviewer can find it.")
-                            .font(.brand(.caption))
-                            .foregroundStyle(theme.textSecondary)
-                    }
-                }
-                .listRowBackground(theme.surface)
             }
-            .font(.brand(.body))
-            .scrollContentBackground(.hidden)
-            .background(theme.groupedBackground)
-            .navigationTitle("Report this answer")
+            .navigationTitle(model?.title ?? "Feedback")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .disabled(model?.isSending ?? false)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    if isSending {
+                    if model?.isSending ?? false {
                         ProgressView()
                     } else {
-                        Button("Send", action: send)
+                        Button("Submit") { submit() }
+                            .disabled(!(model?.canSend ?? false))
                     }
                 }
             }
-            .alert("Could not send that", isPresented: Binding(
-                get: { failure != nil },
-                set: { if !$0 { failure = nil } }
-            )) {
-                Button("OK") { failure = nil }
-            } message: {
-                Text(failure ?? "")
-            }
-            .alert("Thank you", isPresented: $didSend) {
-                Button("Done") { dismiss() }
-            } message: {
-                Text("Someone will look at this answer.")
-            }
+        }
+        .task {
+            guard model == nil else { return }
+            model = DraftFeedbackViewModel(
+                target: target, rating: initialRating, service: session.feedback)
         }
     }
 
-    private func send() {
-        isSending = true
+    private func submit() {
+        guard let model else { return }
         Task {
-            defer { isSending = false }
-            do {
-                try await session.feedback.reportAnswer(
-                    chatID: chatID, reason: reason, comment: comment)
-                didSend = true
-            } catch {
-                // The route answers 200 with `ok: false` when it refuses, so "sent" is never
-                // assumed from a status code — the service throws and it is said out loud.
-                failure = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            if await model.send() {
+                Haptics.answerComplete()
+                VoiceOver.announce(DraftFeedbackViewModel.sentMessage)
+                dismiss()
             }
+        }
+    }
+}
+
+/// The sheet's body, split out so its sections type-check on their own.
+private struct DraftFeedbackForm: View {
+    @Environment(\.theme) private var theme
+    @Bindable var model: DraftFeedbackViewModel
+
+    var body: some View {
+        Form {
+            if !model.target.title.isEmpty {
+                Section {
+                    Text(model.target.title)
+                        .font(.brand(.footnote))
+                        .foregroundStyle(theme.textSecondary)
+                        .lineLimit(2)
+                }
+                .listRowBackground(theme.surface)
+            }
+
+            Section {
+                HStack(spacing: Spacing.sm) {
+                    ForEach(DraftFeedbackRating.allCases) { rating in
+                        RatingButton(
+                            rating: rating, isOn: model.rating == rating,
+                            action: { model.toggle(rating) })
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: Spacing.sm, leading: Spacing.md, bottom: Spacing.sm, trailing: Spacing.md))
+            } header: {
+                SectionHeader(title: "How is it")
+            }
+            .listRowBackground(theme.surface)
+
+            Section {
+                ForEach(DraftFeedbackCategory.allCases) { category in
+                    Button {
+                        Haptics.selection()
+                        model.toggle(category)
+                    } label: {
+                        HStack {
+                            Text(category.label)
+                                .foregroundStyle(theme.textPrimary)
+                            Spacer()
+                            if model.isSelected(category) {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(theme.accentText)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(model.isSelected(category) ? .isSelected : [])
+                }
+            } header: {
+                SectionHeader(title: "About")
+            }
+            .listRowBackground(theme.surface)
+
+            Section {
+                TextField(
+                    DraftFeedbackViewModel.commentPrompt, text: $model.comment,
+                    prompt: Text(DraftFeedbackViewModel.commentPrompt).foregroundStyle(theme.textTertiary),
+                    axis: .vertical)
+                    .lineLimit(3...8)
+            } footer: {
+                FeedbackFooter(model: model)
+            }
+            .listRowBackground(theme.surface)
+        }
+        .font(.brand(.body))
+        .scrollContentBackground(.hidden)
+        .background(theme.groupedBackground)
+    }
+}
+
+/// Good or Needs work, as two wide buttons; tapping the chosen one again clears it.
+private struct RatingButton: View {
+    @Environment(\.theme) private var theme
+    let rating: DraftFeedbackRating
+    let isOn: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            Haptics.selection()
+            action()
+        } label: {
+            Label(rating.label, systemImage: isOn ? "\(rating.systemImage).fill" : rating.systemImage)
+                .font(.brand(.callout, weight: .medium))
+                .foregroundStyle(isOn ? theme.accentText : theme.textSecondary)
+                .frame(maxWidth: .infinity, minHeight: Layout.touchTarget)
+                .background(
+                    isOn ? theme.accentSoft : theme.surface2,
+                    in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                        .strokeBorder(isOn ? theme.accentLine : theme.separator, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+}
+
+/// What leaves the phone, the characters left near the limit, and a failed send's reason.
+private struct FeedbackFooter: View {
+    @Environment(\.theme) private var theme
+    let model: DraftFeedbackViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            if let error = model.error {
+                Text(error)
+                    .font(.brand(.caption, weight: .medium))
+                    .foregroundStyle(theme.danger)
+            }
+            // Said before the tap. The server keeps the first 5,000 characters and drops the
+            // rest, so someone typing past the limit is told rather than cut off unawares.
+            if model.remainingCharacters < 500 {
+                Text("\(max(model.remainingCharacters, 0)) characters left.")
+                    .font(.brand(.caption))
+                    .monospacedDigit()
+                    .foregroundStyle(model.remainingCharacters < 0 ? theme.danger : theme.textTertiary)
+            }
+            Text(model.privacyNote)
+                .font(.brand(.caption))
+                .foregroundStyle(theme.textSecondary)
         }
     }
 }

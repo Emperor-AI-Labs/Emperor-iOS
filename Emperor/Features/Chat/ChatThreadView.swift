@@ -14,6 +14,9 @@ struct ChatThreadView: View {
     @State private var isBrowsingFiles = false
     @State private var isFillingBlanks = false
     @State private var isReporting = false
+    /// The account's research sources on this device; its web row is "Always search the web".
+    @State private var sources: ResearchSourcesModel?
+    @State private var isChoosingSources = false
     @State private var editing: ChatMessage?
     @State private var editText = ""
     /// The reader pressed Stop on the answer now on screen. Cleared when the next question goes.
@@ -103,6 +106,10 @@ struct ChatThreadView: View {
             // answer. Without this every conversation would open as a litigator regardless of
             // who is asking.
             created.role = practice.role.wireRole
+            // Web search follows the account's Sources choice, which is what "Always" now means.
+            let researchSources = ResearchSourcesModel(store: Preferences(), userID: session.currentUser?.id)
+            created.webSearch = researchSources.searchesWeb
+            sources = researchSources
             composer = PromptEnhancerViewModel(service: session.enhancer)
             model = created
             await created.load()
@@ -471,11 +478,23 @@ struct ChatThreadView: View {
             // "Search the web" rather than a switch labelled "web search": the server searches
             // on its own when the question looks like it needs it, so this can turn searching
             // ON but cannot turn it off. Wording that implied otherwise would be contradicted.
+            //
+            // Kept for the account on this device, and the same switch as Web search in Sources.
             Toggle(isOn: Binding(
                 get: { model.webSearch },
-                set: { model.webSearch = $0 }
+                set: {
+                    model.webSearch = $0
+                    sources?.setSearchesWeb($0)
+                }
             )) {
                 Label("Always search the web", systemImage: "globe")
+            }
+
+            // The web's Sources menu. Only Web search reaches the server; the sheet says so.
+            Button {
+                isChoosingSources = true
+            } label: {
+                Label("Research sources", systemImage: "books.vertical")
             }
 
             Divider()
@@ -496,7 +515,16 @@ struct ChatThreadView: View {
             Label("More options", systemImage: "ellipsis.circle")
         }
         .sheet(isPresented: $isReporting) {
-            ReportAnswerSheet(chatID: chatID)
+            DraftFeedbackSheet(
+                target: DraftFeedbackTarget(subject: "answer", title: "", chatID: chatID, docHTML: nil),
+                initialRating: .down)
+        }
+        .sheet(isPresented: $isChoosingSources) {
+            if let sources {
+                ResearchSourcesSheet(model: sources) {
+                    model.webSearch = sources.searchesWeb
+                }
+            }
         }
         .disabled(model.isStreaming)
     }
@@ -718,8 +746,14 @@ private struct MessageBubble: View {
     /// `AnnexureListViewModel.draftAnswerID`.
     var showsAnnexures = false
 
-    @State private var isReporting = false
+    /// The feedback sheet, open on the rating its thumb asked for — or on none.
+    @State private var feedback: FeedbackOpening?
     @State private var sharing: SharedAnswer?
+
+    private struct FeedbackOpening: Identifiable {
+        let id = UUID()
+        let rating: DraftFeedbackRating?
+    }
 
     /// An answer's PDF, ready for the share sheet.
     private struct SharedAnswer: Identifiable {
@@ -843,23 +877,32 @@ private struct MessageBubble: View {
                     Label("Export as PDF", systemImage: "square.and.arrow.up")
                 }
                 Button(role: .destructive) {
-                    isReporting = true
+                    feedback = FeedbackOpening(rating: .down)
                 } label: {
                     Label("Report this answer", systemImage: "flag")
                 }
             }
-            .sheet(isPresented: $isReporting) {
-                ReportAnswerSheet(chatID: chatID)
+            .sheet(item: $feedback) { opening in
+                // About the answer's draft when it carries one, whose text then goes with it.
+                DraftFeedbackSheet(
+                    target: .answer(StreamContent.parse(message.content), chatID: chatID),
+                    initialRating: opening.rating)
             }
     }
 
-    /// Copy, share, ask again — the row under a finished answer.
+    /// Copy, share, ask again, and a thumb either way — the row under a finished answer.
     private var actions: some View {
         HStack(spacing: 2) {
             actionButton("doc.on.doc", label: "Copy", action: copy)
             actionButton("square.and.arrow.up", label: "Share", action: share)
             if let onAskAgain {
                 actionButton("arrow.clockwise", label: "Ask again", action: onAskAgain)
+            }
+            actionButton("hand.thumbsup", label: "Good answer, send feedback") {
+                feedback = FeedbackOpening(rating: .up)
+            }
+            actionButton("hand.thumbsdown", label: "Needs work, send feedback") {
+                feedback = FeedbackOpening(rating: .down)
             }
         }
         .padding(.leading, -10)
