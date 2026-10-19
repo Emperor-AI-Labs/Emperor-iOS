@@ -42,7 +42,7 @@ private func card() -> CourtSearchResult {
     return result
 }
 
-final class CourtNamesTests: XCTestCase {
+final class FetchOrdersCourtNamesTests: XCTestCase {
 
     func testShoutedNamesReadInTitleCaseWithTheAbbreviationsKept() {
         XCTAssertEqual(CourtNames.tidy("M/S PSTGEMS PRIVATE LIMITED"), "M/s Pstgems Private Limited")

@@ -7,72 +7,8 @@ import Foundation
 
 // MARK: - Names as courts print them
 
-/// Courts print cause titles and party names in capitals ("M/S PSTGEMS PRIVATE LIMITED vs. ALISHA
-/// ENTERPRISES"); a name read all day is easier in title case, keeping the abbreviations Indian
-/// litigation writes in capitals. One reading, shared with the server (which names a matter made
-/// from a tracked case with it), so the name this app shows is the name the server gives.
-enum CourtNames {
-    private static let keepCaps: Set<String> = [
-        "UOI", "NCT", "GNCTD", "DDA", "MCD", "NDMC", "CBI", "ED", "NIA", "SBI", "RBI", "SEBI", "LIC", "NHAI",
-        "ONGC", "BSES", "DMRC", "HDFC", "ICICI", "IDBI", "PNB", "BHEL", "NTPC", "GAIL", "IOCL", "BPCL", "HPCL",
-        "AIIMS", "IIT", "UP", "MP", "HP", "J&K", "UT", "LLP", "HUF", "NGO", "CEO", "ITO", "CIT", "GST", "UK",
-        "USA", "IT", "II", "III", "IV", "ANR.", "ORS.",
-    ]
-    private static let smallWords: Set<String> = ["AND", "OF", "THE", "FOR", "IN", "AS", "TO", "BY", "ON", "AT", "OR", "THROUGH", "WITH"]
-    private static let separator = TextPattern(#"^(VS\.?|V/S\.?|VERSUS)$"#)
-    private static let loneV = TextPattern(#"^V\.?$"#)
-    private static let beforeInitial = TextPattern(#"^([A-Z]\.?|[SDWC]/O\.?)$"#)
-    private static let letterRun = TextPattern(#"[A-Za-z][A-Za-z']*"#)
-    private static let spaces = TextPattern(#"\s+"#)
-
-    /// One run of letters in a capitalised word, in title case. Single letters ("U.P.", "S.K.")
-    /// and the abbreviations above stay as printed, and so does a two-letter run that is not cut
-    /// short by a full stop or a hyphen: "RK", "PS" are initials and marks, "CO." and "DR." words.
-    private static func titleRun(_ run: String, next: Character?) -> String {
-        if run.count == 1 || keepCaps.contains(run.uppercased()) { return run }
-        if run.count == 2, next != ".", next != "-" { return run }
-        return run.prefix(1) + run.dropFirst().lowercased()
-    }
-
-    /// `title: true` reads a whole cause title: vs./v/s/versus become "v." and the length is
-    /// capped, as a matter's name is. A single party's name is read without that.
-    static func tidy(_ raw: String?, title: Bool = false) -> String {
-        let words = spaces.replacing(raw ?? "", with: " ").trimmingCharacters(in: .whitespaces).split(separator: " ", omittingEmptySubsequences: false).map(String.init)
-        guard !(words.count == 1 && words[0].isEmpty) else { return "" }
-        let ups = words.map { $0.uppercased() }
-        let explicit = ups.contains { separator.test($0) }
-        func isVersus(_ i: Int) -> Bool {
-            guard title else { return false }
-            if separator.test(ups[i]) { return true }
-            return !explicit && loneV.test(ups[i]) && i > 0 && i < ups.count - 1 && !beforeInitial.test(ups[i - 1])
-        }
-        // Shouting is judged without the separators: courts write "vs." in lower case.
-        let letters = words.enumerated()
-            .filter { !separator.test(ups[$0.offset]) && !loneV.test(ups[$0.offset]) }
-            .map(\.element).joined().filter { $0.isLetter }
-        let shouting = letters.count > 3 && letters == letters.uppercased()
-        let name = words.enumerated().map { i, w -> String in
-            let up = ups[i]
-            if isVersus(i) { return "v." }
-            if !shouting { return w }
-            if up == "M/S" || up == "M/S." { return "M/s" }
-            if up == "ANR." || up == "ANR" { return "Anr." }
-            if up == "ORS." || up == "ORS" { return "Ors." }
-            if i > 0, smallWords.contains(up) { return w.lowercased() }
-            if keepCaps.contains(up) || w.contains(where: \.isNumber) { return w }
-            return letterRun.replacing(w) { g in
-                let run = g[0] ?? ""
-                // The character after the run, to tell "DR." from "RK".
-                let after: Character? = {
-                    guard let r = w.range(of: run) else { return nil }
-                    return r.upperBound < w.endIndex ? w[r.upperBound] : nil
-                }()
-                return titleRun(run, next: after)
-            }
-        }.joined(separator: " ")
-        return title && name.count > 200 ? String(name.prefix(197)) + "…" : name
-    }
-}
+// `CourtNames` (CourtNames.swift) reads the names courts print, held to the platform's
+// `src/lib/courtNames.js` by `CourtNamesGolden`; the dossier's cards and the matter list share it.
 
 // MARK: - What the dossier says
 
