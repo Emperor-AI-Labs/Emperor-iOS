@@ -78,6 +78,8 @@ final class Session {
     let supportFeedback: SupportFeedbackService
     /// The List of Annexures under a draft, and the filing-ready package — see `FilingPackage`.
     let filingAnnexures: FilingAnnexureService
+    /// Connected services: Google Drive and OneDrive, import and export — see `CloudDriveService`.
+    let cloudDrives: CloudDriveService
 
     let cache: ResponseCache
 
@@ -134,6 +136,7 @@ final class Session {
         self.limitationRadar = LimitationRadarService(client: client)
         self.supportFeedback = SupportFeedbackService(client: client)
         self.filingAnnexures = FilingAnnexureService(client: client)
+        self.cloudDrives = CloudDriveService(client: client)  // Connected services package
         self.store = store
         self.cache = cache
         self.signInFlow = SignInFlow(auth: auth)
