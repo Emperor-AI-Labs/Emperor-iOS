@@ -197,6 +197,26 @@ enum DocxDocument {
         tag: String, attributes: [String: String], children: [HTMLNode], depth: Int,
         pictures: inout [Picture]
     ) -> String {
+        let content = blockContent(
+            tag: tag, attributes: attributes, children: children, depth: depth, pictures: &pictures)
+        return breaksPageBefore(attributes) ? pageBreak + content : content
+    }
+
+    /// A hard page break, as Word spells one.
+    static let pageBreak = "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>"
+
+    /// `page-break-before: always` (or its modern spelling) — how a filing package starts each
+    /// annexure on a fresh page, and how the platform's typed copies open. Without it every
+    /// annexure ran straight on from the last line of the one before.
+    static func breaksPageBefore(_ attributes: [String: String]) -> Bool {
+        let style = (attributes["style"] ?? "").lowercased().replacingOccurrences(of: " ", with: "")
+        return style.contains("page-break-before:always") || style.contains("break-before:page")
+    }
+
+    private static func blockContent(
+        tag: String, attributes: [String: String], children: [HTMLNode], depth: Int,
+        pictures: inout [Picture]
+    ) -> String {
         let align = alignment(attributes)
         switch tag {
         case "p":
