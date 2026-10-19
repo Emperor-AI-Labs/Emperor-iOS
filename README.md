@@ -163,8 +163,8 @@ on the signed-in account. Returning to the app reads the account at once
 (`Session.noteOpenedPlans`). It is never offered for a paused account or the hourly ceiling,
 which no plan changes. App Review restricts links to purchases made outside the app (guidelines
 3.1.1 and 3.1.3) and what is allowed differs by storefront: `EMPEROR_WEB_PLANS: "NO"` in
-`project.yml` removes every button. Check the current guidelines before each submission. See
-`WebPlans`.
+`project.yml` removes every button, and Billing's coupon box and priced plans with them. Check
+the current guidelines before each submission. See `WebPlans`.
 
 **The role is the account's.** `users.practice_role` holds the web's id for it, so switching
 role in Settings switches the web too, and the other way round (`Practice`). The device keeps a
@@ -172,6 +172,13 @@ copy for drawing the toolkit offline; a switch made here that has not reached th
 is sent again rather than overwritten. A role this app does not carry — the web's Devil's
 Advocate — is left alone on the account. Needs the platform's `practice_role` change deployed;
 until then the role stays on the device and nothing breaks.
+
+**The coupon routes answer codes of their own**, outside `Refusal`: 400 `COUPON_INVALID` (the
+coupon's own reason — "That code has expired." — shown as written), 400 `NEEDS_PAYMENT`, 409
+`PLAN_DOWNGRADE` and 409 `COUPON_SPENT`. The `NEEDS_PAYMENT` and `PLAN_DOWNGRADE` sentences send
+the reader to a payment step, so `CouponRefusal` words them. A bad code is previewed as 200
+`valid:false`. Billing amounts are paise integers, and an invoice's `gstPaise` is null or 0 when
+no GST was charged.
 
 **A wrong one-time code is a 401 that says nothing about the session.** `APIError.classify`
 reads the `code` before the 401 rule, so `OTP_INVALID` is a refusal and never a sign-out.
@@ -321,6 +328,8 @@ Settings → Storage shows and clears it.
   missing. The docket's headings run Supreme Court → High Courts → NCLAT → NCLT → Tribunals →
   District Courts → Consumer Commissions → Other courts; NCLAT sits above NCLT deliberately,
   unlike the web's `COURT_ORDER`.
+- **`DELETE /case` removes a case for its whole team**, and only for the team's owner or an
+  admin (403 otherwise). A matter made from the case is kept. Read the docket again afterwards.
 - **`/compliance-calendar` returns a bare array**, and `next_due_date` can be prose — read the
   day from `dateKey`.
 - **`/calendar/feed-url` returns a path that already starts with `/api`**, so it is resolved
@@ -485,6 +494,37 @@ plan rows it never reached pending, where the web ticks every row.
   delegate callbacks, and above all the terminate-and-relaunch path, need a physical device. A
   simulator does not evict apps the way a phone under memory pressure does.
   `docs/RELEASING.md` lists what to try, in order.
+
+### Billing, the welcome's second step, and stopping tracking
+
+- **Billing** opens from the plan row in You → Plan & usage, which stays as it was. It is the
+  web's Billing page without the purchase: the plan and its standing (`GET /billing/me`, whose
+  `plan` is `planStatus` — "no plan" is read from `planSource`, never from the tier every
+  account carries), the payment history with an invoice for each paid order
+  (`GET /billing/invoice?orderId=`, built from the order row, so a repriced plan never changes
+  one; GST is shown only where it was charged), the plans on offer (`GET /billing/config`, none
+  below the one held) and **Redeem a coupon**. Amounts are paise and are divided only for
+  display; `BillingMoney` is held to the page's own `fmtPaise` by
+  `scripts/generate-billing-fixtures.mjs`. A coupon is previewed against the plan held, or the
+  first on offer (`POST /billing/coupon/preview`), and only a code that owes nothing — a free
+  period, or a discount to below the gateway's minimum — is redeemed here
+  (`POST /billing/coupon/redeem`), after which the account is read again everywhere
+  (`Session.refreshAccount`). A discount is used where plans are bought, on the web. The coupon
+  box and the priced plans follow the `EMPEROR_WEB_PLANS` switch; the plan, the history and the
+  invoices always show. See `BillingViewModel`.
+- **The welcome has the web's second step.** After the role, chambers or firm and designation,
+  both optional, saved through `ProfileEditor` (all four fields, since `/update-profile` clears what it is not sent) and only when
+  something changed. "Skip" finishes without them; a failed save says why and never keeps anyone
+  out of the app. An account with no name is asked for one there, because a nameless profile save
+  is refused. See `RoleWelcomeFlow`.
+- **Stop tracking a case** — the web workspace's "Remove" — is in the case page's menu and on a
+  long press of a docket row, asked first. `DELETE /case?id=&userId=` removes the case and its
+  timeline from the docket of everyone on its team, so only the team's owner or an admin may do
+  it; anyone else is answered 403, which this client words. The docket is read again rather
+  than patched, and the copy kept for offline reading is dropped. **A matter made from the case
+  is not removed with it**, on the web or here: the matter keeps its chronology, tasks, fees,
+  people and documents, and stops showing the court's record and the case's hearing dates. See
+  `CaseRemoving`.
 
 ### Built and deliberately held back
 These exist, are tested, and have no caller. Each is marked at its definition. **Do not wire one
