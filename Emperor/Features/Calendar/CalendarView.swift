@@ -1,6 +1,8 @@
 import SwiftUI
 
-/// The Calendar tab: the user's matters, day by day, and their own diary beside them.
+/// The Calendar tab: both calendars, behind one switch — **My calendar**, the user's matters day
+/// by day with their diary, and **Corporate calendar**, the statutory deadlines
+/// (`ComplianceCalendarView`, embedded without its own sheet chrome).
 ///
 /// ## A day
 ///
@@ -21,7 +23,8 @@ import SwiftUI
 /// the way the Matters tab takes a case — when it appears, or when the request arrives while it
 /// is already alive — selects the day, and scrolls
 /// back to the month so the day's listings are what is on screen. A request that arrives before
-/// the screen has made its model is taken as the model is made, before the first load.
+/// the screen has made its model is taken as the model is made, before the first load. A day
+/// asked for while Corporate calendar is showing switches back to My calendar first.
 ///
 /// ## Subscribing from the Calendar app
 ///
@@ -37,9 +40,6 @@ import SwiftUI
 /// producer, and the ICS feed emits no `VALARM` — so a subscribed calendar does not alert
 /// either. On the one screen whose purpose is not missing a limitation date, a reminder control
 /// would be the worst possible place to make a promise the product cannot keep.
-///
-/// The Corporate Calendar is not linked from here any more: it has its own row in You's Tools,
-/// for every role.
 struct CalendarView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
@@ -47,7 +47,11 @@ struct CalendarView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    /// Which of the tab's two calendars is showing.
+    enum Scope: Hashable { case mine, corporate }
+
     @State private var model: CalendarViewModel?
+    @State private var scope: Scope = .mine
     @State private var isAddingEvent = false
     @State private var isSubscribing = false
     /// The month steps, scaled with the heading they sit beside.
@@ -60,21 +64,36 @@ struct CalendarView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if let model {
+            VStack(alignment: .leading, spacing: 0) {
+                RecordSegmentedControl(
+                    label: "Calendar",
+                    options: [(value: Scope.mine, title: "My calendar"),
+                              (value: Scope.corporate, title: "Corporate calendar")],
+                    selection: $scope)
+                    .padding(.horizontal, Spacing.gutter)
+                    .padding(.top, Spacing.xs)
+                    .padding(.bottom, Spacing.sm)
+
+                if scope == .corporate {
+                    ComplianceCalendarView(embedded: true)
+                } else if let model {
                     content(model)
                 } else {
                     ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .navigationTitle("Calendar")
             // On the root rather than inside `content`, so subscribing does not wait on — or
             // depend on — the calendar having loaded: the link is a separate request. Leading,
             // because a tab root has no Done to sit there and the trailing side holds "+".
+            // Corporate calendar has nothing to subscribe to.
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Subscribe") { isSubscribing = true }
-                        .accessibilityHint("Adds your hearings and diary to the Calendar app")
+                if scope == .mine {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Subscribe") { isSubscribing = true }
+                            .accessibilityHint("Adds your hearings and diary to the Calendar app")
+                    }
                 }
             }
             .sheet(isPresented: $isSubscribing) {
@@ -102,9 +121,14 @@ struct CalendarView: View {
 
     /// Selects a day asked for from outside. The request itself is taken whether it carried a
     /// day or not; left waiting until the model exists — the `.task` above takes it then.
+    /// A day is always a My calendar concern, so Corporate gives the tab back first.
     private func openRequestedDay() {
         _ = navigator.takeCalendarRequest()
-        guard let model, let day = navigator.takePendingDay() else { return }
+        guard let day = navigator.takePendingDay() else { return }
+        if scope != .mine {
+            withAnimation(Motion.easeOut(Motion.Duration.fade)) { scope = .mine }
+        }
+        guard let model else { return }
         model.select(day: day)
         openedDays += 1
     }

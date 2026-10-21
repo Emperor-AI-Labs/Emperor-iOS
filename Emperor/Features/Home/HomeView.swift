@@ -3,7 +3,7 @@ import SwiftUI
 /// The Home tab — the design's dashboard.
 ///
 /// The design's own bar across the top: the mark, the plan as a pill, Updates and the profile
-/// button — **You** opens from the avatar as a sheet. Under it the composer, whose Send carries
+/// button — **Account & Profile** opens from the avatar as a sheet. Under it the composer, whose Send carries
 /// the question, its files and its answer mode to the Ask tab (`AppNavigator.ask`), which is
 /// where the conversation happens; the quick actions; the cause list and the Precedents Vault as
 /// the two cards; and the recent conversations, each pushing its thread here.
@@ -52,7 +52,9 @@ struct HomeView: View {
                         recents
                     }
                     .padding(.horizontal, Spacing.gutter)
-                    .padding(.top, Spacing.sm)
+                    // The design breathes between the bar and the composer — a touch more than
+                    // the mock, so the box reads as its own card and not as a bar extension.
+                    .padding(.top, Spacing.xl)
                     .padding(.bottom, Spacing.xxxl)
                     .frame(maxWidth: ReadableWidth.cap(for: sizeClass))
                     .frame(maxWidth: .infinity)

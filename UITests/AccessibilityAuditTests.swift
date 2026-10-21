@@ -266,7 +266,7 @@ final class AccessibilityAuditTests: XCTestCase {
     func testSettingsAndItsScreensPassTheAudit() {
         let app = launch()
         guard signIn(app), openYou(app) else { return }
-        let settings = app.navigationBars["You"]
+        let settings = app.navigationBars["Account & Profile"]
         _ = app.buttons["Role selector"].firstMatch.waitForExistence(timeout: 10)
         audit("you", in: app)
 
@@ -328,13 +328,13 @@ final class AccessibilityAuditTests: XCTestCase {
              "the Storage section"),
         ] {
             let heading = app.descendants(matching: .any)[header].firstMatch
-            if let why = bringUnderTheBar(heading, of: settings, titled: "You", in: app) {
+            if let why = bringUnderTheBar(heading, of: settings, titled: "Account & Profile", in: app) {
                 XCTFail("could not bring \(what) up under the bar — \(why) — so it was not audited")
                 continue
             }
             if reached(app.descendants(matching: .any)[anchor].firstMatch, what) {
                 audit(screen, in: app, sheet: settings, inATab: true, watching: heading) {
-                    _ = self.bringUnderTheBar(heading, of: settings, titled: "You", in: app)
+                    _ = self.bringUnderTheBar(heading, of: settings, titled: "Account & Profile", in: app)
                 }
             }
         }
@@ -420,7 +420,7 @@ final class AccessibilityAuditTests: XCTestCase {
         let profile = app.buttons["home-profile"]
         guard reached(profile, "Home's profile button") else { return false }
         profile.tap()
-        return reached(app.navigationBars["You"], "the You screen")
+        return reached(app.navigationBars["Account & Profile"], "the You screen")
     }
 
     /// Opens a row of You and returns the navigation bar of the sheet it presents, or `nil` —

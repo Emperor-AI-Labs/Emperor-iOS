@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// The You tab: the account, its plan and allowances, how answers start, the role, appearance,
-/// notifications, the tools that are not tabs, privacy and storage, and signing out.
+/// Account & Profile: the account and its standing, the plan and allowances, how answers start,
+/// the role, appearance, notifications, the tools that are not tabs, privacy and storage, and
+/// signing out.
 ///
 /// What was Settings is here, row for row — role, appearance, notifications, profile, plan and
 /// usage, app lock, search, offline storage, the disclaimer — beside the Record design's own:
-/// the default answer mode and the Tools rows that were the More tab.
+/// the profile card led by the avatar, the demo-tour stand-in, the default answer mode and the
+/// Tools rows that were the More tab.
 struct YouView: View {
     @Environment(Session.self) private var session
     @Environment(\.theme) private var theme
@@ -30,6 +32,11 @@ struct YouView: View {
                     }
                     .listRowBackground(theme.surface)
 
+                    Section {
+                        demoTourRow
+                    }
+                    .listRowBackground(theme.surface)
+
                     PlanUsageSection()
                 }
 
@@ -45,7 +52,7 @@ struct YouView: View {
                         RolePickerView()
                     } label: {
                         IconRowLabel(
-                            title: "Role", systemImage: practice.role.systemImage,
+                            title: "Current role", systemImage: practice.role.systemImage,
                             value: practice.role.label)
                     }
                     .accessibilityIdentifier("Role selector")
@@ -152,7 +159,7 @@ struct YouView: View {
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(theme.groupedBackground)
-            .navigationTitle("You")
+            .navigationTitle("Account & Profile")
             .navigationBarTitleDisplayMode(.large)
             .sheet(item: $tool) { chosen in
                 chosen.screen
@@ -175,20 +182,23 @@ struct YouView: View {
 
     // MARK: - Profile
 
+    /// The design's card: the standing pill, the avatar centred, the name, the address, and the
+    /// plan as its own pill — the whole card the way into the editor.
     private func profile(_ user: User) -> some View {
-        HStack(spacing: 14) {
+        VStack(spacing: Spacing.sm) {
+            HStack {
+                StatusPill(text: "Active session", tone: .success, systemImage: "checkmark.shield")
+                Spacer(minLength: 0)
+            }
             AccountAvatar(
                 photo: ProfilePhoto.source(of: user.avatar),
                 monogram: ProfilePhoto.monogram(name: user.name, email: user.email),
-                size: 64)
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                size: 72)
+            VStack(spacing: Spacing.xxs) {
                 Text(displayName(user))
-                    .font(.brand(size: 19, weight: .semibold, relativeTo: .title3))
+                    .font(.brand(.title3, weight: .semibold))
                     .foregroundStyle(theme.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(roleLine(user))
-                    .font(.brand(.footnote))
-                    .foregroundStyle(theme.textTertiary)
+                    .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 if let email = user.email {
                     Text(email)
@@ -197,12 +207,55 @@ struct YouView: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
+                Text(roleLine(user))
+                    .font(.brand(.caption))
+                    .foregroundStyle(theme.textTertiary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 0)
+            StatusPill(
+                text: "\(session.currentUser?.planLabel ?? "PRO") plan",
+                tone: .accent,
+                systemImage: "star")
         }
-        .padding(.vertical, Spacing.xs)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, Spacing.sm)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("account-profile")
+    }
+
+    /// The design's guide card. The tour itself is not built yet — the row is the promise, the
+    /// same stand-in the More tab's case-tool cards are.
+    private var demoTourRow: some View {
+        Button {
+            // A later step: the walkthrough of research, cause lists and citations.
+        } label: {
+            HStack(spacing: Spacing.sm) {
+                IconTile(systemImage: "map", size: .large)
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    HStack(spacing: Spacing.xs) {
+                        Text("Start Demo Tour")
+                            .font(.brand(.subheadline, weight: .semibold))
+                            .foregroundStyle(theme.textPrimary)
+                            .dynamicLineLimit(2)
+                        StatusPill(text: "Guide", tone: .info)
+                    }
+                    Text("Walkthrough research, cause lists & citations")
+                        .font(.brand(.caption))
+                        .foregroundStyle(theme.textTertiary)
+                        .dynamicLineLimit(2)
+                }
+                Spacer(minLength: Spacing.sm)
+                Text("Start")
+                    .font(.brand(.subheadline, weight: .semibold))
+                    .foregroundStyle(theme.accentText)
+                RowChevron()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Start Demo Tour")
+        .accessibilityHint("Walkthrough research, cause lists and citations")
     }
 
     private func displayName(_ user: User) -> String {

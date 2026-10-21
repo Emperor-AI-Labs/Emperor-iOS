@@ -8,41 +8,55 @@ import SwiftUI
 /// spread across a year are mostly empty cells in a grid this size. What the screen does and
 /// does not do, and why, is on `ComplianceCalendarViewModel`.
 ///
-/// Reached from More, for every role, and presented there — so it owns its `NavigationStack` and
-/// carries its own **Done**, as every screen More presents does (see `MoreView`). It was a
-/// role-gated Corporate tab here, as it is on the web, until the product owner gave that place in
-/// the bar to the user's own Calendar; see `MainTabView`.
+/// Reached two ways: embedded in the Calendar tab behind its **Corporate calendar** switch —
+/// no stack of its own, no Done, the tab's bar is the chrome — and as a sheet from You's Tools,
+/// where it keeps the stack and **Done** every presented Tools screen carries (see `MoreView`).
+/// It was a role-gated Corporate tab here, as it is on the web, until the product owner gave
+/// that place in the bar to the user's own Calendar; see `MainTabView`.
 struct ComplianceCalendarView: View {
     @Environment(\.theme) private var theme
     @Environment(Session.self) private var session
     @Environment(\.dismiss) private var dismiss
 
+    /// True when the Calendar tab embeds this under its own navigation bar — no second stack,
+    /// no Done, no title of its own.
+    var embedded: Bool = false
+
     @State private var model: ComplianceCalendarViewModel?
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let model {
-                    content(model)
-                } else {
-                    ProgressView()
-                }
+        if embedded {
+            root
+        } else {
+            NavigationStack {
+                root
+                    .navigationTitle(ComplianceCalendarViewModel.Copy.title)
+                    // On the root rather than inside `content`, so the way out is there in
+                    // every state — the spinner, and the failure view if the load never
+                    // returns.
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { dismiss() }
+                        }
+                    }
             }
-            .navigationTitle(ComplianceCalendarViewModel.Copy.title)
-            // On the root rather than inside `content`, so the way out is there in every state —
-            // the spinner, and the failure view if the load never returns.
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
+        }
+    }
+
+    private var root: some View {
+        Group {
+            if let model {
+                content(model)
+            } else {
+                ProgressView()
             }
-            .task {
-                guard model == nil else { return }
-                let created = ComplianceCalendarViewModel(
-                    service: session.complianceCalendar, cache: session.cache)
-                model = created
-                await created.load()
-            }
+        }
+        .task {
+            guard model == nil else { return }
+            let created = ComplianceCalendarViewModel(
+                service: session.complianceCalendar, cache: session.cache)
+            model = created
+            await created.load()
         }
     }
 

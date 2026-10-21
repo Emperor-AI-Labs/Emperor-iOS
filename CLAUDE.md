@@ -159,19 +159,23 @@ that makes no sense against the current source, `rm -rf .build` before investiga
   (`MainTabView`). Sign-in opens with the password behind a Password | Sign in with code
   segmented control; the one-time code ("Email me a sign-in code") is the other segment. Home is
   the dashboard: the design's own bar — the mark, the plan pill (plan & usage as a sheet),
-  Updates, and the profile button, whose sheet is **You** — the account, its plan, Settings and
-  Tools (every tool, the file tools, OCR, Translate, the Corporate Calendar, Library), You having
-  left the bar. Under the bar the composer, whose send carries the question, its files and its
-  answer mode to Ask (`AppNavigator.ask`) — nothing is sent from Home; the quick actions; the
+  Updates, and the profile button, whose sheet is **Account & Profile** — the account card
+  (avatar, name, standing and plan pills), the demo-tour stand-in, its plan, Settings and Tools
+  (every tool, the file tools, OCR, Translate, the Corporate Calendar, Library), having left the
+  bar. Under the bar the composer, whose send carries the question, its files and its answer
+  mode to Ask (`AppNavigator.ask`) — nothing is sent from Home; the quick actions; the
   cause list and the Precedents Vault as the two cards; and the recent conversations, each
   pushing its thread on Home's own stack. **Ask** greets the reader by name in the design's serif,
   then the composer and the role's suggestions — a question sent from here opens a fresh
   conversation. **Matters** holds the cause list and the docket (the next sitting, what is
-  upcoming, every matter) and opens the court lookup from "Add a matter". **Calendar** is the
-  matters day by day, and the diary, with Subscribe in its bar. **More** holds Files and History
-  as rows that present their screens in sheets, plus the web sidebar's Case tools and Doc tools
-  rows (drawn, not yet wired). UI tests sign in through the shared
-  `signInWithACode` helper and reach tabs through `app.tab(_:)`, both in `UITests/Tabs.swift`.
+  upcoming, every matter) and opens the court lookup from "Add a matter". **Calendar** is both
+  calendars behind one segmented switch — **My calendar** (the matters day by day, the diary,
+  Subscribe in the bar) and **Corporate calendar** (`ComplianceCalendarView(embedded:)`, no stack
+  of its own). **More** is workspace management — Files, History, All Notifications, Library,
+  each a sheet — then the web sidebar's Case tools as drawn cards (not yet wired) and Doc tools
+  wired to OCR and the PDF tools, under a search field that filters the screen. UI tests sign in
+  through the shared `signInWithACode` helper and reach tabs through `app.tab(_:)`, both in
+  `UITests/Tabs.swift`.
 - **iPad layouts.** At regular width History's conversation list (`ChatListView` — presented
   from More → History) shows the list beside what it opens (`ListBesideDetail`,
   reading one navigation path, `ListDetailPath`); Matters is a single stack on every device. A UI

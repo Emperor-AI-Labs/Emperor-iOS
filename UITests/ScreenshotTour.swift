@@ -98,8 +98,12 @@ final class ScreenshotTour: XCTestCase {
         app.tab("Ask").tap()
         snap("ask")
 
-        // Every conversation, from More → History.
+        // The redesigned More — search, workspace management, case tools, doc tools — then
+        // every conversation, from More → History.
         app.tab("More").tap()
+        if app.buttons["Files"].waitForExistence(timeout: 10) {
+            snap("more")
+        }
         tapIfPresent(app.buttons["History"].firstMatch)
         if app.navigationBars["Conversations"].waitForExistence(timeout: 10) {
             snap("history")
@@ -221,7 +225,7 @@ final class ScreenshotTour: XCTestCase {
         // profile button, where the redesign keeps it.
         app.tab("Home").tap()
         app.buttons["home-profile"].tap()
-        guard app.navigationBars["You"].waitForExistence(timeout: 10) else { snap("you-missing"); return }
+        guard app.navigationBars["Account & Profile"].waitForExistence(timeout: 10) else { snap("you-missing"); return }
         snap("you")
         // The role selector.
         let selector = app.buttons["Role selector"].firstMatch
@@ -392,7 +396,7 @@ final class ScreenshotTour: XCTestCase {
         // You → Storage, scrolled to — You opened from Home's profile button.
         app.tab("Home").tap()
         app.buttons["home-profile"].tap()
-        guard app.navigationBars["You"].waitForExistence(timeout: 5) else { return }
+        guard app.navigationBars["Account & Profile"].waitForExistence(timeout: 5) else { return }
         let size = app.staticTexts["offline-storage-size"].firstMatch
         var swipes = 0
         while !(size.exists && size.isHittable) && swipes < 6 {
@@ -460,7 +464,7 @@ final class ScreenshotTour: XCTestCase {
         unlock.tap()
         guard app.tab("Home").waitForExistence(timeout: 10) else { snap("unlock-failed"); return }
         app.buttons["home-profile"].tap()
-        guard app.navigationBars["You"].waitForExistence(timeout: 10) else {
+        guard app.navigationBars["Account & Profile"].waitForExistence(timeout: 10) else {
             snap("unlock-failed"); return
         }
         // Far down You; scrolled until the switch is in view, then raised so the timeout row
@@ -539,7 +543,7 @@ final class ScreenshotTour: XCTestCase {
 
         guard app.tab("Home").waitForExistence(timeout: 10) else { return }
         app.buttons["home-profile"].tap()
-        guard app.navigationBars["You"].waitForExistence(timeout: 10) else { return }
+        guard app.navigationBars["Account & Profile"].waitForExistence(timeout: 10) else { return }
         let edit = app.buttons["edit-profile"].firstMatch
         var swipes = 0
         while !(edit.exists && edit.isHittable) && swipes < 6 {

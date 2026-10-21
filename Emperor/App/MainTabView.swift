@@ -5,16 +5,18 @@ import UIKit
 ///
 /// - **Home** is the dashboard: the composer that starts a question, the cause list and the
 ///   Precedents Vault as cards, and the recent conversations. The profile button in its bar
-///   opens **You** as a sheet — the account, its plan and allowances, the app's settings, and
-///   Tools (the role's workspace, every tool, the file tools, OCR and Translate, the Corporate
-///   Calendar, Library, drafts and updates).
+///   opens **Account & Profile** as a sheet — the account card, its plan and allowances, the
+///   app's settings, and Tools (the role's workspace, every tool, the file tools, OCR and
+///   Translate, the Corporate Calendar, Library, drafts and updates).
 /// - **Matters** is the cause list and the docket together: the next sitting, what is upcoming,
 ///   and every matter.
 /// - **Ask** is where a question starts: the composer, and suggestions for the reader's role.
 ///   Its tab icon is the Record mark — the logo, where the sparkle was.
-/// - **Calendar** is the matters day by day, and the diary.
-/// - **More** holds what is not a tab: Files, History, and the web sidebar's Case tools and
-///   Doc tools rows (drawn for their shape; not yet wired to screens).
+/// - **Calendar** is both calendars behind one switch: the user's matters day by day with the
+///   diary — Subscribe in the bar — and the Corporate calendar's statutory deadlines.
+/// - **More** is the workspace's screens and tools: Files, History, All Notifications and
+///   Library, then the web sidebar's Case tools (drawn; not yet wired) and Doc tools (wired to
+///   OCR and the PDF tools), with a search that filters the whole screen.
 ///
 /// Pushed screens — a conversation, a draft, a folder — hide the tab bar (`.toolbar(.hidden,
 /// for: .tabBar)` on each), as the design asks.

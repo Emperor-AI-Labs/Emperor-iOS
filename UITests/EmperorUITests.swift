@@ -57,7 +57,7 @@ final class EmperorUITests: XCTestCase {
         let profile = app.buttons["home-profile"]
         XCTAssertTrue(profile.waitForExistence(timeout: 10), "Home has no profile button")
         profile.tap()
-        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10), "You did not open")
+        XCTAssertTrue(app.navigationBars["Account & Profile"].waitForExistence(timeout: 10), "You did not open")
     }
 
     // MARK: - It starts
@@ -191,7 +191,7 @@ final class EmperorUITests: XCTestCase {
             ("Matters", "Matters"),
             ("Ask", "Ask"),
             ("Calendar", "Calendar"),
-            ("More", "More"),
+            ("More", "More services & tools"),
         ] {
             app.tab(tab).tap()
             if let title {
@@ -320,7 +320,7 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Corporate Calendar"].waitForExistence(timeout: 10))
 
         app.navigationBars["Corporate Calendar"].buttons["Done"].tap()
-        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Account & Profile"].waitForExistence(timeout: 10))
     }
 
     // MARK: - Calendar subscription
@@ -401,7 +401,7 @@ final class EmperorUITests: XCTestCase {
             done.tap()
 
             XCTAssertTrue(
-                app.navigationBars["You"].waitForExistence(timeout: 10),
+                app.navigationBars["Account & Profile"].waitForExistence(timeout: 10),
                 "closing \(row) did not return to You")
             // Gone, not only going. You's own bar is there behind a sheet the whole time, so it
             // does not prove the sheet has left — and the OCR screen's switch carries a button
@@ -678,7 +678,7 @@ final class EmperorUITests: XCTestCase {
 
         // (tab, navigation title) — Home has none, and is checked by its profile button.
         for (tab, title) in [("Home", nil), ("Matters", "Matters"), ("Ask", "Ask"),
-                             ("Calendar", "Calendar"), ("More", "More")] {
+                             ("Calendar", "Calendar"), ("More", "More services & tools")] {
             app.tab(tab).tap()
             if let title {
                 XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 10))
@@ -779,7 +779,7 @@ final class EmperorUITests: XCTestCase {
 
         app.navigationBars["Tools"].buttons["Done"].firstMatch.tap()
         XCTAssertTrue(
-            app.navigationBars["You"].waitForExistence(timeout: 10),
+            app.navigationBars["Account & Profile"].waitForExistence(timeout: 10),
             "the tool sheet could not be closed after running a tool")
     }
 
@@ -803,7 +803,7 @@ final class EmperorUITests: XCTestCase {
         // Back on You, which now says the new role. Polled rather than waited on with an
         // expectation: `waitForExpectations` sends the test case across actors, which Swift 6
         // refuses to compile here.
-        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Account & Profile"].waitForExistence(timeout: 10))
         app.reveal(selector)
         XCTAssertTrue(selector.waitForExistence(timeout: 10))
         var polls = 0
@@ -820,13 +820,13 @@ final class EmperorUITests: XCTestCase {
             app.navigationBars["Corporate Counsel"].waitForExistence(timeout: 10),
             "the workspace did not follow the role")
         app.navigationBars["Corporate Counsel"].buttons["Done"].tap()
-        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Account & Profile"].waitForExistence(timeout: 10))
 
         // Left as the other tests expect to find it.
         app.reveal(selector)
         selector.tap()
         app.buttons["role-litigator"].firstMatch.tap()
-        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Account & Profile"].waitForExistence(timeout: 10))
     }
 
     // MARK: - Your workspace
@@ -884,7 +884,7 @@ final class EmperorUITests: XCTestCase {
         app.navigationBars["Plaint"].buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.navigationBars["Litigator"].waitForExistence(timeout: 10))
         app.navigationBars["Litigator"].buttons["Done"].tap()
-        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Account & Profile"].waitForExistence(timeout: 10))
     }
 
     // MARK: - File tools
@@ -927,7 +927,7 @@ final class EmperorUITests: XCTestCase {
         }
 
         app.navigationBars["File tools"].buttons["Done"].tap()
-        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Account & Profile"].waitForExistence(timeout: 10))
     }
 
     /// The account's own history, decoded from the shape `/ocr-history` really sends — a bare
@@ -1073,7 +1073,7 @@ final class EmperorUITests: XCTestCase {
         XCTAssertTrue(becomesSelected(ocr))
 
         app.navigationBars["OCR"].buttons["Done"].tap()
-        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Account & Profile"].waitForExistence(timeout: 10))
     }
 
     /// Translate, opened from its own row, opens on Translate — the same screen, other side.
@@ -1332,7 +1332,7 @@ final class EmperorUITests: XCTestCase {
 
         // And back out to You, intact.
         app.navigationBars["Notifications"].buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Account & Profile"].waitForExistence(timeout: 10))
     }
 
     /// Swipes until an element lower on the screen can be tapped — a list builds only the rows it
@@ -1631,7 +1631,7 @@ final class EmperorUITests: XCTestCase {
         save.tap()
 
         XCTAssertTrue(
-            app.navigationBars["You"].waitForExistence(timeout: 10),
+            app.navigationBars["Account & Profile"].waitForExistence(timeout: 10),
             "saving did not return to You")
         let account = app.descendants(matching: .any)["account-profile"].firstMatch
         app.reveal(account)
