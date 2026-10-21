@@ -120,15 +120,15 @@ struct CalendarView: View {
     }
 
     /// Selects a day asked for from outside. The request itself is taken whether it carried a
-    /// day or not; left waiting until the model exists — the `.task` above takes it then.
+    /// day or not; left waiting until the model exists — the `.task` above takes it then, so
+    /// this must not consume the day while the model is still nil.
     /// A day is always a My calendar concern, so Corporate gives the tab back first.
     private func openRequestedDay() {
         _ = navigator.takeCalendarRequest()
-        guard let day = navigator.takePendingDay() else { return }
+        guard let model, let day = navigator.takePendingDay() else { return }
         if scope != .mine {
             withAnimation(Motion.easeOut(Motion.Duration.fade)) { scope = .mine }
         }
-        guard let model else { return }
         model.select(day: day)
         openedDays += 1
     }

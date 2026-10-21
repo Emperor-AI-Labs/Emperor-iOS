@@ -821,11 +821,25 @@ final class EmperorUITests: XCTestCase {
             "the workspace did not follow the role")
         app.navigationBars["Corporate Counsel"].buttons["Done"].tap()
         XCTAssertTrue(app.navigationBars["Account & Profile"].waitForExistence(timeout: 10))
+        // Gone, not only going: a tap into the list while the sheet is still leaving is
+        // swallowed, and the picker never opens (the same poll the tools-row test makes).
+        var dismissPolls = 0
+        while app.navigationBars["Corporate Counsel"].exists && dismissPolls < 40 {
+            Thread.sleep(forTimeInterval: 0.25)
+            dismissPolls += 1
+        }
+        XCTAssertFalse(app.navigationBars["Corporate Counsel"].exists, "the workspace did not close")
 
-        // Left as the other tests expect to find it.
+        // Left as the other tests expect to find it. The picker is waited on by its own bar
+        // before the row is tapped, the same way the first open waits for its rows.
         app.reveal(selector)
         selector.tap()
-        app.buttons["role-litigator"].firstMatch.tap()
+        XCTAssertTrue(
+            app.navigationBars["Switch role"].waitForExistence(timeout: 10),
+            "the role picker did not reopen")
+        let litigator = app.buttons["role-litigator"].firstMatch
+        XCTAssertTrue(litigator.waitForExistence(timeout: 10), "the roles were not listed")
+        litigator.tap()
         XCTAssertTrue(app.navigationBars["Account & Profile"].waitForExistence(timeout: 10))
     }
 
