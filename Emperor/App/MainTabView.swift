@@ -1,17 +1,22 @@
 import SwiftUI
+import UIKit
 
-/// The signed-in app: the Record design's four destinations, **Ask · Matters · Files · You**.
+/// The signed-in app: **Home · Matters · Ask · Calendar · More**.
 ///
-/// - **Ask** is where a question starts: the date and a greeting, the composer, suggestions for
-///   the reader's role, the next sitting from the cause list, and recent conversations. Every
-///   conversation is reached from here — the recent ones on the screen, all of them under History.
+/// - **Home** is the dashboard: the composer that starts a question, the cause list and the
+///   Precedents Vault as cards, and the recent conversations. The profile button in its bar
+///   opens **Account & Profile** as a sheet — the account card, its plan and allowances, the
+///   app's settings, and Tools (the role's workspace, every tool, the file tools, OCR and
+///   Translate, the Corporate Calendar, Library, drafts and updates).
 /// - **Matters** is the cause list and the docket together: the next sitting, what is upcoming,
-///   and every matter. The Calendar opens from it.
-/// - **Files** is the library.
-/// - **You** is the account, its plan and allowances, the app's settings — and **Tools**, which
-///   holds everything that is not one of the four: the role's workspace, every tool, the file
-///   tools, OCR and translation, the Corporate Calendar, Library, drafts and updates. Nothing that
-///   was in the old More tab has been taken out of the app.
+///   and every matter.
+/// - **Ask** is where a question starts: the composer, and suggestions for the reader's role.
+///   Its tab icon is the Record mark — the logo, where the sparkle was.
+/// - **Calendar** is both calendars behind one switch: the user's matters day by day with the
+///   diary — Subscribe in the bar — and the Corporate calendar's statutory deadlines.
+/// - **More** is the workspace's screens and tools: Files, History, All Notifications and
+///   Library, then the web sidebar's Case tools (drawn; not yet wired) and Doc tools (wired to
+///   OCR and the PDF tools), with a search that filters the whole screen.
 ///
 /// Pushed screens — a conversation, a draft, a folder — hide the tab bar (`.toolbar(.hidden,
 /// for: .tabBar)` on each), as the design asks.
@@ -33,29 +38,39 @@ struct MainTabView: View {
             set: { navigator.selectedTab = $0 }
         )) {
             // Outline names: the bar fills each one itself, which is the iOS convention.
-            AskHomeView()
+            HomeView()
                 .tabItem {
-                    Label("Ask", systemImage: "text.bubble")
+                    Label("Home", systemImage: "house")
                 }
-                .tag(AppNavigator.Tab.ask)
+                .tag(AppNavigator.Tab.home)
 
             MattersView()
                 .tabItem {
-                    Label("Matters", systemImage: "scalemass")
+                    Label("Matters", systemImage: "folder")
                 }
                 .tag(AppNavigator.Tab.matters)
 
-            MyFilesView(isTab: true)
+            AskHomeView()
                 .tabItem {
-                    Label("Files", systemImage: "folder")
+                    Label {
+                        Text("Ask")
+                    } icon: {
+                        Image(uiImage: Self.askMarkImage())
+                    }
                 }
-                .tag(AppNavigator.Tab.files)
+                .tag(AppNavigator.Tab.ask)
 
-            YouView()
+            CalendarView()
                 .tabItem {
-                    Label("You", systemImage: "person.crop.circle")
+                    Label("Calendar", systemImage: "calendar")
                 }
-                .tag(AppNavigator.Tab.you)
+                .tag(AppNavigator.Tab.calendar)
+
+            MoreTabView()
+                .tabItem {
+                    Label("More", systemImage: "line.3.horizontal")
+                }
+                .tag(AppNavigator.Tab.more)
         }
         .environment(\.navigator, navigator)
         // A tapped notification opens where it leads — the Calendar, or Updates.
@@ -65,5 +80,24 @@ struct MainTabView: View {
         // The chosen tab in the accent's text colour; the others in the caption colour
         // (`BrandAppearance`). iOS switches tabs instantly, as the design asks.
         .tint(theme.accentText)
+    }
+
+    /// The two-stroke Record mark, rendered once from its shape as a template image for the tab
+    /// bar — template, so the bar tints it like every other icon.
+    ///
+    /// `ImageRenderer` rather than a bundled asset: the mark already exists as a `Shape`
+    /// (`RecordMarkShape`) and the asset catalogue's copy is marked "original", which would
+    /// resist the bar's tint.
+    @MainActor
+    private static func askMarkImage() -> UIImage {
+        let height: CGFloat = 30
+        let content = RecordMarkShape()
+            .fill(Color.black)
+            .frame(
+                width: height * CGFloat(RecordMark.viewBox.width / RecordMark.viewBox.height),
+                height: height)
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = 3
+        return (renderer.uiImage ?? UIImage()).withRenderingMode(.alwaysTemplate)
     }
 }

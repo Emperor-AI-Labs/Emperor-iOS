@@ -4,7 +4,7 @@ import Foundation
 /// answer — or its own failure, never the caller's cancellation.
 ///
 /// A screen loads in its `.task`, and SwiftUI cancels that task whenever it takes the screen off
-/// and puts it back: a tab switched away and back, or — on an iPad — the Cases tab coming to the
+/// and puts it back: a tab switched away and back, or — on an iPad — the Matters tab coming to the
 /// front at the moment the Calendar's request replaces the case beside the docket. The
 /// cancellation reaches the request, `URLSession` abandons it, and the screen is left with
 /// "cancelled" for an answer it would have had a moment later. A matter stood on "Could not

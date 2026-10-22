@@ -11,7 +11,7 @@ import Observation
 ///
 /// A day's listings come from the cause list, topped up from the docket's next hearing dates, in
 /// the order the day will run — see `CalendarListings` for both rules. Opening one is not this
-/// screen's job: it hands the case to `AppNavigator`, which shows it on the Cases tab.
+/// screen's job: it hands the case to `AppNavigator`, which shows it on the Matters tab.
 ///
 /// See `ChatViewModel` for why `@Observable` is Apple-only.
 #if canImport(Darwin)
@@ -203,7 +203,7 @@ final class CalendarViewModel {
             rebuildListings()
             cachedAt = nil
             cache?.save(events, for: .calendarEvents)
-            // The same routes Cases and Home cache under, so whichever screen loaded last
+            // The same routes Matters and Home cache under, so whichever screen loaded last
             // leaves the freshest copy for the others to open on.
             cache?.save(cases, for: .caseList)
             cache?.save(causeList, for: .causeList)

@@ -132,7 +132,7 @@ final class InertSpotlightIndex: SpotlightIndexing {
 }
 #endif
 
-/// Opens a tapped search result: a case on the Cases tab, a document in My Files on its folder.
+/// Opens a tapped search result: a case on the Matters tab, a document in My Files on its folder.
 ///
 /// Applied by `MainTabView`, the one place that holds the `AppNavigator` — beside
 /// `routesNotificationTaps`, and for the same reason: a result tapped while the app was closed is

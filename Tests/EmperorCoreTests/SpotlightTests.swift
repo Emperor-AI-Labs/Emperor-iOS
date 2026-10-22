@@ -139,7 +139,7 @@ final class SpotlightTests: XCTestCase {
 
     /// A case result opens the case on the Matters tab, through the same request the Calendar uses.
     func testACaseResultOpensTheCase() async {
-        let navigator = AppNavigator(selectedTab: .files)
+        let navigator = AppNavigator(selectedTab: .more)
         navigator.open(.caseDetail(id: "case1"))
         XCTAssertEqual(navigator.selectedTab, .matters)
         XCTAssertEqual(navigator.takePendingCaseStack()?.map(\.caseID), ["case1"])
@@ -147,10 +147,10 @@ final class SpotlightTests: XCTestCase {
 
     /// A document result leaves the tab alone — My Files is shown over it — and is taken once.
     func testADocumentResultWaitsForMyFiles() async {
-        let navigator = AppNavigator(selectedTab: .you)
+        let navigator = AppNavigator(selectedTab: .home)
         navigator.open(.document(path: "/Bakshi/Orders/Interim_Order.pdf"))
 
-        XCTAssertEqual(navigator.selectedTab, .you)
+        XCTAssertEqual(navigator.selectedTab, .home)
         let route = navigator.takePendingDocument()
         XCTAssertEqual(route?.path, "Bakshi/Orders/Interim_Order.pdf")
         XCTAssertNil(navigator.takePendingDocument())

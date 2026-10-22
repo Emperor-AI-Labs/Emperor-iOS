@@ -10,7 +10,7 @@ import Foundation
 /// pass), so on a fresh pair of responses the docket adds nothing. It is merged in anyway because
 /// the two are separate requests, cached separately: a matter added on the web between them, or
 /// a cause list served from the cache while the docket is live, would otherwise leave a hearing
-/// date the user can see on the Cases tab missing from the day it falls on.
+/// date the user can see on the Matters tab missing from the day it falls on.
 ///
 /// De-duplication is per **matter and day**, never per matter. A matter with a listing on the
 /// 14th and a next date on the 20th belongs on both days; collapsing by case alone would drop
@@ -231,7 +231,7 @@ enum CalendarDayMark: Equatable, Sendable {
         switch self {
         case .clear: return "Nothing scheduled"
         case .diary: return "Diary entries"
-        case .listed: return "Cases listed"
+        case .listed: return "Matters listed"
         }
     }
 }

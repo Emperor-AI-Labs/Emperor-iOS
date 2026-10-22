@@ -1,13 +1,13 @@
 import XCTest
 @testable import EmperorCore
 
-/// Cross-tab navigation: the Calendar asking the Cases tab to open a matter.
+/// Cross-tab navigation: the Calendar asking the Matters tab to open a matter.
 final class AppNavigatorTests: XCTestCase {
 
     /// Asking for a case switches to Matters and leaves the request for that tab to take.
     func testOpeningACaseSwitchesToCasesAndLeavesTheRequest() async {
         await onMain {
-            let navigator = AppNavigator(selectedTab: .you)
+            let navigator = AppNavigator(selectedTab: .more)
             navigator.openCase("case1")
 
             XCTAssertEqual(navigator.selectedTab, .matters)
@@ -15,8 +15,8 @@ final class AppNavigatorTests: XCTestCase {
         }
     }
 
-    /// The Matters tab's stack becomes just that case — replaced, not appended to — so Back from it
-    /// lands on the docket rather than on whatever was open before.
+    /// The Matters tab's stack becomes just that case — replaced, not appended to — so Back from
+    /// it lands on the docket rather than on whatever was open before.
     func testTheStackBecomesJustTheCase() async {
         await onMain {
             let navigator = AppNavigator()
@@ -91,14 +91,53 @@ final class AppNavigatorTests: XCTestCase {
         }
     }
 
+    /// "New chat" from Home switches to Ask with an empty question — a fresh composer, taken once
+    /// like any other request. Unlike `ask`, nothing to say is exactly the point.
+    func testStartingANewQuestionClearsTheComposerOnce() async {
+        await onMain {
+            let navigator = AppNavigator(selectedTab: .home)
+            navigator.startNewQuestion()
+
+            XCTAssertEqual(navigator.selectedTab, .ask)
+            let question = navigator.takePendingQuestion()
+            XCTAssertEqual(question?.prompt, "")
+            XCTAssertEqual(question?.attachments, [])
+            XCTAssertNil(question?.model)
+            XCTAssertNil(navigator.takePendingQuestion(), "taken once")
+        }
+    }
+
+    /// The answer mode travels with a question asked elsewhere — Home's composer chooses one and
+    /// Ask keeps it, rather than silently falling back to the default.
+    func testAskingCarriesTheChosenAnswerMode() async {
+        await onMain {
+            let navigator = AppNavigator()
+            navigator.ask("Draft the synopsis", model: .thinking)
+
+            XCTAssertEqual(navigator.takePendingQuestion()?.model, .thinking)
+        }
+    }
+
+    /// A matter pinned from outside Matters asks the docket to reload: numbered, and taken once.
+    func testTheDocketRefreshIsRequestedAndTakenOnce() async {
+        await onMain {
+            let navigator = AppNavigator()
+            navigator.requestDocketRefresh()
+            navigator.requestDocketRefresh()
+
+            XCTAssertTrue(navigator.takeDocketRefreshRequest())
+            XCTAssertFalse(navigator.takeDocketRefreshRequest(), "taken once")
+        }
+    }
+
     /// A row without a case cannot be opened, and asking does not move the user off the tab
     /// they are on.
     func testAnEmptyCaseIsIgnored() async {
         await onMain {
-            let navigator = AppNavigator(selectedTab: .you)
+            let navigator = AppNavigator(selectedTab: .home)
             navigator.openCase("  ")
 
-            XCTAssertEqual(navigator.selectedTab, .you)
+            XCTAssertEqual(navigator.selectedTab, .home)
             XCTAssertNil(navigator.pendingCase)
         }
     }

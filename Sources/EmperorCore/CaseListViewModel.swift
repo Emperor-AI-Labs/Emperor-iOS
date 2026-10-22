@@ -20,7 +20,7 @@ import Observation
 final class CaseListViewModel {
 
     enum Copy {
-        static let title = "Cases"
+        static let title = "Matters"
         /// "Your" because what it searches is this docket — the court lookup behind "Add case" is
         /// the search of everything else, and the two must not read as one control.
         static let searchPrompt = "Search your cases"

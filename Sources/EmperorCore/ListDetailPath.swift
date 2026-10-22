@@ -3,7 +3,7 @@ import Foundation
 /// A list beside what it opens, on a screen wide enough for both — driven by the same path a
 /// phone pushes onto.
 ///
-/// On a phone the Cases and Chat tabs push what is opened onto a navigation stack, over the list.
+/// On a phone the Matters and Chat tabs push what is opened onto a navigation stack, over the list.
 /// On an iPad — any regular-width screen — they show the list in one column and the opened item
 /// in the other. Both layouts read **one path**: the phone pushes it, the wide screen shows its
 /// last element beside the list. So a request from another tab (`AppNavigator.openCase`) is

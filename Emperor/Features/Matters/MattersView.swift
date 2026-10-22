@@ -5,7 +5,7 @@ import SwiftUI
 /// The first two are the cause list (`MattersOverview`), each hearing led by its item number in
 /// the serif and opening its sheet; the third is the docket (`CaseListViewModel`), with its search,
 /// sort and filters, each matter pushing its page. `+` adds a matter through the court lookup, and
-/// the Calendar — hearings day by day, and the diary — opens from the bar. Pull to refresh checks
+/// the Calendar button in the bar switches to the Calendar tab. Pull to refresh checks
 /// the cause lists again, and says so when it is done.
 ///
 /// - Important: what is listed here is the user's own matters by hearing date, not the court's
@@ -25,7 +25,6 @@ struct MattersView: View {
     @State private var openHearing: CauseListing?
     @State private var isAddingMatter = false
     @State private var isArranging = false
-    @State private var isShowingCalendar = false
     @State private var toast: String?
 
     var body: some View {
@@ -105,24 +104,19 @@ struct MattersView: View {
                         .pageSizedSheet()
                 }
             }
-            .sheet(isPresented: $isShowingCalendar) {
-                CalendarView(onDone: { isShowingCalendar = false })
-                    .pageSizedSheet()
-            }
         }
         .recordToast($toast)
         .task { await loadOnce() }
-        // A matter asked for from elsewhere — the Calendar, a search result. Both, because either
-        // can be first: a tab never shown before is created by the switch the request causes.
+        // A matter or a docket reload asked for from elsewhere. Both, because either can be
+        // first: a tab never shown before is created by the switch the request causes.
         .onAppear {
             openRequestedCase()
-            openRequestedCalendar()
+            openRequestedDocketRefresh()
         }
         .onChange(of: navigator.pendingCase) { _, _ in
-            isShowingCalendar = false
             openRequestedCase()
         }
-        .onChange(of: navigator.calendarRequest) { _, _ in openRequestedCalendar() }
+        .onChange(of: navigator.docketRefreshRequest) { _, _ in openRequestedDocketRefresh() }
     }
 
     private var overview: MattersOverview? {
@@ -139,7 +133,7 @@ struct MattersView: View {
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Button {
-                isShowingCalendar = true
+                navigator.selectedTab = .calendar
             } label: {
                 Image(systemName: "calendar")
             }
@@ -233,7 +227,7 @@ struct MattersView: View {
                 systemImage: "calendar",
                 message: "Nothing of yours is listed after the next sitting. \(CauseListViewModel.Copy.confirmWithCourt)"
             ) {
-                Button("Open the Calendar") { isShowingCalendar = true }
+                Button("Open the Calendar") { navigator.selectedTab = .calendar }
                     .buttonStyle(.secondaryAction)
             }
         }
@@ -390,9 +384,12 @@ struct MattersView: View {
         path = stack
     }
 
-    private func openRequestedCalendar() {
-        guard navigator.takeCalendarRequest() else { return }
-        isShowingCalendar = true
+    /// A matter pinned from Home's court lookup: the docket behind this screen is kept across
+    /// the session, so it reloads rather than missing the matter that was just added.
+    private func openRequestedDocketRefresh() {
+        guard navigator.takeDocketRefreshRequest() else { return }
+        let cases = self.cases
+        Task { await cases?.load() }
     }
 }
 

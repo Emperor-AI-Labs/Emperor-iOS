@@ -2,11 +2,13 @@ import XCTest
 
 extension XCUIApplication {
     /// The SF Symbol each tab is drawn with — on iPad the only identifier its button carries.
+    /// Ask has no entry: its icon is the Record mark drawn as a custom image, so there is no
+    /// symbol to match and `tab(_:)` falls back to the label alone for it.
     private static let tabSymbols = [
-        "Ask": "text.bubble",
-        "Matters": "scalemass",
-        "Files": "folder",
-        "You": "person.crop.circle",
+        "Home": "house",
+        "Matters": "folder",
+        "Calendar": "calendar",
+        "More": "line.3.horizontal",
     ]
 
     /// A tab, wherever this device draws the bar.
@@ -15,12 +17,17 @@ extension XCUIApplication {
     /// same `TabView` draws them as a row of buttons across the top, with no tab bar element at
     /// all — so `tabBars.buttons["Ask"]` finds nothing there, and every test that started from a
     /// tab failed on iPad while the app itself was fine. Matched on label *and* symbol, because an
-    /// iPad screen can carry a second button with the same label (a toolbar's "More").
+    /// iPad screen can carry a second button with the same label (a toolbar's "More"). Ask's icon
+    /// is a custom image with no symbol identifier, so when the symbol-qualified match finds
+    /// nothing the label alone is the answer.
     func tab(_ name: String) -> XCUIElement {
         guard UIDevice.current.userInterfaceIdiom == .pad else { return tabBars.buttons[name] }
-        let symbol = Self.tabSymbols[name] ?? name
-        return buttons.matching(
-            NSPredicate(format: "label == %@ AND identifier == %@", name, symbol)).firstMatch
+        if let symbol = Self.tabSymbols[name] {
+            let qualified = buttons.matching(
+                NSPredicate(format: "label == %@ AND identifier == %@", name, symbol)).firstMatch
+            if qualified.exists { return qualified }
+        }
+        return buttons.matching(NSPredicate(format: "label == %@", name)).firstMatch
     }
 }
 
@@ -43,9 +50,10 @@ extension XCUIElement {
 }
 
 extension XCUIApplication {
-    /// The stub's stored conversation, "Bakshi v. State" — among Ask's recent conversations, where
-    /// its row is one button (`chat-row-c1`), or in History's list, where its title can be a text
-    /// of its own. Found by either, so a test reads the same wherever it opens it.
+    /// The stub's stored conversation, "Bakshi v. State" — among Home's recent conversations,
+    /// where its row is one button (`chat-row-c1`), or in History's list (More → History), where
+    /// its title can be a text of its own. Found by either, so a test reads the same wherever it
+    /// opens it.
     var stubConversationRow: XCUIElement {
         descendants(matching: .any).matching(NSPredicate(
             format: "identifier == %@ OR (elementType == %d AND label == %@)",

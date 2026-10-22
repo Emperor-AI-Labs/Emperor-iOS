@@ -206,7 +206,7 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
 /// ## A hearing
 ///
 /// `AppNavigator.openCalendar(on:)` switches to the Calendar and leaves the day for it to take
-/// (`CalendarView`), the way the Cases tab takes a case. An Updates sheet this presented is closed
+/// (`CalendarView`), the way the Matters tab takes a case. An Updates sheet this presented is closed
 /// first, so the day is what the person sees.
 ///
 /// ## An update, while something else is presented
@@ -282,7 +282,7 @@ struct NotificationTapRouting: ViewModifier {
             if Task.isCancelled { return }
         }
         guard navigator.takeUpdatesRequest() else { return }
-        navigator.selectedTab = .ask
+        navigator.selectedTab = .home
         isShowingUpdates = true
     }
 }

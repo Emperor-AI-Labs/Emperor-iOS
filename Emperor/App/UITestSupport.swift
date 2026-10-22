@@ -293,7 +293,7 @@ enum UITestSupport {
             """
         }
 
-        /// The rest of the docket: a matter under every court heading, so the Cases tab has its
+        /// The rest of the docket: a matter under every court heading, so the Matters tab has its
         /// headings to draw in order and its sorts and filters something to sort and filter.
         ///
         /// Each is stamped the way the court lookup saves one — `court_type`, `court_code` and

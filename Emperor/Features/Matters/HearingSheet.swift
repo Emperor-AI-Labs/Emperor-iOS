@@ -3,7 +3,7 @@ import SwiftUI
 /// One hearing, in full: court, date and time, room, item, coram, purpose, and its history on the
 /// list — with the way into the matter, and "Ask about it" as the one primary action.
 ///
-/// Opened from a hearing row on Matters and from the "Next sitting" card on Ask. Every value is
+/// Opened from a hearing row on Matters and from Home's cause-list card. Every value is
 /// the cause list's own; where the list printed no bench, it says so rather than leaving a gap
 /// that reads like an oversight.
 struct HearingSheet: View {

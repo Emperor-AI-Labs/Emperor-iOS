@@ -77,14 +77,15 @@ final class ScreenshotTour: XCTestCase {
             tapIfPresent(app.buttons["Continue"])
         }
 
-        guard app.tab("Ask").waitForExistence(timeout: 15) else {
+        guard app.tab("Home").waitForExistence(timeout: 15) else {
             snap("sign-in-failed"); return
         }
-        snap("ask")
+        // The dashboard as it opens: the bar of pills, the composer and the two cards.
+        snap("home")
 
-        // The updates sheet, from Ask's bell. Its label carries the unread count, so it is found
-        // by how it starts.
-        let updates = app.navigationBars["Ask"].buttons.matching(
+        // The updates sheet, from Home's bell — the design's path. Its label carries the unread
+        // count, so it is found by how it starts.
+        let updates = app.buttons.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Updates")).firstMatch
         if updates.waitForExistence(timeout: 5) {
             updates.tap()
@@ -94,19 +95,25 @@ final class ScreenshotTour: XCTestCase {
             }
         }
 
-        // Every conversation, under History.
-        let history = app.navigationBars["Ask"].buttons["History"]
-        if history.waitForExistence(timeout: 5) {
-            history.tap()
-            tapIfPresent(app.buttons["All conversations"].firstMatch)
-            if app.navigationBars["Conversations"].waitForExistence(timeout: 10) {
-                snap("history")
-                tapIfPresent(app.navigationBars["Conversations"].buttons["Done"])
-            }
+        app.tab("Ask").tap()
+        snap("ask")
+
+        // The redesigned More — search, workspace management, case tools, doc tools — then
+        // every conversation, from More → History.
+        app.tab("More").tap()
+        if app.buttons["Files"].waitForExistence(timeout: 10) {
+            snap("more")
+        }
+        tapIfPresent(app.buttons["History"].firstMatch)
+        if app.navigationBars["Conversations"].waitForExistence(timeout: 10) {
+            snap("history")
+            // Closed from its own Done before the next tab is tapped.
+            tapIfPresent(app.navigationBars["Conversations"].buttons["Done"])
         }
 
-        // A conversation: the stub serves a stored answer with headings, a table and citations,
-        // and the work log it was stored with, folded above it.
+        // A conversation, from Home's recent ones: the stub serves a stored answer with headings,
+        // a table and citations, and the work log it was stored with, folded above it.
+        app.tab("Home").tap()
         let conversation = app.stubConversationRow
         if conversation.waitForExistence(timeout: 10) {
             app.reveal(conversation)
@@ -182,11 +189,10 @@ final class ScreenshotTour: XCTestCase {
             }
         }
 
-        // The Calendar opens over Matters on today, where the stub lists one matter and one diary
-        // entry; the listing then opens its case on Matters, on the overview.
-        let calendarButton = app.navigationBars["Matters"].buttons["Calendar"]
-        if calendarButton.waitForExistence(timeout: 5) {
-            calendarButton.tap()
+        // The Calendar tab on today, where the stub lists one matter and one diary entry; the
+        // listing then opens its case on Matters, on the overview.
+        app.tab("Calendar").tap()
+        if app.navigationBars["Calendar"].waitForExistence(timeout: 10) {
             let listing = app.buttons["calendar-listing-case1"]
             let isListed = listing.waitForExistence(timeout: 10)
             snap("calendar")
@@ -197,13 +203,13 @@ final class ScreenshotTour: XCTestCase {
                     snap("case-overview")
                     backOut(app)
                 }
-            } else {
-                tapIfPresent(app.navigationBars["Calendar"].buttons["Done"])
             }
         }
 
-        // Files: the folders, and one of them opened — its sub-folder above its documents.
-        app.tab("Files").tap()
+        // Files, from More: the folders, and one of them opened — its sub-folder above its
+        // documents. Closed from its own Done before the next step.
+        app.tab("More").tap()
+        tapIfPresent(app.buttons["Files"].firstMatch)
         snap("files")
         let folder = app.buttons["folder-Bakshi"]
         if folder.waitForExistence(timeout: 5) {
@@ -213,9 +219,13 @@ final class ScreenshotTour: XCTestCase {
                 backOut(app)
             }
         }
+        tapIfPresent(app.navigationBars["Files"].buttons["Done"])
 
-        // You: the account, its settings, and the tools that are not tabs.
-        app.tab("You").tap()
+        // You: the account, its settings, and the tools that are not tabs — opened from Home's
+        // profile button, where the redesign keeps it.
+        app.tab("Home").tap()
+        app.buttons["home-profile"].tap()
+        guard app.navigationBars["Account & Profile"].waitForExistence(timeout: 10) else { snap("you-missing"); return }
         snap("you")
         // The role selector.
         let selector = app.buttons["Role selector"].firstMatch
@@ -301,10 +311,10 @@ final class ScreenshotTour: XCTestCase {
         app.launchArguments = ["-UITestMode", "-UITestEmpty"] + (light ? ["-UITestLight"] : [])
         app.launch()
         let theme = light ? "light" : "dark"
-        guard app.signInWithACode(), app.tab("Ask").waitForExistence(timeout: 15) else { return }
+        guard app.signInWithACode(), app.tab("Home").waitForExistence(timeout: 15) else { return }
 
         var step = 0
-        for tab in ["Ask", "Matters", "Files"] {
+        for tab in ["Home", "Matters", "Ask", "Calendar", "More"] {
             let button = app.tab(tab)
             guard button.waitForExistence(timeout: 5) else { continue }
             button.tap()
@@ -362,9 +372,10 @@ final class ScreenshotTour: XCTestCase {
             add(shot)
         }
 
-        guard app.signInWithACode(), app.tab("Ask").waitForExistence(timeout: 15) else { return }
+        guard app.signInWithACode(), app.tab("Home").waitForExistence(timeout: 15) else { return }
+        app.tab("Home").tap()
 
-        // Opened once with the signal, which keeps it; then back to Ask and in again, without.
+        // Opened once with the signal, which keeps it; then back to Home and in again, without.
         let conversation = app.stubConversationRow
         guard conversation.waitForExistence(timeout: 10) else { return }
         app.reveal(conversation)
@@ -382,9 +393,10 @@ final class ScreenshotTour: XCTestCase {
         }
         if bar.waitForExistence(timeout: 5) { bar.buttons.element(boundBy: 0).tap() }
 
-        // You → Storage, scrolled to.
-        app.tab("You").tap()
-        guard app.navigationBars["You"].waitForExistence(timeout: 5) else { return }
+        // You → Storage, scrolled to — You opened from Home's profile button.
+        app.tab("Home").tap()
+        app.buttons["home-profile"].tap()
+        guard app.navigationBars["Account & Profile"].waitForExistence(timeout: 5) else { return }
         let size = app.staticTexts["offline-storage-size"].firstMatch
         var swipes = 0
         while !(size.exists && size.isHittable) && swipes < 6 {
@@ -450,8 +462,11 @@ final class ScreenshotTour: XCTestCase {
         snap("locked")
 
         unlock.tap()
-        guard app.tab("You").waitForExistence(timeout: 10) else { snap("unlock-failed"); return }
-        app.tab("You").tap()
+        guard app.tab("Home").waitForExistence(timeout: 10) else { snap("unlock-failed"); return }
+        app.buttons["home-profile"].tap()
+        guard app.navigationBars["Account & Profile"].waitForExistence(timeout: 10) else {
+            snap("unlock-failed"); return
+        }
         // Far down You; scrolled until the switch is in view, then raised so the timeout row
         // beneath it is in the picture too — a swipe alone leaves the switch on the bottom edge.
         let toggle = app.switches["app-lock-toggle"].firstMatch
@@ -526,9 +541,9 @@ final class ScreenshotTour: XCTestCase {
             tapIfPresent(app.buttons["incoming-done"].firstMatch)
         }
 
-        guard app.tab("You").waitForExistence(timeout: 10) else { return }
-        app.tab("You").tap()
-        guard app.navigationBars["You"].waitForExistence(timeout: 10) else { return }
+        guard app.tab("Home").waitForExistence(timeout: 10) else { return }
+        app.buttons["home-profile"].tap()
+        guard app.navigationBars["Account & Profile"].waitForExistence(timeout: 10) else { return }
         let edit = app.buttons["edit-profile"].firstMatch
         var swipes = 0
         while !(edit.exists && edit.isHittable) && swipes < 6 {
@@ -577,7 +592,7 @@ final class ScreenshotTour: XCTestCase {
             "-UITestMode", "-UITestLinkOnReturn", "emperor://calendar?day=\(day)",
         ] + (light ? ["-UITestLight"] : [])
         app.launch()
-        guard app.signInWithACode(), app.tab("Ask").waitForExistence(timeout: 15) else { return }
+        guard app.signInWithACode(), app.tab("Home").waitForExistence(timeout: 15) else { return }
 
         XCUIDevice.shared.press(.home)
         var polls = 0

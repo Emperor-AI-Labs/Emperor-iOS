@@ -1,30 +1,40 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
-/// The Record faces: **Plus Jakarta Sans** for the interface and **Instrument Serif** for large
-/// titles, greetings, document titles and the numbers people scan for — item numbers, days.
+/// The interface type: **SF Pro** — Text for the interface, Display for large titles — and
+/// **New York** where the app speaks in prose (an answer, a drafted document), drawn as the
+/// system serif.
 ///
-/// Both are SIL OFL 1.1 and bundled (`Emperor/Resources/Fonts`, licences beside them), because an
-/// app cannot `@import` from Google Fonts as the web does. The family, weights and roles are the
-/// design's (`Design/record-tokens.json`, `font` and `type`).
+/// The API is unchanged: `.brand(.body)` and `.display(size:relativeTo:)` are still what call
+/// sites write, so the whole app moved faces without a sweep. What changed underneath:
+///
+/// - `.brand` — the system face at the iOS default size for the text style, scaled by Dynamic
+///   Type. SF itself picks Text or Display by size (its optical-sizing), which is the split the
+///   design asks for: SF Pro Text for body, menu labels and captions; SF Pro Display for large
+///   page titles and prominent headers.
+/// - `.display` — the system face at a Record size, for the numbers and titles that want the
+///   larger optical size. Italic stays italic.
+/// - `.serif` — New York (`Font.system(design: .serif)`), for assistant answers and drafted
+///   documents (`MarkdownArtifactView`, `DraftReaderView`).
 ///
 /// ## Sizes follow Dynamic Type
 ///
-/// `Font.custom(_:size:relativeTo:)` everywhere: the size is the design's at the default text
-/// size, and the text style it is relative to scales it with the reader's setting — up to AX5,
-/// which the design asks to be honoured. Nothing here pins a size.
+/// A style-based font scales with the reader's setting up to AX5, as the design asks. The
+/// size-relative forms scale through `UIFontMetrics` against the same text style, so a precise
+/// Record size still moves with Dynamic Type. Nothing here pins a size.
 ///
-/// ## Static files, named instances
+/// ## The bundled faces
 ///
-/// Plus Jakarta Sans is bundled as four static files (400, 500, 600, 700) rather than Google
-/// Fonts' variable one, whose named instances carry no PostScript names: `UIFont(name:)` could not
-/// address a weight by name and would silently return the default. Each static file carries its
-/// own name, which is what `Name` holds.
-///
-/// A wrong name fails *silently* — SwiftUI substitutes the system font and renders perfectly.
-/// `BrandFont.isAvailable` exists so `BundleResourceTests` can catch that.
+/// Plus Jakarta Sans and Instrument Serif still ship in the bundle (`Emperor/Resources/Fonts`,
+/// licences beside them) and `BrandFont.Name` / `isAvailable` still describe them —
+/// `BundleResourceTests` holds them to it. No screen draws them any more. Removing the files,
+/// the `UIAppFonts` entries and those tests is a separate step.
 enum BrandFont {
 
-    /// PostScript names, read from each file's `name` table.
+    /// PostScript names of the bundled faces — retained for `BundleResourceTests`; no view
+    /// asks for them.
     enum Name {
         static let regular = "PlusJakartaSans-Regular"    // 400
         static let medium = "PlusJakartaSans-Medium"      // 500
@@ -40,26 +50,15 @@ enum BrandFont {
         static let displayAll = [display, displayItalic]
     }
 
-    /// The weight iOS itself gives each style, so swapping the family does not silently
-    /// change emphasis. `.headline` is semibold on iOS; everything else is regular.
+    /// The weight iOS itself gives each style, so the system face keeps the emphasis a custom
+    /// face was asked for. `.headline` is semibold on iOS; everything else is regular.
     static func defaultWeight(for style: Font.TextStyle) -> Font.Weight {
         style == .headline ? .semibold : .regular
     }
 
-    /// The nearest bundled weight. Light and thinner fall to Regular — Record uses nothing
-    /// lighter than 400 — and the heavy weights to Bold.
-    static func name(for weight: Font.Weight) -> String {
-        switch weight {
-        case .medium: return Name.medium
-        case .semibold: return Name.semibold
-        case .bold, .heavy, .black: return Name.bold
-        default: return Name.regular
-        }
-    }
-
     /// The size iOS uses for each text style at the default Dynamic Type setting — which is also
     /// the Record iOS scale where the two overlap (body 17, callout 15 as `subheadline`,
-    /// footnote 13). Passing the style to `relativeTo:` is what makes the face scale.
+    /// footnote 13).
     static func size(for style: Font.TextStyle) -> CGFloat {
         switch style {
         case .largeTitle: return 34
@@ -77,7 +76,45 @@ enum BrandFont {
         }
     }
 
-    /// Whether the bundled interface face actually registered.
+    #if canImport(UIKit)
+    /// The UIKit text style whose Dynamic Type curve a Record size follows.
+    static func uiTextStyle(for style: Font.TextStyle) -> UIFont.TextStyle {
+        switch style {
+        case .largeTitle: return .largeTitle
+        case .title: return .title1
+        case .title2: return .title2
+        case .title3: return .title3
+        case .headline: return .headline
+        case .body: return .body
+        case .callout: return .callout
+        case .subheadline: return .subheadline
+        case .footnote: return .footnote
+        case .caption: return .caption1
+        case .caption2: return .caption2
+        @unknown default: return .body
+        }
+    }
+
+    /// `UIFont.Weight` for a SwiftUI weight — there is no bridging, and a wrong default would
+    /// silently flatten emphasis.
+    static func uiWeight(_ weight: Font.Weight) -> UIFont.Weight {
+        switch weight {
+        case .ultraLight: return .ultraLight
+        case .thin: return .thin
+        case .light: return .light
+        case .regular: return .regular
+        case .medium: return .medium
+        case .semibold: return .semibold
+        case .bold: return .bold
+        case .heavy: return .heavy
+        case .black: return .black
+        default: return .regular
+        }
+    }
+    #endif
+
+    /// Whether the bundled interface face actually registered — for `BundleResourceTests`; no
+    /// view depends on it.
     static var isAvailable: Bool {
         #if canImport(UIKit)
         return UIFont(name: Name.regular, size: 17) != nil
@@ -86,7 +123,7 @@ enum BrandFont {
         #endif
     }
 
-    /// Whether the serif registered.
+    /// Whether the bundled serif registered — for `BundleResourceTests`.
     static var isDisplayAvailable: Bool {
         #if canImport(UIKit)
         return UIFont(name: Name.display, size: 17) != nil
@@ -97,28 +134,51 @@ enum BrandFont {
 }
 
 extension Font {
-    /// The interface face at an iOS text style, scaling with Dynamic Type.
+    /// The interface face — SF Pro — at an iOS text style, scaling with Dynamic Type.
     ///
-    /// `.brand(.headline)` rather than `.headline` is the whole change at a call site. Omitting
-    /// the weight gives whatever iOS gives that style, so a sweep cannot change emphasis by
-    /// accident.
+    /// `.brand(.headline)` rather than `.headline` is the whole change at a call site, now that
+    /// the face is the system's. Omitting the weight gives whatever iOS gives that style, so a
+    /// sweep cannot change emphasis by accident.
     static func brand(_ style: Font.TextStyle, weight: Font.Weight? = nil) -> Font {
-        .custom(
-            BrandFont.name(for: weight ?? BrandFont.defaultWeight(for: style)),
-            size: BrandFont.size(for: style),
-            relativeTo: style)
+        guard let weight else { return .system(style) }
+        return .system(style, design: .default, weight: weight)
     }
 
     /// The interface face at an exact Record size, scaling with Dynamic Type relative to `style`.
+    ///
+    /// The system font at a fixed size would not move with the reader's setting, so the size is
+    /// scaled through `UIFontMetrics` against the style — the behaviour `Font.custom(_:size:
+    /// relativeTo:)` gave the bundled face.
     static func brand(size: CGFloat, weight: Font.Weight = .regular, relativeTo style: Font.TextStyle) -> Font {
-        .custom(BrandFont.name(for: weight), size: size, relativeTo: style)
+        #if canImport(UIKit)
+        let base = UIFont.systemFont(ofSize: size, weight: BrandFont.uiWeight(weight))
+        return Font(
+            UIFontMetrics(forTextStyle: BrandFont.uiTextStyle(for: style)).scaledFont(for: base))
+        #else
+        return .system(size: size, weight: weight)
+        #endif
     }
 
-    /// Instrument Serif at a Record size, scaling with Dynamic Type relative to `style`.
+    /// SF Pro Display at a Record size — the numbers and large titles — scaling with Dynamic
+    /// Type relative to `style`.
     static func display(size: CGFloat, italic: Bool = false, relativeTo style: Font.TextStyle) -> Font {
-        .custom(
-            italic ? BrandFont.Name.displayItalic : BrandFont.Name.display,
-            size: size, relativeTo: style)
+        #if canImport(UIKit)
+        var base = UIFont.systemFont(ofSize: size, weight: .regular)
+        if italic, let italicFont = base.withTraits(.traitItalic) { base = italicFont }
+        return Font(
+            UIFontMetrics(forTextStyle: BrandFont.uiTextStyle(for: style)).scaledFont(for: base))
+        #else
+        return .system(size: size, design: italic ? .serif : .default)
+        #endif
+    }
+
+    /// **New York** — the system serif — at an iOS text style, scaling with Dynamic Type.
+    ///
+    /// The voice for prose the app produces: an assistant's answer, a drafted document. Not for
+    /// labels, chrome or the reader's own words.
+    static func serif(_ style: Font.TextStyle, weight: Font.Weight? = nil) -> Font {
+        guard let weight else { return .system(style, design: .serif) }
+        return .system(style, design: .serif, weight: weight)
     }
 
     /// A step of the Record type scale (`RecordTokens.Typography`), in its own face and weight.
@@ -176,3 +236,14 @@ extension View {
             .textCase(style.uppercase ? .uppercase : nil)
     }
 }
+
+#if canImport(UIKit)
+private extension UIFont {
+    /// The font with a trait applied, or nil when the trait cannot be set — the italic flag
+    /// for `display`.
+    func withTraits(_ traits: UIFontDescriptor.SymbolicTraits) -> UIFont? {
+        guard let descriptor = fontDescriptor.withSymbolicTraits(traits) else { return nil }
+        return UIFont(descriptor: descriptor, size: pointSize)
+    }
+}
+#endif

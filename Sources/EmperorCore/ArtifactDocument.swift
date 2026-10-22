@@ -48,7 +48,11 @@ enum ArtifactDocument {
           :root { color-scheme: light dark; }
           * { box-sizing: border-box; }
           body {
-            font-family: -apple-system, "Times New Roman", serif;
+            /* New York, the system serif — a drafted document is prose the app is writing, and
+               `ui-serif` is what names it in WebKit; the rest of the chain keeps a serif on any
+               system where that keyword is unknown. SF (-apple-system) is what this said before,
+               which put every filed-looking pleading in the interface face. */
+            font-family: ui-serif, "New York", "Times New Roman", serif;
             font-size: \(size)px;
             line-height: 1.6;
             /* Centred, so the cap above reads as a page rather than as text held to one edge. */
